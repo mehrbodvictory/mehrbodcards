@@ -1,4 +1,4 @@
-# Fusion Forge — Card Battler
+# Mehrbod Cards — Card Battler
 
 A browser card battler with vs-bot (4 difficulties) and peer-to-peer multiplayer.
 Pure static site — no backend, no build step.
