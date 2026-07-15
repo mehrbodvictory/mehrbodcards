@@ -8,11 +8,11 @@
   --text: #f0f4f8;
   --muted: #94a0b8;
   
-  /* Tiers */
+  /* Tiers & Difficulty Colors */
   --tier1: #4da6ff; /* Blue */
-  --tier2: #5cbf6f; /* Green */
-  --tier3: #e65c53; /* Red */
-  --tier4: #f2a641; /* Orange */
+  --tier2: #5cbf6f; /* Green (Easy) */
+  --tier3: #e65c53; /* Red (Hard) */
+  --tier4: #f2a641; /* Orange (Normal) */
   
   --accent: var(--tier4);
   --accent-glow: rgba(242, 166, 65, 0.3);
@@ -47,16 +47,13 @@ html, body {
   flex-direction: column;
 }
 
-/* ---------- 1. Bug Fixes: Drag, Merge, Attack & Selection Lock ---------- */
-.card, .slot, .sc-card {
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-}
+/* ---------- 1. CRITICAL SCREEN LOGIC (The missing fix) ---------- */
+.screen { display: block; animation: fadeIn 0.4s var(--smooth); }
+.screen.hidden { display: none !important; }
 
-/* IMPORTANT: This stops inner text/stats from blocking HTML5 dragover & drop events */
-.card *, .sc-card * {
-  pointer-events: none;
+@keyframes fadeIn { 
+  from { opacity: 0; transform: translateY(10px); } 
+  to { opacity: 1; transform: translateY(0); } 
 }
 
 /* Hide back button ONLY when in the main menu */
@@ -64,7 +61,18 @@ html, body {
   display: none !important;
 }
 
-/* ---------- 2. Glowing Rainbow & Breathing Motto ---------- */
+/* ---------- 2. Drag, Merge, Attack & Selection Lock ---------- */
+.card, .slot, .sc-card {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+}
+
+.card *, .sc-card * {
+  pointer-events: none;
+}
+
+/* ---------- 3. Glowing Rainbow & Breathing Motto ---------- */
 .hero { padding: 40px 8px 20px; text-align: center; }
 .hero h1 {
   font-family: var(--font-display); 
@@ -76,7 +84,8 @@ html, body {
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 
-.motto {
+/* Targets the motto text exactly */
+.hero p, .motto {
   display: inline-block;
   font-family: var(--font-display);
   font-size: 1.15rem;
@@ -103,7 +112,7 @@ html, body {
   50% { transform: scale(1.05); filter: drop-shadow(0 0 12px rgba(255,255,255,0.35)); }
 }
 
-/* ---------- 3. Centered & Stylized Difficulty Menu ---------- */
+/* ---------- 4. Centered & Stylized Difficulty Menu ---------- */
 .diff-grid { 
   display: flex;
   flex-direction: column;
@@ -121,14 +130,11 @@ html, body {
   border: 1px solid var(--panel-border); border-radius: 16px;
   padding: 20px; text-align: center; color: var(--text); cursor: pointer;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  transition: transform 0.3s var(--bounce), border-color 0.2s var(--smooth), box-shadow 0.2s var(--smooth);
-}
-
-.diff-card:hover {
-  border-color: var(--accent);
-  transform: translateY(-4px) scale(1.02);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3), 0 0 15px var(--accent-glow);
+  
+  /* Greyed out by default */
+  filter: grayscale(1) brightness(0.6);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  transition: transform 0.3s var(--bounce), border-color 0.2s var(--smooth), box-shadow 0.2s var(--smooth), filter 0.3s var(--smooth);
 }
 
 .diff-card b { 
@@ -155,7 +161,31 @@ html, body {
   margin-top: 10px;
 }
 
-/* ---------- 4. Beautiful Stylized Action Buttons ---------- */
+/* Hover Effect: Easy (Green) */
+.diff-card:nth-child(1):hover {
+  filter: grayscale(0) brightness(1);
+  border-color: var(--tier2);
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3), 0 0 20px rgba(92, 191, 111, 0.4);
+}
+
+/* Hover Effect: Normal (Orange) */
+.diff-card:nth-child(2):hover {
+  filter: grayscale(0) brightness(1);
+  border-color: var(--tier4);
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3), 0 0 20px rgba(242, 166, 65, 0.4);
+}
+
+/* Hover Effect: Hard (Red) */
+.diff-card:nth-child(3):hover {
+  filter: grayscale(0) brightness(1);
+  border-color: var(--tier3);
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3), 0 0 20px rgba(230, 92, 83, 0.4);
+}
+
+/* ---------- 5. Beautiful Stylized Action Buttons ---------- */
 #how-to-play-btn, #defend-btn, #log-btn {
   font-family: var(--font-display);
   font-weight: 700;
@@ -213,7 +243,7 @@ html, body {
 }
 #log-btn:active { transform: translateY(4px); box-shadow: 0 0px 0px #0e1117; }
 
-/* ---------- 5. Red-to-Green Ready Button ---------- */
+/* ---------- 6. Red-to-Green Ready Button ---------- */
 .ready-btn {
   background: var(--tier3); /* Starts Red */
   box-shadow: 0 5px 0px #8b2520;
@@ -239,7 +269,7 @@ html, body {
   100% { filter: hue-rotate(5deg) brightness(1.1); }
 }
 
-/* ---------- 6. High-Tech Animated Laser Shield (Defending) ---------- */
+/* ---------- 7. High-Tech Animated Laser Shield (Defending) ---------- */
 .card.defending {
   position: relative;
   overflow: hidden;
@@ -250,11 +280,10 @@ html, body {
   position: absolute;
   inset: -1px;
   border-radius: 10px;
-  /* Glowing border + central horizontal scanning line */
   background: linear-gradient(180deg, transparent 0%, rgba(77, 166, 255, 0.55) 50%, transparent 100%);
   background-size: 100% 200%;
   animation: laserScan 1.6s linear infinite;
-  pointer-events: none; /* Make clicks pass straight through */
+  pointer-events: none;
   box-shadow: inset 0 0 16px rgba(77, 166, 255, 0.8), 0 0 12px rgba(77, 166, 255, 0.5);
   border: 2px solid rgba(77, 166, 255, 0.9);
   z-index: 5;
@@ -265,8 +294,7 @@ html, body {
   100% { background-position: 0% 100%; }
 }
 
-/* ---------- 7. Localized Target Red Glow ---------- */
-/* Glows intense red ONLY when a valid card target is hovered during attack mode */
+/* ---------- 8. Localized Target Red Glow ---------- */
 .slot.targetable:hover .card {
   box-shadow: 0 0 25px #e65c53, inset 0 0 15px #e65c53 !important;
   border-color: #e65c53 !important;
@@ -343,13 +371,13 @@ html, body {
 
 .sc-card {
   border-radius: 10px; padding: 8px; color: #fff; font-size: 0.65rem; cursor: pointer;
-  background: linear-gradient(150deg, #4f3b78, #2a1f40); /* Spell Purple */
+  background: linear-gradient(150deg, #4f3b78, #2a1f40);
   border: 1px solid rgba(255,255,255,0.15);
   display: flex; flex-direction: column; justify-content: space-between;
   box-shadow: 0 4px 10px rgba(0,0,0,0.3);
   transition: transform 0.2s var(--bounce), box-shadow 0.2s ease;
 }
-.sc-card.chip { background: linear-gradient(150deg, #305452, #162e2d); /* Chip Teal */ }
+.sc-card.chip { background: linear-gradient(150deg, #305452, #162e2d); }
 .sc-card:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.5); }
 .sc-card:active { transform: scale(0.95); }
 
