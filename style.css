@@ -1,52 +1,197 @@
 :root {
-  --bg: #12151a; --bg2: #1a1e26; --panel: #1f242e; --line: #2c323d; --text: #e9edf3;
-  --muted: #8891a0; --tier1: #3E7CB1; --tier2: #4C9A5B; --tier3: #C1443C; --tier4: #E08A2C;
-  --accent: #E08A2C; --font-display: 'Chakra Petch', sans-serif; --font-body: 'Inter', sans-serif;
+  --bg: #12151a;
+  --bg2: #1a1e26;
+  --panel: #1f242e;
+  --line: #2c323d;
+  --text: #e9edf3;
+  --muted: #8891a0;
+  --tier1: #3E7CB1;
+  --tier2: #4C9A5B;
+  --tier3: #C1443C;
+  --tier4: #E08A2C;
+  --accent: #E08A2C;
+  --font-display: 'Chakra Petch', sans-serif;
+  --font-body: 'Inter', sans-serif;
 }
+
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); overscroll-behavior: none; }
-#app { max-width: 900px; margin: 0 auto; padding: 12px; min-height: 100vh; position: relative; }
-.hidden { display: none !important; }
 
-/* Header & Menu */
-#top-bar { display: flex; justify-content: space-between; padding: 10px 0; }
-.brand { font-family: var(--font-display); font-weight: 700; font-size: 1.2rem; }
+html, body {
+  margin: 0; padding: 0;
+  background: radial-gradient(ellipse at top, #1a1f27 0%, #0f1116 70%);
+  color: var(--text);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+#app { max-width: 900px; margin: 0 auto; padding: 0 12px 24px; min-height: 100vh; position: relative; }
+
+/* ---------- Header ---------- */
+#top-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 4px 10px;
+}
+.brand {
+  font-family: var(--font-display); font-weight: 700; font-size: 1.15rem;
+  letter-spacing: 0.02em;
+}
 .brand-mark { color: var(--accent); }
-.hero h1 { font-family: var(--font-display); font-size: 2rem; }
-.menu-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 20px 0; }
-.menu-card, .diff-card { background: var(--panel); border: 1px solid var(--line); color: var(--text); padding: 20px; border-radius: 12px; cursor: pointer; text-align: left; }
+#top-bar-info { font-size: 0.8rem; color: var(--muted); }
 
-/* Buttons & Ready Indicator */
-.primary-btn { background: var(--accent); color: #000; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: var(--font-display); }
-.primary-btn.small { padding: 6px 12px; font-size: 0.8rem; }
+/* ---------- Screens ---------- */
+.screen { display: block; }
+.screen.hidden { display: none !important; }
 
+/* ---------- Menu & Hero ---------- */
+.hero { padding: 30px 4px 10px; }
+.hero h1 {
+  font-family: var(--font-display); font-size: clamp(1.6rem, 5vw, 2.4rem);
+  line-height: 1.15; margin: 0 0 14px;
+  background: linear-gradient(120deg, var(--tier1), var(--tier2) 30%, var(--tier3) 60%, var(--tier4));
+  background-size: 300% 300%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: heroGradientShift 7s ease-in-out infinite;
+}
+@keyframes heroGradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.sub { color: var(--muted); font-size: 0.95rem; max-width: 60ch; line-height: 1.5; }
+
+.menu-grid { display: grid; gap: 12px; margin: 22px 0; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+
+.menu-card, .diff-card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  padding: 18px; text-align: left; color: var(--text); cursor: pointer;
+  display: flex; flex-direction: column; gap: 6px;
+  transition: transform .15s ease, border-color .15s ease;
+}
+.menu-card:hover, .diff-card:hover { border-color: var(--accent); }
+.menu-card-title { font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; }
+.menu-card-sub { color: var(--muted); font-size: 0.82rem; }
+
+.link-btn {
+  background: none; border: none; color: var(--muted); font-family: var(--font-body);
+  font-size: 0.88rem; text-decoration: underline; cursor: pointer; padding: 10px 2px;
+}
+
+/* ---------- Primary Buttons & Ready State ---------- */
+.primary-btn {
+  background: var(--accent); color: #14171c; border: none; border-radius: 10px;
+  font-family: var(--font-display); font-weight: 600; font-size: 0.95rem;
+  padding: 12px 20px; cursor: pointer; transition: all .2s ease;
+}
+
+/* THE READY INDICATOR: Blue Glow for Opponent */
 .primary-btn.opponent-ready {
   background: var(--tier1) !important;
-  box-shadow: 0 0 15px var(--tier1);
-  animation: pulseReady 1.5s infinite;
+  box-shadow: 0 0 20px rgba(62, 124, 177, 0.8);
+  animation: readyPulse 1.5s infinite ease-in-out;
+  color: white;
 }
-@keyframes pulseReady {
-  0%, 100% { transform: scale(1); filter: brightness(1); }
+@keyframes readyPulse {
+  0%, 100% { transform: scale(1); }
   50% { transform: scale(1.05); filter: brightness(1.2); }
 }
-.primary-btn.waiting { background: var(--line) !important; color: var(--muted); pointer-events: none; }
-.action-disabled { opacity: 0.4; pointer-events: none; }
 
-/* Game Board */
-.board { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; margin: 10px 0; }
-.slot { background: var(--bg2); border: 1px dashed var(--line); min-height: 90px; border-radius: 8px; position: relative; }
-.slot.targetable { border: 2px solid #ff5c5c; }
-.slot.selectable { border: 2px solid var(--accent); }
+.primary-btn.waiting {
+  background: var(--line) !important;
+  color: var(--muted);
+  cursor: default;
+  pointer-events: none;
+}
 
-.card { width: 100%; height: 100%; border-radius: 6px; padding: 4px; display: flex; flex-direction: column; justify-content: space-between; font-size: 0.7rem; color: #fff; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; }
-.card.tier1 { background: var(--tier1); } .card.tier2 { background: var(--tier2); } .card.tier3 { background: var(--tier3); } .card.tier4 { background: var(--tier4); }
-.card.selected { outline: 3px solid #fff; }
+.primary-btn.small { padding: 8px 14px; font-size: 0.85rem; }
+
+/* ---------- Game Board & Cards ---------- */
+.board {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;
+  padding: 8px 2px; min-height: 100px;
+}
+
+.slot {
+  background: var(--bg2); border: 1px dashed var(--line); border-radius: 10px;
+  min-height: 96px; display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+.slot.selectable { border-color: var(--accent); }
+.slot.targetable { border-color: #ff5c5c; box-shadow: 0 0 8px rgba(255,92,92,0.4); }
+
+.card {
+  width: 100%; height: 100%; border-radius: 9px; padding: 6px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  color: #fff; font-size: 0.65rem; cursor: pointer; position: relative;
+  border: 1px solid rgba(255,255,255,0.15);
+  transition: transform .1s ease;
+}
+.card.selected { outline: 3px solid #fff; z-index: 10; }
 .card.defending { outline: 3px solid #7cf0ff; }
-.force-glow { animation: blueGlow 1s infinite; }
-@keyframes blueGlow { 50% { box-shadow: 0 0 15px #fff; } }
 
-/* Utils */
-.version-tag { position: fixed; bottom: 5px; right: 10px; font-size: 0.7rem; color: var(--muted); opacity: 0.5; }
-#toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #333; padding: 10px 20px; border-radius: 20px; opacity: 0; transition: 0.3s; pointer-events: none; }
+.card.tier1 { background: linear-gradient(160deg, var(--tier1), #2c5c85); }
+.card.tier2 { background: linear-gradient(160deg, var(--tier2), #386f43); }
+.card.tier3 { background: linear-gradient(160deg, var(--tier3), #8f302a); }
+.card.tier4 { background: linear-gradient(160deg, var(--tier4), #a8631a); }
+
+/* Forced Merge Glow */
+.card.tier1.force-glow {
+  animation: blueGlow 1s infinite alternate;
+  border-color: #fff;
+}
+@keyframes blueGlow {
+  from { box-shadow: 0 0 5px #fff; }
+  to { box-shadow: 0 0 20px #fff; }
+}
+
+.card-name { font-weight: 700; font-family: var(--font-display); margin-bottom: 2px; }
+.card-stats { display: flex; justify-content: space-between; font-weight: 700; margin-top: auto; }
+
+/* ---------- Hand & Deck ---------- */
+#hand-row, #spells-chips-row {
+  display: flex; gap: 8px; overflow-x: auto; padding: 10px 0;
+}
+#hand-row .card { flex: 0 0 80px; height: 110px; }
+
+#deck-section { margin-top: 15px; border-top: 1px solid var(--line); }
+#deck-row { display: flex; gap: 6px; overflow-x: auto; padding: 10px 0; opacity: 0.6; }
+#deck-row .card { flex: 0 0 60px; height: 80px; pointer-events: none; }
+
+/* ---------- UI Extras ---------- */
+#forced-merge-banner {
+  background: rgba(193, 68, 60, 0.2);
+  border: 1px solid var(--tier3);
+  color: #ffbaba;
+  padding: 10px; border-radius: 8px;
+  text-align: center; margin: 10px 0;
+  font-weight: 700; font-family: var(--font-display);
+}
+
+.version-tag {
+  position: fixed; bottom: 8px; right: 12px;
+  font-size: 0.7rem; color: var(--muted);
+  font-family: var(--font-display); pointer-events: none;
+}
+
+#toast {
+  position: fixed; top: 15px; left: 50%; transform: translateX(-50%);
+  background: var(--panel); border: 1px solid var(--line);
+  padding: 8px 16px; border-radius: 20px; transition: opacity 0.3s;
+  opacity: 0; z-index: 100; pointer-events: none;
+}
 #toast.show { opacity: 1; }
-#log-panel { position: fixed; bottom: 50px; right: 10px; width: 250px; height: 200px; background: rgba(0,0,0,0.8); padding: 10px; font-size: 0.7rem; overflow-y: auto; }
+
+.action-disabled { opacity: 0.3; pointer-events: none; }
+
+#log-panel {
+  position: fixed; bottom: 40px; right: 10px; width: 260px; height: 180px;
+  background: rgba(15, 17, 22, 0.95); border: 1px solid var(--line);
+  padding: 10px; font-size: 0.75rem; overflow-y: auto; border-radius: 8px;
+}
+
+/* Mobile Tweak */
+@media (max-width: 600px) {
+  .board { grid-template-columns: repeat(3, 1fr); }
+  .slot { min-height: 80px; }
+}
