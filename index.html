@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Fusion Forge — Card Battler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <header id="top-bar">
+    <div class="brand"><span class="brand-mark">◆</span> Fusion Forge</div>
+    <div id="top-bar-info"></div>
+  </header>
+
+  <!-- ===== MENU ===== -->
+  <section id="screen-menu" class="screen">
+    <div class="hero">
+      <h1>Forge four elements.<br>Break every board.</h1>
+      <p class="sub">Blue merges into Green. Green into Red. Red into Orange. Draft twelve, fuse smart, and burn the other side to zero.</p>
+    </div>
+    <div class="menu-grid">
+      <button class="menu-card" id="btn-vs-bot">
+        <span class="menu-card-title">Vs Bot</span>
+        <span class="menu-card-sub">Practice against 4 difficulty tiers</span>
+      </button>
+      <button class="menu-card" id="btn-host">
+        <span class="menu-card-title">Host Match</span>
+        <span class="menu-card-sub">Create a room code for a friend</span>
+      </button>
+      <button class="menu-card" id="btn-join">
+        <span class="menu-card-title">Join Match</span>
+        <span class="menu-card-sub">Enter a friend's room code</span>
+      </button>
+    </div>
+    <button class="link-btn" id="btn-rules">How to play</button>
+  </section>
+
+  <!-- ===== BOT SETUP ===== -->
+  <section id="screen-bot-setup" class="screen hidden">
+    <h2>Choose difficulty</h2>
+    <div class="diff-grid">
+      <button class="diff-card" data-diff="Easy"><b>Easy</b><span>Random targets, rarely merges</span></button>
+      <button class="diff-card" data-diff="Medium"><b>Medium</b><span>Focuses low-HP targets, some merges</span></button>
+      <button class="diff-card" data-diff="Hard"><b>Hard</b><span>Hunts kills, merges to survive</span></button>
+      <button class="diff-card" data-diff="Expert"><b>Expert</b><span>Optimal targeting, heals, defends smartly</span></button>
+    </div>
+    <button class="link-btn back-btn">← Back</button>
+  </section>
+
+  <!-- ===== HOST LOBBY ===== -->
+  <section id="screen-host" class="screen hidden">
+    <h2>Waiting for opponent…</h2>
+    <p class="sub">Share this room code:</p>
+    <div id="room-code">------</div>
+    <p class="sub small" id="host-status">Opening connection…</p>
+    <button class="link-btn back-btn">← Cancel</button>
+  </section>
+
+  <!-- ===== JOIN LOBBY ===== -->
+  <section id="screen-join" class="screen hidden">
+    <h2>Join a match</h2>
+    <input id="join-code-input" maxlength="5" placeholder="ROOM CODE" autocapitalize="characters">
+    <button class="primary-btn" id="btn-join-confirm">Connect</button>
+    <p class="sub small" id="join-status"></p>
+    <button class="link-btn back-btn">← Cancel</button>
+  </section>
+
+  <!-- ===== RULES ===== -->
+  <section id="screen-rules" class="screen hidden">
+    <h2>How to play</h2>
+    <div class="rules-body">
+      <p><b>Draft.</b> Each player has 12 unit cards, 4 spells and 2 chips. Units come in four tiers by color: <span class="tag tier1">Blue</span> → <span class="tag tier2">Green</span> → <span class="tag tier3">Red</span> → <span class="tag tier4">Orange</span>. Stats scale with tier: HP, DMG and chip slots all increase. Your whole deck stays visible face-up the entire match — no hidden information about what's left to draw.</p>
+      <p><b>Merge.</b> During placement, drag one of your board cards and drop it onto another of your own cards to fuse them — their tier values add together (capped at Orange). Merging never happens mid-attack. If you ever have 4+ Blue cards on your board, your Blues start glowing and a banner locks out every other action — placing, casting, defending, attacking, readying up — until you drag a Blue card onto another to resolve it.</p>
+      <p><b>Blue cards are infinite — for a while.</b> Whenever one of your Blue cards is fused away or dies in combat, you get a fresh Blue back, as long as you still have at least one non-Blue card somewhere (deck, hand, or board). The moment you're reduced to nothing but Blues, that stops for good — merging or losing a Blue after that point no longer replaces it.</p>
+      <p><b>Defend.</b> Blue can defend unlimited times, Green twice, Red once, Orange never. A defending card blocks all damage aimed at itself and becomes invincible that round — but it cannot attack. It only defends itself, never another card. Once you have no non-Blue units left anywhere, your Blues also lose the ability to defend.</p>
+      <p><b>Attack.</b> Both players assign targets at the same time — no turns. Damage resolves simultaneously, then deaths are applied, then on-death abilities fire immediately. If a card was set to attack but died first (say, from a spell), its attack is queued and lands at the start of the next placement round instead.</p>
+      <p><b>Spells & chips</b> can be played at any time, in any phase, and hit their target immediately.</p>
+      <p><b>Win.</b> Wipe out the opponent's units, hand and deck. If both sides hit zero at once, whoever has more unused spells+chips wins.</p>
+    </div>
+    <button class="link-btn back-btn">← Back</button>
+  </section>
+
+  <!-- ===== GAME ===== -->
+  <section id="screen-game" class="screen hidden">
+    <div id="phase-bar">
+      <span id="phase-label">Placement</span>
+      <span id="round-label">Round 1</span>
+      <span id="ready-indicators">
+        <span id="you-ready-badge" class="ready-badge">You</span>
+        <span id="opp-ready-badge" class="ready-badge">Opponent</span>
+      </span>
+      <button id="btn-options" class="icon-btn" title="Options">⚙</button>
+      <button id="btn-ready" class="primary-btn small">Ready</button>
+    </div>
+
+    <div id="opponent-board" class="board"></div>
+
+    <div id="forced-merge-banner" class="hidden">
+      ⚠ Too many Blue cards! Drag one Blue card onto another to merge them — nothing else is possible until you do.
+    </div>
+
+    <div id="mode-bar">
+      <button class="mode-btn" data-mode="defend">Defend</button>
+      <span id="hint-text"></span>
+      <button class="link-btn" id="btn-log-toggle">Log</button>
+    </div>
+
+    <div id="player-board" class="board"></div>
+
+    <div id="hand-row"></div>
+    <div id="spells-chips-row"></div>
+
+    <div id="deck-section">
+      <div id="deck-label">Your deck <span id="deck-count"></span></div>
+      <div id="deck-row"></div>
+    </div>
+  </section>
+
+  <div id="log-panel" class="hidden"></div>
+  <div id="toast"></div>
+  <div id="gameover-overlay" class="hidden">
+    <div id="gameover-card">
+      <h2 id="gameover-title"></h2>
+      <button class="primary-btn" id="btn-rematch">Back to menu</button>
+    </div>
+  </div>
+
+  <div id="options-overlay" class="hidden">
+    <div id="options-card">
+      <button id="btn-options-close" class="modal-close" aria-label="Close options">✕</button>
+      <h2>Options</h2>
+      <p class="sub small">Leaving now forfeits the match.</p>
+      <button class="primary-btn danger" id="btn-quit-match">Quit Match</button>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script src="js/rng.js"></script>
+<script src="js/cards.js"></script>
+<script src="js/game.js"></script>
+<script src="js/bot.js"></script>
+<script src="js/network.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
