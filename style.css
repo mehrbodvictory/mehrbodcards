@@ -58,20 +58,31 @@ html, body {
 
 #menu-screen .back-btn { display: none !important; }
 
-/* ---------- 2. Interaction & Dragging Fixes ---------- */
+/* ---------- WARNING MESSAGES FIX ---------- */
+/* Hides the "Too many blue cards" text by default */
+#warning, #blue-warning, #merge-warning, .warning-msg, .warning {
+  display: none;
+  color: var(--tier4);
+  font-weight: 700;
+  margin: 10px 0;
+  font-size: 0.95rem;
+}
+#warning.visible, #blue-warning.visible, #merge-warning.visible, .warning-msg.visible, .warning.visible {
+  display: block;
+}
+
+/* ---------- 2. Interaction & Dragging ---------- */
 .card, .slot, .sc-card {
   user-select: none;
   -webkit-user-select: none;
   -moz-user-select: none;
-  touch-action: none; /* Prevents scrolling when trying to drag */
+  touch-action: none; 
 }
 
-/* Forces clicks to register on the .card, not the text inside it */
 .card *, .sc-card * {
   pointer-events: none;
 }
 
-/* MISSING JS STATES: Re-added to allow attacking and dragging visually */
 .card.selected, .sc-card.selected {
   box-shadow: 0 0 25px var(--accent), inset 0 0 15px var(--accent);
   border-color: var(--accent);
@@ -82,7 +93,7 @@ html, body {
 .card.dragging, .sc-card.dragging {
   opacity: 0.8;
   z-index: 1000 !important;
-  pointer-events: none; /* Crucial: lets JS detect the slot underneath during drop */
+  pointer-events: none; 
   transform: scale(1.05);
   cursor: grabbing !important;
   box-shadow: 0 15px 30px rgba(0,0,0,0.6);
@@ -94,15 +105,15 @@ html, body {
   box-shadow: inset 0 0 15px rgba(92, 191, 111, 0.3);
 }
 
-/* ---------- 3. Complete Deck List Restructure ---------- */
-/* Strips default HTML list styling and enforces a strict grid of card shapes */
+/* ---------- 3. DECK LIST FIX (No more stretched crap) ---------- */
+/* Forces the deck list to mirror the exact layout and dimensions of the hand */
 #deck-list, .deck-list, .deck-container, .deck-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-  gap: 12px;
-  padding: 16px 0;
-  margin: 0;
-  list-style: none; /* Kills bullet points */
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 12px !important;
+  padding: 16px 0 !important;
+  margin: 0 !important;
+  list-style: none !important;
   width: 100%;
 }
 
@@ -114,8 +125,9 @@ html, body {
 }
 
 #deck-list .card, .deck-list .card, .deck-container .card, .deck-grid .card {
-  height: 130px; /* Locks height to card ratio */
-  width: 100%;
+  flex: 0 0 80px !important;
+  width: 80px !important;
+  height: 110px !important; 
   position: relative;
 }
 
@@ -160,42 +172,28 @@ html, body {
 
 /* ---------- 5. Centered & Stylized Difficulty Menu ---------- */
 .diff-grid { 
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  margin: 32px auto;
-  max-width: 480px;
-  width: 100%;
+  display: flex; flex-direction: column; align-items: center; gap: 16px; margin: 32px auto; max-width: 480px; width: 100%;
 }
-
 .diff-card {
-  width: 100%;
-  background: var(--panel-bg);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--panel-border); border-radius: 16px;
-  padding: 20px; text-align: center; color: var(--text); cursor: pointer;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  filter: grayscale(1) brightness(0.6);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
-  transition: transform 0.3s var(--bounce), border-color 0.2s var(--smooth), box-shadow 0.2s var(--smooth), filter 0.3s var(--smooth);
+  width: 100%; background: var(--panel-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--panel-border); border-radius: 16px; padding: 20px; text-align: center; color: var(--text); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; filter: grayscale(1) brightness(0.6);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4); transition: transform 0.3s var(--bounce), border-color 0.2s var(--smooth), box-shadow 0.2s var(--smooth), filter 0.3s var(--smooth);
 }
-
 .diff-card b { font-family: var(--font-display); font-size: 1.15rem; color: #fff; }
 .diff-card span {
-  display: block; max-height: 0; opacity: 0; overflow: hidden;
-  font-size: 0.85rem; color: var(--muted); line-height: 1.4;
+  display: block; max-height: 0; opacity: 0; overflow: hidden; font-size: 0.85rem; color: var(--muted); line-height: 1.4;
   transition: max-height 0.35s ease, opacity 0.3s ease, margin 0.3s ease;
 }
-
 .diff-card:hover span { max-height: 80px; opacity: 1; margin-top: 10px; }
-
 .diff-card:nth-child(1):hover { filter: grayscale(0) brightness(1); border-color: var(--tier2); transform: translateY(-4px) scale(1.02); box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3), 0 0 20px rgba(92, 191, 111, 0.4); }
 .diff-card:nth-child(2):hover { filter: grayscale(0) brightness(1); border-color: var(--tier4); transform: translateY(-4px) scale(1.02); box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3), 0 0 20px rgba(242, 166, 65, 0.4); }
 .diff-card:nth-child(3):hover { filter: grayscale(0) brightness(1); border-color: var(--tier3); transform: translateY(-4px) scale(1.02); box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3), 0 0 20px rgba(230, 92, 83, 0.4); }
 
-/* ---------- 6. Beautiful Stylized Action Buttons ---------- */
-#how-to-play-btn, #defend-btn, #log-btn {
+/* ---------- 6. BUTTON FIX (Catches multiple HTML structures) ---------- */
+button#how-to-play, button#how-to-play-btn, button.how-to-play-btn,
+button#defend, button#defend-btn, button.defend-btn,
+button#log, button#log-btn, button.log-btn {
   font-family: var(--font-display); font-weight: 700; font-size: 0.85rem;
   text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 18px;
   border: none; border-radius: 8px; cursor: pointer;
@@ -203,27 +201,32 @@ html, body {
   transition: transform 0.2s var(--bounce), filter 0.15s ease, box-shadow 0.15s ease;
 }
 
-#how-to-play-btn { background: linear-gradient(135deg, #4da6ff, #1e3a5f); color: #fff; box-shadow: 0 4px 0px #1c3b61; }
-#how-to-play-btn:hover { transform: translateY(-2px); filter: brightness(1.1); box-shadow: 0 6px 0px #1c3b61, 0 8px 15px rgba(77, 166, 255, 0.3); }
-#how-to-play-btn:active { transform: translateY(4px); box-shadow: 0 0px 0px #1c3b61; }
+button#how-to-play, button#how-to-play-btn, button.how-to-play-btn { background: linear-gradient(135deg, #4da6ff, #1e3a5f); color: #fff; box-shadow: 0 4px 0px #1c3b61; }
+button#how-to-play:hover, button#how-to-play-btn:hover, button.how-to-play-btn:hover { transform: translateY(-2px); filter: brightness(1.1); box-shadow: 0 6px 0px #1c3b61, 0 8px 15px rgba(77, 166, 255, 0.3); }
+button#how-to-play:active, button#how-to-play-btn:active, button.how-to-play-btn:active { transform: translateY(4px); box-shadow: 0 0px 0px #1c3b61; }
 
-#defend-btn { background: linear-gradient(135deg, #5cbf6f, #1d4024); color: #fff; box-shadow: 0 4px 0px #16301b; }
-#defend-btn:hover { transform: translateY(-2px); filter: brightness(1.1); box-shadow: 0 6px 0px #16301b, 0 8px 15px rgba(92, 191, 111, 0.3); }
-#defend-btn:active { transform: translateY(4px); box-shadow: 0 0px 0px #16301b; }
-#defend-btn.active { border: 1px solid #fff; filter: brightness(1.2); box-shadow: 0 0px 0px #16301b, 0 0 15px rgba(92, 191, 111, 0.6); }
+button#defend, button#defend-btn, button.defend-btn { background: linear-gradient(135deg, #5cbf6f, #1d4024); color: #fff; box-shadow: 0 4px 0px #16301b; }
+button#defend:hover, button#defend-btn:hover, button.defend-btn:hover { transform: translateY(-2px); filter: brightness(1.1); box-shadow: 0 6px 0px #16301b, 0 8px 15px rgba(92, 191, 111, 0.3); }
+button#defend:active, button#defend-btn:active, button.defend-btn:active { transform: translateY(4px); box-shadow: 0 0px 0px #16301b; }
+button#defend.active, button#defend-btn.active, button.defend-btn.active { border: 1px solid #fff; filter: brightness(1.2); box-shadow: 0 0px 0px #16301b, 0 0 15px rgba(92, 191, 111, 0.6); }
 
-#log-btn { background: linear-gradient(135deg, #2c3545, #11151c); color: #fff; box-shadow: 0 4px 0px #0e1117; }
-#log-btn:hover { transform: translateY(-2px); filter: brightness(1.1); box-shadow: 0 6px 0px #0e1117, 0 8px 15px rgba(255, 255, 255, 0.15); }
-#log-btn:active { transform: translateY(4px); box-shadow: 0 0px 0px #0e1117; }
+button#log, button#log-btn, button.log-btn { background: linear-gradient(135deg, #2c3545, #11151c); color: #fff; box-shadow: 0 4px 0px #0e1117; }
+button#log:hover, button#log-btn:hover, button.log-btn:hover { transform: translateY(-2px); filter: brightness(1.1); box-shadow: 0 6px 0px #0e1117, 0 8px 15px rgba(255, 255, 255, 0.15); }
+button#log:active, button#log-btn:active, button.log-btn:active { transform: translateY(4px); box-shadow: 0 0px 0px #0e1117; }
 
 /* ---------- 7. Red-to-Green Ready Button ---------- */
-.ready-btn { background: var(--tier3); box-shadow: 0 5px 0px #8b2520; color: #fff; }
-.ready-btn:hover { transform: translateY(-2px); box-shadow: 0 7px 0px #8b2520, 0 8px 20px rgba(230, 92, 83, 0.4); }
-.ready-btn:active { box-shadow: 0 0px 0px #8b2520; transform: translateY(5px); }
+button#ready, button#ready-btn, button.ready-btn { 
+  font-family: var(--font-display); font-weight: 700; font-size: 0.85rem;
+  text-transform: uppercase; padding: 10px 18px; border: none; border-radius: 8px; cursor: pointer;
+  background: var(--tier3); box-shadow: 0 5px 0px #8b2520; color: #fff; 
+  transition: transform 0.2s var(--bounce), box-shadow 0.15s ease;
+}
+button#ready:hover, button#ready-btn:hover, button.ready-btn:hover { transform: translateY(-2px); box-shadow: 0 7px 0px #8b2520, 0 8px 20px rgba(230, 92, 83, 0.4); }
+button#ready:active, button#ready-btn:active, button.ready-btn:active { box-shadow: 0 0px 0px #8b2520; transform: translateY(5px); }
 
-.ready-btn.is-ready { background: var(--tier2); box-shadow: 0 5px 0px #24572f; color: #fff; animation: readyPulse 2s infinite alternate ease-in-out; }
-.ready-btn.is-ready:hover { box-shadow: 0 7px 0px #24572f, 0 8px 20px rgba(92, 191, 111, 0.4); }
-.ready-btn.is-ready:active { box-shadow: 0 0px 0px #24572f; transform: translateY(5px); }
+button#ready.is-ready, button#ready-btn.is-ready, button.ready-btn.is-ready { background: var(--tier2); box-shadow: 0 5px 0px #24572f; color: #fff; animation: readyPulse 2s infinite alternate ease-in-out; }
+button#ready.is-ready:hover, button#ready-btn.is-ready:hover, button.ready-btn.is-ready:hover { box-shadow: 0 7px 0px #24572f, 0 8px 20px rgba(92, 191, 111, 0.4); }
+button#ready.is-ready:active, button#ready-btn.is-ready:active, button.ready-btn.is-ready:active { box-shadow: 0 0px 0px #24572f; transform: translateY(5px); }
 
 @keyframes readyPulse { 0% { filter: hue-rotate(-5deg) brightness(1); } 100% { filter: hue-rotate(5deg) brightness(1.1); } }
 
@@ -233,27 +236,22 @@ html, body {
   content: ''; position: absolute; inset: -1px; border-radius: 10px;
   background: linear-gradient(180deg, transparent 0%, rgba(77, 166, 255, 0.55) 50%, transparent 100%);
   background-size: 100% 200%; animation: laserScan 1.6s linear infinite; pointer-events: none;
-  box-shadow: inset 0 0 16px rgba(77, 166, 255, 0.8), 0 0 12px rgba(77, 166, 255, 0.5);
-  border: 2px solid rgba(77, 166, 255, 0.9); z-index: 5;
+  box-shadow: inset 0 0 16px rgba(77, 166, 255, 0.8), 0 0 12px rgba(77, 166, 255, 0.5); border: 2px solid rgba(77, 166, 255, 0.9); z-index: 5;
 }
-
 @keyframes laserScan { 0% { background-position: 0% -100%; } 100% { background-position: 0% 100%; } }
 
 /* ---------- 9. Localized Target Red Glow ---------- */
 .slot.targetable:hover .card {
-  box-shadow: 0 0 25px #e65c53, inset 0 0 15px #e65c53 !important;
-  border-color: #e65c53 !important; transform: translateY(-4px) scale(1.05) !important;
+  box-shadow: 0 0 25px #e65c53, inset 0 0 15px #e65c53 !important; border-color: #e65c53 !important; transform: translateY(-4px) scale(1.05) !important;
 }
 
 /* ---------- Menu Layout & Grid ---------- */
 .menu-grid { display: grid; gap: 16px; margin: 32px 0; grid-template-columns: 1fr; }
 @media (min-width: 620px) { .menu-grid { grid-template-columns: repeat(3, 1fr); } }
-
 .menu-card {
   background: var(--panel-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--panel-border); border-radius: 16px; padding: 24px; text-align: left; color: var(--text); cursor: pointer;
-  display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  transition: transform 0.3s var(--bounce), border-color 0.2s var(--smooth);
+  display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); transition: transform 0.3s var(--bounce), border-color 0.2s var(--smooth);
 }
 .menu-card:hover { border-color: var(--accent); animation: oscillateGlow 2s infinite alternate ease-in-out; }
 .menu-card:active { transform: translateY(2px) scale(0.97); animation: none; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
@@ -276,17 +274,14 @@ html, body {
 
 .slot {
   background: rgba(0, 0, 0, 0.25); border: 1px dashed var(--line); border-radius: 12px;
-  min-height: 104px; display: flex; align-items: center; justify-content: center; position: relative;
-  transition: all 0.2s var(--smooth);
+  min-height: 104px; display: flex; align-items: center; justify-content: center; position: relative; transition: all 0.2s var(--smooth);
 }
 .slot.selectable { border-color: var(--accent); box-shadow: inset 0 0 15px var(--accent-glow); background: rgba(242, 166, 65, 0.05); }
 
 /* The default state of a card */
 .card {
-  width: 100%; height: 100%; border-radius: 10px; padding: 6px 6px 8px;
-  display: flex; flex-direction: column; justify-content: space-between;
-  color: #fff; font-size: 0.7rem; cursor: pointer; position: relative;
-  border: 1px solid rgba(255,255,255,0.2); box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 4px 10px rgba(0,0,0,0.4);
+  width: 100%; height: 100%; border-radius: 10px; padding: 6px 6px 8px; display: flex; flex-direction: column; justify-content: space-between;
+  color: #fff; font-size: 0.7rem; cursor: pointer; position: relative; border: 1px solid rgba(255,255,255,0.2); box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 4px 10px rgba(0,0,0,0.4);
   transition: transform 0.2s var(--bounce), box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .card:hover { transform: translateY(-2px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 6px 15px rgba(0,0,0,0.5); }
@@ -307,10 +302,8 @@ html, body {
 #hand-row .card, #spells-chips-row .sc-card { flex: 0 0 80px; height: 110px; }
 
 .sc-card {
-  border-radius: 10px; padding: 8px; color: #fff; font-size: 0.65rem; cursor: pointer;
-  background: linear-gradient(150deg, #4f3b78, #2a1f40); border: 1px solid rgba(255,255,255,0.15);
-  display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-  transition: transform 0.2s var(--bounce), box-shadow 0.2s ease, border-color 0.2s ease;
+  border-radius: 10px; padding: 8px; color: #fff; font-size: 0.65rem; cursor: pointer; background: linear-gradient(150deg, #4f3b78, #2a1f40); border: 1px solid rgba(255,255,255,0.15);
+  display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.2s var(--bounce), box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .sc-card.chip { background: linear-gradient(150deg, #305452, #162e2d); }
 .sc-card:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.5); }
