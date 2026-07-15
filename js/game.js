@@ -458,3 +458,17 @@ function applyAction(state, action) {
     default: return { ok: false, error: 'unknown action ' + action.type };
   }
 }
+// Global hotkey to Ready Up when 'R' is pressed
+document.addEventListener('keydown', (event) => {
+  // Prevent triggering if the user is currently typing in an input field (like room code join box)
+  if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+    return;
+  }
+
+  if (event.key.toLowerCase() === 'r') {
+    const readyBtn = document.getElementById('ready-btn');
+    if (readyBtn && readyBtn.style.display !== 'none' && !readyBtn.disabled) {
+      readyBtn.click();
+    }
+  }
+});
