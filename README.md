@@ -1,15 +1,73 @@
-# mehrbodcards
-A vibe coded card game.
+# Mehrbod Cards
 
-card game that is able to be hosted on GitHub pages.must be multiplayer and have a vs bot option. games rule is you have 12 cards per match. 4 are spells 2 are chips. cards can be merged, each card is either 1 (blue) 2 (green) 3 (red) or 4 (orange). for example a blue and green make a red card. HP and DMG scale as card gets stronger. Chip slots are on cards after blue. all blue cards have 1 hp 1 dmg 1 sp. some cards have abilities for example when placed deal 2 damage to a selected card.
-Summary
-Build a responsive browser card battler (playable on both desktop and mobile) hosted on GitHub Pages with peer-to-peer multiplayer and a vs-bot mode. Each match has 12-card drafting per player (spells and chips are separate and do not count in the 12-card limit). Cards are colored by value: blue (1), green (2), red (3), orange (4). Blue cards defend infinitely while they exist, with defense limits based on color: blue defends infinitely; green defends twice; red defends once. When defending, the defended card becomes invincible and cannot attack. Once a player has no non-blue cards left in their deck, their blue cards can no longer defend. Players place or merge during the placement round (merges happen only in placement, never during attack). When forced to merge due to max blue cards on board, a valid merge is always available (e.g., 3 blues can merge into 1 red even if no greens exist), and cascades should follow by repeatedly applying forced-merge requirements as needed until not forced. During the attack round, both players select attack targets simultaneously (no turn-taking); then attacks are executed and damage/abilities resolve according to the timing rules: card effects that trigger on death activate immediately when the card dies, and if a card was meant to attack its target but dies before attacking, it still attacks later only after the place round starts again (i.e., dead cards go to the death pile and then are handled in the next place-round cycle per the rules). Goal: wipe out all opponent cards. If both players have zero cards remaining and their boards/decks are empty, a fail-safe decides the winner by counting which player has more unused spells and chips remaining in their decks. Spells and chips can be used at any point (during placement or attack) and can target cards immediately when played. Provide vs-bot with 4 difficulty modes and P2P multiplayer with deterministic outcomes via a shared match seed for all random events/reshuffles/draws.
-Highlights
-Responsive gameplay UI that supports both touch (mobile) and mouse/keyboard (desktop) on GitHub Pages
-Peer-to-peer multiplayer with seeded RNG so draws/merges resolve identically on both peers (no desync)
-Clear, deterministic placement/merge rules: merges only during placement; forced merge handling always finds a legal merge; merge availability never stalls the game
-Attack resolution and death-trigger timing locked: simultaneous attacks, damage → deaths → immediate on-death abilities; wiped-then-fallback rule uses unused spells/chips when both sides hit zero
-Setup
-Dimension: 2D
-Platform: Desktop & Mobile
-Multiplayer: Multiplayer
+A browser card battler with vs-bot (4 difficulties) and peer-to-peer multiplayer.
+Pure static site — no backend, no build step.
+
+## Host it on GitHub Pages
+
+1. Create a new GitHub repo (or use an existing one).
+2. Copy all the files in this folder (`index.html`, `style.css`, `js/`) into the repo root.
+3. Commit and push.
+4. Repo Settings → Pages → Source: "Deploy from a branch" → branch `main`, folder `/ (root)`.
+5. Wait a minute, then visit `https://<your-username>.github.io/<repo-name>/`.
+
+That's it — everything runs client-side. Multiplayer uses [PeerJS](https://peerjs.com)
+(loaded from a CDN) for WebRTC signaling, so no server of your own is required.
+
+## How multiplayer works
+
+- The **host** generates a random match seed and a 5-character room code, and
+  waits for a peer-to-peer connection.
+- The **guest** connects using that code. On connect, the host sends the seed.
+- Both sides build the exact same deck/hand/shuffle locally from that seed
+  (see `js/rng.js`'s seeded PRNG).
+- From then on, only small **action** objects are sent over the wire (place,
+  merge, cast spell, attach chip, defend, attack, ready). The **host is
+  authoritative**: it applies every action (its own and the guest's) in the
+  order it receives them, then echoes the applied action back down to the
+  guest, who mirrors it. This guarantees both sides never desync, without
+  ever shipping the whole game state.
+- If your matches feel like they need a TURN server for stricter NATs, you
+  can swap in your own PeerJS server config in `js/network.js` — the public
+  PeerJS cloud broker is used by default, which works for most home/mobile
+  connections but is not guaranteed for very restrictive networks.
+
+## Rule notes / implementation choices
+
+The brief left a few mechanics open to interpretation; here's what was built:
+
+- **Merging**: two cards' tier values add together, capped at 4 (Orange).
+  E.g. Blue+Blue=Green, Blue+Green=Red, Green+Green=Blue+Red=Orange.
+- **Forced merge**: having 4+ Blue cards on your board at once forces an
+  immediate merge of two of them (cascading if still ≥4 afterward).
+- **Defense** is self-only: a card can block all damage aimed at itself
+  (becoming invincible that round, but forfeiting its own attack) up to its
+  tier's charge limit — Blue unlimited, Green ×2, Red ×1, Orange never. It
+  never defends on behalf of another card. Once a player has no non-Blue
+  units left anywhere (deck, hand, or board), their Blues can no longer
+  defend.
+- **Attack resolution**: both players assign targets simultaneously, then
+  damage applies all at once, then deaths and on-death abilities resolve
+  immediately. If a card was assigned to attack but got killed by a
+  spell/chip before the simultaneous resolution ran, its attack is queued
+  and fires at the very start of the next placement round instead (using
+  its snapshotted damage).
+- **Fail-safe**: if both boards/hands/decks hit zero on the same resolution,
+  whoever has more unused spells+chips wins; a further tie is a draw.
+- **Board size**: 6 slots per player. **Hand size**: 3 unit cards drawn at a
+  time from your 12-card deck. Spells (4) and chips (2) are separate from
+  the 12 and available in full from the start of the match.
+
+## Files
+
+```
+index.html          Screens & layout
+style.css            Theme (dark forge, tier-colored cards)
+js/rng.js            Seeded PRNG shared by both peers
+js/cards.js           Card/tier/ability/deck definitions
+js/game.js            Deterministic rules engine (pure functions over a state object)
+js/bot.js             4-difficulty bot AI
+js/network.js         PeerJS wrapper, host-authoritative sync
+js/ui.js               DOM rendering helpers
+js/main.js             App controller: screens, input handling, game loop
+```
