@@ -15,7 +15,7 @@
   --tier4: #f2a641; /* Orange */
   
   --accent: var(--tier4);
-  --accent-glow: rgba(242, 166, 65, 0.5);
+  --accent-glow: rgba(242, 166, 65, 0.3);
   
   /* Typography */
   --font-display: 'Chakra Petch', sans-serif;
@@ -47,25 +47,24 @@ html, body {
   flex-direction: column;
 }
 
-/* ---------- Header & Typography ---------- */
-#top-bar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 24px 8px 16px;
+/* ---------- 1. Bug Fixes: Drag, Merge, Attack & Selection Lock ---------- */
+.card, .slot, .sc-card {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
 }
-.brand {
-  font-family: var(--font-display); 
-  font-weight: 700; 
-  font-size: 1.25rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #fff;
+
+/* IMPORTANT: This stops inner text/stats from blocking HTML5 dragover & drop events */
+.card *, .sc-card * {
+  pointer-events: none;
 }
-.brand-mark { color: var(--accent); text-shadow: 0 0 10px var(--accent-glow); }
-#top-bar-info { font-size: 0.85rem; font-weight: 500; color: var(--muted); letter-spacing: 0.02em; }
 
-h2 { font-family: var(--font-display); font-size: 1.8rem; margin: 0 0 12px; color: #fff; }
+/* Hide back button ONLY when in the main menu */
+#menu-screen .back-btn {
+  display: none !important;
+}
 
-/* ---------- Rainbow Motto ---------- */
+/* ---------- 2. Glowing Rainbow & Breathing Motto ---------- */
 .hero { padding: 40px 8px 20px; text-align: center; }
 .hero h1 {
   font-family: var(--font-display); 
@@ -78,86 +77,150 @@ h2 { font-family: var(--font-display); font-size: 1.8rem; margin: 0 0 12px; colo
 }
 
 .motto {
+  display: inline-block;
   font-family: var(--font-display);
-  font-size: 1.2rem;
+  font-size: 1.15rem;
   font-weight: 700;
   margin: 0 auto 24px;
   background: linear-gradient(90deg, #ff4d4d, #f9cb28, #5cbf6f, #4da6ff, #9b51e0, #ff4d4d);
-  background-size: 200% 100%;
+  background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: rainbowFlow 4s linear infinite;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
+  animation: rainbowFlow 4s linear infinite, breathe 3s ease-in-out infinite;
 }
 
 @keyframes rainbowFlow {
-  0% { background-position: 100% 0; }
-  100% { background-position: 0 0; }
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
-/* ---------- Dynamic Oscillating Glows ---------- */
-@keyframes oscillateGlow {
-  0% { box-shadow: 0 8px 25px var(--accent-glow); filter: hue-rotate(-10deg); transform: translateY(-4px) scale(1.02); }
-  50% { box-shadow: 0 12px 35px var(--accent-glow); filter: hue-rotate(10deg); transform: translateY(-6px) scale(1.03); }
-  100% { box-shadow: 0 8px 25px var(--accent-glow); filter: hue-rotate(-10deg); transform: translateY(-4px) scale(1.02); }
+@keyframes breathe {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(255,255,255,0.1)); }
+  50% { transform: scale(1.05); filter: drop-shadow(0 0 12px rgba(255,255,255,0.35)); }
 }
 
-@keyframes textOscillateGlow {
-  0% { text-shadow: 0 0 10px var(--accent-glow); filter: hue-rotate(-15deg); }
-  50% { text-shadow: 0 0 20px var(--accent-glow); filter: hue-rotate(15deg); }
-  100% { text-shadow: 0 0 10px var(--accent-glow); filter: hue-rotate(-15deg); }
+/* ---------- 3. Centered & Stylized Difficulty Menu ---------- */
+.diff-grid { 
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin: 32px auto;
+  max-width: 480px;
+  width: 100%;
 }
 
-.glow-text-hover:hover { animation: textOscillateGlow 2s infinite alternate ease-in-out; }
-
-/* ---------- Menus ---------- */
-.screen { display: block; animation: fadeIn 0.4s var(--smooth); }
-.screen.hidden { display: none; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-.menu-grid { display: grid; gap: 16px; margin: 32px 0; grid-template-columns: 1fr; }
-@media (min-width: 620px) { .menu-grid { grid-template-columns: repeat(3, 1fr); } }
-
-.menu-card, .diff-card {
+.diff-card {
+  width: 100%;
   background: var(--panel-bg);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--panel-border); border-radius: 16px;
-  padding: 24px; text-align: left; color: var(--text); cursor: pointer;
-  display: flex; flex-direction: column; gap: 8px;
-  transition: transform 0.3s var(--bounce), border-color 0.2s var(--smooth);
+  padding: 20px; text-align: center; color: var(--text); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s var(--bounce), border-color 0.2s var(--smooth), box-shadow 0.2s var(--smooth);
 }
-.menu-card:hover, .diff-card:hover {
+
+.diff-card:hover {
   border-color: var(--accent);
-  animation: oscillateGlow 2s infinite alternate ease-in-out;
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3), 0 0 15px var(--accent-glow);
 }
-.menu-card:active, .diff-card:active { transform: translateY(2px) scale(0.97); animation: none; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
 
-.menu-card-title { font-family: var(--font-display); font-weight: 600; font-size: 1.15rem; color: #fff; }
-.menu-card-sub { color: var(--muted); font-size: 0.85rem; line-height: 1.4; }
+.diff-card b { 
+  font-family: var(--font-display); 
+  font-size: 1.15rem; 
+  color: #fff; 
+}
 
-/* ---------- Buttons & Ready Toggle ---------- */
-.primary-btn {
-  background: var(--accent); color: #000; border: none; border-radius: 12px;
-  font-family: var(--font-display); font-weight: 700; font-size: 1rem;
-  padding: 14px 28px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.05em;
-  box-shadow: 0 5px 0px #b56c1d; 
+/* Dynamic Hover Reveal for Descriptions */
+.diff-card span {
+  display: block;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.4;
+  transition: max-height 0.35s ease, opacity 0.3s ease, margin 0.3s ease;
+}
+
+.diff-card:hover span {
+  max-height: 80px;
+  opacity: 1;
+  margin-top: 10px;
+}
+
+/* ---------- 4. Beautiful Stylized Action Buttons ---------- */
+#how-to-play-btn, #defend-btn, #log-btn {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: transform 0.2s var(--bounce), filter 0.15s ease, box-shadow 0.15s ease;
 }
-.primary-btn:hover {
-  transform: translateY(-2px); filter: brightness(1.1);
-  box-shadow: 0 7px 0px #b56c1d, 0 8px 20px var(--accent-glow);
-}
-.primary-btn:active { transform: translateY(5px); filter: brightness(0.95); box-shadow: 0 0px 0px #b56c1d; }
 
-/* The Red-to-Green Ready Button */
+#how-to-play-btn {
+  background: linear-gradient(135deg, #4da6ff, #1e3a5f);
+  color: #fff;
+  box-shadow: 0 4px 0px #1c3b61;
+}
+#how-to-play-btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+  box-shadow: 0 6px 0px #1c3b61, 0 8px 15px rgba(77, 166, 255, 0.3);
+}
+#how-to-play-btn:active { transform: translateY(4px); box-shadow: 0 0px 0px #1c3b61; }
+
+#defend-btn {
+  background: linear-gradient(135deg, #5cbf6f, #1d4024);
+  color: #fff;
+  box-shadow: 0 4px 0px #16301b;
+}
+#defend-btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+  box-shadow: 0 6px 0px #16301b, 0 8px 15px rgba(92, 191, 111, 0.3);
+}
+#defend-btn:active { transform: translateY(4px); box-shadow: 0 0px 0px #16301b; }
+#defend-btn.active {
+  border: 1px solid #fff;
+  filter: brightness(1.2);
+  box-shadow: 0 0px 0px #16301b, 0 0 15px rgba(92, 191, 111, 0.6);
+}
+
+#log-btn {
+  background: linear-gradient(135deg, #2c3545, #11151c);
+  color: #fff;
+  box-shadow: 0 4px 0px #0e1117;
+}
+#log-btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+  box-shadow: 0 6px 0px #0e1117, 0 8px 15px rgba(255, 255, 255, 0.15);
+}
+#log-btn:active { transform: translateY(4px); box-shadow: 0 0px 0px #0e1117; }
+
+/* ---------- 5. Red-to-Green Ready Button ---------- */
 .ready-btn {
   background: var(--tier3); /* Starts Red */
   box-shadow: 0 5px 0px #8b2520;
   color: #fff;
 }
 .ready-btn:hover {
+  transform: translateY(-2px);
   box-shadow: 0 7px 0px #8b2520, 0 8px 20px rgba(230, 92, 83, 0.4);
 }
 .ready-btn:active { box-shadow: 0 0px 0px #8b2520; transform: translateY(5px); }
@@ -176,7 +239,73 @@ h2 { font-family: var(--font-display); font-size: 1.8rem; margin: 0 0 12px; colo
   100% { filter: hue-rotate(5deg) brightness(1.1); }
 }
 
-/* ---------- Game Board & Cards ---------- */
+/* ---------- 6. High-Tech Animated Laser Shield (Defending) ---------- */
+.card.defending {
+  position: relative;
+  overflow: hidden;
+}
+
+.card.defending::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 10px;
+  /* Glowing border + central horizontal scanning line */
+  background: linear-gradient(180deg, transparent 0%, rgba(77, 166, 255, 0.55) 50%, transparent 100%);
+  background-size: 100% 200%;
+  animation: laserScan 1.6s linear infinite;
+  pointer-events: none; /* Make clicks pass straight through */
+  box-shadow: inset 0 0 16px rgba(77, 166, 255, 0.8), 0 0 12px rgba(77, 166, 255, 0.5);
+  border: 2px solid rgba(77, 166, 255, 0.9);
+  z-index: 5;
+}
+
+@keyframes laserScan {
+  0% { background-position: 0% -100%; }
+  100% { background-position: 0% 100%; }
+}
+
+/* ---------- 7. Localized Target Red Glow ---------- */
+/* Glows intense red ONLY when a valid card target is hovered during attack mode */
+.slot.targetable:hover .card {
+  box-shadow: 0 0 25px #e65c53, inset 0 0 15px #e65c53 !important;
+  border-color: #e65c53 !important;
+  transform: translateY(-4px) scale(1.05) !important;
+}
+
+/* ---------- Menu Layout & Grid ---------- */
+.menu-grid { display: grid; gap: 16px; margin: 32px 0; grid-template-columns: 1fr; }
+@media (min-width: 620px) { .menu-grid { grid-template-columns: repeat(3, 1fr); } }
+
+.menu-card {
+  background: var(--panel-bg);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--panel-border); border-radius: 16px;
+  padding: 24px; text-align: left; color: var(--text); cursor: pointer;
+  display: flex; flex-direction: column; gap: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s var(--bounce), border-color 0.2s var(--smooth);
+}
+.menu-card:hover {
+  border-color: var(--accent);
+  animation: oscillateGlow 2s infinite alternate ease-in-out;
+}
+.menu-card:active { transform: translateY(2px) scale(0.97); animation: none; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+
+.menu-card-title { font-family: var(--font-display); font-weight: 600; font-size: 1.15rem; color: #fff; }
+.menu-card-sub { color: var(--muted); font-size: 0.85rem; line-height: 1.4; }
+
+@keyframes oscillateGlow {
+  0% { box-shadow: 0 8px 25px var(--accent-glow); filter: hue-rotate(-10deg); transform: translateY(-4px) scale(1.02); }
+  50% { box-shadow: 0 12px 35px var(--accent-glow); filter: hue-rotate(10deg); transform: translateY(-6px) scale(1.03); }
+  100% { box-shadow: 0 8px 25px var(--accent-glow); filter: hue-rotate(-10deg); transform: translateY(-4px) scale(1.02); }
+}
+
+/* ---------- General Gameplay UI ---------- */
+#phase-bar { display: flex; align-items: center; gap: 16px; padding: 12px 8px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+#phase-label { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.05em; color: #fff; }
+#round-label { color: var(--muted); font-size: 0.9rem; font-weight: 500; flex: 1; }
+
 .board { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; padding: 12px 4px; min-height: 120px; }
 .board.opponent { border-bottom: 2px solid rgba(255,255,255,0.05); margin-bottom: 8px; }
 
@@ -208,7 +337,7 @@ h2 { font-family: var(--font-display); font-size: 1.8rem; margin: 0 0 12px; colo
 .card-stats .hp { color: #ff9999; }
 .card-stats .dmg { color: #ffcc66; }
 
-/* ---------- Spells & Chips ---------- */
+/* ---------- Spells & Chips Row ---------- */
 #spells-chips-row, #hand-row { display: flex; gap: 12px; overflow-x: auto; padding: 12px 4px; }
 #hand-row .card, #spells-chips-row .sc-card { flex: 0 0 80px; height: 110px; }
 
@@ -224,50 +353,25 @@ h2 { font-family: var(--font-display); font-size: 1.8rem; margin: 0 0 12px; colo
 .sc-card:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.5); }
 .sc-card:active { transform: scale(0.95); }
 
-
-/* ========================================= */
-/*         VISUAL EFFECT ANIMATIONS          */
-/* ========================================= */
-
-/* 1. Attack Animation */
-.fx-attack {
-  animation: attackBump 0.4s var(--bounce) forwards;
-  z-index: 50;
-}
+/* Animations for FX.js trigger */
+.fx-attack { animation: attackBump 0.4s var(--bounce) forwards; z-index: 50; }
 @keyframes attackBump {
   0% { transform: translateY(0) scale(1); }
   50% { transform: translateY(-40px) scale(1.1); box-shadow: 0 10px 30px rgba(230, 92, 83, 0.6); }
   100% { transform: translateY(0) scale(1); }
 }
 
-/* 2. Exploding Death Animation */
-.fx-explode {
-  animation: explodeAnim 0.5s ease-out forwards;
-  pointer-events: none;
-}
+.fx-explode { animation: explodeAnim 0.5s ease-out forwards; pointer-events: none; }
 @keyframes explodeAnim {
-  0% { transform: scale(1); opacity: 1; filter: brightness(1) sepia(0); }
+  0% { transform: scale(1); opacity: 1; filter: brightness(1); }
   40% { transform: scale(1.3) rotate(5deg); opacity: 0.9; filter: brightness(2) sepia(1) hue-rotate(-50deg); }
   100% { transform: scale(0); opacity: 0; filter: brightness(0); }
 }
 
-/* 3. Spell - Lightning Strike */
-.fx-lightning-flash {
-  position: fixed; inset: 0; background: #fff;
-  z-index: 9999; pointer-events: none;
-  animation: flashAnim 0.4s ease-out forwards;
-}
-@keyframes flashAnim {
-  0% { opacity: 0.9; }
-  20% { opacity: 0; }
-  40% { opacity: 0.8; }
-  100% { opacity: 0; }
-}
+.fx-lightning-flash { position: fixed; inset: 0; background: #fff; z-index: 9999; pointer-events: none; animation: flashAnim 0.4s ease-out forwards; }
+@keyframes flashAnim { 0% { opacity: 0.9; } 20% { opacity: 0; } 40% { opacity: 0.8; } 100% { opacity: 0; } }
 
-/* 4. Chip Applied to Spell Glow */
-.fx-chip-apply {
-  animation: chipApplyAnim 0.6s var(--bounce);
-}
+.fx-chip-apply { animation: chipApplyAnim 0.6s var(--bounce); }
 @keyframes chipApplyAnim {
   0% { transform: scale(1); box-shadow: 0 0 0px #fff; }
   50% { transform: scale(1.15); box-shadow: 0 0 30px #5cbf6f, inset 0 0 20px #5cbf6f; border-color: #fff; }
