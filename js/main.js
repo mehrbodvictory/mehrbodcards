@@ -1,38 +1,53 @@
-let state = null, mode = null, localKey = null, remoteKey = null, botDifficulty = 'Medium', botRng = null, net = null;
-let selMode = null, selHandIdx = null, selAttackerSlot = null, selSpellId = null, selChipId = null;
-
-// SCREEN MANAGEMENT
+// Screen Switcher Logic
 function showScreen(id) {
+  console.log("Switching to screen:", id);
   document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
   const target = document.getElementById(id);
   if (target) target.classList.remove('hidden');
 }
 
-// INITIALIZATION
-window.onload = () => {
+// Global Vars
+let state = null, mode = null, localKey = null, remoteKey = null, botDifficulty = 'Medium', botRng = null, net = null;
+let selHandIdx = null, selAttackerSlot = null;
+
+// Initialize on Load
+window.addEventListener('load', () => {
   showScreen('screen-menu');
-};
 
-// NAVIGATION
-document.getElementById('btn-vs-bot').onclick = () => showScreen('screen-bot-setup');
-document.getElementById('btn-rules').onclick = () => showScreen('screen-rules');
-document.querySelectorAll('.back-btn').forEach(b => b.onclick = () => location.reload());
+  // Menu Buttons
+  document.getElementById('btn-vs-bot').onclick = () => showScreen('screen-bot-setup');
+  document.getElementById('btn-host').onclick = () => startHost();
+  document.getElementById('btn-join').onclick = () => showScreen('screen-join');
+  document.getElementById('btn-rules').onclick = () => showScreen('screen-rules');
+  document.querySelectorAll('.back-btn').forEach(b => b.onclick = () => location.reload());
 
-// BOT DIFFICULTY BUTTONS
-document.querySelectorAll('.diff-card').forEach(b => {
-  b.onclick = () => { 
-    botDifficulty = b.dataset.diff;
-    mode = 'bot'; localKey = 'you'; remoteKey = 'bot';
-    const seed = Math.floor(Math.random() * 999999);
-    state = createMatch(seed, 'you', 'bot');
-    botRng = new RngStream(seed + 123);
-    showScreen('screen-game');
-    render();
+  // Bot Difficulty selection
+  document.querySelectorAll('.diff-card').forEach(b => {
+    b.onclick = () => {
+      botDifficulty = b.dataset.diff;
+      startVsBot();
+    };
+  });
+
+  // Join Confirm
+  document.getElementById('btn-join-confirm').onclick = () => startJoin();
+  
+  // Game Ready Button
+  document.getElementById('btn-ready').onclick = () => {
+    dispatch({ type: state.phase === 'placement' ? 'readyPlacement' : 'readyAttack' });
   };
 });
 
-// HOSTING
-document.getElementById('btn-host').onclick = async () => {
+function startVsBot() {
+  mode = 'bot'; localKey = 'you'; remoteKey = 'bot';
+  const seed = Math.floor(Math.random() * 999999);
+  state = createMatch(seed, 'you', 'bot');
+  botRng = new RngStream(seed + 123);
+  showScreen('screen-game');
+  render();
+}
+
+async function startHost() {
   mode = 'mp'; localKey = 'host'; remoteKey = 'guest';
   showScreen('screen-host');
   const seed = Math.floor(Math.random() * 999999);
@@ -44,55 +59,77 @@ document.getElementById('btn-host').onclick = async () => {
   const code = await net.hostGame(seed);
   document.getElementById('room-code').textContent = code;
   state = createMatch(seed, 'host', 'guest');
-};
+}
 
-// JOINING
-document.getElementById('btn-join').onclick = () => showScreen('screen-join');
-document.getElementById('btn-join-confirm').onclick = async () => {
-  const codeInput = document.getElementById('join-code-input').value.toUpperCase().trim();
-  if (!codeInput) return;
+async function startJoin() {
+  const code = document.getElementById('join-code-input').value.toUpperCase().trim();
+  if(!code) return;
   mode = 'mp'; localKey = 'guest'; remoteKey = 'host';
   net = new NetSession({
-    onInit: (data) => { 
-        state = createMatch(data.seed, 'host', 'guest'); 
-        showScreen('screen-game'); 
-        render(); 
-    },
+    onInit: (data) => { state = createMatch(data.seed, 'host', 'guest'); showScreen('screen-game'); render(); },
     onApplied: (action) => { if (state) { applyAction(state, action); render(); } },
     onStatus: (s) => { document.getElementById('join-status').textContent = s; },
   });
-  await net.joinGame(codeInput);
-};
+  await net.joinGame(code);
+}
 
-// GAME LOGIC DISPATCHER
 function dispatch(action) {
   action.player = localKey;
-  if (mode === 'mp') {
-    net.submitAction(action);
-  } else {
-    const res = applyAction(state, action);
-    if (!res.ok) { showToast(res.error); return; }
-    if (state.phase === 'placement') runBotPlacement(state, 'bot', botDifficulty, botRng);
-    else if (state.phase === 'attack') runBotAttack(state, 'bot', botDifficulty, botRng);
+  if (mode === 'mp') net.submitAction(action);
+  else {
+    applyAction(state, action);
+    if (mode === 'bot') {
+        if (state.phase === 'placement') runBotPlacement(state, 'bot', botDifficulty, botRng);
+        if (state.phase === 'attack') runBotAttack(state, 'bot', botDifficulty, botRng);
+    }
     render();
   }
 }
 
-// INTERACTION HANDLER
-document.getElementById('screen-game').onclick = (e) => {
-  if (!state || state.phase === 'gameover') return;
+function render() {
+  if (!state) return;
+  
+  // Update Ready Button
+  const btnReady = document.getElementById('btn-ready');
+  const isPlacement = state.phase === 'placement';
+  const meReady = isPlacement ? state.players[localKey].readyPlacement : state.players[localKey].readyAttack;
+  const oppReady = isPlacement ? state.players[remoteKey].readyPlacement : state.players[remoteKey].readyAttack;
+  const forced = isForced(state, localKey);
 
+  btnReady.className = 'primary-btn small';
+  if (meReady) { btnReady.textContent = "Waiting..."; btnReady.classList.add('waiting'); }
+  else {
+    btnReady.textContent = "Ready";
+    if (oppReady) btnReady.classList.add('opponent-ready');
+    if (forced) btnReady.classList.add('action-disabled');
+  }
+
+  // Boards
+  renderBoard(document.getElementById('opponent-board'), state.players[remoteKey], remoteKey);
+  renderBoard(document.getElementById('player-board'), state.players[localKey], localKey, { 
+    forceGlowAll: forced,
+    selectedSlot: selAttackerSlot 
+  });
+  
+  renderHand(document.getElementById('hand-row'), state.players[localKey], selHandIdx);
+  renderDeck(document.getElementById('deck-row'), document.getElementById('deck-count'), state.players[localKey]);
+  
+  document.getElementById('forced-merge-banner').classList.toggle('hidden', !forced);
+  document.getElementById('phase-label').textContent = state.phase.toUpperCase();
+  document.getElementById('round-label').textContent = "Round " + state.round;
+}
+
+// Global Click handler for Game Screen
+document.getElementById('screen-game').onclick = (e) => {
   const handCard = e.target.closest('[data-role="hand-card"]');
   const slotEl = e.target.closest('.slot');
 
   if (handCard) {
-    const idx = parseInt(handCard.dataset.handIdx);
-    selHandIdx = (selHandIdx === idx) ? null : idx;
+    selHandIdx = parseInt(handCard.dataset.handIdx);
     render();
   } else if (slotEl) {
     const slot = parseInt(slotEl.dataset.slot);
     const owner = slotEl.dataset.owner;
-    
     if (selHandIdx !== null && owner === localKey && !state.players[localKey].board[slot]) {
       dispatch({ type: 'place', handIndex: selHandIdx, slot });
       selHandIdx = null;
@@ -106,53 +143,3 @@ document.getElementById('screen-game').onclick = (e) => {
     render();
   }
 };
-
-document.getElementById('btn-ready').onclick = () => {
-  dispatch({ type: state.phase === 'placement' ? 'readyPlacement' : 'readyAttack' });
-};
-
-document.getElementById('btn-rematch').onclick = () => location.reload();
-
-function render() {
-  if (!state) return;
-  const btnReady = document.getElementById('btn-ready');
-  const isPlacement = state.phase === 'placement';
-  const meReady = isPlacement ? state.players[localKey].readyPlacement : state.players[localKey].readyAttack;
-  const oppReady = isPlacement ? state.players[remoteKey].readyPlacement : state.players[remoteKey].readyAttack;
-  const forced = isForced(state, localKey);
-
-  // Status Labels
-  document.getElementById('phase-label').textContent = state.phase;
-  document.getElementById('round-label').textContent = "Round " + state.round;
-
-  // Ready Button Styling
-  btnReady.className = 'primary-btn small';
-  if (state.phase === 'gameover') { 
-    btnReady.textContent = 'Game Over'; 
-    btnReady.classList.add('waiting'); 
-  } else if (meReady) { 
-    btnReady.textContent = 'Waiting...'; 
-    btnReady.classList.add('waiting'); 
-  } else {
-    btnReady.textContent = 'Ready';
-    if (forced) btnReady.classList.add('action-disabled');
-    else if (oppReady) btnReady.classList.add('opponent-ready');
-  }
-
-  // Boards
-  renderBoard(document.getElementById('opponent-board'), state.players[remoteKey], remoteKey);
-  renderBoard(document.getElementById('player-board'), state.players[localKey], localKey, { 
-    forceGlowAll: forced,
-    selectedSlot: selAttackerSlot 
-  });
-  
-  // HUD
-  renderHand(document.getElementById('hand-row'), state.players[localKey], selHandIdx);
-  renderDeck(document.getElementById('deck-row'), document.getElementById('deck-count'), state.players[localKey]);
-  document.getElementById('forced-merge-banner').classList.toggle('hidden', !forced);
-  
-  if (state.phase === 'gameover') {
-    document.getElementById('gameover-title').textContent = state.winner === localKey ? 'Victory!' : 'Defeat';
-    document.getElementById('gameover-overlay').classList.remove('hidden');
-  }
-}
