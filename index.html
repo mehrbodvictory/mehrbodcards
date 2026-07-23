@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Mehrbod Cards</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="theme-flame-bg" aria-hidden="true">
+  <div class="flame-tongue f1"></div>
+  <div class="flame-tongue f2"></div>
+  <div class="flame-tongue f3"></div>
+  <div class="flame-tongue f4"></div>
+  <div class="flame-tongue f5"></div>
+  <div class="flame-tongue f6"></div>
+  <div class="flame-tongue f7"></div>
+  <div class="ember e1"></div>
+  <div class="ember e2"></div>
+  <div class="ember e3"></div>
+  <div class="ember e4"></div>
+  <div class="ember e5"></div>
+  <div class="ember e6"></div>
+  <div class="ember e7"></div>
+</div>
+<div id="theme-sovereign-bg" aria-hidden="true">
+  <div class="gold-mote m1"></div>
+  <div class="gold-mote m2"></div>
+  <div class="gold-mote m3"></div>
+  <div class="gold-mote m4"></div>
+  <div class="gold-mote m5"></div>
+  <div class="gold-mote m6"></div>
+</div>
+<div id="theme-pink-bg" aria-hidden="true">
+  <div class="pink-sparkle p1">✦</div>
+  <div class="pink-sparkle p2">✧</div>
+  <div class="pink-sparkle p3">✦</div>
+  <div class="pink-sparkle p4">✧</div>
+  <div class="pink-sparkle p5">✦</div>
+</div>
+<div id="theme-storm-bg" aria-hidden="true">
+  <div class="rain-streak r1"></div>
+  <div class="rain-streak r2"></div>
+  <div class="rain-streak r3"></div>
+  <div class="rain-streak r4"></div>
+  <div class="rain-streak r5"></div>
+  <div class="rain-streak r6"></div>
+  <div class="rain-streak r7"></div>
+  <div class="rain-streak r8"></div>
+</div>
+<div id="theme-aurora-bg" aria-hidden="true">
+  <div class="aurora-ribbon a1"></div>
+  <div class="aurora-ribbon a2"></div>
+  <div class="aurora-ribbon a3"></div>
+  <div class="aurora-star s1"></div>
+  <div class="aurora-star s2"></div>
+  <div class="aurora-star s3"></div>
+  <div class="aurora-star s4"></div>
+  <div class="aurora-star s5"></div>
+  <div class="aurora-star s6"></div>
+</div>
+<div id="app">
+
+  <header id="top-bar">
+    <div class="brand"><span class="brand-mark">◆</span> Mehrbod Cards</div>
+    <div id="top-bar-info"></div>
+  </header>
+
+  <!-- ===== MENU ===== -->
+  <section id="screen-menu" class="screen">
+    <div class="hero hero-centered">
+      <h1 class="game-title">MEHRBOD<br>CARDS</h1>
+      <p class="tagline">Forge four elements. Break every board.</p>
+      <p class="sub">Blue merges into Green. Green into Red. Red into Orange. Draft twelve, fuse smart, and burn the other side to zero.</p>
+    </div>
+    <div class="menu-grid">
+      <button class="menu-card" id="btn-vs-bot">
+        <span class="menu-card-title">Vs Bot</span>
+        <span class="menu-card-sub">Practice against 5 difficulty tiers</span>
+      </button>
+      <button class="menu-card" id="btn-host">
+        <span class="menu-card-title">Host Match</span>
+        <span class="menu-card-sub">Create a room code for a friend</span>
+      </button>
+      <button class="menu-card" id="btn-join">
+        <span class="menu-card-title">Join Match</span>
+        <span class="menu-card-sub">Enter a friend's room code</span>
+      </button>
+    </div>
+    <div class="menu-footer">
+      <button class="link-btn" id="btn-rules">How to play</button>
+      <span class="footer-dot">·</span>
+      <button class="link-btn" id="btn-open-quests-menu">🏆 Quests</button>
+      <span class="footer-dot">·</span>
+      <button class="link-btn" id="btn-open-settings-menu">⚙ Settings</button>
+      <span class="footer-dot">·</span>
+      <button class="link-btn" id="btn-version"></button><span id="version-badge" class="new-badge hidden">NEW</span>
+    </div>
+    <div id="record-display" class="sub small"></div>
+  </section>
+
+  <!-- ===== BOT SETUP ===== -->
+  <section id="screen-bot-setup" class="screen hidden">
+    <h2>Choose difficulty</h2>
+    <div class="diff-list">
+      <button class="diff-card diff-easy" data-diff="Easy">
+        <b>Easy <span id="easy-verdant-badge" class="reward-badge verdant-badge" title="Beat Easy to unlock the Verdant theme!">🌱</span></b>
+        <span>Random targets, rarely merges</span>
+      </button>
+      <button class="diff-card diff-medium" data-diff="Medium">
+        <b>Medium <span id="medium-pink-badge" class="reward-badge pink-badge" title="Beat Medium to unlock Pink Mode!">💗</span></b>
+        <span>Focuses low-HP targets, some merges</span>
+      </button>
+      <button class="diff-card diff-hard" data-diff="Hard">
+        <b>Hard <span id="hard-storm-badge" class="reward-badge storm-badge" title="Beat Hard to unlock the Storm theme!">⛈️</span></b>
+        <span>Hunts kills, merges to survive</span>
+      </button>
+      <button class="diff-card diff-expert" data-diff="Expert">
+        <b>Expert <span id="expert-aurora-badge" class="reward-badge aurora-badge" title="Beat Expert to unlock the Aurora theme!">🌌</span></b>
+        <span>Optimal targeting, heals, defends smartly</span>
+      </button>
+      <button class="diff-card diff-master" data-diff="Master">
+        <b>Master <span id="master-sovereign-badge" class="reward-badge sovereign-badge" title="Beat Master to unlock the Sovereign theme!">👑</span></b>
+        <span>Near-perfect play — aggressive merges, precise kills</span>
+      </button>
+    </div>
+    <p id="flame-hint" class="sub small">🔥 Beat every difficulty at least once to unlock a secret 6th theme.</p>
+    <button class="link-btn" id="btn-open-quests">🏆 View Quests</button>
+    <button class="link-btn back-btn">← Back</button>
+  </section>
+
+  <!-- ===== QUESTS ===== -->
+  <div id="quests-overlay" class="hidden">
+    <div id="quests-card">
+      <button id="btn-quests-close" class="modal-close" aria-label="Close quests">✕</button>
+      <h2>🏆 Quests</h2>
+      <p class="sub small">Win a practice match on each difficulty to unlock its theme. Beat every one for the ultimate reward.</p>
+      <div id="quests-list"></div>
+    </div>
+  </div>
+
+  <!-- ===== HOST LOBBY ===== -->
+  <section id="screen-host" class="screen hidden">
+    <h2>Waiting for opponent…</h2>
+    <p class="sub">Share this room code:</p>
+    <div id="room-code">------</div>
+    <button class="link-btn" id="btn-copy-code">Copy code</button>
+    <p class="sub small" id="host-status">Opening connection…</p>
+    <button class="link-btn back-btn">← Cancel</button>
+  </section>
+
+  <!-- ===== JOIN LOBBY ===== -->
+  <section id="screen-join" class="screen hidden">
+    <h2>Join a match</h2>
+    <input id="join-code-input" maxlength="5" placeholder="ROOM CODE" autocapitalize="characters">
+    <button class="primary-btn" id="btn-join-confirm">Connect</button>
+    <p class="sub small" id="join-status"></p>
+    <button class="link-btn back-btn">← Cancel</button>
+  </section>
+
+  <!-- ===== GAME ===== -->
+  <section id="screen-game" class="screen hidden">
+    <svg id="attack-lines-overlay"></svg>
+    <div id="phase-bar">
+      <span id="phase-label">Placement</span>
+      <span id="round-label">Round 1</span>
+      <span id="ready-indicators">
+        <span id="you-ready-badge" class="ready-badge">You</span>
+        <span id="opp-ready-badge" class="ready-badge">Opponent</span>
+      </span>
+      <button id="btn-options" class="icon-btn" title="Options">⚙</button>
+      <button id="btn-ready" class="primary-btn small" title="Ready up (R)">Ready</button>
+    </div>
+
+    <div id="enemy-count-label">🎴 Enemy has <span id="enemy-count">--</span> cards left</div>
+    <div id="opponent-board" class="board"></div>
+    <div id="bot-thinking-indicator" class="hidden">🤔 Bot is thinking…</div>
+
+    <div id="forced-merge-banner" class="hidden">
+      ⚠ Too many Blue cards! Drag one Blue card onto another to merge them — nothing else is possible until you do.
+    </div>
+
+    <div id="mode-bar">
+      <button class="mode-btn" data-mode="defend">Defend</button>
+      <span id="hint-text"></span>
+      <button class="link-btn" id="btn-log-toggle">Log</button>
+    </div>
+
+    <div id="player-board" class="board"></div>
+
+    <div id="hand-label">Hand <span id="hand-count"></span></div>
+    <div id="hand-row"></div>
+    <div id="spells-chips-row"></div>
+
+    <div id="deck-section">
+      <div id="deck-label">Your deck <span id="deck-count"></span></div>
+      <div id="deck-row"></div>
+    </div>
+  </section>
+
+  <!-- ===== LIVE GUIDED TUTORIAL ===== -->
+  <div id="tutorial-overlay" class="hidden">
+    <div id="tut-mask-top" class="tut-mask"></div>
+    <div id="tut-mask-bottom" class="tut-mask"></div>
+    <div id="tut-mask-left" class="tut-mask"></div>
+    <div id="tut-mask-right" class="tut-mask"></div>
+    <div id="tut-highlight-ring"></div>
+    <div id="tut-callout">
+      <div id="tut-callout-arrow"></div>
+      <div id="tut-callout-step"></div>
+      <div id="tut-callout-text"></div>
+      <div id="tut-callout-actions">
+        <button class="link-btn" id="tut-callout-skip">Skip walkthrough</button>
+        <button class="primary-btn small" id="tut-callout-next">Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="log-panel" class="hidden"></div>
+  <div id="toast"></div>
+  <div id="gameover-overlay" class="hidden">
+    <div id="gameover-card">
+      <h2 id="gameover-title"></h2>
+      <p id="gameover-duration" class="sub small"></p>
+      <div id="gameover-buttons">
+      <button class="primary-btn" id="btn-play-again">Play Again</button>
+      <button class="link-btn" id="btn-rematch">Back to menu</button>
+    </div>
+    </div>
+  </div>
+
+  <div id="options-overlay" class="hidden">
+    <div id="options-card">
+      <button id="btn-options-close" class="modal-close" aria-label="Close options">✕</button>
+      <h2>Options</h2>
+      <button class="mode-btn" id="btn-mute-toggle">🔊 Sound: On</button>
+      <button class="mode-btn" id="btn-motion-toggle">🎬 Reduced motion: Off</button>
+      <div id="theme-picker">
+        <div class="theme-picker-label">Theme</div>
+        <div id="theme-options">
+          <button class="theme-btn" id="theme-btn-dark" data-theme="dark" title="Dark">
+            <span class="theme-icon">🌙</span><span>Dark</span>
+          </button>
+          <button class="theme-btn" id="theme-btn-light" data-theme="light" title="Light">
+            <span class="theme-icon">☀️</span><span>Light</span>
+          </button>
+          <button class="theme-btn locked" id="theme-btn-verdant" data-theme="verdant" title="Beat Easy difficulty to unlock!">
+            <span class="theme-icon">🌱</span><span>Verdant</span>
+            <span class="theme-lock-icon">🔒</span>
+          </button>
+          <button class="theme-btn locked" id="theme-btn-pink" data-theme="pink" title="Beat Medium difficulty to unlock Pink Mode!">
+            <span class="theme-icon">💗</span><span>Pink</span>
+            <span class="theme-lock-icon">🔒</span>
+          </button>
+          <button class="theme-btn locked" id="theme-btn-storm" data-theme="storm" title="Beat Hard difficulty to unlock!">
+            <span class="theme-icon">⛈️</span><span>Storm</span>
+            <span class="theme-lock-icon">🔒</span>
+          </button>
+          <button class="theme-btn locked" id="theme-btn-aurora" data-theme="aurora" title="Beat Expert difficulty to unlock!">
+            <span class="theme-icon">🌌</span><span>Aurora</span>
+            <span class="theme-lock-icon">🔒</span>
+          </button>
+          <button class="theme-btn locked" id="theme-btn-sovereign" data-theme="sovereign" title="Beat Master difficulty to unlock!">
+            <span class="theme-icon">👑</span><span>Sovereign</span>
+            <span class="theme-lock-icon">🔒</span>
+          </button>
+          <button class="theme-btn locked" id="theme-btn-flame" data-theme="flame" title="Beat every difficulty at least once to unlock!">
+            <span class="theme-icon">🔥</span><span>Flame</span>
+            <span class="theme-lock-icon">🔒</span>
+          </button>
+        </div>
+      </div>
+      <div id="quit-match-section">
+        <p class="sub small">Leaving now forfeits the match.</p>
+        <button class="primary-btn danger" id="btn-quit-match">Quit Match</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="patchnotes-overlay" class="hidden">
+    <div id="patchnotes-card">
+      <button id="btn-patchnotes-close" class="modal-close" aria-label="Close patch notes">✕</button>
+      <h2>Patch Notes</h2>
+      <div id="patchnotes-list"></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script src="js/rng.js"></script>
+<script src="js/cards.js"></script>
+<script src="js/game.js"></script>
+<script src="js/bot.js"></script>
+<script src="js/network.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/sound.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
