@@ -4,11 +4,7 @@ A browser card battler with vs-bot practice (5 difficulty levels) and peer-to-pe
 
 ## Play it
 
-Open `index.html` directly in a browser, or host it on GitHub Pages:
-
-1. Push `index.html`, `style.css`, and `js/` to a GitHub repo.
-2. Repo Settings → Pages → Source: "Deploy from a branch" → `main` → `/ (root)`.
-3. Visit `https://<your-username>.github.io/<repo-name>/`.
+Open `index.html` directly in a browser, or visit https://mehrbodvictory.github.io/mehrbodcards/
 
 ## How to play
 
