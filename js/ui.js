@@ -14,7 +14,7 @@ function isFreshCard(bucket, id) {
   return fresh;
 }
 
-function cardEl(card, { owner, slot, selected, defending, attacking, forceGlow, popIn, attackAnim, deathAnim, hitAnim, selectableClass, extraClass } = {}) {
+function cardEl(card, { owner, slot, selected, defending, attacking, forceGlow, popIn, attackAnim, deathAnim, hitAnim, selectableClass, extraClass, mergePickNumber } = {}) {
   const el = document.createElement('div');
   el.className = `card tier${card.tier} ${extraClass || ''}`;
   if (selected) el.classList.add('selected');
@@ -25,6 +25,7 @@ function cardEl(card, { owner, slot, selected, defending, attacking, forceGlow, 
   if (attackAnim) el.classList.add('anim-attack');
   if (deathAnim) el.classList.add('anim-death');
   if (hitAnim) el.classList.add('anim-hit');
+  if (mergePickNumber) el.classList.add('merge-picked');
   // A card down to its last hit point pulses red so neither player has to
   // do mental math mid-combat to notice it's one hit from dying.
   if (card.hp === 1 && card.maxHp > 1) el.classList.add('low-hp');
@@ -40,7 +41,8 @@ function cardEl(card, { owner, slot, selected, defending, attacking, forceGlow, 
       <span class="hp">${Math.max(0, card.hp)}❤</span>
       <span class="dmg">${card.dmg}⚔</span>
       <span class="sp">${chips}/${card.sp}⛃</span>
-    </div>`;
+    </div>
+    ${mergePickNumber ? `<div class="merge-pick-badge">${mergePickNumber}</div>` : ''}`;
   return el;
 }
 
@@ -74,7 +76,7 @@ const ABILITY_SHORT = {
 };
 function abilityLabel(id) { return ABILITY_SHORT[id] || ''; }
 
-function renderBoard(container, playerState, ownerKey, { selectedSlot, targetableSlots, forceGlowAll } = {}) {
+function renderBoard(container, playerState, ownerKey, { selectedSlot, selectedSlots, targetableSlots, forceGlowAll } = {}) {
   container.innerHTML = '';
   const bucket = 'board:' + ownerKey;
   playerState.board.forEach((card, slot) => {
@@ -84,14 +86,16 @@ function renderBoard(container, playerState, ownerKey, { selectedSlot, targetabl
     slotEl.dataset.slot = slot;
     if (targetableSlots && targetableSlots.includes(slot)) slotEl.classList.add('targetable');
     if (card) {
+      const multiIdx = selectedSlots ? selectedSlots.indexOf(slot) : -1;
       const el = cardEl(card, {
         owner: ownerKey,
         slot,
-        selected: selectedSlot === slot,
+        selected: selectedSlot === slot || multiIdx !== -1,
         defending: !!(playerState.defendingSlots && playerState.defendingSlots[slot]),
         attacking: !!(playerState.attackAssignments && playerState.attackAssignments[slot]),
         forceGlow: !!forceGlowAll && card.tier === 1,
         popIn: isFreshCard(bucket, card.id),
+        mergePickNumber: multiIdx !== -1 ? multiIdx + 1 : 0,
       });
       slotEl.appendChild(el);
     } else if (selectedSlot === 'placing') {

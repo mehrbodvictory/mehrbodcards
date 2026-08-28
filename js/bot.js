@@ -43,9 +43,10 @@ function runBotPlacement(state, botKey, difficulty, rng) {
   // only merge further when the board is crowded (or occasionally on
   // Expert); Master is far more eager to fuse up even with room to spare,
   // since bigger cards beat more numerous small ones in the long run.
-  // v3.0: every candidate merge now also needs a blueprint actually
-  // present in the deck - see mergeCards in game.js - so both helpers
-  // below check deck contents before committing to a pairing.
+  // v4.0: both helpers below can now combine 2-4 cards in one merge (e.g.
+  // four Blues straight to Orange), not just pairs, and every candidate
+  // combo still needs a blueprint actually present in the deck - see
+  // mergeCards in game.js.
   if (!tryBlueprintMerge(state, botKey)) {
     if (level >= 2) {
       tryStrategicMerge(state, botKey, rng, level);
@@ -74,25 +75,25 @@ function bestEmptySlot(board) {
   return slots[0];
 }
 
-// Any non-Blue card in the deck ("blueprint") can never be placed - it
-// just waits for a merge that lands on its exact tier. If the board
-// already has a legal pair that would produce that tier, take it
-// immediately regardless of difficulty or board crowding: this is about
-// not wasting a resource the bot is already holding, not about merge
-// strategy. Returns true if it found and made such a merge, so the caller
-// can skip its normal difficulty-gated merge logic for this cycle.
+// v4.0: any non-Blue card in the deck ("blueprint") can never be placed -
+// it just waits for a merge that lands on its exact tier. This now checks
+// every 2-4 card combination on the board (not just pairs) for one that
+// would land on a blueprint tier the bot is already holding, preferring
+// the LARGEST combination available (consuming more low-tier cards at
+// once is usually a tempo win - it clears more board clutter per
+// blueprint spent). Returns true if it found and made such a merge, so
+// the caller can skip its normal difficulty-gated merge logic this cycle.
 function tryBlueprintMerge(state, botKey) {
   const p = state.players[botKey];
   const blueprintTiers = new Set(p.deck.filter(c => c.tier !== 1).map(c => c.tier));
   if (blueprintTiers.size === 0) return false;
-  const filled = filledSlots(p.board);
-  for (let i = 0; i < filled.length; i++) {
-    for (let j = i + 1; j < filled.length; j++) {
-      const ca = p.board[filled[i]], cb = p.board[filled[j]];
-      if (ca.tier === 4 || cb.tier === 4) continue;
-      const sum = ca.tier + cb.tier;
+  const filled = filledSlots(p.board).filter(i => p.board[i].tier !== 4);
+  for (let size = 4; size >= 2; size--) {
+    const combos = kCombinations(filled, size);
+    for (const combo of combos) {
+      const sum = combo.reduce((s, i) => s + p.board[i].tier, 0);
       if (sum > 4 || !blueprintTiers.has(sum)) continue;
-      mergeCards(state, botKey, filled[i], filled[j]);
+      mergeCards(state, botKey, combo);
       return true;
     }
   }
@@ -101,7 +102,7 @@ function tryBlueprintMerge(state, botKey) {
 
 function tryStrategicMerge(state, botKey, rng, level) {
   const p = state.players[botKey];
-  const filled = filledSlots(p.board);
+  const filled = filledSlots(p.board).filter(i => p.board[i].tier !== 4);
   if (filled.length < 2) return;
   const boardCrowded = emptySlots(p.board).length <= 1;
   // Master (level 4) fuses up aggressively even with room on the board;
@@ -110,15 +111,20 @@ function tryStrategicMerge(state, botKey, rng, level) {
     || (level === 4 && rng.next() < 0.7)
     || (level === 3 && rng.next() < 0.4);
   if (!shouldMerge) return;
-  // Find any legal pair (neither Orange, tier sum lands on a real tier
-  // AND a matching blueprint is actually available in the deck),
-  // preferring the lowest-tier pair available.
-  const sorted = filled.slice().sort((a, b) => p.board[a].tier - p.board[b].tier);
-  for (let i = 0; i < sorted.length; i++) {
-    for (let j = i + 1; j < sorted.length; j++) {
-      const ca = p.board[sorted[i]], cb = p.board[sorted[j]];
-      if (ca.tier !== 4 && cb.tier !== 4 && ca.tier + cb.tier <= 4 && p.deck.some(c => c.tier === ca.tier + cb.tier)) {
-        mergeCards(state, botKey, sorted[i], sorted[j]);
+  // Find any legal combo (2-4 cards, none Orange, tier sum lands on a real
+  // tier AND a matching blueprint is actually available in the deck),
+  // preferring the LARGEST combination available on Master/Expert (a
+  // single bigger fusion is usually a stronger tempo play than the same
+  // total board space spent on a smaller one), and the smallest (pair)
+  // combination on Hard, to keep its play simple and predictable.
+  const sizesToTry = level >= 3 ? [4, 3, 2] : [2, 3, 4];
+  for (const size of sizesToTry) {
+    if (filled.length < size) continue;
+    const combos = kCombinations(filled, size);
+    for (const combo of combos) {
+      const sum = combo.reduce((s, i) => s + p.board[i].tier, 0);
+      if (sum >= 2 && sum <= 4 && p.deck.some(c => c.tier === sum)) {
+        mergeCards(state, botKey, combo);
         return;
       }
     }

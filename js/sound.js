@@ -53,6 +53,7 @@ const Sound = (function () {
     isMuted() { return muted; },
     place() { tone(440, 0.07, 'triangle', 0.10); },
     merge() { sweep(320, 760, 0.25, 'sine', 0.13); },
+    megaMerge() { sweep(220, 980, 0.4, 'sine', 0.16); [660, 880, 1200].forEach((f, i) => tone(f, 0.2, 'triangle', 0.09, 0.12 + i * 0.07)); },
     attack() { tone(160, 0.12, 'square', 0.13); },
     death() { sweep(420, 50, 0.4, 'sawtooth', 0.15); },
     lightning() { sweep(700, 1600, 0.22, 'sine', 0.14); tone(1800, 0.12, 'sine', 0.07, 0.05); },
@@ -65,5 +66,6 @@ const Sound = (function () {
     chipAttach() { tone(1200, 0.05, 'square', 0.07); tone(950, 0.06, 'square', 0.06, 0.04); },
     sparkle() { [1046, 1318, 1568].forEach((f, i) => tone(f, 0.12, 'sine', 0.06, i * 0.05)); },
     abilityPing() { tone(980, 0.08, 'triangle', 0.08); },
+    select() { tone(680, 0.05, 'triangle', 0.06); },
   };
 })();

@@ -9,11 +9,12 @@ let botActedKey = null;
 let net = null;
 let pendingGuestDeckConfig = null; // deck config picked in the deck builder before joining a host
 
-let selMode = null;        // 'defend' | 'spell' | 'chip' | null
+let selMode = null;        // 'defend' | 'merge' | 'spell' | 'chip' | null
 let selHandIdx = null;
 let selAttackerSlot = null;
 let selSpellId = null;
 let selChipId = null;
+let selMergeSlots = [];    // NEW: board slots picked while in 'merge' (Combine) mode, in pick order - 2 to 4 of the player's own cards
 let logVisible = false;
 let suppressNextClick = false;
 let gameOverAnnounced = false;
@@ -320,6 +321,8 @@ function renderDeckBuilder() {
       const count = dbUnitCounts[a.id] || 0;
       const el = document.createElement('div');
       el.className = `dcard unit-dcard tier${tier} ${owned ? '' : 'locked'}`;
+      el.dataset.unitName = a.name;
+      el.dataset.unitTier = String(tier);
       const abilityText = a.pool[0] === 'none' ? 'No special ability' : (ABILITIES[a.pool[0]] ? ABILITIES[a.pool[0]].label : 'Unique ability');
       el.innerHTML = `
         <div class="dcard-name">${a.name}</div>
@@ -376,7 +379,31 @@ function renderDeckBuilder() {
   }
   const confirmBtn = document.getElementById('btn-deck-builder-confirm');
   if (confirmBtn) confirmBtn.disabled = !complete;
+  applyDeckBuilderFilter();
 }
+
+// ---- NEW FEATURE: Deck Builder search & filter -----------------------------
+// The Collection screen has had search/filter since v2.6, but the Deck
+// Builder itself never did - with 20 unit archetypes plus spells/chips to
+// scroll through every time a deck is built, that's a real gap now that the
+// card pool has grown. Filters purely by hiding/showing existing DOM nodes
+// (same lightweight approach as setupCollectionTools), so it composes with
+// re-renders from stepper clicks without any extra bookkeeping.
+function applyDeckBuilderFilter() {
+  const search = document.getElementById('deck-builder-search');
+  const tierSel = document.getElementById('deck-builder-tier-filter');
+  if (!search && !tierSel) return;
+  const q = (search?.value || '').trim().toLowerCase();
+  const tier = tierSel?.value || 'all';
+  document.querySelectorAll('#deck-builder-units [data-unit-name]').forEach(el => {
+    const name = (el.dataset.unitName || '').toLowerCase();
+    const matchesQuery = !q || name.includes(q);
+    const matchesTier = tier === 'all' || el.dataset.unitTier === tier;
+    el.hidden = !(matchesQuery && matchesTier);
+  });
+}
+document.getElementById('deck-builder-search')?.addEventListener('input', applyDeckBuilderFilter);
+document.getElementById('deck-builder-tier-filter')?.addEventListener('change', applyDeckBuilderFilter);
 
 document.getElementById('btn-deck-builder-confirm').addEventListener('click', () => {
   const totalUnits = dbTotalUnits();
@@ -1379,6 +1406,7 @@ const ACHIEVEMENTS = [
   { id: 'full_collection', name: 'Completionist',      desc: 'Collect every card in the game.', icon: '💠', reward: 150 },
   { id: 'bux_500',         name: 'Vault Keeper',       desc: 'Hold 500 Mehrbod Bux at once.', icon: '🏦', reward: 20 },
   { id: 'daily_streak_3',  name: 'Creature of Habit',  desc: 'Complete the Daily Challenge 3 days in a row.', icon: '📅', reward: 30 },
+  { id: 'mega_fusion',     name: 'Mega Fusion',        desc: 'Merge 3 or more cards together in a single fusion.', icon: '💥', reward: 25 },
 ];
 const ACHIEVEMENTS_KEY = 'mehrbod_achievements_v1';
 function loadUnlockedAchievements() {
@@ -1434,6 +1462,7 @@ function startVsBot(wagerAmount = 0, deckConfig = null) {
   resetMatchCardStats();
   lastPlacement = null;
   cancelBotThinking();
+  clearRoundTimer();
   if (deckConfig) lastVsBotDeckConfig = deckConfig;
   state = createMatch(seed, 'you', 'bot', deckConfig ? { you: deckConfig } : {});
   botRng = new RngStream(seed + 999);
@@ -1502,7 +1531,7 @@ const MATCH_TUTORIAL_STEPS = [
     waitFor: (action, res) => action.type === 'place' && res.ok,
   },
   {
-    text: "You've got two Blue cards on your board now. Drag one Blue card onto the other to merge them into a stronger Green card - this only works if you still have a Green card sitting in your cards to use as the blueprint. Blue is the only tier you can ever place directly - everything above it only ever comes from merging.",
+    text: "You've got two Blue cards on your board now. Drag one Blue card onto the other to merge them into a stronger Green card - this only works if you still have a Green card sitting in your cards to use as the blueprint. Blue is the only tier you can ever place directly - everything above it only ever comes from merging. Once you have 3+ cards down, try the 🧬 Combine button below to select several at once and fuse them all in one go.",
     target: () => document.getElementById('player-board'),
     waitFor: (action, res) => action.type === 'merge' && res.ok,
   },
@@ -1511,11 +1540,11 @@ const MATCH_TUTORIAL_STEPS = [
     target: () => document.getElementById('spells-chips-row'),
   },
   {
-    text: "One more thing: before a real match, you'll pick your own deck in the deck builder - including any Green/Red/Orange cards you own. Those can't be placed directly either, but merging Blues into their exact tier consumes one and uses its special ability instead of a generic result. Run out of a tier's blueprint and you can never merge into it again for the rest of the match. We skipped the deck builder for this practice match so you could jump straight in.",
+    text: "One more thing: before a real match, you'll pick your own deck in the deck builder - including any Green/Red/Orange cards you own. Those can't be placed directly either, but merging Blues into their exact tier consumes one and uses its special ability instead of a generic result. You can merge 2, 3, or even 4 cards in one go (say, four Blues straight into an Orange) as long as you have the matching blueprint. Run out of a tier's blueprint and you can never merge into it again for the rest of the match. We skipped the deck builder for this practice match so you could jump straight in.",
     target: null,
   },
   {
-    text: 'If you ever get 4+ Blue cards on your board at once, you\u2019ll be forced to merge one before doing anything else - your Blues will glow and a banner will explain. Keep an eye out for it.',
+    text: 'If you ever get 4+ Blue cards on your board at once, you\u2019ll be forced to merge some before doing anything else - your Blues will glow and a banner will explain. Keep an eye out for it.',
     target: () => document.getElementById('player-board'),
   },
   {
@@ -1584,6 +1613,7 @@ function startTutorialMatch() {
   resetMatchCardStats();
   lastPlacement = null;
   cancelBotThinking();
+  clearRoundTimer();
   // v3.0: no more hand to override with a predictable starter set - the
   // default random deck (buildDeck with no config) already has plenty of
   // Blues plus at least one Green/Red blueprint, which is exactly what the
@@ -1802,6 +1832,24 @@ function spawnCastEffect(ownerKey, slot, kind, amount) {
     fx.className = 'merge-fx';
     slotEl.appendChild(fx);
     setTimeout(() => fx.remove(), 500);
+  } else if (kind === 'bigmerge') {
+    // NEW: extra-juicy celebration for a 3-4 card fusion or any merge that
+    // lands on the peak Orange tier - a bigger burst plus a ring of
+    // sparkle particles flung outward from the slot.
+    const fx = document.createElement('div');
+    fx.className = 'merge-fx merge-fx-big';
+    slotEl.appendChild(fx);
+    for (let i = 0; i < 8; i++) {
+      const p = document.createElement('div');
+      p.className = 'merge-particle';
+      const angle = (360 / 8) * i;
+      p.style.setProperty('--angle', angle + 'deg');
+      p.style.animationDelay = (i * 0.02) + 's';
+      slotEl.appendChild(p);
+      setTimeout(() => p.remove(), 800);
+    }
+    setTimeout(() => fx.remove(), 780);
+    Sound.megaMerge();
   } else if (kind === 'defend') {
     const fx = document.createElement('div');
     fx.className = 'shield-slam-fx';
@@ -1823,8 +1871,17 @@ function playFx(fxList) {
   (fxList || []).forEach(evt => {
     switch (evt.type) {
       case 'merge': {
-        spawnCastEffect(evt.owner, evt.toSlot, 'merge');
-        if (evt.usedBlueprint) showToast('🧩 Used a blueprint from your deck!', 1600);
+        const cardCount = evt.cardCount || 2;
+        const big = cardCount > 2 || evt.resultTier === 4;
+        spawnCastEffect(evt.owner, evt.toSlot, big ? 'bigmerge' : 'merge');
+        if (cardCount > 2) {
+          showToast(`💥 ${cardCount}-card fusion → ${TIERS[evt.resultTier].name}!`, 2400);
+          if (!tutorialActive) unlockAchievement('mega_fusion');
+        } else if (evt.resultTier === 4) {
+          showToast('🔶 Forged an Orange card!', 2000);
+        } else if (evt.usedBlueprint) {
+          showToast('🧩 Used a blueprint from your deck!', 1600);
+        }
         break;
       }
       case 'chipAttach': {
@@ -1905,7 +1962,7 @@ function applyActionAndRender(action, { afterBotCheck } = {}) {
   if (!res.ok && action.player === localKey) showToast(res.error);
   if (res.ok) {
     if (action.type === 'place') Sound.place();
-    else if (action.type === 'merge') Sound.merge();
+    else if (action.type === 'merge') { /* sound handled by playFx (merge/bigmerge) for correct sizing */ }
     else if (action.type === 'defend') Sound.defend();
     else if ((action.type === 'readyPlacement' || action.type === 'readyAttack') && action.player === localKey) Sound.ready();
   }
@@ -1989,6 +2046,7 @@ async function beginHost(wagerAmount, hostDeckConfig) {
   if (!wagerAmount) currentWagerHeldAtFloor = false;
   mode = 'mp'; localKey = 'host'; remoteKey = 'guest';
   currentWager = wagerAmount || 0;
+  clearRoundTimer();
   showScreen('screen-host');
   const seed = makeSeed();
   net = new NetSession({
@@ -2030,6 +2088,7 @@ document.getElementById('btn-join-confirm').addEventListener('click', async () =
   const code = document.getElementById('join-code-input').value.trim();
   if (!code) return;
   mode = 'mp'; localKey = 'guest'; remoteKey = 'host';
+  clearRoundTimer();
   net = new NetSession({
     onInit: (data) => {
       gameOverAnnounced = false;
@@ -2106,17 +2165,54 @@ document.getElementById('btn-undo-placement').addEventListener('click', undoLast
 // ---- Selections -------------------------------------------------------------
 function resetSelections() {
   selMode = null; selHandIdx = null; selAttackerSlot = null;
-  selSpellId = null; selChipId = null;
+  selSpellId = null; selChipId = null; selMergeSlots = [];
 }
 
 document.querySelectorAll('.mode-btn').forEach(btn => {
+  if (!btn.dataset.mode) return; // skip non-mode mode-btn-styled buttons (mute/motion/themes/wager presets etc.)
   btn.addEventListener('click', () => {
     const m = btn.dataset.mode;
     const wasActive = selMode === m;
     resetSelections();
     selMode = wasActive ? null : m;
+    if (selMode === 'merge') Sound.select();
     render();
   });
+});
+
+// ---- NEW FEATURE: Combine mode - merge 2-4 cards in a single fusion -------
+// Tapping the 🧬 Combine mode-button, then tapping 2-4 of your own board
+// cards, then Confirm, merges them all at once (e.g. four Blues straight
+// into an Orange) - see mergeCards() in game.js for the underlying rule.
+document.getElementById('btn-confirm-merge').addEventListener('click', () => {
+  if (!state || selMode !== 'merge' || selMergeSlots.length < 2) return;
+  const p = state.players[localKey];
+  const slots = selMergeSlots.slice();
+  const cards = slots.map(s => p.board[s]).filter(Boolean);
+  if (cards.length !== slots.length) { showToast('One of the selected cards is no longer there.'); selMergeSlots = []; render(); return; }
+  const sum = cards.reduce((s, c) => s + c.tier, 0);
+  if (sum < 2 || sum > 4) { showToast("That combination doesn't add up to a valid tier (2, 3, or 4)."); return; }
+  const deck = p.deck;
+  const candidateIndices = deck.map((c, i) => (c.tier === sum ? i : -1)).filter(i => i >= 0);
+  if (candidateIndices.length === 0) {
+    showToast(`You need a ${TIERS[sum].name} card in your deck to merge into that tier - you're out.`);
+    return;
+  }
+  const finish = (blueprintIndex) => {
+    dispatch({ type: 'merge', slots, blueprintIndex });
+    selMergeSlots = [];
+    selMode = null;
+    render();
+  };
+  if (candidateIndices.length > 1) {
+    const candidates = candidateIndices.map(i => deck[i]);
+    promptBlueprintChoice(candidates, candidateIndices, (chosenIndex) => {
+      if (chosenIndex != null) finish(chosenIndex);
+      else render();
+    });
+  } else {
+    finish(candidateIndices[0]);
+  }
 });
 
 function pressReady() {
@@ -2146,6 +2242,7 @@ document.getElementById('btn-rematch').addEventListener('click', () => {
   document.getElementById('gameover-overlay').classList.add('hidden');
   document.getElementById('gameover-card').querySelectorAll('.confetti-piece').forEach(el => el.remove());
   cancelBotThinking();
+  clearRoundTimer();
   if (net) { net.destroy(); net = null; }
   state = null;
   showScreen('screen-menu');
@@ -2154,6 +2251,7 @@ document.getElementById('btn-play-again').addEventListener('click', () => {
   document.getElementById('gameover-overlay').classList.add('hidden');
   document.getElementById('gameover-card').querySelectorAll('.confetti-piece').forEach(el => el.remove());
   cancelBotThinking();
+  clearRoundTimer();
   // NEW FEATURE: Same Deck Rematch - reuse the exact deck you built last
   // time instead of falling back to a random one.
   startVsBot(0, lastVsBotDeckConfig);
@@ -2178,6 +2276,7 @@ document.getElementById('btn-quit-match').addEventListener('click', () => {
   if (midMatch && !confirm('Quit this match and return to the menu? Your progress in this match will be lost.')) return;
   document.getElementById('options-overlay').classList.add('hidden');
   cancelBotThinking();
+  clearRoundTimer();
   resetTutorialState();
   if (net && mode === 'mp' && midMatch) { net.sendForfeit(); }
   if (net) { net.destroy(); net = null; }
@@ -2209,7 +2308,7 @@ document.getElementById('screen-game').addEventListener('click', (e) => {
   if (handCardEl) {
     if (state.phase !== 'placement') return;
     const idx = Number(handCardEl.dataset.handIdx);
-    selMode = null; selSpellId = null; selChipId = null; selAttackerSlot = null;
+    selMode = null; selSpellId = null; selChipId = null; selAttackerSlot = null; selMergeSlots = [];
     selHandIdx = (selHandIdx === idx) ? null : idx;
     render();
     return;
@@ -2237,6 +2336,24 @@ document.getElementById('screen-game').addEventListener('click', (e) => {
     const isMine = owner === localKey;
     const p = state.players[owner];
     const card = p.board[slot];
+
+    // NEW FEATURE: Combine mode - tapping own cards toggles them in/out of
+    // the current multi-card merge selection (2-4 cards).
+    if (selMode === 'merge') {
+      if (!isMine) { showToast('Combine mode only selects your own cards.'); return; }
+      if (!card) return;
+      const idx = selMergeSlots.indexOf(slot);
+      if (idx !== -1) {
+        selMergeSlots.splice(idx, 1);
+      } else {
+        if (card.tier === 4) { showToast('Orange is already the highest tier and cannot merge with anything.'); return; }
+        if (selMergeSlots.length >= 4) { showToast('You can combine at most 4 cards in one fusion.'); return; }
+        selMergeSlots.push(slot);
+        Sound.select();
+      }
+      render();
+      return;
+    }
 
     if (selSpellId) {
       if (!card) return;
@@ -2275,7 +2392,7 @@ document.getElementById('screen-game').addEventListener('click', (e) => {
       }
     }
     if (state.phase === 'placement' && isMine && card) {
-      showToast('Tap Defend below, then tap this card to defend with it.');
+      showToast('Tap Defend below, then tap this card to defend with it — or Combine to fuse it with others.');
     }
   }
 });
@@ -2421,7 +2538,13 @@ function render() {
   const filled = (playerState) => playerState.board.map((c, i) => (c ? i : -1)).filter(i => i >= 0);
 
   const forced = isForced(state, localKey);
-  if (forced) { selHandIdx = null; selSpellId = null; selChipId = null; selMode = null; selAttackerSlot = null; }
+  if (forced) { selHandIdx = null; selSpellId = null; selChipId = null; selMode = null; selAttackerSlot = null; selMergeSlots = []; }
+
+  // Prune any merge-mode selection whose card no longer exists (e.g. died,
+  // or was consumed by another action) so a stale slot index never lingers.
+  if (selMergeSlots.length) {
+    selMergeSlots = selMergeSlots.filter(s => state.players[localKey] && state.players[localKey].board[s]);
+  }
 
   let oppTargetable = [], ownTargetable = [];
   if (selSpellId) { oppTargetable = filled(state.players[remoteKey]); ownTargetable = filled(state.players[localKey]); }
@@ -2456,6 +2579,7 @@ function render() {
   renderBoard(myBoardEl, state.players[localKey], localKey, {
     targetableSlots: ownTargetable,
     selectedSlot: selHandIdx !== null ? 'placing' : (selAttackerSlot !== null ? selAttackerSlot : null),
+    selectedSlots: selMode === 'merge' ? selMergeSlots : undefined,
     forceGlowAll: forced,
   });
   checkLowHpWarnings();
@@ -2466,16 +2590,79 @@ function render() {
   renderSpellsChips(document.getElementById('spells-chips-row'), state.players[localKey],
     selSpellId ? { mode: 'spell', id: selSpellId } : (selChipId ? { mode: 'chip', id: selChipId } : null));
 
-  document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.toggle('active', selMode === btn.dataset.mode));
+  document.querySelectorAll('.mode-btn[data-mode]').forEach(btn => btn.classList.toggle('active', selMode === btn.dataset.mode));
 
   const undoBtn = document.getElementById('btn-undo-placement');
   if (undoBtn) undoBtn.classList.toggle('hidden', !(lastPlacement && mode === 'bot' && state.phase === 'placement'));
+
+  // ---- Combine mode: show/label the Confirm Merge button ----
+  const confirmMergeBtn = document.getElementById('btn-confirm-merge');
+  if (confirmMergeBtn) {
+    const inMergeMode = selMode === 'merge';
+    confirmMergeBtn.classList.toggle('hidden', !inMergeMode || selMergeSlots.length < 2);
+    if (inMergeMode && selMergeSlots.length >= 2) {
+      const sum = selMergeSlots.reduce((s, slot) => {
+        const c = state.players[localKey].board[slot];
+        return s + (c ? c.tier : 0);
+      }, 0);
+      const validSum = sum >= 2 && sum <= 4;
+      confirmMergeBtn.textContent = validSum
+        ? `✅ Merge ${selMergeSlots.length} → ${TIERS[sum].name}`
+        : `⚠ Invalid combo (${sum})`;
+      confirmMergeBtn.disabled = !validSum;
+      confirmMergeBtn.classList.toggle('action-disabled', !validSum);
+    }
+  }
+
+  // ---- NEW FEATURE: Merge Preview - shows exactly what a Combine
+  // selection will produce (tier, HP/DMG/SP, and which blueprint(s) it
+  // could pull from) before the player commits, so multi-card fusions are
+  // never a blind commitment.
+  const mergePreviewEl = document.getElementById('merge-preview');
+  if (mergePreviewEl) {
+    const inMergeMode = selMode === 'merge';
+    if (inMergeMode && selMergeSlots.length >= 2) {
+      const cards = selMergeSlots.map(s => state.players[localKey].board[s]).filter(Boolean);
+      const sum = cards.reduce((s, c) => s + c.tier, 0);
+      if (sum >= 2 && sum <= 4) {
+        const t = TIERS[sum];
+        const hpTotal = Math.min(t.hp, cards.reduce((s, c) => s + c.hp, 0));
+        const deckCards = state.players[localKey].deck;
+        const candidates = deckCards.filter(c => c.tier === sum);
+        const note = candidates.length === 0
+          ? { text: `⚠ No ${t.name} blueprint left in your deck - this merge can't be made.`, warn: true }
+          : candidates.length === 1
+            ? { text: `Becomes: ${candidates[0].name}`, warn: false }
+            : { text: `Becomes one of ${candidates.length} blueprints - you'll choose which.`, warn: false };
+        mergePreviewEl.classList.remove('hidden');
+        mergePreviewEl.innerHTML = `
+          <div class="merge-preview-card">
+            <div class="merge-preview-swatch" style="background:${t.hex}">${TIER_GLYPHS[sum] || ''}</div>
+            <div class="merge-preview-body">
+              <div class="merge-preview-stats"><span>${hpTotal}❤</span><span>${t.dmg}⚔</span><span>${t.sp}⛃</span></div>
+              <div class="merge-preview-note${note.warn ? ' warn' : ''}">${note.text}</div>
+            </div>
+          </div>`;
+      } else {
+        mergePreviewEl.classList.remove('hidden');
+        mergePreviewEl.innerHTML = `
+          <div class="merge-preview-card">
+            <div class="merge-preview-body">
+              <div class="merge-preview-note warn">⚠ That combination adds up to tier ${sum}, which doesn't exist - pick a combo that sums to 2, 3, or 4.</div>
+            </div>
+          </div>`;
+      }
+    } else {
+      mergePreviewEl.classList.add('hidden');
+      mergePreviewEl.innerHTML = '';
+    }
+  }
 
   document.getElementById('forced-merge-banner').classList.toggle('hidden', !forced);
   document.getElementById('btn-ready').classList.toggle('action-disabled', forced);
   document.getElementById('hand-row').classList.toggle('action-disabled', forced);
   document.getElementById('spells-chips-row').classList.toggle('action-disabled', forced);
-  document.getElementById('mode-bar').querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('action-disabled', forced));
+  document.getElementById('mode-bar').querySelectorAll('.mode-btn[data-mode="defend"]').forEach(b => b.classList.toggle('action-disabled', forced));
 
   const hint = document.getElementById('hint-text');
   if (hint) hint.textContent = '';
@@ -2543,6 +2730,7 @@ function render() {
     }
   }
   if (tutorialActive) renderTutorialOverlay();
+  maybeStartRoundTimer();
 }
 
 function formatDuration(ms) {
@@ -2655,6 +2843,7 @@ let dragState = null;
 
 document.getElementById('player-board').addEventListener('pointerdown', (e) => {
   if (!state || state.phase !== 'placement' || dragState) return;
+  if (selMode === 'merge') return; // Combine mode handles selection via tap, not drag
   const cardElx = e.target.closest('.card');
   if (!cardElx || cardElx.dataset.owner !== localKey) return;
   const slot = Number(cardElx.dataset.slot);
@@ -2738,11 +2927,11 @@ document.addEventListener('pointerup', (e) => {
           if (candidateIndices.length > 1) {
             const candidates = candidateIndices.map(i => deck[i]);
             promptBlueprintChoice(candidates, candidateIndices, (chosenIndex) => {
-              if (chosenIndex != null) dispatch({ type: 'merge', slotA, slotB, blueprintIndex: chosenIndex });
+              if (chosenIndex != null) dispatch({ type: 'merge', slots: [slotA, slotB], blueprintIndex: chosenIndex });
               render();
             });
           } else {
-            dispatch({ type: 'merge', slotA, slotB });
+            dispatch({ type: 'merge', slots: [slotA, slotB] });
           }
         }
       } else if (!hasCard) {
@@ -2798,6 +2987,84 @@ function applyReducedMotion(on) {
 }
 document.getElementById('btn-motion-toggle').addEventListener('click', () => applyReducedMotion(!reducedMotion));
 applyReducedMotion(reducedMotion);
+
+// ---- NEW FEATURE: Round Timer ----------------------------------------------
+// A visible per-phase countdown that auto-readies the local player if they
+// sit on a placement or attack decision too long, so a real match (bot or
+// multiplayer) can never stall forever waiting on one side. Off by default
+// during the tutorial, and toggleable from Options for anyone who'd rather
+// play untimed. Auto-ready reuses pressReady(), the exact same path the
+// Ready button itself uses, so it can never desync from normal play.
+const ROUND_TIMER_SECONDS = { placement: 60, attack: 40 };
+function loadRoundTimerSetting() {
+  try {
+    const v = localStorage.getItem('mehrbod-cards-round-timer');
+    return v === null ? true : v === '1';
+  } catch (e) { return true; }
+}
+function saveRoundTimerSetting(v) {
+  try { localStorage.setItem('mehrbod-cards-round-timer', v ? '1' : '0'); } catch (e) {}
+}
+let roundTimerEnabled = loadRoundTimerSetting();
+let roundTimerInterval = null;
+let roundTimerDeadline = null;
+let roundTimerPhaseKey = null;
+
+function clearRoundTimer() {
+  if (roundTimerInterval) { clearInterval(roundTimerInterval); roundTimerInterval = null; }
+  roundTimerPhaseKey = null;
+  const el = document.getElementById('round-timer');
+  if (el) { el.classList.add('hidden'); el.classList.remove('timer-warning'); }
+}
+
+function tickRoundTimer() {
+  const el = document.getElementById('round-timer');
+  if (!state || state.phase === 'gameover') { clearRoundTimer(); return; }
+  const readyField = state.phase === 'attack' ? 'readyAttack' : 'readyPlacement';
+  if (!state.players[localKey] || state.players[localKey][readyField]) { clearRoundTimer(); return; }
+  const msLeft = roundTimerDeadline - Date.now();
+  if (msLeft <= 0) {
+    clearRoundTimer();
+    if (state.phase !== 'gameover' && !state.players[localKey][readyField] && !animatingCombat) {
+      showToast("⏱ Time's up — auto-readied!", 1800);
+      pressReady();
+    }
+    return;
+  }
+  if (el) {
+    el.classList.remove('hidden');
+    const secs = Math.ceil(msLeft / 1000);
+    el.textContent = `⏱ ${secs}s`;
+    el.classList.toggle('timer-warning', secs <= 10);
+  }
+}
+
+function maybeStartRoundTimer() {
+  if (!state || state.phase === 'gameover' || tutorialActive || !roundTimerEnabled || animatingCombat) { clearRoundTimer(); return; }
+  if (mode !== 'bot' && mode !== 'mp') { clearRoundTimer(); return; }
+  const readyField = state.phase === 'attack' ? 'readyAttack' : 'readyPlacement';
+  if (!state.players[localKey] || state.players[localKey][readyField]) { clearRoundTimer(); return; }
+  const key = state.phase + ':' + state.round;
+  if (roundTimerPhaseKey === key && roundTimerInterval) return; // already counting down for this phase/round
+  clearRoundTimer();
+  roundTimerPhaseKey = key;
+  roundTimerDeadline = Date.now() + (ROUND_TIMER_SECONDS[state.phase] || 45) * 1000;
+  roundTimerInterval = setInterval(tickRoundTimer, 250);
+  tickRoundTimer();
+}
+
+function updateTimerToggleButton() {
+  const btn = document.getElementById('btn-timer-toggle');
+  if (btn) btn.textContent = roundTimerEnabled ? '⏱ Round Timer: On' : '⏱ Round Timer: Off';
+}
+document.getElementById('btn-timer-toggle').addEventListener('click', () => {
+  roundTimerEnabled = !roundTimerEnabled;
+  saveRoundTimerSetting(roundTimerEnabled);
+  updateTimerToggleButton();
+  if (!roundTimerEnabled) clearRoundTimer();
+  else maybeStartRoundTimer();
+});
+updateTimerToggleButton();
 
 // ---- Themes -----------------------------------------------------------------
 const ALL_DIFFICULTIES = ['Easy', 'Medium', 'Hard', 'Expert', 'Master'];
@@ -3214,8 +3481,25 @@ document.getElementById('btn-copy-code').addEventListener('click', async () => {
 });
 
 // ---- Patch notes --------------------------------------------------------
-const CURRENT_VERSION = '3.4';
+const CURRENT_VERSION = '3.6';
 const PATCH_NOTES = [
+  {
+    version: '3.6',
+    notes: [
+      "NEW: Round Timer - a visible countdown for each placement/attack phase (60s / 40s) that auto-readies you if you sit on a decision too long, so a match against another person can never stall out waiting on one side. On by default; toggle it off anytime from Options if you'd rather play untimed. Never active during the tutorial.",
+      "NEW: Deck Builder search & filter - a search box and a tier dropdown now sit above the Units grid, matching the Collection Book's tools, so building a deck from a growing card pool doesn't mean endless scrolling.",
+      "NEW: Merge Preview - while picking cards in 🧬 Combine mode, a live preview panel shows the exact HP/DMG/chip-slots the resulting card will have and names which blueprint(s) it'll pull from, before you commit to the fusion.",
+    ],
+  },
+  {
+    version: '3.5',
+    notes: [
+      "NEW: Combine mode — merge 2, 3, or 4 of your own cards in a single fusion instead of only ever pairs. Four Blues can now go straight to Orange, three Blues straight to Red, a Blue + Green straight to Orange, and so on, as long as the tiers add up to 2, 3, or 4 and you still have the matching blueprint. Tap 🧬 Combine in the mode bar, tap 2-4 of your cards to pick them, then Confirm — the classic drag-one-card-onto-another merge for pairs still works exactly as before.",
+      "JUICE: bigger fusions (3-4 cards) and any merge that lands on Orange now get a dedicated 'mega fusion' burst — an outward ring of sparkle particles, a richer chime, and its own toast — instead of the same small pulse every merge used to get.",
+      "NEW achievement: Mega Fusion, for merging 3+ cards together in one go.",
+      "The bot now looks for the biggest legal fusion available (up to 4 cards) before falling back to a plain pair, on every difficulty.",
+    ],
+  },
   {
     version: '3.4',
     notes: [

@@ -233,12 +233,18 @@ function killCard(state, ownerKey, slot, deathSource) {
   const p = state.players[ownerKey];
   const card = p.board[slot];
   if (!card) return;
-  // v3.0: Blue only comes back if this player has both merged at least
-  // once AND still has at least one non-Blue blueprint left in their deck
-  // (see hasRemainingBlueprints) - once the blueprint well runs dry, Blue
-  // stops regenerating for good, same as the "everMergedUp" gate already
-  // permanently locks in once tripped.
-  const canReplenish = card.tier === 1 && p.everMergedUp && hasRemainingBlueprints(p);
+  // BUGFIX: this used to also require p.everMergedUp (i.e. the player must
+  // have already completed at least one merge before Blue would ever come
+  // back from a death) - that meant a fresh player who owns blueprints but
+  // hasn't merged yet would watch their Blues die and vanish for good,
+  // even though they still had a perfectly good Green/Red/Orange blueprint
+  // sitting unused in their deck. The rule was only ever meant to be "Blue
+  // regenerates on death as long as a blueprint is still available to
+  // eventually merge into" - it has nothing to do with merge history, so
+  // that condition is dropped here. (Compare mergeCards' own replenishBlue
+  // call below, which never had this extra requirement in the first
+  // place.)
+  const canReplenish = card.tier === 1 && hasRemainingBlueprints(p);
   p.board[slot] = null;               // remove from the board FIRST so on-death
   p.graveyard.push(card);             // targeting logic can never see/re-hit this card
   delete p.defendingSlots[slot];
@@ -259,28 +265,44 @@ function replenishBlue(state, playerKey, count) {
   pushLog(state, `${playerKey} reclaims ${count} Blue card${count > 1 ? 's' : ''}`);
 }
 
+// ---- Combination helpers for multi-card merges -----------------------------
+// Returns every combination of `k` items chosen from `arr` (order-preserving,
+// no repeats). Board size is only 6 slots, so this is always cheap.
+function kCombinations(arr, k) {
+  const results = [];
+  function helper(start, combo) {
+    if (combo.length === k) { results.push(combo.slice()); return; }
+    for (let i = start; i < arr.length; i++) {
+      combo.push(arr[i]);
+      helper(i + 1, combo);
+      combo.pop();
+    }
+  }
+  helper(0, []);
+  return results;
+}
+
 // Once a player has 4+ Blue cards on their board at once, they must resolve
 // it by dragging one Blue onto another (merging) before doing anything
 // else - placing, casting, defending, attacking, or readying up are all
 // blocked until the merge happens. `isForced` (below) is the single source
 // of truth the UI polls to show the "must merge" banner + glow.
 //
-// v3.0 safety valve: merges now require a matching-tier blueprint still in
-// the deck (see mergeCards), so if a player has run completely out of
-// blueprints there may be NO legal merge available among their Blues at
-// all. Forcing a merge that can never happen would be a permanent
-// softlock, so `isForced` only ever fires when at least one legal,
-// blueprint-backed merge actually exists right now.
+// v4.0: merges can now combine 2, 3, or 4 cards at once (e.g. four Blues
+// straight into an Orange, no intermediate Green/Red required), so this
+// checks every combination of 2-4 non-Orange cards currently on the board
+// for one whose tiers sum to a real tier (2-4) with a matching blueprint
+// still in the deck - not just pairs. `isForced` only ever fires when at
+// least one such legal, blueprint-backed merge actually exists right now,
+// so running out of blueprints can never soft-lock a player.
 function canPerformAnyMerge(state, playerKey) {
   const p = state.players[playerKey];
-  const filled = p.board.map((c, i) => (c ? i : -1)).filter(i => i >= 0);
-  for (let i = 0; i < filled.length; i++) {
-    for (let j = i + 1; j < filled.length; j++) {
-      const a = p.board[filled[i]], b = p.board[filled[j]];
-      if (a.tier === 4 || b.tier === 4) continue;
-      const sum = a.tier + b.tier;
-      if (sum > 4) continue;
-      if (p.deck.some(c => c.tier === sum)) return true;
+  const filled = p.board.map((c, i) => (c ? i : -1)).filter(i => i >= 0 && p.board[i].tier !== 4);
+  for (let size = 2; size <= Math.min(4, filled.length); size++) {
+    const combos = kCombinations(filled, size);
+    for (const combo of combos) {
+      const sum = combo.reduce((s, i) => s + p.board[i].tier, 0);
+      if (sum >= 2 && sum <= 4 && p.deck.some(c => c.tier === sum)) return true;
     }
   }
   return false;
@@ -319,9 +341,17 @@ function placeCard(state, playerKey, deckIndex, slot) {
   return { ok: true };
 }
 
-// v3.1: `blueprintIndex`, if given, is the index into the player's OWN deck
-// array of the specific blueprint card they chose to merge into (see the
-// picker UI in main.js, shown whenever more than one blueprint matches the
+// v4.0: `slots` is an array of 2-4 DISTINCT board-slot indices belonging to
+// the merging player's own board - not just a pair. Four Blues can be
+// merged directly into an Orange in one action, three Blues into a Red,
+// a Blue + a Green into a Red, two Greens into an Orange, and so on -
+// anything whose tiers sum to 2, 3, or 4 is legal, as long as none of the
+// chosen cards is already tier 4 (Orange can't merge with anything) and a
+// matching-tier blueprint is still sitting unused in the deck.
+//
+// `blueprintIndex`, if given, is the index into the player's OWN deck array
+// of the specific blueprint card they chose to merge into (see the picker
+// UI in main.js, shown whenever more than one blueprint matches the
 // resulting tier). It's an index rather than a card id deliberately: ids
 // come from a per-session global counter that is never synced between a
 // multiplayer host and guest, so it can't be trusted to name "the same
@@ -332,22 +362,30 @@ function placeCard(state, playerKey, deckIndex, slot) {
 // pointing at a card of the wrong tier, this falls back to the first
 // matching blueprint found (e.g. for the bot, or when there was only one
 // legal choice to begin with).
-function mergeCards(state, playerKey, slotA, slotB, blueprintIndex) {
+//
+// The surviving merged card always lands in the FIRST slot passed in
+// (slots[0]); every other consumed slot is cleared.
+function mergeCards(state, playerKey, slots, blueprintIndex) {
   const p = state.players[playerKey];
   if (state.phase !== 'placement') return { ok: false, error: 'not placement phase' };
-  const a = p.board[slotA], b = p.board[slotB];
-  if (!a || !b || slotA === slotB) return { ok: false, error: 'invalid slots' };
-  if (a.tier === 4 || b.tier === 4) {
+  if (!Array.isArray(slots)) return { ok: false, error: 'invalid slots' };
+  const uniqueSlots = [...new Set(slots)];
+  if (uniqueSlots.length < 2 || uniqueSlots.length > 4) {
+    return { ok: false, error: 'Choose 2 to 4 of your own cards to merge together.' };
+  }
+  const cards = uniqueSlots.map(s => p.board[s]);
+  if (cards.some(c => !c)) return { ok: false, error: 'invalid slots' };
+  if (cards.some(c => c.tier === 4)) {
     return { ok: false, error: 'Orange is already the highest tier and cannot merge with anything.' };
   }
-  const sum = a.tier + b.tier;
-  if (sum > 4) {
-    return { ok: false, error: `${TIERS[a.tier].name} + ${TIERS[b.tier].name} has no valid result - that combination can't merge.` };
+  const sum = cards.reduce((s, c) => s + c.tier, 0);
+  if (sum < 2 || sum > 4) {
+    return { ok: false, error: `Those cards add up to tier ${sum}, which doesn't exist - pick a combination that sums to 2, 3, or 4.` };
   }
-  if (isForced(state, playerKey) && a.tier !== 1 && b.tier !== 1) {
+  if (isForced(state, playerKey) && !cards.some(c => c.tier === 1)) {
     return { ok: false, error: 'You must merge a Blue card first.' };
   }
-  const newTier = mergedTier(a.tier, b.tier);
+  const newTier = sum;
 
   // v3.0: a merge can ONLY happen if the player still has a matching-tier
   // blueprint card sitting unused in their deck - there is no more generic
@@ -365,12 +403,15 @@ function mergeCards(state, playerKey, slotA, slotB, blueprintIndex) {
   const mergedName = blueprint.name;
   const mergedAbility = blueprint.ability;
 
-  const bluesConsumed = (a.tier === 1 ? 1 : 0) + (b.tier === 1 ? 1 : 0);
+  const bluesConsumed = cards.filter(c => c.tier === 1).length;
   // Every legal merge produces a tier >= 2 (Green/Red/Orange) card, so this
   // is the moment a player permanently unlocks Blue defense/replenishment -
   // it counts for this very merge too, not just future ones.
   p.everMergedUp = true;
-  const survivorHp = Math.min(TIERS[newTier].hp, a.hp + b.hp); // carries over some damage state
+  const survivorHp = Math.min(TIERS[newTier].hp, cards.reduce((s, c) => s + c.hp, 0)); // carries over some damage state
+
+  const primarySlot = uniqueSlots[0];
+  const otherSlots = uniqueSlots.slice(1);
 
   const merged = {
     id: nextId(),
@@ -385,10 +426,14 @@ function mergeCards(state, playerKey, slotA, slotB, blueprintIndex) {
     defendChargesUsed: 0,
     chipsAttached: [],
   };
-  p.board[slotA] = merged;
-  p.board[slotB] = null;
-  delete p.attackAssignments[slotB];
-  delete p.defendingSlots[slotB];
+  p.board[primarySlot] = merged;
+  otherSlots.forEach(s => {
+    p.board[s] = null;
+    delete p.attackAssignments[s];
+    delete p.defendingSlots[s];
+  });
+  delete p.attackAssignments[primarySlot];
+  delete p.defendingSlots[primarySlot];
   // v3.1: replenish the FULL number of Blues consumed by this merge (not
   // capped to 1) - but only while a blueprint is still left somewhere in
   // the deck after this one was just spent (hasRemainingBlueprints, below,
@@ -400,10 +445,13 @@ function mergeCards(state, playerKey, slotA, slotB, blueprintIndex) {
   // stops for good and Blue can no longer merge or regenerate at all.
   const canReplenish = bluesConsumed > 0 && hasRemainingBlueprints(p);
   if (canReplenish) replenishBlue(state, playerKey, bluesConsumed);
-  pushFx(state, { type: 'merge', owner: playerKey, fromSlotA: slotA, fromSlotB: slotB, toSlot: slotA, resultTier: newTier, usedBlueprint: true });
-  abilityTrigger(state, playerKey, merged, 'onplay', slotA);
-  pushLog(state, `${playerKey} merges into ${merged.name} (tier ${newTier}, using a blueprint from the deck)`);
-  return { ok: true, mergedSlot: slotA };
+  pushFx(state, {
+    type: 'merge', owner: playerKey, fromSlots: uniqueSlots, toSlot: primarySlot,
+    resultTier: newTier, usedBlueprint: true, cardCount: uniqueSlots.length,
+  });
+  abilityTrigger(state, playerKey, merged, 'onplay', primarySlot);
+  pushLog(state, `${playerKey} merges ${uniqueSlots.length} card${uniqueSlots.length > 2 ? 's' : ''} into ${merged.name} (tier ${newTier}, using a blueprint from the deck)`);
+  return { ok: true, mergedSlot: primarySlot };
 }
 
 // Used by the bot (which has no UI to show a "must merge" banner) to resolve
@@ -415,8 +463,7 @@ function autoResolveForcedMerges(state, playerKey) {
   while (guard++ < 20 && isForced(state, playerKey)) {
     const blueSlots = p.board.map((c, i) => (c && c.tier === 1 ? i : -1)).filter(i => i >= 0);
     if (blueSlots.length < 2) break;
-    const before = p.board[blueSlots[0]];
-    const res = mergeCards(state, playerKey, blueSlots[0], blueSlots[1]);
+    const res = mergeCards(state, playerKey, [blueSlots[0], blueSlots[1]]);
     if (!res.ok) break; // no blueprint available for this pairing - avoid spinning
   }
 }
@@ -752,8 +799,9 @@ function startPlacementPhase(state) {
   // placeable/mergeable since round 1 already.
 }
 
-// v3.0: forcing a merge only makes sense if a legal, blueprint-backed merge
-// actually exists - see canPerformAnyMerge's doc comment above.
+// v3.0/v4.0: forcing a merge only makes sense if a legal, blueprint-backed
+// merge actually exists among any 2-4 card combination - see
+// canPerformAnyMerge's doc comment above.
 function isForced(state, playerKey) {
   const p = state.players[playerKey];
   const blueSlots = p.board.filter(c => c && c.tier === 1).length;
@@ -769,7 +817,14 @@ function applyAction(state, action) {
   let result;
   switch (action.type) {
     case 'place': result = placeCard(state, action.player, action.handIndex, action.slot); break;
-    case 'merge': result = mergeCards(state, action.player, action.slotA, action.slotB, action.blueprintIndex); break;
+    case 'merge': {
+      // Accepts either the current { slots: [...] } (2-4 cards) format or
+      // the older { slotA, slotB } pair format, for any caller that hasn't
+      // been updated - both always route through the same merge logic.
+      const slots = Array.isArray(action.slots) ? action.slots : [action.slotA, action.slotB];
+      result = mergeCards(state, action.player, slots, action.blueprintIndex);
+      break;
+    }
     case 'spell': result = castSpell(state, action.player, action.spellId, action.targetOwner, action.targetSlot); break;
     case 'chip': result = attachChip(state, action.player, action.chipId, action.targetOwner, action.targetSlot); break;
     case 'defend': result = setDefend(state, action.player, action.slot); break;

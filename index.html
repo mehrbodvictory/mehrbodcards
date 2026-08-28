@@ -327,7 +327,7 @@
   <!-- ===== DECK BUILDER ===== -->
   <section id="screen-deck-builder" class="screen hidden">
     <h2>Build Your Deck</h2><span id="deck-completeness-hint" class="deck-completeness-hint">0/12 UNITS</span>
-    <p class="sub small">Any rarity can go in your deck, but only Blue can ever be placed directly onto the board. A higher-tier pick becomes a "blueprint" — merging two Blues (or fusing further) requires a matching blueprint still sitting unused in your deck, and consumes it to flavor the result. No blueprint for a tier in your deck means you can never merge into that tier, so pick some Green/Red/Orange cards if you want to fuse up. Everything you pick is visible and available from round 1 - there's no draw step.</p>
+    <p class="sub small">Any rarity can go in your deck, but only Blue can ever be placed directly onto the board. A higher-tier pick becomes a "blueprint" — merging 2-4 Blues (or a mix of tiers, including already-fused ones) requires a matching blueprint still sitting unused in your deck, and consumes it to flavor the result. You can fuse straight from Blue to Orange in one go if you have the cards for it and an Orange blueprint. No blueprint for a tier in your deck means you can never merge into that tier, so pick some Green/Red/Orange cards if you want to fuse up. Everything you pick is visible and available from round 1 - there's no draw step.</p>
     <button type="button" class="link-btn" id="btn-autofill-deck">🎲 Auto-Fill Remaining Slots</button>
     <div class="deck-builder-section">
       <div class="deck-builder-heading"><span>Saved Decks</span> <span id="deck-presets-count">0/3</span></div>
@@ -339,6 +339,16 @@
     </div>
     <div class="deck-builder-section">
       <div class="deck-builder-heading"><span>Units</span> <span id="deck-builder-unit-count">0/12</span></div>
+      <div class="collection-tools" id="deck-builder-tools">
+        <input id="deck-builder-search" type="search" placeholder="Search units..." aria-label="Search units">
+        <select id="deck-builder-tier-filter" aria-label="Filter by tier">
+          <option value="all">All tiers</option>
+          <option value="1">Blue</option>
+          <option value="2">Green</option>
+          <option value="3">Red</option>
+          <option value="4">Orange</option>
+        </select>
+      </div>
       <div id="deck-builder-units" class="deck-builder-grid"></div>
     </div>
     <div class="deck-builder-section">
@@ -538,6 +548,7 @@
         <span id="you-ready-badge" class="ready-badge">You</span>
         <span id="opp-ready-badge" class="ready-badge">Opponent</span>
       </span>
+      <span id="round-timer" class="hidden">⏱ 0s</span>
       <button id="btn-options" class="icon-btn" title="Options">⚙</button>
       <button id="btn-ready" class="primary-btn small" title="Ready up (R)">Ready</button>
     </div>
@@ -553,14 +564,17 @@
     <div id="bot-thinking-indicator" class="hidden">🤔 Bot is thinking…</div>
 
     <div id="forced-merge-banner" class="hidden">
-      ⚠ Too many Blue cards! Drag one Blue card onto another to merge them — nothing else is possible until you do.
+      ⚠ Too many Blue cards! Drag one Blue card onto another to merge them, or use Combine mode below to fuse several at once — nothing else is possible until you do.
     </div>
 
     <div id="mode-bar">
       <button class="mode-btn" data-mode="defend">Defend</button>
+      <button class="mode-btn" data-mode="merge">🧬 Combine</button>
+      <button class="primary-btn small hidden" id="btn-confirm-merge">✅ Merge Selected</button>
       <button class="link-btn hidden" id="btn-undo-placement">↩️ Undo</button>
       <span id="hint-text"></span>
       <button class="link-btn" id="btn-log-toggle">Log</button>
+      <div id="merge-preview" class="hidden"></div>
     </div>
 
     <div id="player-board" class="board"></div>
@@ -620,6 +634,7 @@
       <h2>Options</h2>
       <button class="mode-btn" id="btn-mute-toggle">🔊 Sound: On</button>
       <button class="mode-btn" id="btn-motion-toggle">🎬 Reduced motion: Off</button>
+      <button class="mode-btn" id="btn-timer-toggle">⏱ Round Timer: On</button>
       <button class="mode-btn" id="btn-open-themes">🎨 Themes</button>
       <div id="quit-match-section">
         <p class="sub small">Leaving now forfeits the match.</p>
