@@ -25,6 +25,16 @@ let currentWager = 0; // Mehrbod Bux staked on the current match, if any
 let currentWagerHeldAtFloor = false; // exact-10 wager: stake remains at 10 until result
 let shopSelectedWager = 0;     // wager amount picked on the "Wager vs Bot" screen
 let shopHostSelectedWager = 0; // wager amount picked on the "Host a Wagered Match" screen
+// NEW: Victory Animations - `matchVictoryAnims` maps each player's key (e.g.
+// 'you'/'bot' or 'host'/'guest') to the victory-animation cosmetic they had
+// equipped when THIS match started ('meteor' or null/undefined). It's
+// populated from each side's deckConfig, which already gets exchanged over
+// the network during match setup - see beginHost()/join's onInit below -
+// so both peers know which animation to play for the eventual winner even
+// though cosmetic ownership itself is only ever stored locally per device.
+// `meteorShowerDone` guards the shared celebration to at most once per match.
+let matchVictoryAnims = {};
+let meteorShowerDone = false;
 const _lowHpWarned = new Set(); // card ids we've already played the low-hp warning tone for
 const COMBAT_ANIM_MS = 900;
 const BOT_THINK_MS_MIN = 450, BOT_THINK_MS_MAX = 900;
@@ -410,7 +420,7 @@ document.getElementById('btn-deck-builder-confirm').addEventListener('click', ()
   if (totalUnits !== REQUIRED_UNIT_COUNT || dbSelectedSpells.length !== REQUIRED_SPELL_COUNT || dbSelectedChips.length !== REQUIRED_CHIP_COUNT) return;
   const unitIds = [];
   Object.entries(dbUnitCounts).forEach(([id, count]) => { for (let i = 0; i < count; i++) unitIds.push(id); });
-  const config = { unitIds, spellIds: dbSelectedSpells.slice(), chipIds: dbSelectedChips.slice() };
+  const config = { unitIds, spellIds: dbSelectedSpells.slice(), chipIds: dbSelectedChips.slice(), victoryAnim: ownsCosmetic('victoryanim_meteor') ? 'meteor' : null };
   const cb = dbOnConfirm;
   dbOnConfirm = null;
   if (cb) cb(config);
@@ -551,12 +561,15 @@ document.getElementById('deck-preset-name-input').addEventListener('keydown', (e
 // ---- Cosmetics (v2.0) -------------------------------------------------------
 const COSMETIC_ITEMS = [
   { id: 'theme_mrmoney',    kind: 'theme',  name: '🤑 Mr Money Theme', desc: 'Green money-rain theme for the whole app.', cost: 1000 },
+  { id: 'theme_cyberneon',  kind: 'theme',  name: '🌆 Cyber Neon Theme', desc: 'Neon-lit cyberpunk grid with drifting glyph particles.', cost: 1200 },
+  { id: 'theme_abyss',      kind: 'theme',  name: '🌊 Abyss Theme', desc: 'Bioluminescent deep-sea vault with drifting jellyfish glow.', cost: 1200 },
   { id: 'sleeve_holo',      kind: 'sleeve', name: '🌈 Holographic Sleeves', desc: 'Shimmering rainbow card outlines.', cost: 400 },
   { id: 'sleeve_gold',      kind: 'sleeve', name: '✨ Gold Sleeves', desc: 'Gilded card outlines with a soft glow.', cost: 600 },
   { id: 'sleeve_prismatic', kind: 'sleeve', name: '🌈 Prismatic Sleeves', desc: 'A shifting spectrum frame around every card.', cost: 800 },
   { id: 'sleeve_void',      kind: 'sleeve', name: '🕳️ Void Sleeves', desc: 'Deep-space black frames with a violet glow.', cost: 1200 },
   { id: 'effect_confetti',  kind: 'effect', name: '🎉 Confetti+', desc: 'Bigger, longer victory confetti.', cost: 250 },
   { id: 'effect_victoryburst', kind: 'effect', name: '✨ Victory Burst', desc: 'Adds a brighter burst to your win celebration.', cost: 350 },
+  { id: 'victoryanim_meteor', kind: 'victoryAnim', name: '☄️ Meteor Shower Victory', desc: "A blazing meteor shower streaks across the screen the instant you win a match - visible to your opponent too, right before the result appears.", cost: 500 },
 ];
 
 function loadOwnedCosmetics() {
@@ -671,7 +684,10 @@ function renderCosmeticsShop() {
 
   const items = [
     { id:'theme_mrmoney', kind:'theme', name:'Mr Money Theme', desc:'Turn the whole game into a money-soaked neon vault.', cost:1000, tag:'FEATURED', art:'💸', original:1500 },
-    { id:'sleeve_prismatic', kind:'sleeve', name:'Prismatic Sleeves', desc:'Animated spectrum borders for every card.', cost:800, tag:'NEW', art:'🌈', original:1000 },
+    { id:'theme_cyberneon', kind:'theme', name:'Cyber Neon Theme', desc:'A neon cyberpunk grid with drifting glyph particles and scanlines.', cost:1200, tag:'NEW', art:'🌆', original:1600 },
+    { id:'theme_abyss', kind:'theme', name:'Abyss Theme', desc:'A bioluminescent deep-sea vault - drifting jellyfish glow and rising bubbles.', cost:1200, tag:'NEW', art:'🌊', original:1600 },
+    { id:'victoryanim_meteor', kind:'victoryAnim', name:'Meteor Shower Victory', desc:'A blazing meteor shower streaks across the screen the instant you win - your opponent sees it too.', cost:500, tag:'NEW', art:'☄️', original:0 },
+    { id:'sleeve_prismatic', kind:'sleeve', name:'Prismatic Sleeves', desc:'Animated spectrum borders for every card.', cost:800, tag:'', art:'🌈', original:1000 },
     { id:'sleeve_void', kind:'sleeve', name:'Void Sleeves', desc:'A dark cosmic frame with a violet glow.', cost:1200, tag:'RARE', art:'◈', original:1500 },
     { id:'sleeve_holo', kind:'sleeve', name:'Holographic Sleeves', desc:'Rainbow holographic card edges.', cost:400, tag:'', art:'✦', original:0 },
     { id:'sleeve_gold', kind:'sleeve', name:'Gold Sleeves', desc:'Gilded card outlines with a soft pulse.', cost:600, tag:'', art:'◆', original:0 },
@@ -684,8 +700,12 @@ function renderCosmeticsShop() {
     tag:'DAILY VALUE', art:'🎁', original:0
   };
 
-  const featured = [items[0], items[1], items[2]];
-  const daily = [items[3], items[4], items[5], items[6]];
+  // Looked up by id rather than fixed array positions, so adding/removing
+  // an item from `items` above can never silently misassign which cards
+  // land in which shop section.
+  const byId = (...ids) => ids.map(id => items.find(i => i.id === id)).filter(Boolean);
+  const featured = byId('theme_mrmoney', 'theme_cyberneon', 'theme_abyss');
+  const daily = byId('victoryanim_meteor', 'sleeve_prismatic', 'sleeve_void', 'sleeve_holo', 'sleeve_gold', 'effect_victoryburst', 'effect_confetti');
   const collection = [cardPack, ...items];
 
   const buyItem = (item) => {
@@ -1066,26 +1086,6 @@ function showPlayerReport() {
   overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
 }
 
-function renderStreakIndicator() {
-  const s = getBattleStats();
-  const existing = document.getElementById('match-streak-indicator');
-  if (!s.streak) { if (existing) existing.remove(); return; }
-  let el = existing;
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'match-streak-indicator';
-    document.body.appendChild(el);
-  }
-  el.textContent = `WIN STREAK ×${s.streak}`;
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => {
-    renderStreakIndicator();
-  }, 250);
-});
-
-
 /* ============================================================
    CARD MASTERY
    ============================================================ */
@@ -1265,43 +1265,6 @@ function markLastPlayedDifficulty() {
   btn.appendChild(tag);
 }
 
-// ---- NEW FEATURE: Card of the Day ------------------------------------------
-// A deterministic, date-seeded spotlight on one non-Blue archetype, the
-// same for everyone on a given calendar day (same rotation approach as the
-// Daily Challenge pool below). Purely informational/flavor - shows the
-// card's tier, ability, and whether the player owns it yet.
-function getCardOfTheDayArchetype() {
-  const all = [2, 3, 4].flatMap(tier => UNIT_ARCHETYPES[tier].map(a => ({ ...a, tier })));
-  const idx = Math.floor(Date.now() / 86400000) % all.length;
-  return all[idx];
-}
-function showCardOfTheDay() {
-  const card = getCardOfTheDayArchetype();
-  const owned = isUnitArchetypeOwned(card.id);
-  const ability = ABILITIES[card.pool[0]];
-  const old = document.getElementById('card-of-day-overlay');
-  if (old) old.remove();
-  const overlay = document.createElement('div');
-  overlay.id = 'card-of-day-overlay';
-  overlay.className = 'feature-overlay';
-  overlay.innerHTML = `
-    <div class="feature-panel">
-      <button class="feature-close">✕</button>
-      <span class="feature-kicker">TODAY'S SPOTLIGHT</span>
-      <h2>🌟 CARD OF THE DAY</h2>
-      <div class="dcard unit-dcard tier${card.tier}" style="cursor:default; margin-top:6px;">
-        <div class="dcard-name">${card.name}</div>
-        <div class="dcard-text">${TIERS[card.tier].name} · ${ability ? ability.label : 'No special ability'}</div>
-        ${owned ? '' : '<div class="dcard-lock">🔒 Not yet unlocked - find it in a Card Pack</div>'}
-      </div>
-      <p class="sub small" style="margin-top:14px;">${owned ? "You already own this one - it's ready to add to a deck." : 'Open Card Packs in the Mehrbod Shop for a chance at this archetype.'}</p>
-    </div>`;
-  document.body.appendChild(overlay);
-  overlay.querySelector('.feature-close').onclick = () => overlay.remove();
-  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
-}
-document.getElementById('btn-card-of-day').addEventListener('click', showCardOfTheDay);
-
 /* ============================================================
    DAILY CHALLENGE
    A single rotating objective, the same for everyone on a given
@@ -1442,7 +1405,7 @@ function checkAchievements() {
   if (stats.wins >= 10) unlockAchievement('win_10');
   if (stats.streak >= 3) unlockAchievement('win_streak_3');
   if (beaten.includes('Master')) unlockAchievement('win_master');
-  if (isFlameUnlocked(beaten)) unlockAchievement('all_diffs');
+  if (isAllDiffsUnlocked(beaten)) unlockAchievement('all_diffs');
   if (isCollectionComplete()) unlockAchievement('full_collection');
   if (loadBux() >= 500) unlockAchievement('bux_500');
   if ((daily.streak || 0) >= 3) unlockAchievement('daily_streak_3');
@@ -1456,13 +1419,14 @@ function startVsBot(wagerAmount = 0, deckConfig = null) {
   localKey = 'you'; remoteKey = 'bot';
   const seed = makeSeed();
   gameOverAnnounced = false;
+  meteorShowerDone = false;
+  matchVictoryAnims = { you: deckConfig?.victoryAnim || null, bot: null };
   matchStartTime = Date.now();
   currentWager = wagerAmount || 0;
   _lowHpWarned.clear();
   resetMatchCardStats();
   lastPlacement = null;
   cancelBotThinking();
-  clearRoundTimer();
   if (deckConfig) lastVsBotDeckConfig = deckConfig;
   state = createMatch(seed, 'you', 'bot', deckConfig ? { you: deckConfig } : {});
   botRng = new RngStream(seed + 999);
@@ -1606,6 +1570,8 @@ function startTutorialMatch() {
   localKey = 'you'; remoteKey = 'bot';
   const seed = makeSeed();
   gameOverAnnounced = false;
+  meteorShowerDone = false;
+  matchVictoryAnims = {};
   matchStartTime = Date.now();
   currentWager = 0;
   currentWagerHeldAtFloor = false;
@@ -1613,7 +1579,6 @@ function startTutorialMatch() {
   resetMatchCardStats();
   lastPlacement = null;
   cancelBotThinking();
-  clearRoundTimer();
   // v3.0: no more hand to override with a predictable starter set - the
   // default random deck (buildDeck with no config) already has plenty of
   // Blues plus at least one Green/Red blueprint, which is exactly what the
@@ -1832,6 +1797,7 @@ function spawnCastEffect(ownerKey, slot, kind, amount) {
     fx.className = 'merge-fx';
     slotEl.appendChild(fx);
     setTimeout(() => fx.remove(), 500);
+    vibrate(15);
   } else if (kind === 'bigmerge') {
     // NEW: extra-juicy celebration for a 3-4 card fusion or any merge that
     // lands on the peak Orange tier - a bigger burst plus a ring of
@@ -1850,6 +1816,7 @@ function spawnCastEffect(ownerKey, slot, kind, amount) {
     }
     setTimeout(() => fx.remove(), 780);
     Sound.megaMerge();
+    vibrate([20, 30, 20]);
   } else if (kind === 'defend') {
     const fx = document.createElement('div');
     fx.className = 'shield-slam-fx';
@@ -2046,7 +2013,6 @@ async function beginHost(wagerAmount, hostDeckConfig) {
   if (!wagerAmount) currentWagerHeldAtFloor = false;
   mode = 'mp'; localKey = 'host'; remoteKey = 'guest';
   currentWager = wagerAmount || 0;
-  clearRoundTimer();
   showScreen('screen-host');
   const seed = makeSeed();
   net = new NetSession({
@@ -2060,6 +2026,8 @@ async function beginHost(wagerAmount, hostDeckConfig) {
     },
     onGuestConfig: (guestDeckConfig) => {
       gameOverAnnounced = false;
+      meteorShowerDone = false;
+      matchVictoryAnims = { host: hostDeckConfig?.victoryAnim || null, guest: guestDeckConfig?.victoryAnim || null };
       matchStartTime = Date.now();
       _lowHpWarned.clear();
       resetMatchCardStats();
@@ -2088,10 +2056,11 @@ document.getElementById('btn-join-confirm').addEventListener('click', async () =
   const code = document.getElementById('join-code-input').value.trim();
   if (!code) return;
   mode = 'mp'; localKey = 'guest'; remoteKey = 'host';
-  clearRoundTimer();
   net = new NetSession({
     onInit: (data) => {
       gameOverAnnounced = false;
+      meteorShowerDone = false;
+      matchVictoryAnims = { host: data.hostDeckConfig?.victoryAnim || null, guest: pendingGuestDeckConfig?.victoryAnim || null };
       matchStartTime = Date.now();
       currentWager = 0;
       if (data.wager && data.wager > 0) {
@@ -2125,6 +2094,15 @@ document.getElementById('btn-join-confirm').addEventListener('click', async () =
     onForfeit: () => handleOpponentForfeit(),
   });
   try { await net.joinGame(code, pendingGuestDeckConfig); } catch (e) { /* status already shown */ }
+});
+
+// NEW: pressing Enter while typing a room code submits it, same as tapping
+// Connect - saves a reach-for-the-button trip on both desktop and mobile.
+document.getElementById('join-code-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('btn-join-confirm').click();
+  }
 });
 
 // ---- Action dispatch --------------------------------------------------------
@@ -2242,7 +2220,6 @@ document.getElementById('btn-rematch').addEventListener('click', () => {
   document.getElementById('gameover-overlay').classList.add('hidden');
   document.getElementById('gameover-card').querySelectorAll('.confetti-piece').forEach(el => el.remove());
   cancelBotThinking();
-  clearRoundTimer();
   if (net) { net.destroy(); net = null; }
   state = null;
   showScreen('screen-menu');
@@ -2251,7 +2228,6 @@ document.getElementById('btn-play-again').addEventListener('click', () => {
   document.getElementById('gameover-overlay').classList.add('hidden');
   document.getElementById('gameover-card').querySelectorAll('.confetti-piece').forEach(el => el.remove());
   cancelBotThinking();
-  clearRoundTimer();
   // NEW FEATURE: Same Deck Rematch - reuse the exact deck you built last
   // time instead of falling back to a random one.
   startVsBot(0, lastVsBotDeckConfig);
@@ -2276,7 +2252,6 @@ document.getElementById('btn-quit-match').addEventListener('click', () => {
   if (midMatch && !confirm('Quit this match and return to the menu? Your progress in this match will be lost.')) return;
   document.getElementById('options-overlay').classList.add('hidden');
   cancelBotThinking();
-  clearRoundTimer();
   resetTutorialState();
   if (net && mode === 'mp' && midMatch) { net.sendForfeit(); }
   if (net) { net.destroy(); net = null; }
@@ -2452,6 +2427,7 @@ function playCombatAnimation(snapshot, fx, doneCallback) {
   const anyAttacks = fx.some(e => e.source && (e.source.kind === 'attack' || e.source.kind === 'queued-attack'));
   if (anyAttacks) {
     Sound.attack();
+    vibrate(15);
     if (!reducedMotion) {
       const screenEl = document.getElementById('screen-game');
       screenEl.classList.add('screen-shake');
@@ -2505,7 +2481,7 @@ function playCombatAnimation(snapshot, fx, doneCallback) {
       });
     });
 
-  if (anyDeaths) Sound.death();
+  if (anyDeaths) { Sound.death(); vibrate(35); }
 
   if (!reducedMotion && lineJobs.length) {
     requestAnimationFrame(() => {
@@ -2670,6 +2646,20 @@ function render() {
   renderLog(document.getElementById('log-panel'), state.log);
 
   if (state.phase === 'gameover' && !document.getElementById('screen-game').classList.contains('hidden')) {
+    // NEW: Victory Animations - if the winner (on either side of a
+    // multiplayer match, or the local player in a bot match) has a victory
+    // animation equipped, play it first, full-screen, and defer the actual
+    // "You Win"/"You Lose" card + all match-end bookkeeping (stats, quest
+    // progress, wager payout, etc.) until it finishes. Both peers in a
+    // multiplayer match run this same check locally against the same
+    // matchVictoryAnims data exchanged at match start, so the shower plays
+    // for both of them at effectively the same moment, not just the winner.
+    const wantsMeteor = !meteorShowerDone && state.winner !== 'draw' && matchVictoryAnims[state.winner] === 'meteor';
+    if (wantsMeteor) {
+      meteorShowerDone = true;
+      playMeteorShowerEffect(() => render());
+      return;
+    }
     const overlay = document.getElementById('gameover-overlay');
     const title = document.getElementById('gameover-title');
     if (state.winner === 'draw') title.textContent = "It's a draw!";
@@ -2697,13 +2687,12 @@ function render() {
           duration: matchStartTime ? Date.now() - matchStartTime : 0,
         });
       }
-      if (state.winner === localKey) { launchConfetti(); Sound.win(); }
+      if (state.winner === localKey) { launchConfetti(); Sound.win(); vibrate([40, 50, 40, 50, 60]); }
       if (state.winner === localKey || state.winner === remoteKey) recordResult(state.winner === localKey);
       if (state.winner === localKey && mode === 'bot' && !tutorialActive) recordDifficultyBeaten(botDifficulty);
       if (state.winner === localKey || state.winner === remoteKey) {
         const payoutForStats = currentWager > 0 && state.winner === localKey ? (currentWagerHeldAtFloor ? currentWager : currentWager * 2) : 0;
         recordBattleResult(state.winner === localKey, currentWager, payoutForStats);
-        renderStreakIndicator();
       }
       if (state.winner === localKey && !tutorialActive) {
         progressDailyChallenge('win', 1);
@@ -2730,7 +2719,6 @@ function render() {
     }
   }
   if (tutorialActive) renderTutorialOverlay();
-  maybeStartRoundTimer();
 }
 
 function formatDuration(ms) {
@@ -2798,6 +2786,43 @@ function launchConfetti() {
     card.appendChild(piece);
     setTimeout(() => piece.remove(), lifespan);
   }
+}
+
+// ---- NEW COSMETIC: Victory Animations (Meteor Shower) ----------------------
+// A full-screen, shared celebration that plays for BOTH players the moment
+// a match ends, before the win/lose card appears - see the matchVictoryAnims
+// wiring in startVsBot/beginHost/join's onInit, and the gameover branch in
+// render() that defers the normal overlay reveal until this finishes.
+function playMeteorShowerEffect(onDone) {
+  const overlay = document.createElement('div');
+  overlay.className = 'meteor-shower-overlay';
+  document.body.appendChild(overlay);
+  const count = reducedMotion ? 0 : 22;
+  for (let i = 0; i < count; i++) {
+    const m = document.createElement('div');
+    m.className = 'meteor-streak';
+    const startLeft = Math.random() * 110 - 15; // some start off the left edge, matching the diagonal fall
+    const scale = 0.6 + Math.random() * 0.9;
+    m.style.left = startLeft + '%';
+    m.style.animationDelay = (Math.random() * 0.7) + 's';
+    m.style.animationDuration = (0.7 + Math.random() * 0.55) + 's';
+    m.style.setProperty('--meteor-scale', String(scale));
+    overlay.appendChild(m);
+  }
+  Sound.meteor();
+  vibrate([50, 30, 50, 30, 80]);
+  if (!reducedMotion) {
+    const screenEl = document.getElementById('screen-game');
+    if (screenEl) {
+      screenEl.classList.add('screen-shake');
+      setTimeout(() => screenEl.classList.remove('screen-shake'), 500);
+    }
+  }
+  const duration = reducedMotion ? 150 : 1550;
+  setTimeout(() => {
+    overlay.remove();
+    if (onDone) onDone();
+  }, duration);
 }
 
 // ---- NEW FEATURE: choose which blueprint a merge consumes ------------------
@@ -2965,6 +2990,79 @@ document.getElementById('btn-mute-toggle').addEventListener('click', () => {
   updateMuteButton();
 });
 updateMuteButton();
+
+// ---- NEW SETTING: master volume slider -------------------------------------
+function updateVolumeUI() {
+  const slider = document.getElementById('volume-slider');
+  const label = document.getElementById('volume-value');
+  const pct = Math.round(Sound.getVolume() * 100);
+  if (slider) slider.value = String(pct);
+  if (label) label.textContent = pct + '%';
+}
+document.getElementById('volume-slider')?.addEventListener('input', (e) => {
+  Sound.setVolume(Number(e.target.value) / 100);
+  updateVolumeUI();
+});
+updateVolumeUI();
+
+// ---- NEW SETTING: haptics (vibration) toggle -------------------------------
+// A short buzz on hits, deaths, merges, and wins, mirroring what most
+// mobile games offer as a toggleable "Vibration" option. No-ops silently
+// on devices/browsers without the Vibration API (e.g. desktop, iOS Safari).
+function loadHapticsSetting() {
+  try {
+    const v = localStorage.getItem('mehrbod-cards-haptics');
+    return v === null ? true : v === '1';
+  } catch (e) { return true; }
+}
+function saveHapticsSetting(v) {
+  try { localStorage.setItem('mehrbod-cards-haptics', v ? '1' : '0'); } catch (e) {}
+}
+let hapticsEnabled = loadHapticsSetting();
+function vibrate(pattern) {
+  if (!hapticsEnabled) return;
+  try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) { /* unsupported - ignore */ }
+}
+function updateHapticsButton() {
+  const btn = document.getElementById('btn-haptics-toggle');
+  if (btn) btn.textContent = hapticsEnabled ? '📳 Vibration: On' : '📳 Vibration: Off';
+}
+document.getElementById('btn-haptics-toggle')?.addEventListener('click', () => {
+  hapticsEnabled = !hapticsEnabled;
+  saveHapticsSetting(hapticsEnabled);
+  updateHapticsButton();
+  if (hapticsEnabled) vibrate(20); // quick confirmation buzz so the toggle itself is felt
+});
+updateHapticsButton();
+
+// ---- NEW SETTING: Reset All Progress ---------------------------------------
+// A standard "danger zone" settings option - wipes every locally-saved
+// piece of state (Bux, collection, cosmetics, decks, stats, achievements,
+// theme, and the other toggles on this list) after a two-step confirmation,
+// then reloads so every on-screen number/badge is guaranteed consistent
+// with the now-empty save instead of trying to patch dozens of already-
+// rendered elements by hand.
+const RESET_PROGRESS_KEYS = [
+  'mehrbod-cards-bux', 'mehrbod-cards-collection', 'mehrbod-cards-owned-cosmetics',
+  'mehrbod-cards-equipped-sleeve', 'mehrbod-cards-starter-granted', 'mehrbod-cards-merge-starter-v1',
+  'mehrbod_deck_presets_v1', 'mehrbod_battle_stats_v1', 'mehrbod_economy_ledger_v1',
+  'mehrbod_recent_activity', 'mehrbod_match_history_v1', 'mehrbod_card_mastery_v1',
+  'mehrbod-cards-beaten-diffs', 'mehrbod-cards-pink-unlocked', 'mehrbod-cards-reset-ehe-v1',
+  'mehrbod_daily_challenge_v2', 'mehrbod_achievements_v1', 'mehrbod-cards-record',
+  'mehrbod-cards-theme', 'mehrbod-cards-last-difficulty', 'mehrbod-cards-tutorial-seen',
+  'mehrbod-cards-player-name', 'mehrbod_favorite_cards', 'mehrbod-cards-inventory-backup-v1',
+  'mehrbod-cards-last-seen-version', 'mehrbod-cards-muted', 'mehrbod-cards-reduced-motion',
+  'mehrbod-cards-volume', 'mehrbod-cards-haptics',
+];
+function resetAllProgress() {
+  if (!confirm('This permanently erases your Mehrbod Bux, card collection, achievements, stats, and saved decks on this device. This cannot be undone. Continue?')) return;
+  if (!confirm('Are you absolutely sure? There is no way to get this back once it\'s gone.')) return;
+  try { RESET_PROGRESS_KEYS.forEach(k => localStorage.removeItem(k)); } catch (e) {}
+  showToast('🗑 Progress reset. Reloading…', 1600);
+  setTimeout(() => location.reload(), 700);
+}
+document.getElementById('btn-reset-progress')?.addEventListener('click', resetAllProgress);
+
 updateRecordDisplay();
 updateBuxDisplay();
 
@@ -2988,95 +3086,20 @@ function applyReducedMotion(on) {
 document.getElementById('btn-motion-toggle').addEventListener('click', () => applyReducedMotion(!reducedMotion));
 applyReducedMotion(reducedMotion);
 
-// ---- NEW FEATURE: Round Timer ----------------------------------------------
-// A visible per-phase countdown that auto-readies the local player if they
-// sit on a placement or attack decision too long, so a real match (bot or
-// multiplayer) can never stall forever waiting on one side. Off by default
-// during the tutorial, and toggleable from Options for anyone who'd rather
-// play untimed. Auto-ready reuses pressReady(), the exact same path the
-// Ready button itself uses, so it can never desync from normal play.
-const ROUND_TIMER_SECONDS = { placement: 60, attack: 40 };
-function loadRoundTimerSetting() {
-  try {
-    const v = localStorage.getItem('mehrbod-cards-round-timer');
-    return v === null ? true : v === '1';
-  } catch (e) { return true; }
-}
-function saveRoundTimerSetting(v) {
-  try { localStorage.setItem('mehrbod-cards-round-timer', v ? '1' : '0'); } catch (e) {}
-}
-let roundTimerEnabled = loadRoundTimerSetting();
-let roundTimerInterval = null;
-let roundTimerDeadline = null;
-let roundTimerPhaseKey = null;
-
-function clearRoundTimer() {
-  if (roundTimerInterval) { clearInterval(roundTimerInterval); roundTimerInterval = null; }
-  roundTimerPhaseKey = null;
-  const el = document.getElementById('round-timer');
-  if (el) { el.classList.add('hidden'); el.classList.remove('timer-warning'); }
-}
-
-function tickRoundTimer() {
-  const el = document.getElementById('round-timer');
-  if (!state || state.phase === 'gameover') { clearRoundTimer(); return; }
-  const readyField = state.phase === 'attack' ? 'readyAttack' : 'readyPlacement';
-  if (!state.players[localKey] || state.players[localKey][readyField]) { clearRoundTimer(); return; }
-  const msLeft = roundTimerDeadline - Date.now();
-  if (msLeft <= 0) {
-    clearRoundTimer();
-    if (state.phase !== 'gameover' && !state.players[localKey][readyField] && !animatingCombat) {
-      showToast("⏱ Time's up — auto-readied!", 1800);
-      pressReady();
-    }
-    return;
-  }
-  if (el) {
-    el.classList.remove('hidden');
-    const secs = Math.ceil(msLeft / 1000);
-    el.textContent = `⏱ ${secs}s`;
-    el.classList.toggle('timer-warning', secs <= 10);
-  }
-}
-
-function maybeStartRoundTimer() {
-  if (!state || state.phase === 'gameover' || tutorialActive || !roundTimerEnabled || animatingCombat) { clearRoundTimer(); return; }
-  if (mode !== 'bot' && mode !== 'mp') { clearRoundTimer(); return; }
-  const readyField = state.phase === 'attack' ? 'readyAttack' : 'readyPlacement';
-  if (!state.players[localKey] || state.players[localKey][readyField]) { clearRoundTimer(); return; }
-  const key = state.phase + ':' + state.round;
-  if (roundTimerPhaseKey === key && roundTimerInterval) return; // already counting down for this phase/round
-  clearRoundTimer();
-  roundTimerPhaseKey = key;
-  roundTimerDeadline = Date.now() + (ROUND_TIMER_SECONDS[state.phase] || 45) * 1000;
-  roundTimerInterval = setInterval(tickRoundTimer, 250);
-  tickRoundTimer();
-}
-
-function updateTimerToggleButton() {
-  const btn = document.getElementById('btn-timer-toggle');
-  if (btn) btn.textContent = roundTimerEnabled ? '⏱ Round Timer: On' : '⏱ Round Timer: Off';
-}
-document.getElementById('btn-timer-toggle').addEventListener('click', () => {
-  roundTimerEnabled = !roundTimerEnabled;
-  saveRoundTimerSetting(roundTimerEnabled);
-  updateTimerToggleButton();
-  if (!roundTimerEnabled) clearRoundTimer();
-  else maybeStartRoundTimer();
-});
-updateTimerToggleButton();
-
 // ---- Themes -----------------------------------------------------------------
 const ALL_DIFFICULTIES = ['Easy', 'Medium', 'Hard', 'Expert', 'Master'];
 
+// NOTE: Flame and Storm swapped which unlock condition they use - Flame is
+// now the single-difficulty reward (Hard) and Storm is now the "beat every
+// difficulty" secret reward, the reverse of how they used to be assigned.
 const QUEST_DEFS = [
   { diff: 'Easy',   theme: 'verdant',   icon: '🌱', name: 'Sprout',      desc: 'Win a practice match on Easy difficulty.', badgeId: 'easy-verdant-badge' },
   { diff: 'Medium', theme: 'pink',      icon: '💗', name: 'In the Pink', desc: 'Win a practice match on Medium difficulty.', badgeId: 'medium-pink-badge' },
-  { diff: 'Hard',   theme: 'storm',     icon: '⛈️', name: 'Storm Chaser',desc: 'Win a practice match on Hard difficulty.', badgeId: 'hard-storm-badge' },
+  { diff: 'Hard',   theme: 'flame',     icon: '🔥', name: 'Firestarter', desc: 'Win a practice match on Hard difficulty.', badgeId: 'hard-storm-badge' },
   { diff: 'Expert', theme: 'aurora',    icon: '🌌', name: 'Stargazer',   desc: 'Win a practice match on Expert difficulty.', badgeId: 'expert-aurora-badge' },
   { diff: 'Master', theme: 'sovereign', icon: '👑', name: 'The Sovereign',desc: 'Win a practice match on Master difficulty.', badgeId: 'master-sovereign-badge' },
 ];
-const FLAME_QUEST = { theme: 'flame', icon: '🔥', name: 'Undefeated', desc: 'Win a practice match on every difficulty at least once.' };
+const ALL_DIFFS_QUEST = { theme: 'storm', icon: '⛈️', name: 'Undefeated', desc: 'Win a practice match on every difficulty at least once.' };
 
 (function partialResetEasyHardExpert() {
   try {
@@ -3115,10 +3138,10 @@ function recordDifficultyBeaten(diff) {
       recordRecentActivity(`Unlocked the ${themeDisplayName(q.theme)} theme by beating ${q.diff}`);
     }
   });
-  if (!isFlameUnlocked(before) && isFlameUnlocked(set)) {
-    showToast('🔥 Flame theme unlocked! You beat every difficulty!', 3000);
+  if (!isAllDiffsUnlocked(before) && isAllDiffsUnlocked(set)) {
+    showToast('⛈️ Storm theme unlocked! You beat every difficulty!', 3000);
     Sound.sparkle();
-    recordRecentActivity('Unlocked the Flame theme by beating every difficulty');
+    recordRecentActivity('Unlocked the Storm theme by beating every difficulty');
   }
   renderQuests();
 }
@@ -3126,7 +3149,7 @@ function isThemeUnlockedByDiff(theme, set) {
   const q = QUEST_DEFS.find(q => q.theme === theme);
   return q ? (set || loadBeatenDifficulties()).includes(q.diff) : false;
 }
-function isFlameUnlocked(set) {
+function isAllDiffsUnlocked(set) {
   const beaten = set || loadBeatenDifficulties();
   return ALL_DIFFICULTIES.every(d => beaten.includes(d));
 }
@@ -3134,7 +3157,7 @@ function themeDisplayName(t) {
   return {
     dark: 'Dark', light: 'Light', verdant: 'Verdant', pink: 'Pink', storm: 'Storm',
     aurora: 'Aurora', sovereign: 'Sovereign', flame: 'Flame', mrmoney: 'Mr Money',
-    collector: '100% Collector'
+    cyberneon: 'Cyber Neon', abyss: 'Abyss', collector: '100% Collector'
   }[t] || t;
 }
 function isCollectionComplete() {
@@ -3147,22 +3170,26 @@ function isCollectionComplete() {
 const THEME_UNLOCK_CHECK = {
   dark: () => true, light: () => true,
   verdant: () => isThemeUnlockedByDiff('verdant'), pink: () => isThemeUnlockedByDiff('pink'),
-  storm: () => isThemeUnlockedByDiff('storm'), aurora: () => isThemeUnlockedByDiff('aurora'),
-  sovereign: () => isThemeUnlockedByDiff('sovereign'), flame: () => isFlameUnlocked(),
+  flame: () => isThemeUnlockedByDiff('flame'), aurora: () => isThemeUnlockedByDiff('aurora'),
+  sovereign: () => isThemeUnlockedByDiff('sovereign'), storm: () => isAllDiffsUnlocked(),
   mrmoney: () => ownsCosmetic('theme_mrmoney'),
+  cyberneon: () => ownsCosmetic('theme_cyberneon'),
+  abyss: () => ownsCosmetic('theme_abyss'),
   collector: () => isCollectionComplete(),
 };
 const THEME_LOCK_MESSAGE = {
   verdant: '🔒 Beat Easy difficulty to unlock the Verdant theme!',
   pink: '🔒 Beat Medium difficulty to unlock Pink Mode!',
-  storm: '🔒 Beat Hard difficulty to unlock the Storm theme!',
+  flame: '🔒 Beat Hard difficulty to unlock the Flame theme!',
   aurora: '🔒 Beat Expert difficulty to unlock the Aurora theme!',
-  flame: '🔒 Beat every difficulty at least once to unlock the Flame theme!',
+  storm: '🔒 Beat every difficulty at least once to unlock the Storm theme!',
   sovereign: '🔒 Beat Master difficulty to unlock the Sovereign theme!',
   mrmoney: '🔒 Buy the Mr Money theme in the Mehrbod Shop for 1000 Bux!',
+  cyberneon: '🔒 Buy the Cyber Neon theme in the Mehrbod Shop for 1200 Bux!',
+  abyss: '🔒 Buy the Abyss theme in the Mehrbod Shop for 1200 Bux!',
   collector: '🔒 Collect every current card to unlock the 100% Collector theme!',
 };
-const ALL_THEME_NAMES = ['dark', 'light', 'verdant', 'pink', 'storm', 'aurora', 'sovereign', 'flame', 'mrmoney', 'collector'];
+const ALL_THEME_NAMES = ['dark', 'light', 'verdant', 'pink', 'flame', 'aurora', 'sovereign', 'storm', 'mrmoney', 'cyberneon', 'abyss', 'collector'];
 function loadTheme() {
   try {
     const saved = localStorage.getItem('mehrbod-cards-theme');
@@ -3201,11 +3228,11 @@ function updateThemeButtons() {
     badge.classList.toggle('unlocked', unlocked);
     badge.title = unlocked ? `${themeDisplayName(q.theme)} theme unlocked! Try it in Options.` : `Beat ${q.diff} to unlock the ${themeDisplayName(q.theme)} theme!`;
   });
-  const flameHint = document.getElementById('flame-hint');
-  if (flameHint) {
-    flameHint.textContent = isFlameUnlocked(beaten)
-      ? '🔥 Flame theme unlocked — you beat every difficulty!'
-      : `🔥 Beat every difficulty at least once to unlock a secret 6th theme. (${beaten.length}/5)`;
+  const stormHint = document.getElementById('storm-hint');
+  if (stormHint) {
+    stormHint.textContent = isAllDiffsUnlocked(beaten)
+      ? '⛈️ Storm theme unlocked — you beat every difficulty!'
+      : `⛈️ Beat every difficulty at least once to unlock a secret 6th theme. (${beaten.length}/5)`;
   }
 }
 document.querySelectorAll('.theme-btn').forEach(btn => {
@@ -3441,19 +3468,19 @@ function renderQuests() {
       <div class="quest-status">${done ? '✅' : '⬜'}</div>
     </div>`;
   }).join('');
-  const flameDone = isFlameUnlocked(beaten);
-  const flameRowHtml = `<div class="quest-row${flameDone ? ' complete' : ''}">
-    <div class="quest-icon">${FLAME_QUEST.icon}</div>
+  const allDiffsDone = isAllDiffsUnlocked(beaten);
+  const allDiffsRowHtml = `<div class="quest-row${allDiffsDone ? ' complete' : ''}">
+    <div class="quest-icon">${ALL_DIFFS_QUEST.icon}</div>
     <div class="quest-body">
-      <div class="quest-title">${FLAME_QUEST.name} — unlocks ${themeDisplayName(FLAME_QUEST.theme)}</div>
-      <div class="quest-desc">${FLAME_QUEST.desc} (${beaten.length}/5)</div>
+      <div class="quest-title">${ALL_DIFFS_QUEST.name} — unlocks ${themeDisplayName(ALL_DIFFS_QUEST.theme)}</div>
+      <div class="quest-desc">${ALL_DIFFS_QUEST.desc} (${beaten.length}/5)</div>
     </div>
-    <div class="quest-status">${flameDone ? '✅' : '⬜'}</div>
+    <div class="quest-status">${allDiffsDone ? '✅' : '⬜'}</div>
   </div>`;
 
   list.innerHTML = dailyHtml + achievementsHtml +
     `<div class="deck-builder-heading" style="margin-top:18px;"><span>🎨 Theme Quests</span></div>` +
-    themeRowsHtml + flameRowHtml;
+    themeRowsHtml + allDiffsRowHtml;
 }
 function openQuests() {
   renderQuests();
@@ -3481,12 +3508,34 @@ document.getElementById('btn-copy-code').addEventListener('click', async () => {
 });
 
 // ---- Patch notes --------------------------------------------------------
-const CURRENT_VERSION = '3.6';
+const CURRENT_VERSION = '3.8';
 const PATCH_NOTES = [
+  {
+    version: '3.8',
+    notes: [
+      "SWAPPED: Flame and Storm now unlock the opposite way they used to - Flame is the single-difficulty reward (beat Hard), and Storm is the secret 6th theme for beating every difficulty.",
+      "REDESIGNED: Storm theme - a real supercell now, with a violet storm-glow horizon, four independent lightning bolts, a full-sky flash that fires with each strike, wind-blown streaks, and nearly twice the rainfall.",
+      "REDESIGNED: 100% Collector theme, now a 'Diamond Vault' - an icy-white, rose-gold, and champagne palette with a sweeping spotlight and faceted diamond card edges, replacing the old gold/cyan/pink mix so it no longer overlaps visually with Sovereign or the old Collector look.",
+      "NEW: two purchasable themes in the Mehrbod Shop - Cyber Neon (1200 Bux: a neon cyberpunk grid with drifting glyph particles and CRT scanlines) and Abyss (1200 Bux: a bioluminescent deep-sea vault with drifting jellyfish glow, rising bubbles, and caustic light rays).",
+      "NEW cosmetic category: Victory Animations. The first one, Meteor Shower (500 Bux), plays a full-screen meteor shower the instant its owner wins a match, visible to BOTH players right before the win/lose screen appears - equipped-victory-animation info is exchanged between host and guest at match start so it's never a surprise only the winner sees.",
+    ],
+  },
+  {
+    version: '3.7',
+    notes: [
+      "REMOVED: Round Timer. Matches are untimed again.",
+      "REMOVED: Card of the Day.",
+      "FIX: quitting your own multiplayer match could flash \"Your opponent forfeited — you win!\" at the very person who quit, instead of only ever showing to the player who was actually left behind. Closing your own connection was triggering your own forfeit handler; it's now only ever triggered by a genuine disconnect from the other side.",
+      "FIX: pressing Enter while typing a room code on the Join screen now submits it, same as tapping Connect.",
+      "FIX: removed a floating \"WIN STREAK\" badge that duplicated the win-streak text already shown under the main menu buttons.",
+      "NEW: a Volume slider in Options, alongside the existing mute toggle.",
+      "NEW: a Vibration toggle in Options - short haptic buzzes on hits, deaths, merges, and wins on devices that support it.",
+      "NEW: Reset All Progress in Options - a two-step-confirmed way to wipe all locally saved Bux, cards, achievements, stats, and settings on this device.",
+    ],
+  },
   {
     version: '3.6',
     notes: [
-      "NEW: Round Timer - a visible countdown for each placement/attack phase (60s / 40s) that auto-readies you if you sit on a decision too long, so a match against another person can never stall out waiting on one side. On by default; toggle it off anytime from Options if you'd rather play untimed. Never active during the tutorial.",
       "NEW: Deck Builder search & filter - a search box and a tier dropdown now sit above the Units grid, matching the Collection Book's tools, so building a deck from a growing card pool doesn't mean endless scrolling.",
       "NEW: Merge Preview - while picking cards in 🧬 Combine mode, a live preview panel shows the exact HP/DMG/chip-slots the resulting card will have and names which blueprint(s) it'll pull from, before you commit to the fusion.",
     ],

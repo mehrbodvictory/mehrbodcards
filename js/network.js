@@ -127,7 +127,19 @@ class NetSession {
         this.onForfeit();
       }
     });
-    this.conn.on('close', () => { this.onStatus('disconnected'); this.onForfeit(); });
+    // BUGFIX: destroy() below closes this same `conn`, which fires this
+    // exact 'close' handler locally on whichever side called destroy() -
+    // including the side that just intentionally quit. Without the
+    // `manualDisconnect` guard, quitting your own match used to trigger
+    // your own onForfeit() a split second later, flashing "Your opponent
+    // forfeited - you win!" at the very person who left. Only a genuine,
+    // *unexpected* disconnect (the other peer's tab closing, network drop,
+    // etc.) should ever reach onForfeit() here.
+    this.conn.on('close', () => {
+      if (this.manualDisconnect) return;
+      this.onStatus('disconnected');
+      this.onForfeit();
+    });
   }
 
   _wireGuestConn() {
@@ -136,7 +148,11 @@ class NetSession {
       else if (data.type === 'applied') this.onApplied(data.action);
       else if (data.type === 'forfeit') this.onForfeit();
     });
-    this.conn.on('close', () => { this.onStatus('disconnected'); this.onForfeit(); });
+    this.conn.on('close', () => {
+      if (this.manualDisconnect) return;
+      this.onStatus('disconnected');
+      this.onForfeit();
+    });
   }
 
   // Called when the local player intentionally quits mid-match, so the
@@ -156,7 +172,11 @@ class NetSession {
 
   _send(msg) { if (this.conn && this.conn.open) this.conn.send(msg); }
 
+  // `manualDisconnect` marks this as a deliberate local teardown (quitting,
+  // leaving a lobby, etc.) rather than the other peer actually forfeiting -
+  // see the 'close' handlers above for why that distinction matters.
   destroy() {
+    this.manualDisconnect = true;
     if (this.conn) this.conn.close();
     if (this.peer) this.peer.destroy();
   }

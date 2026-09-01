@@ -103,13 +103,24 @@
   <div class="money-bill mb14">💰</div>
 </div>
 <div id="theme-storm-bg" aria-hidden="true">
+  <div class="storm-flash"></div>
   <div class="storm-cloud c1"></div>
   <div class="storm-cloud c2"></div>
   <div class="storm-cloud c3"></div>
   <div class="storm-cloud c4"></div>
   <div class="storm-cloud c5"></div>
+  <div class="storm-cloud c6"></div>
+  <div class="storm-cloud c7"></div>
   <div class="lightning-bolt b1"></div>
   <div class="lightning-bolt b2"></div>
+  <div class="lightning-bolt b3"></div>
+  <div class="lightning-bolt b4"></div>
+  <div class="wind-streak w1"></div>
+  <div class="wind-streak w2"></div>
+  <div class="wind-streak w3"></div>
+  <div class="wind-streak w4"></div>
+  <div class="wind-streak w5"></div>
+  <div class="wind-streak w6"></div>
   <div class="rain-streak r1"></div>
   <div class="rain-streak r2"></div>
   <div class="rain-streak r3"></div>
@@ -126,6 +137,35 @@
   <div class="rain-streak r14"></div>
   <div class="rain-streak r15"></div>
   <div class="rain-streak r16"></div>
+  <div class="rain-streak r17"></div>
+  <div class="rain-streak r18"></div>
+  <div class="rain-streak r19"></div>
+  <div class="rain-streak r20"></div>
+</div>
+<div id="theme-cyberneon-bg" aria-hidden="true">
+  <div class="neon-particle np1">01</div>
+  <div class="neon-particle np2">▲</div>
+  <div class="neon-particle np3">10</div>
+  <div class="neon-particle np4">◆</div>
+  <div class="neon-particle np5">11</div>
+  <div class="neon-particle np6">▲</div>
+  <div class="neon-particle np7">00</div>
+  <div class="neon-particle np8">◆</div>
+</div>
+<div id="theme-abyss-bg" aria-hidden="true">
+  <div class="abyss-jelly j1"></div>
+  <div class="abyss-jelly j2"></div>
+  <div class="abyss-jelly j3"></div>
+  <div class="abyss-bubble bb1"></div>
+  <div class="abyss-bubble bb2"></div>
+  <div class="abyss-bubble bb3"></div>
+  <div class="abyss-bubble bb4"></div>
+  <div class="abyss-bubble bb5"></div>
+  <div class="abyss-bubble bb6"></div>
+  <div class="abyss-bubble bb7"></div>
+  <div class="abyss-bubble bb8"></div>
+  <div class="abyss-bubble bb9"></div>
+  <div class="abyss-bubble bb10"></div>
 </div>
 <div id="theme-aurora-bg" aria-hidden="true">
   <div class="galaxy-core"></div>
@@ -197,8 +237,6 @@
       <button class="link-btn" id="btn-open-quests-menu">🏆 Quests</button>
       <span class="footer-dot">·</span>
       <button class="link-btn" id="btn-open-settings-menu">⚙ Settings</button>
-      <span class="footer-dot">·</span>
-      <button class="link-btn" id="btn-card-of-day">🌟 Card of the Day</button>
       <span class="footer-dot">·</span>
       <button class="link-btn" id="btn-version"></button><span id="version-badge" class="new-badge hidden">NEW</span>
     </div>
@@ -421,7 +459,7 @@
         <span>Focuses low-HP targets, some merges</span>
       </button>
       <button class="diff-card diff-hard" data-diff="Hard">
-        <b>Hard <span id="hard-storm-badge" class="reward-badge storm-badge" title="Beat Hard to unlock the Storm theme!">⛈️</span></b>
+        <b>Hard <span id="hard-storm-badge" class="reward-badge flame-badge" title="Beat Hard to unlock the Flame theme!">🔥</span></b>
         <span>Hunts kills, merges to survive</span>
       </button>
       <button class="diff-card diff-expert" data-diff="Expert">
@@ -433,7 +471,7 @@
         <span>Near-perfect play — aggressive merges, precise kills</span>
       </button>
     </div>
-    <p id="flame-hint" class="sub small">🔥 Beat every difficulty at least once to unlock a secret 6th theme.</p>
+    <p id="storm-hint" class="sub small">⛈️ Beat every difficulty at least once to unlock a secret 6th theme.</p>
     <button class="link-btn" id="btn-open-quests">🏆 View Quests</button>
     <button class="link-btn back-btn">← Back</button>
   </section>
@@ -475,7 +513,7 @@
       <button id="btn-themes-close" class="modal-close" aria-label="Close themes">✕</button>
       <span class="modal-kicker">CUSTOMIZE</span>
       <h2>🎨 Themes</h2>
-      <p class="sub small">Dark and Light are free. Most others unlock from the Quests panel — Mr Money is bought in the Shop instead.</p>
+      <p class="sub small">Dark and Light are free. Most others unlock from the Quests panel — Mr Money, Cyber Neon, and Abyss are bought in the Shop instead.</p>
       <div id="theme-options">
         <button class="theme-btn" id="theme-btn-dark" data-theme="dark" title="Dark">
           <span class="theme-icon">🌙</span><span>Dark</span>
@@ -491,8 +529,8 @@
           <span class="theme-icon">💗</span><span>Pink</span>
           <span class="theme-lock-icon">🔒</span>
         </button>
-        <button class="theme-btn locked" id="theme-btn-storm" data-theme="storm" title="Beat Hard difficulty to unlock!">
-          <span class="theme-icon">⛈️</span><span>Storm</span>
+        <button class="theme-btn locked" id="theme-btn-flame" data-theme="flame" title="Beat Hard difficulty to unlock!">
+          <span class="theme-icon">🔥</span><span>Flame</span>
           <span class="theme-lock-icon">🔒</span>
         </button>
         <button class="theme-btn locked" id="theme-btn-aurora" data-theme="aurora" title="Beat Expert difficulty to unlock!">
@@ -503,12 +541,20 @@
           <span class="theme-icon">👑</span><span>Sovereign</span>
           <span class="theme-lock-icon">🔒</span>
         </button>
-        <button class="theme-btn locked" id="theme-btn-flame" data-theme="flame" title="Beat every difficulty at least once to unlock!">
-          <span class="theme-icon">🔥</span><span>Flame</span>
+        <button class="theme-btn locked" id="theme-btn-storm" data-theme="storm" title="Beat every difficulty at least once to unlock!">
+          <span class="theme-icon">⛈️</span><span>Storm</span>
           <span class="theme-lock-icon">🔒</span>
         </button>
         <button class="theme-btn locked" id="theme-btn-mrmoney" data-theme="mrmoney" title="Buy in the Mehrbod Shop for 1000 Bux!">
           <span class="theme-icon">🤑</span><span>Mr Money</span>
+          <span class="theme-lock-icon">🔒</span>
+        </button>
+        <button class="theme-btn locked" id="theme-btn-cyberneon" data-theme="cyberneon" title="Buy in the Mehrbod Shop for 1200 Bux!">
+          <span class="theme-icon">🌆</span><span>Cyber Neon</span>
+          <span class="theme-lock-icon">🔒</span>
+        </button>
+        <button class="theme-btn locked" id="theme-btn-abyss" data-theme="abyss" title="Buy in the Mehrbod Shop for 1200 Bux!">
+          <span class="theme-icon">🌊</span><span>Abyss</span>
           <span class="theme-lock-icon">🔒</span>
         </button>
         <button class="theme-btn locked" id="theme-btn-collector" data-theme="collector" title="Collect every current card to unlock!">
@@ -548,7 +594,6 @@
         <span id="you-ready-badge" class="ready-badge">You</span>
         <span id="opp-ready-badge" class="ready-badge">Opponent</span>
       </span>
-      <span id="round-timer" class="hidden">⏱ 0s</span>
       <button id="btn-options" class="icon-btn" title="Options">⚙</button>
       <button id="btn-ready" class="primary-btn small" title="Ready up (R)">Ready</button>
     </div>
@@ -633,12 +678,21 @@
       <span class="modal-kicker">SETTINGS</span>
       <h2>Options</h2>
       <button class="mode-btn" id="btn-mute-toggle">🔊 Sound: On</button>
+      <div id="volume-row">
+        <label for="volume-slider">🔉 Volume</label>
+        <input type="range" id="volume-slider" min="0" max="100" step="5" value="100">
+        <span id="volume-value">100%</span>
+      </div>
+      <button class="mode-btn" id="btn-haptics-toggle">📳 Vibration: On</button>
       <button class="mode-btn" id="btn-motion-toggle">🎬 Reduced motion: Off</button>
-      <button class="mode-btn" id="btn-timer-toggle">⏱ Round Timer: On</button>
       <button class="mode-btn" id="btn-open-themes">🎨 Themes</button>
       <div id="quit-match-section">
         <p class="sub small">Leaving now forfeits the match.</p>
         <button class="primary-btn danger" id="btn-quit-match">Quit Match</button>
+      </div>
+      <div id="reset-progress-section">
+        <p class="sub small">Erase all Mehrbod Bux, cards, achievements, and stats saved on this device.</p>
+        <button class="primary-btn danger" id="btn-reset-progress">🗑 Reset All Progress</button>
       </div>
     </div>
   </div>

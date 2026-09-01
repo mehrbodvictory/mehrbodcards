@@ -41,6 +41,21 @@ js/main.js             App controller: screens, input handling, game loop
 
 ## Latest changes (this build)
 
+- **SWAPPED**: Flame and Storm now unlock the opposite way they used to — Flame unlocks by beating Hard, Storm is now the secret 6th theme for beating every difficulty.
+- **REDESIGNED**: Storm theme (real supercell — four lightning bolts, full-sky flash, wind streaks, denser rain) and 100% Collector theme (now a "Diamond Vault" — icy white/rose-gold/champagne palette, no longer overlapping visually with Sovereign or its own old look).
+- **NEW**: two purchasable Shop themes — Cyber Neon (1200 Bux) and Abyss (1200 Bux).
+- **NEW cosmetic category**: Victory Animations. The first is Meteor Shower (500 Bux) — plays a full-screen meteor shower for both players the instant its owner wins, right before the win/lose screen appears.
+
+## Earlier changes
+
+- **Removed**: Round Timer and Card of the Day (both pulled back out).
+- **FIX**: quitting your own multiplayer match no longer flashes "Your opponent forfeited — you win!" at the person who quit — closing your own connection was triggering your own forfeit handler; now only a genuine disconnect from the other side does.
+- **FIX**: pressing Enter in the Join room-code field now submits it, same as tapping Connect.
+- **FIX**: removed a floating "WIN STREAK" badge that duplicated the streak text already shown on the main menu.
+- **NEW**: Volume slider, Vibration toggle (haptic buzzes on hits/deaths/merges/wins), and a two-step-confirmed Reset All Progress option, all in Options.
+
+## Earlier changes
+
 - **NEW: Round Timer.** Each placement/attack phase now shows a countdown (60s / 40s) in the phase bar; if you don't ready up in time, you're auto-readied so a match can never stall out waiting on one side — important for multiplayer especially. On by default, toggle off anytime in Options.
 - **NEW: Deck Builder search & filter.** A search box + tier dropdown now sits above the Units grid in the deck builder, mirroring the Collection Book's tools.
 - **NEW: Merge Preview.** While selecting cards in 🧬 Combine mode, a live panel shows the exact HP/DMG/chip-slot stats the resulting card will have and which blueprint(s) it'll pull from, before you confirm the fusion.

@@ -5,6 +5,15 @@ const Sound = (function () {
   let ctx = null;
   let muted = false;
   try { muted = localStorage.getItem('mehrbod-cards-muted') === '1'; } catch (e) { /* ignore */ }
+  // NEW: master volume (0-1), separate from the hard mute toggle - most
+  // games offer both. Every tone/sweep's own per-effect volume (the `vol`
+  // argument, tuned per-sound so e.g. a merge chime isn't as loud as an
+  // attack hit) is scaled by this multiplier rather than replaced by it.
+  let volume = 1;
+  try {
+    const raw = localStorage.getItem('mehrbod-cards-volume');
+    if (raw !== null) { const n = Number(raw); if (Number.isFinite(n)) volume = Math.max(0, Math.min(1, n)); }
+  } catch (e) { /* ignore */ }
 
   function ensureCtx() {
     if (!ctx) {
@@ -16,7 +25,7 @@ const Sound = (function () {
   }
 
   function tone(freq, dur, type, vol, delay) {
-    if (muted) return;
+    if (muted || volume <= 0) return;
     const c = ensureCtx();
     if (!c) return;
     const t0 = c.currentTime + (delay || 0);
@@ -24,7 +33,7 @@ const Sound = (function () {
     const gain = c.createGain();
     osc.type = type || 'sine';
     osc.frequency.setValueAtTime(freq, t0);
-    gain.gain.setValueAtTime(vol || 0.12, t0);
+    gain.gain.setValueAtTime((vol || 0.12) * volume, t0);
     gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
     osc.connect(gain).connect(c.destination);
     osc.start(t0);
@@ -32,7 +41,7 @@ const Sound = (function () {
   }
 
   function sweep(f0, f1, dur, type, vol) {
-    if (muted) return;
+    if (muted || volume <= 0) return;
     const c = ensureCtx();
     if (!c) return;
     const t0 = c.currentTime;
@@ -41,7 +50,7 @@ const Sound = (function () {
     osc.type = type || 'sine';
     osc.frequency.setValueAtTime(f0, t0);
     osc.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t0 + dur);
-    gain.gain.setValueAtTime(vol || 0.12, t0);
+    gain.gain.setValueAtTime((vol || 0.12) * volume, t0);
     gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
     osc.connect(gain).connect(c.destination);
     osc.start(t0);
@@ -51,9 +60,15 @@ const Sound = (function () {
   return {
     setMuted(m) { muted = m; try { localStorage.setItem('mehrbod-cards-muted', m ? '1' : '0'); } catch (e) {} },
     isMuted() { return muted; },
+    setVolume(v) {
+      volume = Math.max(0, Math.min(1, v));
+      try { localStorage.setItem('mehrbod-cards-volume', String(volume)); } catch (e) {}
+    },
+    getVolume() { return volume; },
     place() { tone(440, 0.07, 'triangle', 0.10); },
     merge() { sweep(320, 760, 0.25, 'sine', 0.13); },
     megaMerge() { sweep(220, 980, 0.4, 'sine', 0.16); [660, 880, 1200].forEach((f, i) => tone(f, 0.2, 'triangle', 0.09, 0.12 + i * 0.07)); },
+    meteor() { sweep(180, 900, 0.55, 'sawtooth', 0.14); [1300, 1700, 2100].forEach((f, i) => tone(f, 0.18, 'triangle', 0.09, 0.15 + i * 0.1)); },
     attack() { tone(160, 0.12, 'square', 0.13); },
     death() { sweep(420, 50, 0.4, 'sawtooth', 0.15); },
     lightning() { sweep(700, 1600, 0.22, 'sine', 0.14); tone(1800, 0.12, 'sine', 0.07, 0.05); },
