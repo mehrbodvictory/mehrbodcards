@@ -1,0 +1,281 @@
+/* ============================================================
+   JUICE PASS — loaded after style.css, so rules here win ties and
+   can safely extend/override existing selectors without touching
+   the original stylesheet. Covers: the Pokemon/GW2-style card pack
+   opening flow, reworked v3.7/v3.8 cosmetics (Meteor Shower, Void
+   Sleeves, Cyber Neon, Abyss, Diamond Vault/Collector), a general
+   tactile ripple/press pass on buttons, and the Daily Login Reward
+   progression system. Storm theme is deliberately untouched.
+   ============================================================ */
+
+/* ---------- Card Pack Opening ---------- */
+.packopen-overlay {
+  position: fixed; inset: 0; z-index: 9998; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 40%, rgba(40,20,70,.55), rgba(3,4,8,.94));
+  backdrop-filter: blur(6px);
+  animation: packOverlayIn .25s ease;
+}
+@keyframes packOverlayIn { from { opacity: 0; } to { opacity: 1; } }
+.packopen-stage { position: relative; width: min(94vw, 680px); text-align: center; padding: 20px; }
+
+.packopen-pack {
+  position: relative; width: 170px; height: 240px; margin: 0 auto; border-radius: 14px; cursor: pointer;
+  background: linear-gradient(150deg, #3E7CB1 0%, #4C9A5B 33%, #C1443C 66%, #E08A2C 100%);
+  box-shadow: 0 20px 50px rgba(0,0,0,.5), 0 0 0 2px rgba(255,255,255,.15) inset;
+  display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px;
+  animation: packFloat 2.4s ease-in-out infinite;
+  transition: transform .2s ease;
+}
+.packopen-pack:hover { transform: scale(1.04) rotate(-1deg); }
+.packopen-pack:active { transform: scale(0.97); }
+@keyframes packFloat { 0%,100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-10px) rotate(1deg); } }
+.packopen-pack-shine {
+  position: absolute; inset: 0; border-radius: inherit; overflow: hidden;
+  background: linear-gradient(120deg, transparent 20%, rgba(255,255,255,.55) 45%, transparent 60%);
+  background-size: 220% 220%;
+  animation: packShineSweep 2.6s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+@keyframes packShineSweep { 0% { background-position: 130% 0%; } 100% { background-position: -30% 100%; } }
+.packopen-pack-label {
+  font-family: var(--font-display); font-weight: 800; color: #fff; font-size: 1.05rem;
+  text-shadow: 0 2px 6px rgba(0,0,0,.5); letter-spacing: .04em; position: relative; z-index: 1;
+}
+.packopen-tap-hint {
+  font-family: var(--font-display); font-size: .68rem; letter-spacing: .1em; color: rgba(255,255,255,.85);
+  background: rgba(0,0,0,.3); padding: 4px 10px; border-radius: 20px; position: relative; z-index: 1;
+  animation: packHintPulse 1.2s ease-in-out infinite;
+}
+@keyframes packHintPulse { 0%,100% { opacity: .7; } 50% { opacity: 1; } }
+.packopen-pack.tearing { animation: packTearShake .48s ease forwards; pointer-events: none; }
+@keyframes packTearShake {
+  0%   { transform: scale(1) rotate(0deg); }
+  30%  { transform: scale(1.08) rotate(-4deg); }
+  60%  { transform: scale(0.9) rotate(4deg); opacity: .7; }
+  100% { transform: scale(0.3) rotate(0deg); opacity: 0; }
+}
+.packopen-shred {
+  position: absolute; top: 50%; left: 50%; width: 10px; height: 14px; border-radius: 2px;
+  background: linear-gradient(160deg, #E08A2C, #C1443C);
+  transform-origin: center;
+  animation: packShredFly .5s ease-out forwards;
+}
+@keyframes packShredFly {
+  0%   { transform: translate(-50%, -50%) rotate(var(--a)) translateX(0) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) rotate(var(--a)) translateX(var(--d)) scale(.25); opacity: 0; }
+}
+
+.packopen-cards {
+  display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 14px;
+  perspective: 1000px;
+}
+.packopen-card {
+  width: 116px; height: 162px; opacity: 0; transform: translateY(40px) scale(.7);
+  transition: opacity .35s ease, transform .35s cubic-bezier(.22,1.5,.4,1);
+}
+.packopen-card.landed { opacity: 1; transform: translateY(0) scale(1); }
+.packopen-card-inner {
+  position: relative; width: 100%; height: 100%; transform-style: preserve-3d;
+  transition: transform .6s cubic-bezier(.22,1,.36,1);
+}
+.packopen-card.flipped .packopen-card-inner { transform: rotateY(180deg); }
+.packopen-card-back, .packopen-card-front {
+  position: absolute; inset: 0; border-radius: 12px; backface-visibility: hidden;
+  display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 6px;
+  border: 1px solid rgba(255,255,255,.25);
+  box-shadow: 0 10px 26px rgba(0,0,0,.4);
+}
+.packopen-card-back {
+  background: linear-gradient(160deg, #2c313d, #14171d);
+  font-size: 2rem; color: rgba(255,255,255,.5); font-family: var(--font-display); font-weight: 800;
+}
+.packopen-card-front {
+  transform: rotateY(180deg);
+  background: linear-gradient(160deg, #3a3f4d, #22252d);
+  padding: 10px; text-align: center;
+}
+.packopen-card-name { font-family: var(--font-display); font-weight: 700; font-size: .76rem; color: #fff; }
+.packopen-card-sub { font-size: .62rem; color: rgba(255,255,255,.7); text-transform: uppercase; letter-spacing: .06em; }
+.packopen-card.tier1 .packopen-card-front { background: linear-gradient(160deg, var(--tier1), #2c5c85); }
+.packopen-card.tier2 .packopen-card-front { background: linear-gradient(160deg, var(--tier2), #386f43); }
+.packopen-card.tier3 .packopen-card-front { background: linear-gradient(160deg, var(--tier3), #8f302a); }
+.packopen-card.tier4 .packopen-card-front { background: linear-gradient(160deg, var(--tier4), #a8631a); box-shadow: 0 0 30px rgba(224,138,44,.6), 0 10px 26px rgba(0,0,0,.4); }
+.packopen-card.sc-spell .packopen-card-front { background: linear-gradient(160deg, #e6c34a, #8a6a12); }
+.packopen-card.sc-chip .packopen-card-front { background: linear-gradient(160deg, #8a5fd9, #4a2c72); }
+.packopen-burst {
+  position: absolute; inset: -14px; border-radius: 16px; pointer-events: none;
+  animation: packBurstRing .6s ease forwards;
+}
+@keyframes packBurstRing {
+  0%   { box-shadow: 0 0 0 0 rgba(255,255,255,.9); opacity: 1; }
+  100% { box-shadow: 0 0 0 26px rgba(255,255,255,0); opacity: 0; }
+}
+.packopen-continue { margin-top: 24px; }
+.packopen-continue.hidden { display: none; }
+
+/* ---------- Bigger camera shake for the reworked Meteor Shower ---------- */
+@keyframes screenShakeBig {
+  0%, 100% { transform: translate(0,0) rotate(0deg); }
+  15% { transform: translate(-11px, 6px) rotate(-0.6deg); }
+  30% { transform: translate(9px, -8px) rotate(0.5deg); }
+  45% { transform: translate(-9px, 7px) rotate(-0.5deg); }
+  60% { transform: translate(8px, -5px) rotate(0.4deg); }
+  75% { transform: translate(-6px, 4px) rotate(-0.3deg); }
+  90% { transform: translate(4px, -3px) rotate(0.2deg); }
+}
+#screen-game.screen-shake-big { animation: screenShakeBig .5s ease; }
+
+.meteor-impact {
+  position: absolute; bottom: 6%; width: 14px; height: 14px; border-radius: 50%;
+  background: radial-gradient(circle, #fff8e0, #ffb15c 45%, transparent 75%);
+  box-shadow: 0 0 30px 12px rgba(255,150,60,.7);
+  opacity: 0;
+  animation: meteorImpactPulse .55s ease forwards;
+}
+@keyframes meteorImpactPulse {
+  0%   { opacity: 0; transform: scale(.3); }
+  30%  { opacity: 1; transform: scale(1.5); }
+  100% { opacity: 0; transform: scale(2.4); }
+}
+
+/* ---------- Void Sleeves rework: an actual swirling void portal in the
+   corner plus a pulsing void-energy glow, instead of a static outline. ---------- */
+html.sleeve-void .card {
+  outline: 2px solid #9b7cff;
+  outline-offset: 2px;
+  box-shadow: 0 0 10px rgba(155,124,255,.38), inset 0 0 26px rgba(60,10,90,.32);
+  animation: voidCardPulse 3.2s ease-in-out infinite;
+}
+html.sleeve-void .card::after {
+  content: '';
+  position: absolute; top: -7px; right: -7px; width: 20px; height: 20px;
+  border-radius: 50%; z-index: 5; pointer-events: none;
+  background: radial-gradient(circle at 35% 35%, #e4d9ff, #6d28d9 45%, #1a0630 78%, transparent 100%);
+  box-shadow: 0 0 10px 3px rgba(155,124,255,.75), 0 0 22px 6px rgba(109,40,217,.45);
+  animation: voidPortalSpin 4s linear infinite, voidPortalPulse 2s ease-in-out infinite;
+}
+@keyframes voidPortalSpin { to { transform: rotate(360deg); } }
+@keyframes voidPortalPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.3); } }
+@keyframes voidCardPulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(155,124,255,.38), inset 0 0 24px rgba(60,10,90,.3); }
+  50%      { box-shadow: 0 0 20px rgba(155,124,255,.7), inset 0 0 36px rgba(90,20,140,.55); }
+}
+
+/* ---------- Cyber Neon rework: a periodic full-screen scan beam and a
+   subtle glitch flicker on cards. ---------- */
+html.theme-cyberneon .card {
+  animation: cyberCardFlicker 6.5s steps(1) infinite;
+}
+@keyframes cyberCardFlicker {
+  0%, 96%, 100% { filter: none; }
+  97% { filter: hue-rotate(25deg) saturate(1.6); transform: translateX(1px); }
+  98% { filter: hue-rotate(-15deg) saturate(1.4); transform: translateX(-1px); }
+  99% { filter: none; transform: translateX(0); }
+}
+html.theme-cyberneon body::after {
+  content: '';
+  position: fixed; left: 0; right: 0; height: 3px; top: -6%;
+  background: linear-gradient(90deg, transparent, #38e0ff, #ff2ec4, transparent);
+  opacity: 0; pointer-events: none; z-index: 3;
+  box-shadow: 0 0 14px 2px rgba(56,224,255,.65);
+  animation: cyberBeamSweep 6s linear infinite;
+}
+@keyframes cyberBeamSweep {
+  0%   { top: -6%; opacity: 0; }
+  4%   { opacity: .9; }
+  48%  { top: 104%; opacity: .9; }
+  53%  { opacity: 0; }
+  100% { top: 104%; opacity: 0; }
+}
+
+/* ---------- Abyss rework: a sweeping anglerfish lure light and a stronger
+   jellyfish pulse. ---------- */
+html.theme-abyss #app::before {
+  content: '';
+  position: fixed; left: -8%; top: 8%; width: 30px; height: 30px; border-radius: 50%;
+  z-index: 2; pointer-events: none;
+  background: radial-gradient(circle, #eafffa, #22e6c8 40%, transparent 75%);
+  box-shadow: 0 0 26px 11px rgba(34,230,200,.55);
+  animation: abyssLureSweep 15s ease-in-out infinite;
+}
+@keyframes abyssLureSweep {
+  0%   { left: -8%; top: 10%; opacity: .15; }
+  50%  { left: 90%; top: 58%; opacity: 1; }
+  100% { left: -8%; top: 10%; opacity: .15; }
+}
+html.theme-abyss .abyss-jelly {
+  filter: drop-shadow(0 0 14px currentColor);
+}
+html.theme-abyss .abyss-jelly::after {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  background: repeating-radial-gradient(circle at 50% 20%, rgba(255,255,255,.14) 0 2px, transparent 2px 10px);
+  animation: abyssJellyPulse 2.4s ease-in-out infinite;
+}
+@keyframes abyssJellyPulse { 0%,100% { opacity: .3; } 50% { opacity: .75; } }
+
+/* ---------- Diamond Vault (Collector) rework: a little sparkle burst on
+   card hover, on top of the existing prism edge. ---------- */
+html.theme-collector .card:hover::after {
+  content: '';
+  position: absolute; inset: -10px; pointer-events: none; z-index: 6;
+  background:
+    radial-gradient(circle, rgba(255,255,255,.95) 0 2px, transparent 3px) 12% 22%,
+    radial-gradient(circle, rgba(255,255,255,.95) 0 2px, transparent 3px) 78% 68%,
+    radial-gradient(circle, rgba(255,255,255,.95) 0 2px, transparent 3px) 58% 12%;
+  background-size: 14px 14px; background-repeat: no-repeat;
+  animation: collectorSparkleBurst .6s ease forwards;
+}
+@keyframes collectorSparkleBurst {
+  0%   { opacity: 0; transform: scale(.7); }
+  40%  { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.35); }
+}
+
+/* ---------- General juice: livelier card hover + a tactile ripple on
+   buttons across the whole app. ---------- */
+.card:hover { transform: translateY(-4px) scale(1.06) rotate(-1deg); }
+
+.juice-ripple {
+  position: absolute; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255,255,255,.55), rgba(255,255,255,0) 70%);
+  transform: scale(0); animation: juiceRippleExpand .6s ease-out forwards; z-index: 50;
+}
+@keyframes juiceRippleExpand { to { transform: scale(1); opacity: 0; } }
+
+/* ---------- Daily Login Reward panel ---------- */
+.dailylogin-panel { max-width: 480px; }
+.dailylogin-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin: 16px 0; }
+.dailylogin-day {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 8px 4px; border-radius: 10px; border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  font-family: var(--font-display);
+}
+.dailylogin-day-label { font-size: .56rem; color: var(--muted); }
+.dailylogin-day-icon { font-size: 1.1rem; }
+.dailylogin-day-amt { font-size: .62rem; font-weight: 700; color: var(--accent); }
+.dailylogin-day.done { border-color: var(--tier2); opacity: .82; }
+.dailylogin-day.today {
+  border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent);
+  animation: dailyLoginPulse 1.4s ease-in-out infinite;
+}
+.dailylogin-day.bonus { border-style: dashed; }
+@keyframes dailyLoginPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.07); }
+}
+.dailylogin-streak-note { font-size: .78rem; color: var(--muted); margin-bottom: 14px; }
+.dailylogin-claim-btn:disabled { opacity: .55; cursor: not-allowed; }
+#btn-daily-login { position: relative; }
+#daily-login-footer-badge { margin-left: 4px; font-size: .55rem; padding: 1px 6px; }
+#daily-login-footer-badge.hidden { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .packopen-pack, .packopen-pack-shine, .packopen-tap-hint,
+  html.sleeve-void .card, html.sleeve-void .card::after,
+  html.theme-cyberneon .card, html.theme-cyberneon body::after,
+  html.theme-abyss #app::before, html.theme-abyss .abyss-jelly::after,
+  .dailylogin-day.today {
+    animation: none !important;
+  }
+}

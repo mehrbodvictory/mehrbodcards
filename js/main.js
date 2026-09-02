@@ -3508,8 +3508,20 @@ document.getElementById('btn-copy-code').addEventListener('click', async () => {
 });
 
 // ---- Patch notes --------------------------------------------------------
-const CURRENT_VERSION = '3.8';
+const CURRENT_VERSION = '3.9';
 const PATCH_NOTES = [
+  {
+    version: '3.9',
+    notes: [
+      "NEW: opening a Card Pack is now a real pack-opening moment — tear the foil pack open, then flip each card one by one with tier-colored glow, sound, and sparkle bursts, instead of an instant toast.",
+      "REWORKED: Meteor Shower victory animation is longer, denser, and hits harder — more meteors, ground impact flashes, and a bigger multi-pulse camera shake.",
+      "REWORKED: Void Sleeves now swirl with an animated corner portal and a pulsing void-energy glow instead of a static outline.",
+      "REWORKED: Cyber Neon theme gained a periodic full-screen scan beam and a subtle glitch-flicker on cards.",
+      "REWORKED: Abyss theme gained a sweeping anglerfish lure light and pulsing jellyfish glow.",
+      "REWORKED: 100% Collector (Diamond Vault) cards now throw a little sparkle burst on hover.",
+      "POLISH: buttons and cards across the whole app got a tactile ripple/press feel and slightly livelier hover motion.",
+    ],
+  },
   {
     version: '3.8',
     notes: [

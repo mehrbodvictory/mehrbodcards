@@ -69,6 +69,9 @@ const Sound = (function () {
     merge() { sweep(320, 760, 0.25, 'sine', 0.13); },
     megaMerge() { sweep(220, 980, 0.4, 'sine', 0.16); [660, 880, 1200].forEach((f, i) => tone(f, 0.2, 'triangle', 0.09, 0.12 + i * 0.07)); },
     meteor() { sweep(180, 900, 0.55, 'sawtooth', 0.14); [1300, 1700, 2100].forEach((f, i) => tone(f, 0.18, 'triangle', 0.09, 0.15 + i * 0.1)); },
+    // NEW: a deeper follow-up boom, used by the reworked longer meteor
+    // shower for its later, bigger impacts.
+    meteorBoom() { sweep(140, 30, 0.5, 'sawtooth', 0.16); tone(70, 0.35, 'square', 0.12, 0.05); },
     attack() { tone(160, 0.12, 'square', 0.13); },
     death() { sweep(420, 50, 0.4, 'sawtooth', 0.15); },
     lightning() { sweep(700, 1600, 0.22, 'sine', 0.14); tone(1800, 0.12, 'sine', 0.07, 0.05); },
@@ -82,5 +85,9 @@ const Sound = (function () {
     sparkle() { [1046, 1318, 1568].forEach((f, i) => tone(f, 0.12, 'sine', 0.06, i * 0.05)); },
     abilityPing() { tone(980, 0.08, 'triangle', 0.08); },
     select() { tone(680, 0.05, 'triangle', 0.06); },
+    // NEW: pack-opening sounds (Pokemon/GW2-style pack reveal flow).
+    packTear() { sweep(500, 130, 0.3, 'sawtooth', 0.14); tone(90, 0.18, 'square', 0.1, 0.08); },
+    packCardFlip() { tone(700, 0.05, 'triangle', 0.07); tone(1050, 0.07, 'triangle', 0.08, 0.05); },
+    packRareFlip() { [660, 990, 1320, 1760].forEach((f, i) => tone(f, 0.16, 'triangle', 0.1, i * 0.05)); },
   };
 })();
