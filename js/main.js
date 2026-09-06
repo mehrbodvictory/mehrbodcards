@@ -22,7 +22,6 @@ let animatingCombat = false;
 let matchStartTime = null;
 let botThinkingTimer = null;
 let currentWager = 0; // Mehrbod Bux staked on the current match, if any
-let currentWagerHeldAtFloor = false; // exact-10 wager: stake remains at 10 until result
 let shopSelectedWager = 0;     // wager amount picked on the "Wager vs Bot" screen
 let shopHostSelectedWager = 0; // wager amount picked on the "Host a Wagered Match" screen
 // NEW: Victory Animations - `matchVictoryAnims` maps each player's key (e.g.
@@ -92,7 +91,6 @@ function wirePressFeedback(el) {
 
 // ---- Mehrbod Bux (in-app play currency) ------------------------------------
 const STARTING_BUX = 50;
-const MIN_BUX_FLOOR = 10; // normal spending never takes a player below this floor
 const WAGER_CAPS = Object.freeze({ Easy: 10, Medium: 25, Hard: 50, Expert: 100, Master: 200 });
 const MAX_MULTIPLAYER_WAGER = 100;
 function loadBux() {
@@ -113,15 +111,15 @@ function addBux(delta) {
   updateBuxDisplay();
   return n;
 }
+// NOTE: the old 10-Bux "safety net" floor (spending could never take a
+// balance below 10) has been removed - it's no longer needed. Spending is
+// now only ever limited by the actual balance, for both normal purchases
+// and wagers.
 function spendBux(amount, isWager = false) {
   const bal = loadBux();
   if (!(amount > 0) || !Number.isFinite(amount)) return false;
   const n = Math.floor(amount);
-  if (isWager) {
-    if (n > bal) return false;
-  } else if (bal - n < MIN_BUX_FLOOR) {
-    return false;
-  }
+  if (n > bal) return false;
   saveBux(bal - n);
   updateBuxDisplay();
   return true;
@@ -215,7 +213,7 @@ function findArchetypeById(archetypeId) {
 
 const PACK_COST = 20;
 function buyCardPack() {
-  if (!spendBux(PACK_COST)) { showToast("You don't have enough Mehrbod Bux for a pack (you always keep at least 10)."); return; }
+  if (!spendBux(PACK_COST)) { showToast("You don't have enough Mehrbod Bux for a pack."); return; }
   const col = loadCollection();
   const unownedUnits = ALL_NONBLUE_UNIT_IDS.filter(id => !col.units.includes(id));
   const unownedSpells = ALL_SPELL_IDS.filter(id => !col.spells.includes(id));
@@ -637,7 +635,7 @@ function restoreInventoryBackupIfTampered() {
     };
     if (JSON.stringify(current) !== backup.payload) {
       const saved = JSON.parse(backup.payload);
-      saveBux(Math.max(MIN_BUX_FLOOR, Number(saved.bux) || MIN_BUX_FLOOR));
+      saveBux(Math.max(0, Number(saved.bux) || 0));
       saveCollection(saved.collection);
       saveOwnedCosmetics(saved.cosmetics);
       equipSleeve(saved.sleeve || 'none');
@@ -656,11 +654,20 @@ function equipSleeve(id) {
   document.documentElement.classList.remove('sleeve-holo', 'sleeve-gold', 'sleeve-prismatic', 'sleeve-void');
   if (id !== 'none') document.documentElement.classList.add('sleeve-' + id.replace('sleeve_', ''));
   renderCosmeticsShop();
+  // BUGFIX: every other piece of owned state (Bux, collection, cosmetics)
+  // refreshes the tamper-check backup snapshot right after saving via
+  // queueMicrotask(saveInventoryBackup) - but equipSleeve() never did, so
+  // the backup kept remembering the PREVIOUS sleeve. The very next
+  // restoreInventoryBackupIfTampered() tick (every 1.5s) would then see a
+  // mismatch between "current sleeve" and "backed-up sleeve", treat it as
+  // tampering, and silently revert the newly-equipped sleeve back to the
+  // old one - so equipping a sleeve looked like it never took effect.
+  queueMicrotask(() => { try { saveInventoryBackup(); } catch (e) {} });
 }
 
 function buyOrEquipCosmetic(item) {
   if (!ownsCosmetic(item.id)) {
-    if (!spendBux(item.cost)) { showToast("You don't have enough Mehrbod Bux for that (you always keep at least 10)."); return; }
+    if (!spendBux(item.cost)) { showToast("You don't have enough Mehrbod Bux for that."); return; }
     const owned = loadOwnedCosmetics();
     owned.push(item.id);
     saveOwnedCosmetics(owned);
@@ -1202,9 +1209,7 @@ document.querySelectorAll('#shop-diff-list .diff-card').forEach(btn => {
     }
 
     openDeckBuilder((config) => {
-      if (amt === MIN_BUX_FLOOR && loadBux() === MIN_BUX_FLOOR) {
-        currentWagerHeldAtFloor = true;
-      } else if (!spendBux(amt, true)) {
+      if (!spendBux(amt, true)) {
         showToast("You don't have enough Mehrbod Bux for that wager.");
         return;
       }
@@ -1236,9 +1241,7 @@ document.getElementById('btn-host-wager-confirm').addEventListener('click', () =
   if (amt > MAX_MULTIPLAYER_WAGER) { showToast(`Multiplayer wagers are capped at ${MAX_MULTIPLAYER_WAGER} Bux.`); return; }
   if (amt > loadBux()) { showToast(`You only have ${loadBux().toLocaleString()} Bux available.`); return; }
   openDeckBuilder((config) => {
-    if (amt === MIN_BUX_FLOOR && loadBux() === MIN_BUX_FLOOR) {
-      currentWagerHeldAtFloor = true;
-    } else if (!spendBux(amt, true)) {
+    if (!spendBux(amt, true)) {
       showToast("You don't have enough Mehrbod Bux for that wager.");
       return;
     }
@@ -1414,7 +1417,6 @@ function checkAchievements() {
 // ---- Vs Bot --------------------------------------------------------------
 let lastVsBotDeckConfig = null; // NEW FEATURE: lets "Play Again" reuse the deck you actually built
 function startVsBot(wagerAmount = 0, deckConfig = null) {
-  if (!wagerAmount) currentWagerHeldAtFloor = false;
   mode = 'bot';
   localKey = 'you'; remoteKey = 'bot';
   const seed = makeSeed();
@@ -1574,7 +1576,6 @@ function startTutorialMatch() {
   matchVictoryAnims = {};
   matchStartTime = Date.now();
   currentWager = 0;
-  currentWagerHeldAtFloor = false;
   _lowHpWarned.clear();
   resetMatchCardStats();
   lastPlacement = null;
@@ -2010,7 +2011,6 @@ function cancelBotThinking() {
 
 // ---- Multiplayer ----------------------------------------------------------
 async function beginHost(wagerAmount, hostDeckConfig) {
-  if (!wagerAmount) currentWagerHeldAtFloor = false;
   mode = 'mp'; localKey = 'host'; remoteKey = 'guest';
   currentWager = wagerAmount || 0;
   showScreen('screen-host');
@@ -2042,7 +2042,7 @@ async function beginHost(wagerAmount, hostDeckConfig) {
     onPeerError: (err) => {
       showToast(err.message || ('Connection error: ' + err.type));
       document.getElementById('host-status').textContent = err.message || 'Connection failed.';
-      if (currentWager > 0) { if (!currentWagerHeldAtFloor) addBux(currentWager); currentWager = 0; currentWagerHeldAtFloor = false; }
+      if (currentWager > 0) { addBux(currentWager); currentWager = 0; }
     },
     onForfeit: () => handleOpponentForfeit(),
   });
@@ -2064,11 +2064,7 @@ document.getElementById('btn-join-confirm').addEventListener('click', async () =
       matchStartTime = Date.now();
       currentWager = 0;
       if (data.wager && data.wager > 0) {
-        if (data.wager === MIN_BUX_FLOOR && loadBux() === MIN_BUX_FLOOR) {
-          currentWagerHeldAtFloor = true;
-          currentWager = data.wager;
-          showToast(`💰 Wager match: ${data.wager.toLocaleString()} Mehrbod Bux — your 10-Bux floor is protected.`, 2600);
-        } else if (spendBux(data.wager, true)) {
+        if (spendBux(data.wager, true)) {
           currentWager = data.wager;
           showToast(`💰 Wager match: ${data.wager.toLocaleString()} Mehrbod Bux — good luck!`, 2600);
         } else {
@@ -2256,7 +2252,6 @@ document.getElementById('btn-quit-match').addEventListener('click', () => {
   if (net && mode === 'mp' && midMatch) { net.sendForfeit(); }
   if (net) { net.destroy(); net = null; }
   currentWager = 0;
-  currentWagerHeldAtFloor = false;
   state = null;
   showScreen('screen-menu');
 });
@@ -2514,7 +2509,21 @@ function render() {
   const filled = (playerState) => playerState.board.map((c, i) => (c ? i : -1)).filter(i => i >= 0);
 
   const forced = isForced(state, localKey);
-  if (forced) { selHandIdx = null; selSpellId = null; selChipId = null; selMode = null; selAttackerSlot = null; selMergeSlots = []; }
+  // BUGFIX: this used to unconditionally wipe selMode/selMergeSlots whenever
+  // forced was true - but forced stays true for as long as 4+ Blues remain
+  // unmerged, which is exactly the situation the player is supposed to
+  // resolve via 🧬 Combine mode. Since every render() call (including the
+  // ones fired by simply tapping a card to add it to the merge selection)
+  // was clearing that in-progress selection immediately, multi-card Combine
+  // could never actually be used while forced - only the single-pair drag
+  // gesture worked, since it doesn't go through selMode at all. Now, a
+  // merge-in-progress selection survives being forced; every other pending
+  // selection (placement, spell, chip, attack) still gets cleared, since
+  // none of those are legal while forced anyway.
+  if (forced) {
+    selHandIdx = null; selSpellId = null; selChipId = null; selAttackerSlot = null;
+    if (selMode !== 'merge') { selMode = null; selMergeSlots = []; }
+  }
 
   // Prune any merge-mode selection whose card no longer exists (e.g. died,
   // or was consumed by another action) so a stale slot index never lingers.
@@ -2691,7 +2700,7 @@ function render() {
       if (state.winner === localKey || state.winner === remoteKey) recordResult(state.winner === localKey);
       if (state.winner === localKey && mode === 'bot' && !tutorialActive) recordDifficultyBeaten(botDifficulty);
       if (state.winner === localKey || state.winner === remoteKey) {
-        const payoutForStats = currentWager > 0 && state.winner === localKey ? (currentWagerHeldAtFloor ? currentWager : currentWager * 2) : 0;
+        const payoutForStats = currentWager > 0 && state.winner === localKey ? currentWager * 2 : 0;
         recordBattleResult(state.winner === localKey, currentWager, payoutForStats);
       }
       if (state.winner === localKey && !tutorialActive) {
@@ -2701,20 +2710,20 @@ function render() {
       if (!tutorialActive) checkAchievements();
       if (currentWager > 0) {
         if (state.winner === localKey) {
-          const payout = currentWagerHeldAtFloor ? currentWager : currentWager * 2;
+          const payout = currentWager * 2;
           addBux(payout);
           recordEconomyChange(payout, mode === 'bot' ? `Won wager vs ${botDifficulty} bot` : 'Won multiplayer wager');
           recordRecentActivity(`Won ${payout.toLocaleString()} Bux on a wager match`);
           showToast(`💰 Won ${currentWager.toLocaleString()} Mehrbod Bux!`, 2800);
         } else if (state.winner === 'draw') {
-          if (!currentWagerHeldAtFloor) { addBux(currentWager); recordEconomyChange(currentWager, 'Wager refunded (draw)'); }
+          addBux(currentWager);
+          recordEconomyChange(currentWager, 'Wager refunded (draw)');
           showToast('🤝 Draw — your wager was refunded.', 2400);
         } else {
           recordEconomyChange(-currentWager, mode === 'bot' ? `Lost wager vs ${botDifficulty} bot` : 'Lost multiplayer wager');
           showToast(`💸 Lost ${currentWager.toLocaleString()} Mehrbod Bux.`, 2400);
         }
         currentWager = 0;
-        currentWagerHeldAtFloor = false;
       }
     }
   }
@@ -3508,8 +3517,23 @@ document.getElementById('btn-copy-code').addEventListener('click', async () => {
 });
 
 // ---- Patch notes --------------------------------------------------------
-const CURRENT_VERSION = '3.9';
+const CURRENT_VERSION = '3.10';
 const PATCH_NOTES = [
+  {
+    version: '3.10',
+    notes: [
+      "RULE CHANGE: merging is now capped at 1 voluntary merge per player per round (any size, 2-4 cards). Merges needed to clear a forced 4+-Blue board are exempt from this cap, so the forced-merge safety valve always still works.",
+      "REMOVED: the 10-Bux 'safety net' floor. Spending is now only ever limited by your actual balance, for both normal purchases and wagers.",
+      "REWORKED: the Mehrbod Shop dropped its tab bar entirely. It now shows three fixed, always-visible sections that quietly rotate once a day: 6 Cosmetics, 6 Card Packs (six fixed sizes, from Mini to Ultra), and 6 Individual Cards you can buy outright with no randomness.",
+      "NEW progression systems: Player Level (an uncapped XP track from wins, packs, dailies, and milestones, with a Bux reward on every level-up) and the Weekly Vault (a weekly point track with five claimable Bux tiers) - both live inside the 🏆 Quests panel.",
+      "CHANGED: the Daily Login Reward popup no longer has a menu-footer button - it now only ever appears as the once-a-day popup, including the first time a brand-new player gets back to the menu after finishing the tutorial.",
+      "REWORKED: the Meteor Shower victory animation now uses real tumbling rock meteors with glowing tails that crash into the ground and explode (flash + shockwave + flying embers), instead of plain light streaks.",
+      "FIX: hovering a card in either board could get visually clipped instead of floating cleanly above its neighbors.",
+      "FIX: with 4+ Blue cards forcing a merge, 🧬 Combine mode's multi-card selection was being wiped by every render before you could ever confirm it - only the single-pair drag gesture actually worked. Both now work while forced.",
+      "FIX: the bot would defend forever with unlimited-charge Blue cards once it had no non-Blue blueprints left to ever merge or attack meaningfully with, effectively turtling for the rest of the match. It now stops treating Blue as defend-eligible once its blueprints run out.",
+      "FIX: equipping a card sleeve could silently revert within a couple of seconds - the equip action never refreshed the save-integrity backup snapshot the way every other purchase does, so the anti-tamper check mistook the new sleeve for corruption and rolled it back.",
+    ],
+  },
   {
     version: '3.9',
     notes: [

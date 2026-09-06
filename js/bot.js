@@ -190,6 +190,15 @@ function assignSmartDefense(state, botKey, rng, level) {
     if (tierInfo.defends <= 0) return false;
     if (card.hp > hpThreshold) return false;
     if (card.tier === 1 && !p.everMergedUp) return false;
+    // BUGFIX: Blue has unlimited (Infinity) defend charges by design, which
+    // used to mean the bot would turtle forever behind Blue cards once its
+    // board was all-Blue, never attacking, effectively defending infinitely
+    // for the rest of the match. Once the bot has no non-Blue blueprints
+    // left anywhere in its deck (hasRemainingBlueprints), it can never merge
+    // those Blues into anything stronger or make further progress - so at
+    // that point Blue should stop being treated as defend-eligible, the
+    // same way it stops being able to merge or regenerate.
+    if (card.tier === 1 && !hasRemainingBlueprints(p)) return false;
     const bonus = card.bonusDefendCharge || 0;
     const chargesLeft = tierInfo.defends === Infinity ? Infinity : (tierInfo.defends + bonus) - card.defendChargesUsed;
     return chargesLeft > 0;

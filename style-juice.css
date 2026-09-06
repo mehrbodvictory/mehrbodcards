@@ -125,17 +125,68 @@
 }
 #screen-game.screen-shake-big { animation: screenShakeBig .5s ease; }
 
-.meteor-impact {
-  position: absolute; bottom: 6%; width: 14px; height: 14px; border-radius: 50%;
-  background: radial-gradient(circle, #fff8e0, #ffb15c 45%, transparent 75%);
-  box-shadow: 0 0 30px 12px rgba(255,150,60,.7);
-  opacity: 0;
-  animation: meteorImpactPulse .55s ease forwards;
+.meteor-unit {
+  position: absolute; top: -14%; width: 4px; height: 1px;
+  transform-origin: top center;
+  animation: meteorUnitFall ease-in forwards;
+  pointer-events: none;
 }
-@keyframes meteorImpactPulse {
-  0%   { opacity: 0; transform: scale(.3); }
-  30%  { opacity: 1; transform: scale(1.5); }
-  100% { opacity: 0; transform: scale(2.4); }
+@keyframes meteorUnitFall {
+  0%   { transform: translate(0, -14vh) rotate(35deg) scale(var(--meteor-scale, 1)); opacity: 0; }
+  6%   { opacity: 1; }
+  100% { transform: translate(55vw, 108vh) rotate(35deg) scale(var(--meteor-scale, 1)); opacity: 1; }
+}
+.meteor-rock {
+  position: absolute; top: 0; left: 50%; width: 15px; height: 15px;
+  transform: translate(-50%, -60%) rotate(18deg);
+  clip-path: polygon(50% 0%, 78% 12%, 100% 42%, 84% 82%, 54% 100%, 20% 90%, 0% 54%, 16% 14%);
+  background: radial-gradient(circle at 35% 30%, #ffdca0, #a5622c 42%, #4a2712 76%, #1c0e07 100%);
+  box-shadow: 0 0 10px 3px rgba(255,150,60,.85), 0 0 22px 8px rgba(255,90,20,.45);
+  animation: meteorRockTumble 0.6s linear infinite;
+}
+@keyframes meteorRockTumble {
+  0%   { transform: translate(-50%, -60%) rotate(18deg); }
+  100% { transform: translate(-50%, -60%) rotate(378deg); }
+}
+.meteor-tail {
+  position: absolute; top: 0; left: 50%; width: 5px; height: 130px;
+  transform: translate(-50%, -100%);
+  background: linear-gradient(to bottom, transparent, rgba(255,170,80,.4) 30%, rgba(255,207,138,.75) 65%, #fff8e0 96%);
+  border-radius: 4px; filter: blur(0.3px);
+}
+.meteor-explosion {
+  position: absolute; bottom: 4%; width: 0; height: 0; pointer-events: none;
+}
+.explosion-flash {
+  position: absolute; left: 0; top: 0; width: 26px; height: 26px; border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, #fffef0, #ffcf7a 45%, rgba(255,140,40,.6) 72%, transparent 100%);
+  animation: explosionFlash .55s ease forwards;
+}
+@keyframes explosionFlash {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(.2); }
+  25%  { opacity: 1; transform: translate(-50%, -50%) scale(1.6); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(2.6); }
+}
+.explosion-shockwave {
+  position: absolute; left: 0; top: 0; width: 6px; height: 6px; border-radius: 50%;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(255,180,90,.85);
+  animation: explosionShock .6s ease-out forwards;
+}
+@keyframes explosionShock {
+  0%   { opacity: .9; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(11); }
+}
+.explosion-ember {
+  position: absolute; left: 0; top: 0; width: 4px; height: 4px; border-radius: 50%;
+  background: radial-gradient(circle, #fff8e0, #ff9d3d 60%, transparent 100%);
+  box-shadow: 0 0 6px 2px rgba(255,150,60,.8);
+  animation: explosionEmberFly .65s ease-out forwards;
+}
+@keyframes explosionEmberFly {
+  0%   { transform: translate(-50%, -50%) rotate(var(--angle)) translateX(0) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) rotate(var(--angle)) translateX(var(--dist)) scale(.2); opacity: 0; }
 }
 
 /* ---------- Void Sleeves rework: an actual swirling void portal in the
@@ -233,7 +284,18 @@ html.theme-collector .card:hover::after {
 
 /* ---------- General juice: livelier card hover + a tactile ripple on
    buttons across the whole app. ---------- */
-.card:hover { transform: translateY(-4px) scale(1.06) rotate(-1deg); }
+/* BUGFIX: hovering a card lifts/scales it, but the boards that hold cards
+   never explicitly declared `overflow: visible`. Increasing the hover lift
+   made cards poke further outside their slot, and on some layouts they'd
+   get visually clipped by the board's own box (or sit under a sibling
+   slot) instead of floating cleanly above everything. Cards now always get
+   overflow room from their board/slot ancestors and a high enough z-index
+   to render above neighboring slots regardless of DOM order.
+   ---------- */
+.board, .slot, #opponent-board, #player-board {
+  overflow: visible;
+}
+.card:hover { transform: translateY(-4px) scale(1.06) rotate(-1deg); z-index: 30; }
 
 .juice-ripple {
   position: absolute; border-radius: 50%; pointer-events: none;
@@ -266,15 +328,13 @@ html.theme-collector .card:hover::after {
 }
 .dailylogin-streak-note { font-size: .78rem; color: var(--muted); margin-bottom: 14px; }
 .dailylogin-claim-btn:disabled { opacity: .55; cursor: not-allowed; }
-#btn-daily-login { position: relative; }
-#daily-login-footer-badge { margin-left: 4px; font-size: .55rem; padding: 1px 6px; }
-#daily-login-footer-badge.hidden { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .packopen-pack, .packopen-pack-shine, .packopen-tap-hint,
   html.sleeve-void .card, html.sleeve-void .card::after,
   html.theme-cyberneon .card, html.theme-cyberneon body::after,
   html.theme-abyss #app::before, html.theme-abyss .abyss-jelly::after,
+  .meteor-unit, .meteor-rock,
   .dailylogin-day.today {
     animation: none !important;
   }

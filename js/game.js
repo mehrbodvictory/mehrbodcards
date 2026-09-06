@@ -29,6 +29,7 @@ function newPlayerState(deck) {
     attackAssignments: {}, // slotIndex -> { targetOwner, targetSlot }
     defendingSlots: {},     // slotIndex -> true : this card is defending itself this round
     everMergedUp: false,    // true forever, from the moment this player's first merge creates a non-Blue card
+    mergesThisRound: 0,     // NEW: at most 1 merge is allowed per player per round - reset every placement phase
   };
 }
 
@@ -368,6 +369,18 @@ function placeCard(state, playerKey, deckIndex, slot) {
 function mergeCards(state, playerKey, slots, blueprintIndex) {
   const p = state.players[playerKey];
   if (state.phase !== 'placement') return { ok: false, error: 'not placement phase' };
+  // NEW: at most 1 *voluntary* merge (of any size, 2-4 cards) is allowed
+  // per player per round. Merges made to clear a forced-merge situation
+  // (4+ Blues on the board) are exempt from this cap and never counted
+  // against it - they're mandatory board cleanup, not a strategic choice,
+  // and capping them too could soft-lock a player who reaches the forced
+  // threshold a second time in the same round (e.g. after replenishing
+  // Blues from an earlier merge) with no way left to legally merge out of
+  // it, or ready up, for the rest of the round.
+  const wasForced = isForced(state, playerKey);
+  if (!wasForced && (p.mergesThisRound || 0) >= 1) {
+    return { ok: false, error: 'Only one merge is allowed per round — wait for the next round to merge again.' };
+  }
   if (!Array.isArray(slots)) return { ok: false, error: 'invalid slots' };
   const uniqueSlots = [...new Set(slots)];
   if (uniqueSlots.length < 2 || uniqueSlots.length > 4) {
@@ -445,6 +458,7 @@ function mergeCards(state, playerKey, slots, blueprintIndex) {
   // stops for good and Blue can no longer merge or regenerate at all.
   const canReplenish = bluesConsumed > 0 && hasRemainingBlueprints(p);
   if (canReplenish) replenishBlue(state, playerKey, bluesConsumed);
+  if (!wasForced) p.mergesThisRound = (p.mergesThisRound || 0) + 1;
   pushFx(state, {
     type: 'merge', owner: playerKey, fromSlots: uniqueSlots, toSlot: primarySlot,
     resultTier: newTier, usedBlueprint: true, cardCount: uniqueSlots.length,
@@ -779,6 +793,9 @@ function checkWinAndAdvance(state) {
 function startPlacementPhase(state) {
   state.round++;
   state.phase = 'placement';
+  // NEW: the once-per-round merge limit resets at the start of every
+  // placement phase, for both players.
+  state.order.forEach(k => { state.players[k].mergesThisRound = 0; });
   // Resolve queued attacks (from cards that died mid-swing last attack phase)
   // before any new placement actions happen this cycle.
   const queue = state.pendingQueuedAttacks;
