@@ -73,6 +73,16 @@ const ABILITY_SHORT = {
   orange_onplay_scaledmg: 'Play: +1 dmg per foe on board',
   orange_ondeath_dmg4: 'Death: 4 dmg to weakest foe',
   orange_onplay_refreshall: 'Play: refresh allies\' defense',
+  // v3.11: short labels for the 9 new abilities.
+  green_onplay_ward1: 'Play: gain a Ward (blocks next hit)',
+  green_onplay_stealcard: "Play: steal a foe's weakest Blue",
+  green_onplay_chipslot1: 'Play: +1 chip slot',
+  red_onplay_burn2: 'Play: burn a foe for 2 rounds',
+  red_onplay_purge_weak: 'Play: destroy foes with ≤2 max HP',
+  red_onattack_doublestrike: 'Attacks strike twice',
+  orange_onplay_soulharvest: "Play: +1 dmg per death this match",
+  orange_ondeath_rebirth2: 'Death: reborn as 2 Blue cards',
+  orange_onplay_alphastrike: 'Play: instantly strikes a random foe',
 };
 function abilityLabel(id) { return ABILITY_SHORT[id] || ''; }
 

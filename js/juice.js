@@ -497,9 +497,180 @@ function claimWeeklyVaultTier(tierIdx) {
   return reward;
 }
 
+/* ============================================================
+   NEW PROGRESSION SYSTEM: Arena Rank
+   A competitive rank ladder separate from raw Player Level - Rank
+   Points (RP) rise and fall with match results, so this reflects
+   recent form rather than lifetime totals. Ranking up pays a Bux
+   bonus and shows a visible badge in the Quests panel.
+   ============================================================ */
+const ARENA_RANK_KEY = 'mehrbod_arena_rank_v1';
+const ARENA_RANKS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master', 'Grandmaster'];
+const ARENA_RANK_THRESHOLDS = [0, 100, 250, 450, 700, 1000, 1400];
+function loadArenaRankState() {
+  try { const s = JSON.parse(localStorage.getItem(ARENA_RANK_KEY) || 'null'); if (s && typeof s.rp === 'number') return s; }
+  catch (e) {}
+  return { rp: 0 };
+}
+function saveArenaRankState(s) { try { localStorage.setItem(ARENA_RANK_KEY, JSON.stringify(s)); } catch (e) {} }
+function arenaRankIndexFromRP(rp) {
+  let idx = 0;
+  for (let i = 0; i < ARENA_RANK_THRESHOLDS.length; i++) { if (rp >= ARENA_RANK_THRESHOLDS[i]) idx = i; }
+  return idx;
+}
+function applyArenaRankChange(won) {
+  const s = loadArenaRankState();
+  const beforeIdx = arenaRankIndexFromRP(s.rp);
+  s.rp = Math.max(0, s.rp + (won ? 20 : -12));
+  saveArenaRankState(s);
+  const afterIdx = arenaRankIndexFromRP(s.rp);
+  if (afterIdx > beforeIdx) {
+    const reward = 20 + afterIdx * 15;
+    addBux(reward);
+    recordEconomyChange(reward, `Ranked up to ${ARENA_RANKS[afterIdx]}`);
+    recordRecentActivity(`Ranked up to ${ARENA_RANKS[afterIdx]} — +${reward} Bux`);
+    showToast(`🏅 Ranked up to ${ARENA_RANKS[afterIdx]}! +${reward} Bux`, 3000);
+    Sound.sparkle();
+  }
+}
+
+/* ============================================================
+   NEW PROGRESSION SYSTEM: Prestige
+   Once a player reaches a high enough Player Level, they can choose
+   to Prestige: their level resets to 1, but they keep a permanent
+   Prestige count that grants a small permanent bonus Bux payout on
+   every future win, plus a one-time reward for prestiging. This
+   gives dedicated players who've already maxed out a reason to keep
+   grinding instead of hitting a hard ceiling.
+   ============================================================ */
+const PRESTIGE_KEY = 'mehrbod_prestige_v1';
+const PRESTIGE_LEVEL_REQUIREMENT = 15;
+function loadPrestigeState() {
+  try { const s = JSON.parse(localStorage.getItem(PRESTIGE_KEY) || 'null'); if (s && typeof s.count === 'number') return s; }
+  catch (e) {}
+  return { count: 0 };
+}
+function savePrestigeState(s) { try { localStorage.setItem(PRESTIGE_KEY, JSON.stringify(s)); } catch (e) {} }
+function applyPrestigeWinBonus() {
+  const count = loadPrestigeState().count || 0;
+  if (count > 0) addBux(count * 2);
+}
+function canPrestigeNow() { return playerLevelFromXP(loadPlayerXP()).level >= PRESTIGE_LEVEL_REQUIREMENT; }
+function doPrestige() {
+  if (!canPrestigeNow()) return;
+  const s = loadPrestigeState();
+  s.count = (s.count || 0) + 1;
+  savePrestigeState(s);
+  savePlayerXP(0);
+  const reward = 150 + s.count * 50;
+  addBux(reward);
+  recordEconomyChange(reward, `Prestige ${s.count}`);
+  recordRecentActivity(`Reached Prestige ${s.count} — +${reward} Bux`);
+  showToast(`✦ Prestige ${s.count}! Player Level reset, +${reward} Bux, and +${s.count * 2} Bux on every future win.`, 4000);
+  Sound.sparkle();
+  renderQuests();
+}
+
+/* ============================================================
+   NEW PROGRESSION SYSTEM: Set Completion Bonuses
+   A one-time Bux bonus for fully collecting each named subset of the
+   card pool (all Green units, all Red units, all Orange units, every
+   Spell, every Chip) - smaller, more frequent goals than the single
+   "own literally everything" Forge Milestone, so partial collectors
+   still have concrete near-term targets.
+   ============================================================ */
+const SET_BONUS_KEY = 'mehrbod_set_bonuses_v1';
+const SET_DEFS = [
+  { id: 'green',  name: 'Green Set',  reward: 40,  owned: () => UNIT_ARCHETYPES[2].filter(a => isUnitArchetypeOwned(a.id)).length, total: () => UNIT_ARCHETYPES[2].length },
+  { id: 'red',    name: 'Red Set',    reward: 70,  owned: () => UNIT_ARCHETYPES[3].filter(a => isUnitArchetypeOwned(a.id)).length, total: () => UNIT_ARCHETYPES[3].length },
+  { id: 'orange', name: 'Orange Set', reward: 120, owned: () => UNIT_ARCHETYPES[4].filter(a => isUnitArchetypeOwned(a.id)).length, total: () => UNIT_ARCHETYPES[4].length },
+  { id: 'spells', name: 'Spell Set',  reward: 60,  owned: () => loadCollection().spells.length, total: () => ALL_SPELL_IDS.length },
+  { id: 'chips',  name: 'Chip Set',   reward: 60,  owned: () => loadCollection().chips.length, total: () => ALL_CHIP_IDS.length },
+];
+function loadSetBonusState() {
+  try { const s = JSON.parse(localStorage.getItem(SET_BONUS_KEY) || 'null'); if (s && Array.isArray(s.claimed)) return s; }
+  catch (e) {}
+  return { claimed: [] };
+}
+function saveSetBonusState(s) { try { localStorage.setItem(SET_BONUS_KEY, JSON.stringify(s)); } catch (e) {} }
+function checkSetBonuses() {
+  const s = loadSetBonusState();
+  let changed = false;
+  SET_DEFS.forEach(def => {
+    if (s.claimed.includes(def.id)) return;
+    if (def.owned() >= def.total()) {
+      s.claimed.push(def.id);
+      changed = true;
+      addBux(def.reward);
+      recordEconomyChange(def.reward, `${def.name} completed`);
+      recordRecentActivity(`Completed the ${def.name} — +${def.reward} Bux`);
+      showToast(`🧩 ${def.name} complete! +${def.reward} Bux`, 3000);
+      Sound.sparkle();
+    }
+  });
+  if (changed) saveSetBonusState(s);
+}
+
+/* ============================================================
+   NEW PROGRESSION SYSTEM: Trial Tower
+   An escalating single-track gauntlet of bot matches. Clearing a
+   floor pays Bux and advances to a tougher floor; losing resets back
+   to Floor 1, but the highest floor ever cleared is remembered
+   forever as a permanent record - giving strong players an
+   open-ended difficulty ladder to keep climbing well past the fixed
+   5 practice difficulties.
+   ============================================================ */
+const TRIAL_TOWER_KEY = 'mehrbod_trial_tower_v1';
+function loadTrialTowerState() {
+  try { const s = JSON.parse(localStorage.getItem(TRIAL_TOWER_KEY) || 'null'); if (s && typeof s.floor === 'number') return s; }
+  catch (e) {}
+  return { floor: 1, best: 0 };
+}
+function saveTrialTowerState(s) { try { localStorage.setItem(TRIAL_TOWER_KEY, JSON.stringify(s)); } catch (e) {} }
+function towerFloorDifficulty(floor) {
+  const idx = Math.min(DIFFICULTIES.length - 1, Math.floor((floor - 1) / 3));
+  return DIFFICULTIES[idx];
+}
+function towerFloorReward(floor) { return 15 + floor * 5; }
+let trialTowerActive = false;
+function enterTrialTower() {
+  const s = loadTrialTowerState();
+  const diff = towerFloorDifficulty(s.floor);
+  trialTowerActive = true;
+  botDifficulty = diff;
+  saveLastDifficulty(diff);
+  document.getElementById('quests-overlay')?.classList.add('hidden');
+  openDeckBuilder((config) => startVsBot(0, config));
+}
+function resolveTrialTowerMatch(won) {
+  trialTowerActive = false;
+  const s = loadTrialTowerState();
+  if (won) {
+    const reward = towerFloorReward(s.floor);
+    addBux(reward);
+    recordEconomyChange(reward, `Trial Tower floor ${s.floor} cleared`);
+    recordRecentActivity(`Cleared Trial Tower floor ${s.floor} — +${reward} Bux`);
+    showToast(`🗼 Floor ${s.floor} cleared! +${reward} Bux`, 3000);
+    Sound.sparkle();
+    s.best = Math.max(s.best || 0, s.floor);
+    s.floor += 1;
+  } else {
+    if (s.floor > 1) showToast(`🗼 Trial Tower run ended at floor ${s.floor} — back to Floor 1.`, 3000);
+    s.floor = 1;
+  }
+  saveTrialTowerState(s);
+}
+// Any manual exit from a match (quit, or starting a fresh one via Play
+// Again / Back to menu) should never leave a stale flag around to
+// mis-tag a later, unrelated match as a Trial Tower attempt.
+document.getElementById('btn-quit-match')?.addEventListener('click', () => { trialTowerActive = false; });
+document.getElementById('btn-play-again')?.addEventListener('click', () => { trialTowerActive = false; });
+document.getElementById('btn-rematch')?.addEventListener('click', () => { trialTowerActive = false; });
+
 /* ---------- Progression hooks: wrap existing single-purpose functions so
-   Player Level / Weekly Vault points accrue from real play, without
-   touching the core rules engine in game.js. ---------- */
+   Player Level / Weekly Vault / Arena Rank / Prestige / Trial Tower all
+   accrue from real play, without touching the core rules engine in
+   game.js. ---------- */
 (function wireProgressionHooks() {
   const _origRecordResult = window.recordResult;
   if (typeof _origRecordResult === 'function') {
@@ -507,6 +678,9 @@ function claimWeeklyVaultTier(tierIdx) {
       _origRecordResult(won);
       grantPlayerXP(won ? 25 : 8);
       if (won) grantWeeklyPoints(10);
+      applyArenaRankChange(won);
+      if (won) applyPrestigeWinBonus();
+      if (trialTowerActive) resolveTrialTowerMatch(won);
     };
   }
   const _origRecordDifficultyBeaten = window.recordDifficultyBeaten;
@@ -536,6 +710,14 @@ function claimWeeklyVaultTier(tierIdx) {
       if (!before && after) { grantPlayerXP(15); grantWeeklyPoints(15); }
     };
   }
+  const _origGrantCards = window.grantCards;
+  if (typeof _origGrantCards === 'function') {
+    window.grantCards = function (unitIds, spellIds, chipIds) {
+      const result = _origGrantCards(unitIds, spellIds, chipIds);
+      checkSetBonuses();
+      return result;
+    };
+  }
 })();
 
 /* ---------- Progression UI: appended into the existing Quests panel ----- */
@@ -546,12 +728,60 @@ function renderProgressionExtras() {
   const xp = loadPlayerXP();
   const info = playerLevelFromXP(xp);
   const pct = Math.round((info.into / info.need) * 100);
+  const prestige = loadPrestigeState();
+  const prestigeBadge = prestige.count > 0 ? ` <span style="color:var(--accent)">✦ Prestige ${prestige.count}</span>` : '';
+  const prestigeButton = canPrestigeNow()
+    ? `<button type="button" class="primary-btn small" id="btn-do-prestige" style="margin-top:8px;">✦ Prestige Now (resets Level, keeps a permanent win bonus)</button>`
+    : `<div class="quest-desc" style="margin-top:4px;">Reach Player Level ${PRESTIGE_LEVEL_REQUIREMENT} to unlock Prestige.</div>`;
   const levelHtml = `
-    <div class="deck-builder-heading" style="margin-top:18px;"><span>⭐ Player Level</span><span>Lv ${info.level}</span></div>
+    <div class="deck-builder-heading" style="margin-top:18px;"><span>⭐ Player Level${prestigeBadge}</span><span>Lv ${info.level}</span></div>
     <div class="quest-row" style="flex-direction:column; align-items:stretch; gap:4px;">
       <div class="quest-desc">${info.into}/${info.need} XP to Level ${info.level + 1} — earned from wins, packs, dailies, and milestones</div>
       <div class="challenge-progress-track"><div class="challenge-progress-fill" style="width:${pct}%"></div></div>
+      ${prestigeButton}
     </div>`;
+
+  const rankState = loadArenaRankState();
+  const rankIdx = arenaRankIndexFromRP(rankState.rp);
+  const nextThreshold = ARENA_RANK_THRESHOLDS[rankIdx + 1];
+  const rankPct = nextThreshold ? Math.round(((rankState.rp - ARENA_RANK_THRESHOLDS[rankIdx]) / (nextThreshold - ARENA_RANK_THRESHOLDS[rankIdx])) * 100) : 100;
+  const rankHtml = `
+    <div class="deck-builder-heading" style="margin-top:18px;"><span>🏅 Arena Rank</span><span>${ARENA_RANKS[rankIdx]}</span></div>
+    <div class="quest-row" style="flex-direction:column; align-items:stretch; gap:4px;">
+      <div class="quest-desc">${rankState.rp} RP${nextThreshold ? ` — ${nextThreshold - rankState.rp} RP to ${ARENA_RANKS[rankIdx + 1]}` : ' — top rank reached!'}</div>
+      <div class="challenge-progress-track"><div class="challenge-progress-fill" style="width:${rankPct}%"></div></div>
+      <div class="quest-desc" style="margin-top:2px;">+20 RP per win, −12 RP per loss.</div>
+    </div>`;
+
+  const tower = loadTrialTowerState();
+  const towerHtml = `
+    <div class="deck-builder-heading" style="margin-top:18px;"><span>🗼 Trial Tower</span><span>Best: Floor ${tower.best}</span></div>
+    <div class="quest-row">
+      <div class="quest-icon">🗼</div>
+      <div class="quest-body">
+        <div class="quest-title">Floor ${tower.floor} — vs ${towerFloorDifficulty(tower.floor)}</div>
+        <div class="quest-desc">Clear it for ${towerFloorReward(tower.floor)} Bux. Losing resets you to Floor 1 - your best floor is kept forever.</div>
+      </div>
+      <div class="quest-status"><button type="button" class="primary-btn small" id="btn-enter-tower">Enter</button></div>
+    </div>`;
+
+  const setState = loadSetBonusState();
+  const setRows = SET_DEFS.map(def => {
+    const claimed = setState.claimed.includes(def.id);
+    const owned = def.owned(), total = def.total();
+    return `<div class="quest-row ${claimed ? 'complete' : ''}">
+      <div class="quest-icon">${claimed ? '✅' : '🧩'}</div>
+      <div class="quest-body">
+        <div class="quest-title">${def.name}</div>
+        <div class="quest-desc">${owned}/${total} owned · Reward: ${def.reward} Bux</div>
+      </div>
+      <div class="quest-status"></div>
+    </div>`;
+  }).join('');
+  const setHtml = `
+    <div class="deck-builder-heading" style="margin-top:18px;"><span>🧩 Set Completion Bonuses</span></div>
+    <p class="sub small" style="margin:-4px 0 6px;">Auto-claimed the moment you own every card in a set.</p>
+    ${setRows}`;
 
   const vault = loadWeeklyVaultState();
   const vaultRows = WEEKLY_VAULT_TIERS.map((need, i) => {
@@ -571,7 +801,10 @@ function renderProgressionExtras() {
     <p class="sub small" style="margin:-4px 0 6px;">Resets weekly. Earn points from wins, Daily Challenges, Daily Logins, and Forge Milestones.</p>
     ${vaultRows}`;
 
-  list.insertAdjacentHTML('beforeend', levelHtml + vaultHtml);
+  list.insertAdjacentHTML('beforeend', levelHtml + rankHtml + towerHtml + setHtml + vaultHtml);
+
+  document.getElementById('btn-do-prestige')?.addEventListener('click', () => doPrestige());
+  document.getElementById('btn-enter-tower')?.addEventListener('click', () => enterTrialTower());
   list.querySelectorAll('[data-claim-vault]').forEach(btn => {
     btn.addEventListener('click', () => {
       const idx = Number(btn.dataset.claimVault);
@@ -644,7 +877,6 @@ function isIndividualCardOwned(entry) {
   if (entry.kind === 'spell') return col.spells.includes(entry.id);
   return col.chips.includes(entry.id);
 }
-
 function buyIndividualCard(entry) {
   if (isIndividualCardOwned(entry)) { showToast('You already own this card.'); return; }
   if (!spendBux(entry.cost)) { showToast("You don't have enough Mehrbod Bux for that card."); return; }
@@ -656,6 +888,43 @@ function buyIndividualCard(entry) {
   grantWeeklyPoints(8);
   showToast(`🃏 Added ${entry.name} to your collection!`, 2400);
   Sound.sparkle();
+  renderCosmeticsShop();
+}
+
+/* ---------- Shop Codes: a simple redeemable-code system --------------- */
+const REDEEMED_CODES_KEY = 'mehrbod_redeemed_codes_v1';
+function loadRedeemedCodes() {
+  try { const a = JSON.parse(localStorage.getItem(REDEEMED_CODES_KEY) || '[]'); return Array.isArray(a) ? a : []; }
+  catch (e) { return []; }
+}
+function saveRedeemedCodes(list) {
+  try { localStorage.setItem(REDEEMED_CODES_KEY, JSON.stringify([...new Set(list)])); } catch (e) {}
+}
+function redeemShopCode(rawCode) {
+  const code = String(rawCode || '').trim().toLowerCase();
+  if (!code) { showToast('Enter a code first.'); return; }
+  const redeemed = loadRedeemedCodes();
+  if (redeemed.includes(code)) { showToast('That code has already been redeemed on this device.'); return; }
+
+  if (code === 'coolsauce') {
+    grantCards(ALL_NONBLUE_UNIT_IDS.slice(), ALL_SPELL_IDS.slice(), ALL_CHIP_IDS.slice());
+    const owned = loadOwnedCosmetics();
+    COSMETIC_ITEMS.forEach(c => { if (!owned.includes(c.id)) owned.push(c.id); });
+    saveOwnedCosmetics(owned);
+    addBux(1000000);
+    recordEconomyChange(1000000, 'Redeemed code: coolsauce');
+    recordRecentActivity('Redeemed code "coolsauce" — unlocked everything + 1,000,000 Bux');
+    checkAchievements();
+    updateThemeButtons();
+    showToast('🎉 Code redeemed! Everything unlocked + 1,000,000 Bux.', 3800);
+    Sound.sparkle();
+  } else {
+    showToast("That code isn't valid.");
+    return; // don't burn an attempt on a code that never worked
+  }
+
+  redeemed.push(code);
+  saveRedeemedCodes(redeemed);
   renderCosmeticsShop();
 }
 
@@ -770,6 +1039,20 @@ function renderCosmeticsShop() {
       ${section('Card Packs', 'Six fixed pack sizes, always available - pick how big a gamble you want.', SHOP_PACK_SIZES.map(packCard).join(''))}
       ${section('Individual Cards', "Today's six specific cards, buyable outright with no randomness.", picks.cards.map(cardEntryCard).join(''))}
 
+      <section class="modern-shop-section">
+        <div class="modern-shop-section-head">
+          <div>
+            <span class="modern-shop-section-kicker">MEHRBOD SHOP</span>
+            <h3>Codes</h3>
+            <p>Got a code from an event, a friend, or somewhere else? Redeem it here.</p>
+          </div>
+        </div>
+        <div class="shop-code-row">
+          <input type="text" id="shop-code-input" placeholder="Enter code..." maxlength="40" autocapitalize="none" autocomplete="off">
+          <button type="button" class="primary-btn" id="shop-code-redeem-btn">Redeem</button>
+        </div>
+      </section>
+
       <div class="modern-shop-footer-note">
         <span>◉</span>
         Your Bux balance: <strong>${balance.toLocaleString()}</strong>
@@ -808,4 +1091,11 @@ function renderCosmeticsShop() {
       }
     });
   });
+
+  const codeInput = document.getElementById('shop-code-input');
+  const codeBtn = document.getElementById('shop-code-redeem-btn');
+  if (codeBtn && codeInput) {
+    codeBtn.addEventListener('click', () => redeemShopCode(codeInput.value));
+    codeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') redeemShopCode(codeInput.value); });
+  }
 }

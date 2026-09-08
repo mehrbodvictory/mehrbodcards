@@ -1905,7 +1905,9 @@ function playFx(fxList) {
       }
       case 'selfBuff': {
         if (evt.amount === 0) break;
-        const symbol = evt.stat === 'dmg' ? '⚔' : '❤';
+        // v3.11: Green Tinkerer's +1 chip slot buffs `sp`, not dmg/hp - give
+        // it its own symbol instead of defaulting to the heart icon.
+        const symbol = evt.stat === 'dmg' ? '⚔' : evt.stat === 'sp' ? '⛃' : '❤';
         const text = (evt.amount > 0 ? '+' : '') + evt.amount + symbol;
         spawnCastEffect(evt.owner, evt.slot, 'ability', { text, kind: evt.amount >= 0 ? 'heal' : 'damage' });
         break;
@@ -3517,8 +3519,18 @@ document.getElementById('btn-copy-code').addEventListener('click', async () => {
 });
 
 // ---- Patch notes --------------------------------------------------------
-const CURRENT_VERSION = '3.10';
+const CURRENT_VERSION = '3.12';
 const PATCH_NOTES = [
+  {
+    version: '3.12',
+    notes: [
+      "NEW: 4 more progression systems, on top of Player Level and the Weekly Vault - Arena Rank (a rising/falling RP ladder from Bronze to Grandmaster), Prestige (reset your Player Level at Lv 15+ for a permanent bonus on every future win), Set Completion Bonuses (auto-claimed Bux for fully owning the Green/Red/Orange/Spell/Chip sets), and Trial Tower (an escalating single-track bot gauntlet with a permanent best-floor record). All four live in the 🏆 Quests panel.",
+      "NEW: 12 new cards - 3 per tier, including Blue. The 9 new Green/Red/Orange abilities are all built around mechanics no existing card used: a damage-negating Ward, stealing an enemy card outright, permanent chip-slot growth, a 2-round burn, an HP-threshold board wipe, striking twice per attack, a stat that scales with the match's total death count, dying into two fresh Blue cards, and an immediate bonus strike on placement.",
+      "RULE CHANGE: the per-round merge cap is now 2 (up from 1). Bots now actually use up to the same cap too - previously bot AI only ever attempted a single merge per round no matter what the cap allowed.",
+      "NEW: a Codes section in the Mehrbod Shop for redeeming one-time codes.",
+      "FIX: cards in the placement row (and the spells/chips row) could still get visually clipped on hover, even after the board fix - their horizontal scroll strip was implicitly clipping vertical movement too. Fixed with breathing room instead of removing the scroll behavior.",
+    ],
+  },
   {
     version: '3.10',
     notes: [

@@ -1,6 +1,10 @@
 
 const BOARD_SIZE = 6;
 const BLUE_FORCE_CAP = 4; // >= this many blue(tier1) cards on one board forces a merge
+// v3.12: raised from 1 to 2 - both the player and the bot AI (see
+// runBotPlacement in bot.js, which now loops up to this same shared
+// constant) can now make up to 2 voluntary merges per round.
+const MAX_MERGES_PER_ROUND = 2;
 
 // ---- FX events -------------------------------------------------------------
 // A transient, local-only event log describing exactly what happened during
@@ -29,7 +33,7 @@ function newPlayerState(deck) {
     attackAssignments: {}, // slotIndex -> { targetOwner, targetSlot }
     defendingSlots: {},     // slotIndex -> true : this card is defending itself this round
     everMergedUp: false,    // true forever, from the moment this player's first merge creates a non-Blue card
-    mergesThisRound: 0,     // NEW: at most 1 merge is allowed per player per round - reset every placement phase
+    mergesThisRound: 0,     // NEW: at most MAX_MERGES_PER_ROUND merges are allowed per player per round - reset every placement phase
   };
 }
 
@@ -49,6 +53,7 @@ function createMatch(seed, p1id = 'p1', p2id = 'p2', deckConfigs = {}) {
     pendingQueuedAttacks: [],
     log: [],
     winner: null,
+    totalDeaths: 0, // v3.11: running count of every card that has died on either side this match - feeds Orange Harvester's soulharvest ability
   };
   state._rng = rng;
   return state;
@@ -120,6 +125,40 @@ function abilityTrigger(state, playerKey, card, trigger, slot, deathSource) {
     } else if (a === 'orange_onplay_refreshall') {
       refreshAllAlliesDefense(state, playerKey);
       pushLog(state, `${card.name} refreshes all of ${playerKey}'s defense charges`);
+    } else if (a === 'green_onplay_ward1') {
+      card.wardCharges = (card.wardCharges || 0) + 1;
+      pushFx(state, { type: 'shieldCharge', owner: playerKey, slot });
+      pushLog(state, `${card.name} gains a Ward`);
+    } else if (a === 'green_onplay_stealcard') {
+      stealWeakestEnemyBlue(state, playerKey, enemyKey, slot, source);
+    } else if (a === 'green_onplay_chipslot1') {
+      card.sp += 1;
+      pushFx(state, { type: 'selfBuff', owner: playerKey, slot, stat: 'sp', amount: 1 });
+      pushLog(state, `${card.name} gains +1 chip slot`);
+    } else if (a === 'red_onplay_burn2') {
+      const target = weakestEnemyCard(enemy);
+      if (target) {
+        target.card.burnRounds = (target.card.burnRounds || 0) + 2;
+        target.card.burnDmg = 1;
+        pushFx(state, { type: 'ability', owner: enemyKey, slot: target.slot });
+        pushLog(state, `${card.name} burns ${target.card.name}`);
+      }
+    } else if (a === 'red_onplay_purge_weak') {
+      const targets = enemy.board.map((c, i) => (c && c.maxHp <= 2 ? i : -1)).filter(i => i >= 0);
+      targets.forEach(i => damageCard(state, enemyKey, i, enemy.board[i] ? enemy.board[i].hp : 0, source));
+      if (targets.length) pushLog(state, `${card.name} purges ${targets.length} fragile enemy card${targets.length > 1 ? 's' : ''}`);
+    } else if (a === 'orange_onplay_soulharvest') {
+      const bonus = state.totalDeaths || 0;
+      card.dmg += bonus;
+      pushFx(state, { type: 'selfBuff', owner: playerKey, slot, stat: 'dmg', amount: bonus });
+      pushLog(state, `${card.name} gains +${bonus} DMG from the match's fallen`);
+    } else if (a === 'orange_onplay_alphastrike') {
+      const enemyFilled = enemy.board.map((c, i) => (c ? i : -1)).filter(i => i >= 0);
+      if (enemyFilled.length) {
+        const pick = enemyFilled[Math.floor(state._rng.next() * enemyFilled.length)];
+        damageCard(state, enemyKey, pick, card.dmg, source);
+        pushLog(state, `${card.name} strikes immediately for ${card.dmg}`);
+      }
     }
   } else if (trigger === 'ondeath') {
     if (a === 'ondeath_dmg2') {
@@ -152,6 +191,14 @@ function abilityTrigger(state, playerKey, card, trigger, slot, deathSource) {
     } else if (a === 'orange_ondeath_dmg4') {
       const target = weakestEnemyCard(enemy);
       if (target) { damageCard(state, enemyKey, target.slot, 4, source); pushLog(state, `${card.name} (death) deals 4 to ${target.card.name}`); }
+    } else if (a === 'orange_ondeath_rebirth2') {
+      const emptySlots = me.board.map((c, i) => (c ? -1 : i)).filter(i => i >= 0).slice(0, 2);
+      emptySlots.forEach(i => {
+        const baby = makeUnitCard(1, state._rng);
+        me.board[i] = baby;
+        pushFx(state, { type: 'place', owner: playerKey, slot: i });
+      });
+      if (emptySlots.length) pushLog(state, `${card.name} is reborn as ${emptySlots.length} Blue card${emptySlots.length > 1 ? 's' : ''}`);
     }
   }
 }
@@ -200,6 +247,29 @@ function discardRandomFromDeck(state, playerKey, source) {
   pushLog(state, `${card.name} removed from ${playerKey}'s deck`);
 }
 
+// v3.11: Green Footpad's steal - moves the enemy's weakest Blue card
+// straight from their board onto the stealing player's own board, if they
+// have an empty slot to put it in. Cleans up any stale attack/defend
+// assignments on the vacated enemy slot so nothing dangles.
+function stealWeakestEnemyBlue(state, playerKey, enemyKey, sourceSlot, source) {
+  const me = state.players[playerKey];
+  const enemy = state.players[enemyKey];
+  const myEmptySlot = me.board.findIndex((c, i) => !c);
+  if (myEmptySlot === -1) return;
+  let bestSlot = -1, bestHp = Infinity;
+  enemy.board.forEach((c, i) => {
+    if (c && c.tier === 1 && c.hp < bestHp) { bestHp = c.hp; bestSlot = i; }
+  });
+  if (bestSlot === -1) return;
+  const stolen = enemy.board[bestSlot];
+  enemy.board[bestSlot] = null;
+  delete enemy.attackAssignments[bestSlot];
+  delete enemy.defendingSlots[bestSlot];
+  me.board[myEmptySlot] = stolen;
+  pushFx(state, { type: 'place', owner: playerKey, slot: myEmptySlot });
+  pushLog(state, `${state.players[playerKey].board[myEmptySlot].name} steals ${stolen.name} from ${enemyKey}`);
+}
+
 function weakestEnemyCard(enemyPlayerState) {
   let best = null;
   enemyPlayerState.board.forEach((c, slot) => {
@@ -221,6 +291,15 @@ function damageCard(state, ownerKey, slot, amount, source) {
   const p = state.players[ownerKey];
   const card = p.board[slot];
   if (!card) return;
+  // v3.11: Ward (green_onplay_ward1) completely negates the next instance
+  // of damage this card would take, from ANY source - attack, spell, or
+  // ability - since damageCard() is the single funnel every one of those
+  // already routes through. One charge, consumed here, before HP changes.
+  if (card.wardCharges > 0) {
+    card.wardCharges -= 1;
+    pushFx(state, { type: 'block', owner: ownerKey, slot, source, warded: true });
+    return;
+  }
   card.hp = Math.max(0, card.hp - amount);
   const killed = card.hp <= 0;
   pushFx(state, {
@@ -246,6 +325,7 @@ function killCard(state, ownerKey, slot, deathSource) {
   // call below, which never had this extra requirement in the first
   // place.)
   const canReplenish = card.tier === 1 && hasRemainingBlueprints(p);
+  state.totalDeaths = (state.totalDeaths || 0) + 1; // v3.11: feeds Orange Harvester
   p.board[slot] = null;               // remove from the board FIRST so on-death
   p.graveyard.push(card);             // targeting logic can never see/re-hit this card
   delete p.defendingSlots[slot];
@@ -369,8 +449,8 @@ function placeCard(state, playerKey, deckIndex, slot) {
 function mergeCards(state, playerKey, slots, blueprintIndex) {
   const p = state.players[playerKey];
   if (state.phase !== 'placement') return { ok: false, error: 'not placement phase' };
-  // NEW: at most 1 *voluntary* merge (of any size, 2-4 cards) is allowed
-  // per player per round. Merges made to clear a forced-merge situation
+  // NEW: at most MAX_MERGES_PER_ROUND *voluntary* merges (of any size, 2-4
+  // cards each) are allowed per player per round. Merges made to clear a forced-merge situation
   // (4+ Blues on the board) are exempt from this cap and never counted
   // against it - they're mandatory board cleanup, not a strategic choice,
   // and capping them too could soft-lock a player who reaches the forced
@@ -378,8 +458,8 @@ function mergeCards(state, playerKey, slots, blueprintIndex) {
   // Blues from an earlier merge) with no way left to legally merge out of
   // it, or ready up, for the rest of the round.
   const wasForced = isForced(state, playerKey);
-  if (!wasForced && (p.mergesThisRound || 0) >= 1) {
-    return { ok: false, error: 'Only one merge is allowed per round — wait for the next round to merge again.' };
+  if (!wasForced && (p.mergesThisRound || 0) >= MAX_MERGES_PER_ROUND) {
+    return { ok: false, error: `Only ${MAX_MERGES_PER_ROUND} merges are allowed per round — wait for the next round to merge again.` };
   }
   if (!Array.isArray(slots)) return { ok: false, error: 'invalid slots' };
   const uniqueSlots = [...new Set(slots)];
@@ -612,7 +692,7 @@ function setAttack(state, playerKey, slot, targetOwnerKey, targetSlot) {
   // spell/chip before the simultaneous resolution runs, its queued attack
   // (resolved at the start of next placement round) still uses these values.
   const lifestealAmount = cardHasChip(card, 'chip_vampiric') ? 2 : (cardHasChip(card, 'chip_lifeblood') ? 1 : 0);
-  p.attackAssignments[slot] = { targetOwner: targetOwnerKey, targetSlot, dmg: card.dmg, pierce: card.ability === 'onattack_pierce', splash: card.ability === 'red_onattack_splash1', lifesteal: lifestealAmount, sourceName: card.name };
+  p.attackAssignments[slot] = { targetOwner: targetOwnerKey, targetSlot, dmg: card.dmg, pierce: card.ability === 'onattack_pierce', splash: card.ability === 'red_onattack_splash1', doubleStrike: card.ability === 'red_onattack_doublestrike', lifesteal: lifestealAmount, sourceName: card.name };
   return { ok: true };
 }
 
@@ -686,6 +766,15 @@ function resolveAttacks(state) {
       damageMap.push({ targetOwner: assign.targetOwner, targetSlot, amount: assign.dmg, source });
       if (assign.lifesteal) lifestealHits.push({ ownerKey: attackerKey, slot, amount: assign.lifesteal });
       if (cardHasChip(defenderCard, 'chip_reflect')) reflectHits.push({ atkOwner: attackerKey, atkSlot: slot, defOwner: assign.targetOwner, defSlot: targetSlot });
+
+      // v3.11: Red Duelist strikes twice - a second, independent damage
+      // instance at the same target, resolved in the same simultaneous
+      // batch as everything else. If the first hit already kills the
+      // target, damageCard's own "already gone" guard makes the second
+      // instance a safe no-op.
+      if (assign.doubleStrike) {
+        damageMap.push({ targetOwner: assign.targetOwner, targetSlot, amount: assign.dmg, source: { kind: 'attack', name: assign.sourceName + ' (2nd strike)', owner: attackerKey, slot } });
+      }
 
       // Cannoneer-style splash: also hits a second random enemy card for 1,
       // if another one exists, independent of whether the primary hit was
@@ -811,6 +900,21 @@ function startPlacementPhase(state) {
     }
     pushLog(state, `Queued attack from fallen ${q.ownerKey} card resolves for ${q.dmg}`);
     damageCard(state, q.targetOwner, q.targetSlot, q.dmg, source);
+  });
+  // v3.11: Red Immolator's burn ticks down at the start of every new round,
+  // after queued attacks resolve but before any new placement actions -
+  // dealing its stored damage and decrementing the remaining duration.
+  // Ward (if any) still applies against a burn tick like any other damage.
+  state.order.forEach(k => {
+    const p = state.players[k];
+    p.board.forEach((card, slot) => {
+      if (!card || !(card.burnRounds > 0)) return;
+      const dmg = card.burnDmg || 1;
+      pushLog(state, `${card.name} takes ${dmg} burn damage`);
+      damageCard(state, k, slot, dmg, { kind: 'ability-ondeath', name: 'Burn', owner: k });
+      const stillThere = p.board[slot];
+      if (stillThere && stillThere === card) card.burnRounds -= 1;
+    });
   });
   // v3.0: no draw step - every remaining deck card has been visible and
   // placeable/mergeable since round 1 already.

@@ -63,6 +63,23 @@ const ABILITIES = {
   orange_onplay_scaledmg:  { id: 'orange_onplay_scaledmg', label: 'On placement: this card gains +1 DMG per enemy card on the board.' },
   orange_ondeath_dmg4:     { id: 'orange_ondeath_dmg4', label: 'On death: deal 4 dmg to a selected enemy card.' },
   orange_onplay_refreshall:{ id: 'orange_onplay_refreshall', label: "On placement: refresh every ally's defense charges." },
+
+  // v3.11: 9 new abilities (3 per non-Blue tier), each built around a
+  // mechanic no existing card touches - a damage-negating Ward, stealing an
+  // enemy card outright, permanent chip-slot growth, a burn (damage-over-
+  // time) effect, an HP-threshold board wipe, attacking twice per swing, a
+  // stat that scales with the match's total death count, dying into two
+  // fresh Blue cards, and an immediate bonus strike on placement. None of
+  // these overlap with the flat damage/heal/buff patterns above.
+  green_onplay_ward1:      { id: 'green_onplay_ward1', label: 'On placement: gains a Ward that completely blocks the next instance of damage it would take.' },
+  green_onplay_stealcard:  { id: 'green_onplay_stealcard', label: "On placement: steals the enemy's weakest Blue card onto your board, if you have room." },
+  green_onplay_chipslot1:  { id: 'green_onplay_chipslot1', label: 'On placement: permanently gains +1 chip slot.' },
+  red_onplay_burn2:        { id: 'red_onplay_burn2', label: 'On placement: burns a random enemy card, dealing 1 dmg at the start of each of the next 2 rounds.' },
+  red_onplay_purge_weak:   { id: 'red_onplay_purge_weak', label: 'On placement: destroys every enemy card with 2 or less max HP.' },
+  red_onattack_doublestrike:{ id: 'red_onattack_doublestrike', label: "This card's attacks strike twice." },
+  orange_onplay_soulharvest:{ id: 'orange_onplay_soulharvest', label: 'On placement: gains +1 DMG for every card that has died so far this match (both sides combined).' },
+  orange_ondeath_rebirth2: { id: 'orange_ondeath_rebirth2', label: 'On death: leaves behind 2 Blue cards on your board in its place, if you have room.' },
+  orange_onplay_alphastrike:{ id: 'orange_onplay_alphastrike', label: 'On placement: immediately deals its DMG to a random enemy card, on top of attacking normally this round.' },
 };
 
 // ---- Unit archetypes -------------------------------------------------------
@@ -83,6 +100,11 @@ const UNIT_ARCHETYPES = {
     { id: 'blue_scout',   name: 'Blue Scout',   pool: ['none'] },
     { id: 'blue_cadet',   name: 'Blue Cadet',   pool: ['none'] },
     { id: 'blue_drifter', name: 'Blue Drifter', pool: ['none'] },
+    // v3.11: 3 more Blue archetypes - purely cosmetic variety, same as the
+    // five above. Blue stays permanently ability-free by design.
+    { id: 'blue_vanguard', name: 'Blue Vanguard', pool: ['none'] },
+    { id: 'blue_herald',   name: 'Blue Herald',   pool: ['none'] },
+    { id: 'blue_wisp',     name: 'Blue Wisp',     pool: ['none'] },
   ],
   2: [ // Green
     { id: 'green_warden',     name: 'Green Warden',     pool: ['onplay_heal2'] },
@@ -90,6 +112,10 @@ const UNIT_ARCHETYPES = {
     { id: 'green_pathfinder', name: 'Green Pathfinder', pool: ['green_ondeath_draw1'] },
     { id: 'green_bulwark',    name: 'Green Bulwark',    pool: ['green_onplay_selftoughen1'] },
     { id: 'green_saboteur',   name: 'Green Saboteur',   pool: ['green_onplay_discard1'] },
+    // v3.11: 3 new Green archetypes with mechanically fresh abilities.
+    { id: 'green_warden_ii',  name: 'Green Sentinel',   pool: ['green_onplay_ward1'] },
+    { id: 'green_footpad',    name: 'Green Footpad',    pool: ['green_onplay_stealcard'] },
+    { id: 'green_tinkerer',   name: 'Green Tinkerer',   pool: ['green_onplay_chipslot1'] },
   ],
   3: [ // Red
     { id: 'red_wraith',      name: 'Red Wraith',      pool: ['onattack_pierce'] },
@@ -97,6 +123,10 @@ const UNIT_ARCHETYPES = {
     { id: 'red_vindicator',  name: 'Red Vindicator',  pool: ['red_ondeath_thorns1'] },
     { id: 'red_warchief',    name: 'Red Warchief',    pool: ['red_onplay_buffallies_dmg1'] },
     { id: 'red_cannoneer',   name: 'Red Cannoneer',   pool: ['red_onattack_splash1'] },
+    // v3.11: 3 new Red archetypes with mechanically fresh abilities.
+    { id: 'red_immolator',   name: 'Red Immolator',   pool: ['red_onplay_burn2'] },
+    { id: 'red_purger',      name: 'Red Purger',      pool: ['red_onplay_purge_weak'] },
+    { id: 'red_duelist',     name: 'Red Duelist',     pool: ['red_onattack_doublestrike'] },
   ],
   4: [ // Orange
     { id: 'orange_colossus',   name: 'Orange Colossus',   pool: ['onplay_dmg2'] },
@@ -104,6 +134,10 @@ const UNIT_ARCHETYPES = {
     { id: 'orange_juggernaut', name: 'Orange Juggernaut', pool: ['orange_onplay_scaledmg'] },
     { id: 'orange_reaper',     name: 'Orange Reaper',     pool: ['orange_ondeath_dmg4'] },
     { id: 'orange_sentinel',   name: 'Orange Sentinel',   pool: ['orange_onplay_refreshall'] },
+    // v3.11: 3 new Orange archetypes with mechanically fresh abilities.
+    { id: 'orange_harvester',  name: 'Orange Harvester',  pool: ['orange_onplay_soulharvest'] },
+    { id: 'orange_phoenix',    name: 'Orange Phoenix',    pool: ['orange_ondeath_rebirth2'] },
+    { id: 'orange_warlord',    name: 'Orange Warlord',    pool: ['orange_onplay_alphastrike'] },
   ],
 };
 

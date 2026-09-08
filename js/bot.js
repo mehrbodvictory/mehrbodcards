@@ -47,12 +47,26 @@ function runBotPlacement(state, botKey, difficulty, rng) {
   // four Blues straight to Orange), not just pairs, and every candidate
   // combo still needs a blueprint actually present in the deck - see
   // mergeCards in game.js.
-  if (!tryBlueprintMerge(state, botKey)) {
-    if (level >= 2) {
-      tryStrategicMerge(state, botKey, rng, level);
-    } else if (level === 1 && rng.next() < 0.3) {
-      tryStrategicMerge(state, botKey, rng, level);
+  // v3.12: bots now use up to the same MAX_MERGES_PER_ROUND cap (shared
+  // with the player, defined in game.js) as anyone else - previously this
+  // only ever attempted a single merge per round no matter how many the
+  // rules engine actually allowed, so the bot never used a second merge
+  // even when it clearly should have. Each cycle tries a blueprint-backed
+  // merge first (every difficulty), falling back to the difficulty-gated
+  // strategic merge; the loop stops as soon as a cycle finds nothing left
+  // worth merging, so weaker bots still won't force through the full cap.
+  let botMergesThisCycle = 0;
+  while (botMergesThisCycle < MAX_MERGES_PER_ROUND) {
+    let merged = tryBlueprintMerge(state, botKey);
+    if (!merged) {
+      if (level >= 2) {
+        merged = tryStrategicMerge(state, botKey, rng, level);
+      } else if (level === 1 && rng.next() < 0.3) {
+        merged = tryStrategicMerge(state, botKey, rng, level);
+      }
     }
+    if (!merged) break;
+    botMergesThisCycle++;
   }
 
   // 3. Cast spells/attach chips on Medium+ if a good kill/heal is available.
@@ -93,8 +107,8 @@ function tryBlueprintMerge(state, botKey) {
     for (const combo of combos) {
       const sum = combo.reduce((s, i) => s + p.board[i].tier, 0);
       if (sum > 4 || !blueprintTiers.has(sum)) continue;
-      mergeCards(state, botKey, combo);
-      return true;
+      const res = mergeCards(state, botKey, combo);
+      return !!(res && res.ok);
     }
   }
   return false;
@@ -103,14 +117,14 @@ function tryBlueprintMerge(state, botKey) {
 function tryStrategicMerge(state, botKey, rng, level) {
   const p = state.players[botKey];
   const filled = filledSlots(p.board).filter(i => p.board[i].tier !== 4);
-  if (filled.length < 2) return;
+  if (filled.length < 2) return false;
   const boardCrowded = emptySlots(p.board).length <= 1;
   // Master (level 4) fuses up aggressively even with room on the board;
   // Expert (level 3) does so sometimes; Hard (level 2) only when crowded.
   const shouldMerge = boardCrowded
     || (level === 4 && rng.next() < 0.7)
     || (level === 3 && rng.next() < 0.4);
-  if (!shouldMerge) return;
+  if (!shouldMerge) return false;
   // Find any legal combo (2-4 cards, none Orange, tier sum lands on a real
   // tier AND a matching blueprint is actually available in the deck),
   // preferring the LARGEST combination available on Master/Expert (a
@@ -124,11 +138,12 @@ function tryStrategicMerge(state, botKey, rng, level) {
     for (const combo of combos) {
       const sum = combo.reduce((s, i) => s + p.board[i].tier, 0);
       if (sum >= 2 && sum <= 4 && p.deck.some(c => c.tier === sum)) {
-        mergeCards(state, botKey, combo);
-        return;
+        const res = mergeCards(state, botKey, combo);
+        return !!(res && res.ok);
       }
     }
   }
+  return false;
 }
 
 function maybeUseSpellsAndChips(state, botKey, enemyKey, rng, level) {

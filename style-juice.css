@@ -295,6 +295,17 @@ html.theme-collector .card:hover::after {
 .board, .slot, #opponent-board, #player-board {
   overflow: visible;
 }
+/* BUGFIX (still cut off): the fix above covers the boards, but the card
+   ROW where you pick a card to place (#hand-row) - and the spells/chips
+   row - use `overflow-x: auto` for their horizontal scroll strip. Per the
+   CSS spec, setting only one axis to a non-visible value forces the OTHER
+   axis to `auto` too (never `visible`), so the vertical hover lift was
+   still getting clipped by the row's own scroll box. Extra top padding on
+   these two rows gives the lift room without touching the horizontal
+   scrolling behavior at all. */
+#hand-row, #spells-chips-row {
+  padding: 14px 2px 8px;
+}
 .card:hover { transform: translateY(-4px) scale(1.06) rotate(-1deg); z-index: 30; }
 
 .juice-ripple {
@@ -328,6 +339,16 @@ html.theme-collector .card:hover::after {
 }
 .dailylogin-streak-note { font-size: .78rem; color: var(--muted); margin-bottom: 14px; }
 .dailylogin-claim-btn:disabled { opacity: .55; cursor: not-allowed; }
+
+/* ---------- Shop: redeem-a-code row ---------- */
+.shop-code-row { display: flex; gap: 8px; flex-wrap: wrap; }
+#shop-code-input {
+  flex: 1; min-width: 180px; background: #0d1220; color: #eef1f8;
+  border: 1px solid rgba(255,255,255,.12); border-radius: 10px;
+  padding: 10px 14px; font-family: var(--font-body); font-size: .9rem;
+}
+#shop-code-input:focus { outline: none; border-color: #6f9cff; }
+#shop-code-redeem-btn { white-space: nowrap; }
 
 @media (prefers-reduced-motion: reduce) {
   .packopen-pack, .packopen-pack-shine, .packopen-tap-hint,
