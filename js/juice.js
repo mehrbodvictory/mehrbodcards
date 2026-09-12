@@ -449,6 +449,7 @@ function grantPlayerXP(amount) {
     showToast(`⭐ Player Level ${afterInfo.level}! +${reward} Bux`, 3000);
     Sound.sparkle();
   }
+  if (typeof updateProfileAvatar === 'function') updateProfileAvatar(); // refresh the prestige "!" badge eligibility
 }
 
 /* ============================================================
@@ -613,18 +614,20 @@ function checkSetBonuses() {
 
 /* ============================================================
    NEW PROGRESSION SYSTEM: Trial Tower
-   An escalating single-track gauntlet of bot matches. Clearing a
-   floor pays Bux and advances to a tougher floor; losing resets back
-   to Floor 1, but the highest floor ever cleared is remembered
-   forever as a permanent record - giving strong players an
-   open-ended difficulty ladder to keep climbing well past the fixed
+   An escalating single-track gauntlet of bot matches, launched from
+   its own card in the Single Player menu. Clearing a floor pays Bux,
+   stamps a checkmark on that floor's brick, and grows the tower by
+   one more; losing brings the whole tower crashing down in a real
+   explosion animation back to Floor 1 - but the highest floor ever
+   cleared is kept forever as a permanent record, giving strong
+   players an open-ended ladder to keep climbing well past the fixed
    5 practice difficulties.
    ============================================================ */
 const TRIAL_TOWER_KEY = 'mehrbod_trial_tower_v1';
 function loadTrialTowerState() {
   try { const s = JSON.parse(localStorage.getItem(TRIAL_TOWER_KEY) || 'null'); if (s && typeof s.floor === 'number') return s; }
   catch (e) {}
-  return { floor: 1, best: 0 };
+  return { floor: 1, best: 0, pendingResult: null, lastRunFloor: 1 };
 }
 function saveTrialTowerState(s) { try { localStorage.setItem(TRIAL_TOWER_KEY, JSON.stringify(s)); } catch (e) {} }
 function towerFloorDifficulty(floor) {
@@ -632,6 +635,9 @@ function towerFloorDifficulty(floor) {
   return DIFFICULTIES[idx];
 }
 function towerFloorReward(floor) { return 15 + floor * 5; }
+const TOWER_DIFF_COLORS = { Easy: '#4C9A5B', Medium: '#d9b23c', Hard: '#e0752c', Expert: '#c1443c', Master: '#b23cf0' };
+function trialTowerBrickColor(floor) { return TOWER_DIFF_COLORS[towerFloorDifficulty(floor)] || '#3E7CB1'; }
+
 let trialTowerActive = false;
 function enterTrialTower() {
   const s = loadTrialTowerState();
@@ -639,7 +645,7 @@ function enterTrialTower() {
   trialTowerActive = true;
   botDifficulty = diff;
   saveLastDifficulty(diff);
-  document.getElementById('quests-overlay')?.classList.add('hidden');
+  document.getElementById('trial-tower-overlay')?.remove();
   openDeckBuilder((config) => startVsBot(0, config));
 }
 function resolveTrialTowerMatch(won) {
@@ -651,12 +657,14 @@ function resolveTrialTowerMatch(won) {
     recordEconomyChange(reward, `Trial Tower floor ${s.floor} cleared`);
     recordRecentActivity(`Cleared Trial Tower floor ${s.floor} — +${reward} Bux`);
     showToast(`🗼 Floor ${s.floor} cleared! +${reward} Bux`, 3000);
-    Sound.sparkle();
     s.best = Math.max(s.best || 0, s.floor);
     s.floor += 1;
+    s.pendingResult = 'win';
   } else {
+    s.lastRunFloor = s.floor;
     if (s.floor > 1) showToast(`🗼 Trial Tower run ended at floor ${s.floor} — back to Floor 1.`, 3000);
     s.floor = 1;
+    s.pendingResult = 'loss';
   }
   saveTrialTowerState(s);
 }
@@ -666,6 +674,143 @@ function resolveTrialTowerMatch(won) {
 document.getElementById('btn-quit-match')?.addEventListener('click', () => { trialTowerActive = false; });
 document.getElementById('btn-play-again')?.addEventListener('click', () => { trialTowerActive = false; });
 document.getElementById('btn-rematch')?.addEventListener('click', () => { trialTowerActive = false; });
+
+/* ---------- Trial Tower infographic: a real climbable/explodable tower - */
+function renderTrialTowerBricks(container, upToFloor, clearedUpTo) {
+  container.innerHTML = '';
+  const startFloor = Math.max(1, upToFloor - 11);
+  if (startFloor > 1) {
+    const more = document.createElement('div');
+    more.className = 'tower-more-indicator';
+    more.textContent = `⋮ +${startFloor - 1} floor${startFloor - 1 === 1 ? '' : 's'} below`;
+    container.appendChild(more);
+  }
+  for (let f = startFloor; f <= upToFloor; f++) {
+    const brick = document.createElement('div');
+    brick.className = 'tower-brick';
+    brick.dataset.floor = String(f);
+    brick.style.setProperty('--brick-color', trialTowerBrickColor(f));
+    const cleared = f < clearedUpTo;
+    const current = f === clearedUpTo;
+    if (cleared) brick.classList.add('cleared');
+    if (current) brick.classList.add('current');
+    brick.innerHTML = `<span class="tower-brick-num">Floor ${f}</span><span class="tower-brick-diff">${towerFloorDifficulty(f)}</span>${cleared ? '<span class="tower-brick-check">✓</span>' : (current ? '<span class="tower-brick-flag">🚩</span>' : '')}`;
+    container.appendChild(brick);
+  }
+}
+function playTowerAdvanceAnimation(stack, clearedFloor, newFloor, onDone) {
+  const topBrick = stack.querySelector(`.tower-brick[data-floor="${clearedFloor}"]`);
+  if (topBrick) {
+    topBrick.classList.remove('current');
+    topBrick.classList.add('cleared');
+    const flag = topBrick.querySelector('.tower-brick-flag');
+    if (flag) flag.remove();
+    const check = document.createElement('span');
+    check.className = 'tower-brick-check pop';
+    check.textContent = '✓';
+    topBrick.appendChild(check);
+  }
+  if (typeof vibrate === 'function') vibrate([20, 30, 20]);
+  setTimeout(() => {
+    const newBrick = document.createElement('div');
+    newBrick.className = 'tower-brick current new-brick';
+    newBrick.dataset.floor = String(newFloor);
+    newBrick.style.setProperty('--brick-color', trialTowerBrickColor(newFloor));
+    newBrick.innerHTML = `<span class="tower-brick-num">Floor ${newFloor}</span><span class="tower-brick-diff">${towerFloorDifficulty(newFloor)}</span><span class="tower-brick-flag">🚩</span>`;
+    stack.insertBefore(newBrick, stack.firstChild); // column-reverse: prepend = appears on top
+    Sound.chipAttach();
+    setTimeout(onDone, 480);
+  }, 480);
+}
+function playTowerExplodeAnimation(panel, stack, onDone) {
+  const bricks = Array.from(stack.querySelectorAll('.tower-brick'));
+  if (typeof Sound.meteorBoom === 'function') Sound.meteorBoom();
+  if (typeof vibrate === 'function') vibrate([40, 30, 40, 30, 70]);
+  if (panel) { panel.classList.add('tower-shake'); setTimeout(() => panel.classList.remove('tower-shake'), 520); }
+  bricks.forEach((b, i) => {
+    setTimeout(() => {
+      const angle = Math.random() * 360;
+      const dist = 70 + Math.random() * 130;
+      b.style.setProperty('--angle', angle + 'deg');
+      b.style.setProperty('--dist', dist + 'px');
+      b.classList.add('exploding');
+    }, i * 45);
+  });
+  setTimeout(() => { stack.innerHTML = ''; onDone(); }, bricks.length * 45 + 650);
+}
+function openTrialTowerScreen() {
+  const old = document.getElementById('trial-tower-overlay');
+  if (old) old.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'trial-tower-overlay';
+  overlay.className = 'feature-overlay';
+  overlay.innerHTML = `
+    <div class="feature-panel trial-tower-panel">
+      <button class="feature-close">✕</button>
+      <span class="feature-kicker">HOW HIGH CAN YOU CLIMB?</span>
+      <h2>🗼 Trial Tower</h2>
+      <p>Win to advance a floor against tougher bots. Lose, and the tower comes crashing down back to Floor 1 - your best floor is remembered forever.</p>
+      <div class="tower-stats-row">
+        <div class="tower-stat"><b id="tower-current-floor-num">-</b><span>Current Floor</span></div>
+        <div class="tower-stat"><b id="tower-best-floor-num">-</b><span>Best Ever</span></div>
+      </div>
+      <div class="tower-viewport"><div class="tower-stack" id="tower-stack"></div></div>
+      <button type="button" class="primary-btn" id="btn-tower-begin" style="margin-top:16px;">Begin</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  const panel = overlay.querySelector('.trial-tower-panel');
+  overlay.querySelector('.feature-close').onclick = () => overlay.remove();
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+  const stack = document.getElementById('tower-stack');
+  const beginBtn = document.getElementById('btn-tower-begin');
+  const s = loadTrialTowerState();
+
+  function settleView() {
+    const cur = loadTrialTowerState();
+    document.getElementById('tower-current-floor-num').textContent = cur.floor;
+    document.getElementById('tower-best-floor-num').textContent = cur.best;
+    renderTrialTowerBricks(stack, cur.floor, cur.floor);
+    beginBtn.textContent = `Begin Floor ${cur.floor} — vs ${towerFloorDifficulty(cur.floor)} (+${towerFloorReward(cur.floor)} Bux)`;
+  }
+
+  if (s.pendingResult === 'win') {
+    const clearedFloor = s.floor - 1;
+    renderTrialTowerBricks(stack, clearedFloor, clearedFloor);
+    s.pendingResult = null;
+    saveTrialTowerState(s);
+    document.getElementById('tower-current-floor-num').textContent = clearedFloor;
+    document.getElementById('tower-best-floor-num').textContent = s.best;
+    setTimeout(() => playTowerAdvanceAnimation(stack, clearedFloor, s.floor, settleView), 320);
+  } else if (s.pendingResult === 'loss') {
+    const runFloor = s.lastRunFloor || 1;
+    renderTrialTowerBricks(stack, runFloor, runFloor + 1); // clearedUpTo = runFloor+1 -> every rendered floor shows as "cleared" for the pre-explosion snapshot
+    s.pendingResult = null;
+    saveTrialTowerState(s);
+    document.getElementById('tower-current-floor-num').textContent = 1;
+    document.getElementById('tower-best-floor-num').textContent = s.best;
+    setTimeout(() => playTowerExplodeAnimation(panel, stack, settleView), 320);
+  } else {
+    settleView();
+  }
+
+  beginBtn.addEventListener('click', () => { overlay.remove(); enterTrialTower(); });
+}
+function ensureTrialTowerMenuCard() {
+  const grid = document.querySelector('#screen-single-player .menu-grid');
+  if (!grid || document.getElementById('btn-trial-tower')) return;
+  const btn = document.createElement('button');
+  btn.className = 'menu-card';
+  btn.id = 'btn-trial-tower';
+  btn.innerHTML = `
+    <span class="menu-card-title">🗼 Trial Tower</span>
+    <span class="menu-card-sub">Climb an endless gauntlet of tougher and tougher bots</span>`;
+  btn.addEventListener('click', () => openTrialTowerScreen());
+  grid.appendChild(btn);
+  if (typeof wirePressFeedback === 'function') wirePressFeedback(btn);
+}
+ensureTrialTowerMenuCard();
 
 /* ---------- Progression hooks: wrap existing single-purpose functions so
    Player Level / Weekly Vault / Arena Rank / Prestige / Trial Tower all
@@ -759,10 +904,10 @@ function renderProgressionExtras() {
     <div class="quest-row">
       <div class="quest-icon">🗼</div>
       <div class="quest-body">
-        <div class="quest-title">Floor ${tower.floor} — vs ${towerFloorDifficulty(tower.floor)}</div>
-        <div class="quest-desc">Clear it for ${towerFloorReward(tower.floor)} Bux. Losing resets you to Floor 1 - your best floor is kept forever.</div>
+        <div class="quest-title">Currently on Floor ${tower.floor}</div>
+        <div class="quest-desc">Head to Single Player → 🗼 Trial Tower to keep climbing.</div>
       </div>
-      <div class="quest-status"><button type="button" class="primary-btn small" id="btn-enter-tower">Enter</button></div>
+      <div class="quest-status"></div>
     </div>`;
 
   const setState = loadSetBonusState();
@@ -804,7 +949,6 @@ function renderProgressionExtras() {
   list.insertAdjacentHTML('beforeend', levelHtml + rankHtml + towerHtml + setHtml + vaultHtml);
 
   document.getElementById('btn-do-prestige')?.addEventListener('click', () => doPrestige());
-  document.getElementById('btn-enter-tower')?.addEventListener('click', () => enterTrialTower());
   list.querySelectorAll('[data-claim-vault]').forEach(btn => {
     btn.addEventListener('click', () => {
       const idx = Number(btn.dataset.claimVault);
@@ -918,6 +1062,11 @@ function redeemShopCode(rawCode) {
     updateThemeButtons();
     showToast('🎉 Code redeemed! Everything unlocked + 1,000,000 Bux.', 3800);
     Sound.sparkle();
+  } else if (code === '2ndyear') {
+    unlockValentineTheme();
+    recordRecentActivity('Redeemed a secret code — unlocked the Valentine theme');
+    showToast('💘 Secret theme unlocked! Open Options → Themes to wear it.', 3800);
+    Sound.sparkle();
   } else {
     showToast("That code isn't valid.");
     return; // don't burn an attempt on a code that never worked
@@ -927,6 +1076,68 @@ function redeemShopCode(rawCode) {
   saveRedeemedCodes(redeemed);
   renderCosmeticsShop();
 }
+
+/* ---------- Secret Valentine theme: unlock, DOM injection, persistence -- */
+function isValentineThemeUnlocked() { return loadRedeemedCodes().includes('2ndyear'); }
+
+function ensureValentineBgLayer() {
+  if (document.getElementById('theme-valentine-bg')) return;
+  const bg = document.createElement('div');
+  bg.id = 'theme-valentine-bg';
+  bg.setAttribute('aria-hidden', 'true');
+  let html = '<div class="valentine-cupid-glow"></div>';
+  const heartGlyphs = ['💗', '💕', '❤️', '💖'];
+  for (let i = 0; i < 18; i++) {
+    const left = (Math.random() * 100).toFixed(1);
+    const dur = (7 + Math.random() * 7).toFixed(2);
+    const delay = (Math.random() * 9).toFixed(2);
+    const size = (0.7 + Math.random() * 1.1).toFixed(2);
+    const glyph = heartGlyphs[Math.floor(Math.random() * heartGlyphs.length)];
+    html += `<span class="valentine-heart" style="left:${left}%; animation-duration:${dur}s; animation-delay:${delay}s; font-size:${size}rem;">${glyph}</span>`;
+  }
+  for (let i = 0; i < 3; i++) {
+    const top = (10 + Math.random() * 60).toFixed(1);
+    const delay = (i * 2.4 + Math.random() * 2).toFixed(2);
+    html += `<div class="valentine-arrow" style="top:${top}%; animation-delay:${delay}s;"></div>`;
+  }
+  bg.innerHTML = html;
+  document.body.appendChild(bg);
+}
+
+function ensureValentineThemeButton() {
+  if (document.getElementById('theme-btn-valentine')) return;
+  const container = document.getElementById('theme-options');
+  if (!container) return;
+  const btn = document.createElement('button');
+  btn.className = 'theme-btn valentine-theme-btn';
+  btn.id = 'theme-btn-valentine';
+  btn.dataset.theme = 'valentine';
+  btn.title = 'A secret Valentine theme!';
+  btn.innerHTML = `<span class="theme-icon">💘</span><span>Valentine</span>`;
+  btn.addEventListener('click', () => applyTheme('valentine'));
+  container.appendChild(btn);
+  updateThemeButtons();
+}
+
+THEME_UNLOCK_CHECK.valentine = () => isValentineThemeUnlocked();
+THEME_LOCK_MESSAGE.valentine = "💘 This one's a secret - you'll need the right code.";
+if (!ALL_THEME_NAMES.includes('valentine')) ALL_THEME_NAMES.push('valentine');
+(function wrapThemeDisplayNameForValentine() {
+  const original = window.themeDisplayName;
+  if (typeof original !== 'function') return;
+  window.themeDisplayName = function (t) { return t === 'valentine' ? 'Valentine' : original(t); };
+})();
+
+function unlockValentineTheme() {
+  ensureValentineBgLayer();
+  ensureValentineThemeButton();
+}
+(function initValentineThemeIfUnlocked() {
+  if (!isValentineThemeUnlocked()) return;
+  ensureValentineBgLayer();
+  ensureValentineThemeButton();
+  try { if (localStorage.getItem('mehrbod-cards-theme') === 'valentine') applyTheme('valentine'); } catch (e) {}
+})();
 
 function renderCosmeticsShop() {
   const list = document.getElementById('shop-cosmetics-list');
@@ -1099,3 +1310,228 @@ function renderCosmeticsShop() {
     codeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') redeemShopCode(codeInput.value); });
   }
 }
+
+/* ============================================================
+   PROFILE HUD: a colored-letter avatar next to the Bux counter,
+   replacing the old "📊 Stats" footer link. Clicking it opens Stats
+   2.0 - a single, much more polished profile hub covering battle
+   stats, the ledger/activity/match-history that used to live in the
+   old Player Stats panel, AND every progression system (Player
+   Level, Prestige, Arena Rank, Trial Tower, Set Bonuses, Weekly
+   Vault) in one place. An exclamation badge lights up on the avatar
+   whenever a Prestige is available to claim.
+   ============================================================ */
+const ARENA_RANK_COLORS = ['#cd7f32', '#c0c0c0', '#ffd700', '#67e8f9', '#60a5fa', '#a78bfa', '#fb7185'];
+
+function profileAvatarColors(name) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  const hue1 = Math.abs(hash) % 360;
+  const hue2 = (hue1 + 40) % 360;
+  return { c1: `hsl(${hue1}, 62%, 46%)`, c2: `hsl(${hue2}, 62%, 34%)` };
+}
+
+function removeOldStatsFooterButton() {
+  const btn = document.getElementById('btn-player-stats');
+  if (!btn) return;
+  const dot = btn.nextElementSibling;
+  if (dot && dot.classList.contains('footer-dot')) dot.remove();
+  btn.remove();
+}
+
+function ensureProfileHud() {
+  if (document.getElementById('profile-avatar-btn')) { updateProfileAvatar(); return; }
+  const buxCounter = document.getElementById('bux-counter');
+  if (!buxCounter || !buxCounter.parentNode) return;
+  const wrapper = document.createElement('div');
+  wrapper.id = 'top-right-hud';
+  buxCounter.parentNode.insertBefore(wrapper, buxCounter);
+  const avatarBtn = document.createElement('button');
+  avatarBtn.id = 'profile-avatar-btn';
+  avatarBtn.setAttribute('aria-label', 'Open your profile');
+  avatarBtn.innerHTML = `<span id="profile-avatar-letter"></span><span id="profile-prestige-badge" class="profile-exclaim hidden">!</span>`;
+  avatarBtn.addEventListener('click', () => openProfilePanel());
+  wrapper.appendChild(avatarBtn);
+  wrapper.appendChild(buxCounter);
+  updateProfileAvatar();
+}
+
+function updateProfileAvatar() {
+  const letterEl = document.getElementById('profile-avatar-letter');
+  const btn = document.getElementById('profile-avatar-btn');
+  const badge = document.getElementById('profile-prestige-badge');
+  if (!letterEl || !btn) return;
+  const name = loadPlayerName() || 'Player';
+  const letter = name.trim().charAt(0).toUpperCase() || 'P';
+  const colors = profileAvatarColors(name);
+  letterEl.textContent = letter;
+  btn.style.background = `linear-gradient(150deg, ${colors.c1}, ${colors.c2})`;
+  if (badge) badge.classList.toggle('hidden', !canPrestigeNow());
+}
+
+function openProfilePanel() {
+  const old = document.getElementById('profile-overlay');
+  if (old) old.remove();
+
+  const name = loadPlayerName() || 'Player';
+  const letter = name.trim().charAt(0).toUpperCase() || 'P';
+  const colors = profileAvatarColors(name);
+
+  const info = playerLevelFromXP(loadPlayerXP());
+  const xpPct = Math.round((info.into / info.need) * 100);
+  const prestige = loadPrestigeState();
+
+  const battle = getBattleStats();
+  const total = battle.wins + battle.losses;
+  const winRate = total ? Math.round((battle.wins / total) * 100) : 0;
+
+  const rankState = loadArenaRankState();
+  const rankIdx = arenaRankIndexFromRP(rankState.rp);
+  const rankColor = ARENA_RANK_COLORS[rankIdx];
+  const nextThreshold = ARENA_RANK_THRESHOLDS[rankIdx + 1];
+  const rankPct = nextThreshold ? Math.round(((rankState.rp - ARENA_RANK_THRESHOLDS[rankIdx]) / (nextThreshold - ARENA_RANK_THRESHOLDS[rankIdx])) * 100) : 100;
+
+  const vault = loadWeeklyVaultState();
+  const vaultMax = WEEKLY_VAULT_TIERS[WEEKLY_VAULT_TIERS.length - 1];
+  const vaultPct = Math.min(100, Math.round((vault.points / vaultMax) * 100));
+
+  const tower = loadTrialTowerState();
+  const setState = loadSetBonusState();
+
+  const ledgerItems = getEconomyLedger();
+  const activityItems = getRecentActivity();
+  const historyItems = getMatchHistory();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'profile-overlay';
+  overlay.className = 'feature-overlay';
+  overlay.innerHTML = `
+    <div class="profile-panel">
+      <button class="feature-close">✕</button>
+      <div class="profile-hero">
+        <div class="profile-hero-row">
+          <div class="profile-hero-avatar" style="background:linear-gradient(150deg, ${colors.c1}, ${colors.c2})">${letter}</div>
+          <div style="flex:1; min-width:0;">
+            <div class="profile-hero-name">${escapePresetText(name)} <button type="button" class="link-btn" id="btn-profile-rename">✎ rename</button></div>
+            <div class="profile-hero-sub">
+              <span class="profile-level-chip">⭐ Level ${info.level}</span>
+              ${prestige.count > 0 ? `<span class="profile-level-chip" style="margin-left:6px;">✦ Prestige ${prestige.count}</span>` : ''}
+            </div>
+          </div>
+        </div>
+        <div class="profile-xp-track"><div class="profile-xp-fill" style="width:${xpPct}%"></div></div>
+        <div class="profile-xp-label"><span>${info.into}/${info.need} XP</span><span>Level ${info.level + 1}</span></div>
+        ${canPrestigeNow() ? `<button type="button" class="primary-btn small" id="btn-profile-prestige" style="margin-top:12px;">✦ Prestige Now</button>` : ''}
+      </div>
+      <div class="profile-body">
+        <div class="profile-stat-row">
+          <div class="profile-stat-pill"><b>${battle.wins}</b><span>Wins</span></div>
+          <div class="profile-stat-pill"><b>${battle.losses}</b><span>Losses</span></div>
+          <div class="profile-stat-pill"><b>${winRate}%</b><span>Win Rate</span></div>
+          <div class="profile-stat-pill"><b>${battle.streak}</b><span>Streak</span></div>
+          <div class="profile-stat-pill"><b>${battle.bestStreak}</b><span>Best Streak</span></div>
+          <div class="profile-stat-pill"><b>${battle.biggestWin}</b><span>Biggest Win</span></div>
+        </div>
+
+        <div class="profile-section-heading">Progression</div>
+        <div class="profile-cards-grid">
+          <div class="profile-prog-card" style="--card-color:${rankColor}">
+            <div class="ppc-icon">🏅</div>
+            <div class="ppc-title">Arena Rank</div>
+            <div class="ppc-value">${ARENA_RANKS[rankIdx]}</div>
+            <div class="ppc-desc">${rankState.rp} RP${nextThreshold ? ` · ${nextThreshold - rankState.rp} to next` : ' · Top rank!'}</div>
+            <div class="ppc-bar"><div class="ppc-bar-fill" style="width:${rankPct}%"></div></div>
+          </div>
+          <div class="profile-prog-card" style="--card-color:#22d3ee">
+            <div class="ppc-icon">🗝️</div>
+            <div class="ppc-title">Weekly Vault</div>
+            <div class="ppc-value">${vault.points} pts</div>
+            <div class="ppc-desc">${vault.claimedTiers.length}/${WEEKLY_VAULT_TIERS.length} tiers claimed</div>
+            <div class="ppc-bar"><div class="ppc-bar-fill" style="width:${vaultPct}%"></div></div>
+          </div>
+          <div class="profile-prog-card" style="--card-color:#f97316">
+            <div class="ppc-icon">🗼</div>
+            <div class="ppc-title">Trial Tower</div>
+            <div class="ppc-value">Floor ${tower.floor}</div>
+            <div class="ppc-desc">Best ever: Floor ${tower.best}</div>
+          </div>
+          <div class="profile-prog-card" style="--card-color:#a78bfa">
+            <div class="ppc-icon">🧩</div>
+            <div class="ppc-title">Set Bonuses</div>
+            <div class="ppc-value">${setState.claimed.length}/${SET_DEFS.length}</div>
+            <div class="ppc-desc">Sets fully collected</div>
+          </div>
+        </div>
+
+        <div class="profile-section-heading">◈ Bux Ledger</div>
+        <div class="ledger-list">
+          ${ledgerItems.length ? ledgerItems.slice(0, 12).map(x => `
+            <div class="${x.amount >= 0 ? 'gain' : 'loss'}">
+              <b>${x.amount >= 0 ? '+' : ''}${x.amount} Bux</b>
+              <span>${escapePresetText(x.reason)}</span>
+              <small>${new Date(x.at).toLocaleString()}</small>
+            </div>`).join('') : '<p class="activity-empty">No balance changes have been recorded yet.</p>'}
+        </div>
+
+        <div class="profile-section-heading">◷ Recent Activity</div>
+        <div class="activity-list">
+          ${activityItems.length ? activityItems.map(x => `<div><span>✦</span><p>${escapePresetText(x.text)}<small>${new Date(x.at).toLocaleString()}</small></p></div>`).join('') : '<p class="activity-empty">Your important rewards and purchases will appear here.</p>'}
+        </div>
+
+        <div class="profile-section-heading">📜 Match History</div>
+        <div class="ledger-list">
+          ${historyItems.length ? historyItems.slice(0, 10).map(x => `
+            <div class="${x.result === 'Win' ? 'gain' : (x.result === 'Loss' ? 'loss' : '')}">
+              <b>${x.result === 'Win' ? '🏆 Win' : x.result === 'Loss' ? '💀 Loss' : '🤝 Draw'}</b>
+              <span>${escapePresetText(x.mode)} · ${x.rounds} round${x.rounds === 1 ? '' : 's'} · ${formatDuration(x.duration)}</span>
+              <small>${new Date(x.at).toLocaleString()}</small>
+            </div>`).join('') : '<p class="activity-empty">Finish a match to start building your history.</p>'}
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('.feature-close').onclick = () => overlay.remove();
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  document.getElementById('btn-profile-rename')?.addEventListener('click', () => {
+    showPlayerNamePrompt(() => { updateProfileAvatar(); openProfilePanel(); });
+  });
+  document.getElementById('btn-profile-prestige')?.addEventListener('click', () => {
+    doPrestige();
+    updateProfileAvatar();
+    openProfilePanel();
+  });
+}
+
+removeOldStatsFooterButton();
+ensureProfileHud();
+(function wrapShowScreenForProfileHud() {
+  const original = window.showScreen;
+  if (typeof original !== 'function') return;
+  window.showScreen = function (id) {
+    original(id);
+    document.getElementById('top-right-hud')?.classList.toggle('hidden', id === 'screen-game');
+    updateProfileAvatar();
+  };
+})();
+(function wrapSavePlayerNameForProfileHud() {
+  const original = window.savePlayerName;
+  if (typeof original !== 'function') return;
+  window.savePlayerName = function (name) {
+    const ok = original(name);
+    if (ok) updateProfileAvatar();
+    return ok;
+  };
+})();
+
+/* Explain the new progression systems during the guided menu tour, right
+   before the "let's actually play" closer. */
+(function injectProgressionTutorialStep() {
+  if (typeof MENU_TOUR_STEPS === 'undefined' || !Array.isArray(MENU_TOUR_STEPS) || !MENU_TOUR_STEPS.length) return;
+  const newStep = {
+    text: "👤 Your profile picture (top-right, next to your Bux) opens Stats 2.0 - your wins, Player Level, and four extra progression tracks worth checking often: 🏅 Arena Rank (a rising/falling competitive ladder), ✦ Prestige (reset your level for a permanent bonus once you're high enough - watch for a ! badge on your avatar), 🗼 Trial Tower (an endless run of tougher bot fights from the Single Player menu), and 🗝️ the Weekly Vault (bonus Bux for a good week).",
+    target: () => document.getElementById('profile-avatar-btn'),
+  };
+  MENU_TOUR_STEPS.splice(MENU_TOUR_STEPS.length - 1, 0, newStep);
+})();
+

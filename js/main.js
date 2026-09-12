@@ -3519,8 +3519,20 @@ document.getElementById('btn-copy-code').addEventListener('click', async () => {
 });
 
 // ---- Patch notes --------------------------------------------------------
-const CURRENT_VERSION = '3.12';
+const CURRENT_VERSION = '3.13';
 const PATCH_NOTES = [
+  {
+    version: '3.13',
+    notes: [
+      "NEW: a colored-letter profile avatar now sits next to your Bux counter (top-right) - click it for Stats 2.0, a completely rebuilt profile hub covering battle stats, your Bux ledger, recent activity, and match history alongside every progression system (Player Level, Prestige, Arena Rank, Trial Tower, Set Bonuses, Weekly Vault) in one polished screen. The old footer Stats button is gone - everything lives behind your avatar now.",
+      "NEW: a small ! badge appears on your profile picture whenever you're eligible to Prestige.",
+      "MOVED: Trial Tower now has its own entry in the Single Player menu instead of a quick-start row in Quests.",
+      "NEW: a real Trial Tower infographic - a climbable tower of floor-bricks color-coded by difficulty. Winning stamps a checkmark and grows the tower by a floor with its own drop-in animation; losing makes the whole tower explode (screen shake, flying debris, the works) before resetting to Floor 1.",
+      "NEW: the guided menu tour now explains Arena Rank, Prestige, Trial Tower, and the Weekly Vault via your new profile picture.",
+      "NEW: a secret Valentine's theme, hidden entirely until unlocked with the right code from the Shop's Codes section - floating hearts, a cupid's-glow pulse, the occasional arrow streak across the screen, and its own card-hover heart-burst.",
+      "NEW: a Codes section in the Mehrbod Shop for redeeming one-time codes.",
+    ],
+  },
   {
     version: '3.12',
     notes: [
