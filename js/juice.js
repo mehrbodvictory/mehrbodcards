@@ -45,6 +45,7 @@ function playPackOpeningEffect(cards, onDone) {
     if (opened) return;
     opened = true;
     Sound.packTear();
+    if (typeof Sound !== 'undefined' && Sound.whoosh) Sound.whoosh('in', 0.08);
     pack.classList.add('tearing');
     for (let i = 0; i < 16; i++) {
       const p = document.createElement('div');
@@ -82,7 +83,18 @@ function playPackOpeningEffect(cards, onDone) {
       const flipDelay = 420 + i * 460;
       setTimeout(() => {
         el.classList.add('flipped');
-        if (c.tier === 4) Sound.packRareFlip(); else Sound.packCardFlip();
+        if (typeof Sound !== 'undefined') {
+          if (c.kind === 'spell') {
+            if (Sound.spellChime) Sound.spellChime();
+            Sound.packCardFlip();
+          } else if (c.kind === 'chip') {
+            if (Sound.chipChime) Sound.chipChime();
+            Sound.packCardFlip();
+          } else {
+            if (Sound.tierChime) Sound.tierChime(c.tier || 1);
+            if (c.tier === 4) Sound.packRareFlip(); else Sound.packCardFlip();
+          }
+        }
         if (typeof vibrate === 'function') vibrate(15);
         const burst = document.createElement('div');
         burst.className = 'packopen-burst';
@@ -2475,6 +2487,95 @@ ensureProfileHud();
     }
   });
 
+  const testRevealBtn = document.getElementById('btn-secret-test-card-reveal');
+  testRevealBtn?.addEventListener('click', () => {
+    closeSecretMenu();
+    const card = getRandomCardForReveal();
+    showSingleCardReveal(card, () => {
+      openSecretMenu();
+      if (execResult) {
+        execResult.textContent = `✔ REVEAL COMPLETE: Successfully simulated 3D reveal for "${card.name}"!`;
+        execResult.className = 'secret-exec-result success';
+        execResult.classList.remove('hidden');
+      }
+    });
+  });
+
+  const testEasyWinBtn = document.getElementById('btn-secret-test-easy-win');
+  testEasyWinBtn?.addEventListener('click', () => {
+    closeSecretMenu();
+    if (typeof playEpicVictoryAnimation === 'function') {
+      playEpicVictoryAnimation('Easy', () => {
+        openSecretMenu();
+        if (execResult) {
+          execResult.textContent = '✔ TEST COMPLETE: Successfully simulated Easy Bot Victory celebrating with cheerful green theme!';
+          execResult.className = 'secret-exec-result success';
+          execResult.classList.remove('hidden');
+        }
+      });
+    }
+  });
+
+  const testMediumWinBtn = document.getElementById('btn-secret-test-medium-win');
+  testMediumWinBtn?.addEventListener('click', () => {
+    closeSecretMenu();
+    if (typeof playEpicVictoryAnimation === 'function') {
+      playEpicVictoryAnimation('Medium', () => {
+        openSecretMenu();
+        if (execResult) {
+          execResult.textContent = '✔ TEST COMPLETE: Successfully simulated Medium Bot Victory celebrating with gold theme!';
+          execResult.className = 'secret-exec-result success';
+          execResult.classList.remove('hidden');
+        }
+      });
+    }
+  });
+
+  const testHardWinBtn = document.getElementById('btn-secret-test-hard-win');
+  testHardWinBtn?.addEventListener('click', () => {
+    closeSecretMenu();
+    if (typeof playEpicVictoryAnimation === 'function') {
+      playEpicVictoryAnimation('Hard', () => {
+        openSecretMenu();
+        if (execResult) {
+          execResult.textContent = '✔ TEST COMPLETE: Successfully simulated Hard Bot Victory celebrating with fierce orange theme!';
+          execResult.className = 'secret-exec-result success';
+          execResult.classList.remove('hidden');
+        }
+      });
+    }
+  });
+
+  const testExpertWinBtn = document.getElementById('btn-secret-test-expert-win');
+  testExpertWinBtn?.addEventListener('click', () => {
+    closeSecretMenu();
+    if (typeof playEpicVictoryAnimation === 'function') {
+      playEpicVictoryAnimation('Expert', () => {
+        openSecretMenu();
+        if (execResult) {
+          execResult.textContent = '✔ TEST COMPLETE: Successfully simulated Expert Bot Victory celebrating with celestial aurora theme and chimes!';
+          execResult.className = 'secret-exec-result success';
+          execResult.classList.remove('hidden');
+        }
+      });
+    }
+  });
+
+  const testMasterWinBtn = document.getElementById('btn-secret-test-master-win');
+  testMasterWinBtn?.addEventListener('click', () => {
+    closeSecretMenu();
+    if (typeof playEpicVictoryAnimation === 'function') {
+      playEpicVictoryAnimation('Master', () => {
+        openSecretMenu();
+        if (execResult) {
+          execResult.textContent = '✔ TEST COMPLETE: Successfully simulated Master Bot Victory celebrating with royal crown theme and cascading chords!';
+          execResult.className = 'secret-exec-result success';
+          execResult.classList.remove('hidden');
+        }
+      });
+    }
+  });
+
   showCodesBtn?.addEventListener('click', () => {
     if (!codesManifest) return;
     if (codesManifest.classList.contains('hidden')) {
@@ -2490,6 +2591,144 @@ ensureProfileHud();
     }
   });
 })();
+
+/* ===== 3D CARD REVEAL ENGINE & PARTICLES SYSTEM ===== */
+function getRandomCardForReveal() {
+  const choice = Math.random();
+  if (choice < 0.5) {
+    const tier = [2, 3, 4][Math.floor(Math.random() * 3)];
+    const pool = (typeof UNIT_ARCHETYPES !== 'undefined' && UNIT_ARCHETYPES[tier]) ? UNIT_ARCHETYPES[tier] : [];
+    if (pool.length) {
+      const card = pool[Math.floor(Math.random() * pool.length)];
+      return { name: card.name, tier: tier, kind: 'unit' };
+    }
+  } else if (choice < 0.75) {
+    const pool = (typeof SPELL_DEFS !== 'undefined') ? SPELL_DEFS : [];
+    if (pool.length) {
+      const card = pool[Math.floor(Math.random() * pool.length)];
+      return { name: card.name, tier: null, kind: 'spell' };
+    }
+  } else {
+    const pool = (typeof CHIP_DEFS !== 'undefined') ? CHIP_DEFS : [];
+    if (pool.length) {
+      const card = pool[Math.floor(Math.random() * pool.length)];
+      return { name: card.name, tier: null, kind: 'chip' };
+    }
+  }
+  return { name: 'Titan Golem', tier: 4, kind: 'unit' };
+}
+
+function spawnParticleExplosion(container) {
+  const count = 50;
+  const colors = ['#38bdf8', '#818cf8', '#fbbf24', '#f87171', '#34d399', '#c084fc'];
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement('div');
+    p.className = 'reveal-sparkle';
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    p.style.backgroundColor = color;
+    
+    // Angle & speed vectors
+    const angle = Math.random() * 2 * Math.PI;
+    const speed = 100 + Math.random() * 180;
+    const x = Math.cos(angle) * speed;
+    const y = Math.sin(angle) * speed;
+    
+    p.style.setProperty('--tx', `${x}px`);
+    p.style.setProperty('--ty', `${y}px`);
+    
+    // Size and offsets
+    const size = 6 + Math.random() * 12;
+    p.style.width = `${size}px`;
+    p.style.height = `${size}px`;
+    p.style.animationDelay = `${Math.random() * 0.12}s`;
+    
+    // Shapes selector
+    const shapeType = Math.random();
+    if (shapeType < 0.35) {
+      p.style.borderRadius = '50%';
+    } else if (shapeType < 0.7) {
+      p.style.borderRadius = '0';
+    } else {
+      p.style.clipPath = 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)';
+    }
+    
+    container.appendChild(p);
+  }
+}
+
+function showSingleCardReveal(card, onDone) {
+  const overlay = document.createElement('div');
+  overlay.className = 'single-reveal-overlay';
+  
+  const tierClass = card.kind === 'unit' ? ('tier' + card.tier) : (card.kind === 'spell' ? 'sc-spell' : 'sc-chip');
+  const tierLabel = card.kind === 'unit' ? ((typeof TIERS !== 'undefined' && TIERS[card.tier]) ? TIERS[card.tier].name : 'Unit') : (card.kind === 'spell' ? 'Spell' : 'Chip');
+  
+  overlay.innerHTML = `
+    <div class="single-reveal-stage">
+      <div class="single-reveal-card-container">
+        <div class="single-reveal-card ${tierClass}" id="single-reveal-card">
+          <div class="single-reveal-inner">
+            <div class="single-reveal-back">
+              <div class="single-reveal-back-deco-lines-top"></div>
+              <div class="single-reveal-back-brand">MEHRBOD CARDS</div>
+              <div class="single-reveal-back-deco-lines-bottom"></div>
+              <div class="single-reveal-prompt">TAP TO REVEAL</div>
+            </div>
+            <div class="single-reveal-front">
+              <div class="single-reveal-rarity">${tierLabel.toUpperCase()}</div>
+              <div class="single-reveal-art-box">${card.kind === 'unit' ? '🛡️' : card.kind === 'spell' ? '⚡' : '💎'}</div>
+              <div class="single-reveal-name">${card.name}</div>
+              <div class="single-reveal-flavor">Newly Discovered!</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="single-reveal-particle-layer"></div>
+      <button type="button" class="primary-btn single-reveal-confirm hidden">Claim Reward</button>
+    </div>
+  `;
+  
+  document.body.appendChild(overlay);
+  
+  const cardEl = overlay.querySelector('#single-reveal-card');
+  const confirmBtn = overlay.querySelector('.single-reveal-confirm');
+  const particleLayer = overlay.querySelector('.single-reveal-particle-layer');
+  
+  let flipped = false;
+  cardEl.addEventListener('click', () => {
+    if (flipped) return;
+    flipped = true;
+    
+    cardEl.classList.add('flipped');
+    if (card.tier === 4) {
+      if (typeof Sound.packRareFlip === 'function') {
+        try { Sound.packRareFlip(); } catch (e) {}
+      }
+    } else {
+      if (typeof Sound.packCardFlip === 'function') {
+        try { Sound.packCardFlip(); } catch (e) {}
+      }
+    }
+    if (typeof vibrate === 'function') vibrate([25, 35]);
+    
+    spawnParticleExplosion(particleLayer);
+    
+    setTimeout(() => {
+      confirmBtn.classList.remove('hidden');
+      confirmBtn.classList.add('fade-in-btn');
+      if (typeof Sound.sparkle === 'function') {
+        try { Sound.sparkle(); } catch (e) {}
+      }
+    }, 850);
+  });
+  
+  confirmBtn.addEventListener('click', () => {
+    overlay.remove();
+    if (onDone) onDone();
+  });
+}
+
+window.showSingleCardReveal = showSingleCardReveal;
 
 // ===== GLOBAL COPY & SELECTION PREVENTION =====
 (function initCopyPrevention() {
@@ -2614,6 +2853,456 @@ ensureProfileHud();
     setupLetters();
   }
 })();
+
+function playEpicVictoryAnimation(difficulty, onDone) {
+  const overlay = document.createElement('div');
+  overlay.className = 'epic-victory-overlay';
+  
+  const configs = {
+    Easy: {
+      themeClass: 'epic-easy',
+      badgeEmoji: '🟢',
+      titleText: 'EASY BOT DEFEATED',
+      subText: 'A humble victory. A great first step on your journey!',
+      colors: ['#4C9A5B', '#81c784', '#a5d6a7', '#fbbf24'],
+      soundName: 'easyVictory',
+      vibratePattern: [80]
+    },
+    Medium: {
+      themeClass: 'epic-medium',
+      badgeEmoji: '🟡',
+      titleText: 'MEDIUM BOT VANQUISHED',
+      subText: 'A solid triumph! Your tactical awareness is growing.',
+      colors: ['#d9b23c', '#fbbf24', '#fcd34d', '#4C9A5B'],
+      soundName: 'mediumVictory',
+      vibratePattern: [80, 50, 80]
+    },
+    Hard: {
+      themeClass: 'epic-hard',
+      badgeEmoji: '🟠',
+      titleText: 'HARD BOT OVERTHROWN',
+      subText: 'A magnificent feat! You matched their fierce intensity.',
+      colors: ['#e0752c', '#f97316', '#fb923c', '#f59e0b'],
+      soundName: 'hardVictory',
+      vibratePattern: [100, 50, 100, 50, 100]
+    },
+    Expert: {
+      themeClass: 'epic-expert',
+      badgeEmoji: '🌌',
+      titleText: 'EXPERT BOT CONQUERED',
+      subText: 'You have vanquished the cosmic Stargazer Bot!',
+      colors: ['#38bdf8', '#818cf8', '#6366f1', '#fbbf24'],
+      soundName: 'epicVictory',
+      vibratePattern: [80, 50, 80, 50, 150]
+    },
+    Master: {
+      themeClass: 'epic-master',
+      badgeEmoji: '👑',
+      titleText: 'MASTER BOT CONQUERED',
+      subText: 'You have triumphed over the Grandmaster Bot!',
+      colors: ['#c084fc', '#a855f7', '#fbbf24', '#f59e0b'],
+      soundName: 'epicVictory',
+      vibratePattern: [80, 50, 80, 50, 150]
+    }
+  };
+
+  const cfg = configs[difficulty] || configs.Easy;
+  
+  overlay.innerHTML = `
+    <div class="epic-victory-container ${cfg.themeClass}">
+      <div class="epic-victory-badge">${cfg.badgeEmoji}</div>
+      <div class="epic-victory-title">${cfg.titleText}</div>
+      <div class="epic-victory-subtitle">${cfg.subText}</div>
+      <button type="button" class="primary-btn epic-victory-btn">CLAIM GLORY</button>
+    </div>
+    <div class="epic-victory-sparkle-container"></div>
+  `;
+  
+  document.body.appendChild(overlay);
+  
+  // Custom sound
+  if (typeof Sound !== 'undefined' && typeof Sound[cfg.soundName] === 'function') {
+    Sound[cfg.soundName]();
+  }
+  
+  // Haptics
+  if (typeof vibrate === 'function') {
+    vibrate(cfg.vibratePattern);
+  }
+  
+  // Confetti burst
+  if (typeof launchConfetti === 'function') {
+    launchConfetti();
+    setTimeout(launchConfetti, 300);
+    setTimeout(launchConfetti, 600);
+  }
+  
+  // Spawn drifting sparkles
+  const sparkleContainer = overlay.querySelector('.epic-victory-sparkle-container');
+  const count = 40;
+  for (let i = 0; i < count; i++) {
+    const s = document.createElement('div');
+    s.className = 'epic-victory-spark';
+    const color = cfg.colors[Math.floor(Math.random() * cfg.colors.length)];
+    s.style.backgroundColor = color;
+    s.style.left = `${Math.random() * 100}%`;
+    s.style.top = `${Math.random() * 100}%`;
+    s.style.width = `${4 + Math.random() * 8}px`;
+    s.style.height = s.style.width;
+    s.style.animationDelay = `${Math.random() * 2}s`;
+    s.style.animationDuration = `${1.5 + Math.random() * 2}s`;
+    sparkleContainer.appendChild(s);
+  }
+  
+  const btn = overlay.querySelector('.epic-victory-btn');
+  btn.addEventListener('click', () => {
+    overlay.remove();
+    if (onDone) onDone();
+  });
+}
+
+window.playEpicVictoryAnimation = playEpicVictoryAnimation;
+
+/* ---------- 3D Holographic Card Tilt & Specular Glare System ---------- */
+(function initCard3DTiltSystem() {
+  let activeCard = null;
+
+  document.addEventListener('pointermove', (e) => {
+    if (e.pointerType === 'touch') return;
+    const card = e.target.closest('.card, .sc-card');
+    if (!card) {
+      if (activeCard) {
+        resetCard(activeCard);
+        activeCard = null;
+      }
+      return;
+    }
+
+    if (activeCard && activeCard !== card) {
+      resetCard(activeCard);
+    }
+    activeCard = card;
+
+    let shine = card.querySelector('.card-holo-shine');
+    if (!shine) {
+      shine = document.createElement('div');
+      shine.className = 'card-holo-shine';
+      card.appendChild(shine);
+    }
+
+    const rect = card.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    const percentX = (x / rect.width) * 100;
+    const percentY = (y / rect.height) * 100;
+
+    const rotateY = ((x - centerX) / centerX) * 10;
+    const rotateX = -((y - centerY) / centerY) * 10;
+
+    card.style.transform = `perspective(600px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale(1.1)`;
+    card.style.setProperty('--shine-x', `${percentX.toFixed(1)}%`);
+    card.style.setProperty('--shine-y', `${percentY.toFixed(1)}%`);
+  });
+
+  document.addEventListener('pointerout', (e) => {
+    const card = e.target.closest('.card, .sc-card');
+    if (card && !card.contains(e.relatedTarget)) {
+      resetCard(card);
+      if (activeCard === card) activeCard = null;
+    }
+  });
+
+  function resetCard(card) {
+    card.style.transform = '';
+  }
+})();
+
+/* ---------- New Spell FX Animations ---------- */
+
+function playRocketBoomAnimation(targetOwner, targetSlot) {
+  const targetEl = typeof getSlotEl === 'function' ? getSlotEl(targetOwner, targetSlot) : null;
+  const targetRect = targetEl ? targetEl.getBoundingClientRect() : { left: window.innerWidth / 2, top: window.innerHeight / 2, width: 80, height: 100 };
+  const targetX = targetRect.left + targetRect.width / 2;
+  const targetY = targetRect.top + targetRect.height / 2;
+
+  // Create Rocket projectile element
+  const rocket = document.createElement('div');
+  rocket.style.cssText = `
+    position: fixed;
+    z-index: 9999;
+    font-size: 2.6rem;
+    pointer-events: none;
+    left: ${window.innerWidth / 2}px;
+    top: ${window.innerHeight + 40}px;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    transition: all 0.35s cubic-bezier(0.22, 0.61, 0.36, 1);
+    filter: drop-shadow(0 0 14px #ff4500);
+  `;
+  rocket.textContent = '🚀';
+  document.body.appendChild(rocket);
+
+  // Animate rocket flight to target
+  requestAnimationFrame(() => {
+    rocket.style.left = targetX + 'px';
+    rocket.style.top = targetY + 'px';
+    rocket.style.transform = 'translate(-50%, -50%) scale(1.4) rotate(15deg)';
+  });
+
+  setTimeout(() => {
+    if (rocket.parentNode) rocket.parentNode.removeChild(rocket);
+
+    // Screen Shake & Sound
+    if (typeof shakeScreen === 'function') shakeScreen(14);
+    if (typeof Sound !== 'undefined' && Sound.epicDmg) Sound.epicDmg();
+
+    // Spawn massive explosion blast ring
+    const explosion = document.createElement('div');
+    explosion.style.cssText = `
+      position: fixed;
+      z-index: 9999;
+      pointer-events: none;
+      left: ${targetX}px;
+      top: ${targetY}px;
+      transform: translate(-50%, -50%);
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #ffffff 10%, #ff4500 50%, rgba(255, 69, 0, 0) 80%);
+      animation: rocketExplodeRing 0.5s ease-out forwards;
+    `;
+    document.body.appendChild(explosion);
+
+    // Spawn flame and particle explosion emojis
+    const emojis = ['💥', '🔥', '⚡', '💥', '✨'];
+    emojis.forEach((emoji, i) => {
+      const p = document.createElement('div');
+      p.textContent = emoji;
+      const angle = (i / emojis.length) * Math.PI * 2;
+      const dist = 38 + Math.random() * 32;
+      p.style.cssText = `
+        position: fixed;
+        z-index: 10000;
+        font-size: 1.8rem;
+        pointer-events: none;
+        left: ${targetX}px;
+        top: ${targetY}px;
+        transform: translate(-50%, -50%) scale(0.5);
+        transition: transform 0.45s ease-out, opacity 0.45s ease-out;
+      `;
+      document.body.appendChild(p);
+      requestAnimationFrame(() => {
+        p.style.transform = `translate(${Math.cos(angle) * dist - 50}%, ${Math.sin(angle) * dist - 50}%) scale(1.6)`;
+        p.style.opacity = '0';
+      });
+      setTimeout(() => { if (p.parentNode) p.parentNode.removeChild(p); }, 500);
+    });
+
+    setTimeout(() => { if (explosion.parentNode) explosion.parentNode.removeChild(explosion); }, 500);
+
+    // Floating label over slot
+    if (targetEl && typeof spawnFloatingNumberOn === 'function') {
+      spawnFloatingNumberOn(targetEl, '🚀 1 HP!', 'damage');
+    }
+  }, 360);
+}
+
+function playSuddenDeathAnimation() {
+  if (typeof shakeScreen === 'function') shakeScreen(10);
+  if (typeof Sound !== 'undefined' && Sound.epicDmg) Sound.epicDmg();
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    background: radial-gradient(circle at center, rgba(220, 38, 38, 0.45) 0%, rgba(0, 0, 0, 0.85) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: suddenDeathFade 1.2s ease-out forwards;
+  `;
+  overlay.innerHTML = `
+    <div style="text-align: center; color: #ef4444; text-shadow: 0 0 20px #dc2626, 0 0 40px #991b1b; font-family: 'Playfair Display', serif; transform: scale(1.2);">
+      <div style="font-size: 3.5rem;">💀</div>
+      <div style="font-size: 2.2rem; font-weight: 900; letter-spacing: 3px; text-transform: uppercase;">Sudden Death!</div>
+      <div style="font-size: 1rem; color: #fca5a5; margin-top: 4px;">All cards set to 1 HP</div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  setTimeout(() => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 1200);
+}
+
+function playHackAnimation(targetOwner, targetSlot) {
+  const targetEl = typeof getSlotEl === 'function' ? getSlotEl(targetOwner, targetSlot) : null;
+  if (targetEl) {
+    targetEl.classList.add('glitch-pulse');
+    setTimeout(() => targetEl.classList.remove('glitch-pulse'), 800);
+    if (typeof spawnFloatingNumberOn === 'function') {
+      spawnFloatingNumberOn(targetEl, '-2 💻', 'damage');
+    }
+  }
+  if (typeof Sound !== 'undefined' && Sound.spellChime) Sound.spellChime();
+}
+
+function playOrangeHealAnimation(targetOwner, targetSlot) {
+  const targetEl = typeof getSlotEl === 'function' ? getSlotEl(targetOwner, targetSlot) : null;
+  if (targetEl) {
+    if (typeof spawnFloatingNumberOn === 'function') {
+      spawnFloatingNumberOn(targetEl, '🍊 FULL HP!', 'heal');
+    }
+    if (typeof spawnCastEffect === 'function') {
+      spawnCastEffect(targetOwner, targetSlot, 'heal', { text: '🍊 FULL HP!', kind: 'heal' });
+    }
+  }
+  if (typeof Sound !== 'undefined' && Sound.buff) Sound.buff();
+}
+
+function playSanctionedAnimation(targetOwner, targetSlot) {
+  const targetEl = typeof getSlotEl === 'function' ? getSlotEl(targetOwner, targetSlot) : null;
+  const targetRect = targetEl ? targetEl.getBoundingClientRect() : { left: window.innerWidth / 2, top: window.innerHeight / 2, width: 80, height: 100 };
+  const targetX = targetRect.left + targetRect.width / 2;
+  const targetY = targetRect.top + targetRect.height / 2;
+
+  // Slamming Hammer Element
+  const hammer = document.createElement('div');
+  hammer.style.cssText = `
+    position: fixed;
+    z-index: 9999;
+    font-size: 3.5rem;
+    pointer-events: none;
+    left: ${targetX}px;
+    top: ${targetY - 220}px;
+    transform: translate(-50%, -50%) rotate(-45deg) scale(0.8);
+    transition: all 0.28s cubic-bezier(0.5, 0, 0.75, 0);
+    filter: drop-shadow(0 0 16px #facc15);
+  `;
+  hammer.textContent = '🔨';
+  document.body.appendChild(hammer);
+
+  requestAnimationFrame(() => {
+    hammer.style.top = targetY + 'px';
+    hammer.style.transform = 'translate(-50%, -50%) rotate(25deg) scale(1.3)';
+  });
+
+  setTimeout(() => {
+    if (hammer.parentNode) hammer.parentNode.removeChild(hammer);
+
+    if (typeof shakeScreen === 'function') shakeScreen(15);
+    if (typeof Sound !== 'undefined' && Sound.epicDmg) Sound.epicDmg();
+
+    // Yellow Golden Cracks & Spark Burst
+    const sparks = ['✨', '⚡', '💛', '💥', '✨'];
+    sparks.forEach((s, i) => {
+      const p = document.createElement('div');
+      p.textContent = s;
+      const angle = (i / sparks.length) * Math.PI * 2;
+      p.style.cssText = `
+        position: fixed;
+        z-index: 10000;
+        font-size: 1.6rem;
+        pointer-events: none;
+        left: ${targetX}px;
+        top: ${targetY}px;
+        transform: translate(-50%, -50%) scale(0.5);
+        transition: transform 0.4s ease-out, opacity 0.4s ease-out;
+      `;
+      document.body.appendChild(p);
+      requestAnimationFrame(() => {
+        p.style.transform = `translate(${Math.cos(angle) * 40 - 50}%, ${Math.sin(angle) * 40 - 50}%) scale(1.4)`;
+        p.style.opacity = '0';
+      });
+      setTimeout(() => { if (p.parentNode) p.parentNode.removeChild(p); }, 450);
+    });
+
+    if (targetEl) {
+      targetEl.classList.add('sanctioned-cracked');
+      if (typeof spawnFloatingNumberOn === 'function') {
+        spawnFloatingNumberOn(targetEl, '🔨 SANCTIONED!', 'damage');
+      }
+    }
+  }, 290);
+}
+
+function playZapAnimation(targetOwner, targetSlot) {
+  const targetEl = typeof getSlotEl === 'function' ? getSlotEl(targetOwner, targetSlot) : null;
+  const targetRect = targetEl ? targetEl.getBoundingClientRect() : { left: window.innerWidth / 2, top: window.innerHeight / 2, width: 80, height: 100 };
+  const targetX = targetRect.left + targetRect.width / 2;
+  const targetY = targetRect.top + targetRect.height / 2;
+
+  // High-voltage Yellow Electric Bolt
+  const bolt = document.createElement('div');
+  bolt.style.cssText = `
+    position: fixed;
+    z-index: 9999;
+    font-size: 3.8rem;
+    pointer-events: none;
+    left: ${targetX}px;
+    top: ${targetY - 180}px;
+    transform: translate(-50%, -50%) scale(0.5);
+    transition: all 0.2s ease-out;
+    filter: drop-shadow(0 0 20px #facc15);
+  `;
+  bolt.textContent = '⚡';
+  document.body.appendChild(bolt);
+
+  requestAnimationFrame(() => {
+    bolt.style.top = targetY + 'px';
+    bolt.style.transform = 'translate(-50%, -50%) scale(1.5)';
+  });
+
+  setTimeout(() => {
+    if (bolt.parentNode) bolt.parentNode.removeChild(bolt);
+    if (typeof shakeScreen === 'function') shakeScreen(10);
+    if (typeof Sound !== 'undefined' && Sound.spellChime) Sound.spellChime();
+
+    if (targetEl) {
+      targetEl.classList.add('yellow-zap-glow');
+      setTimeout(() => targetEl.classList.remove('yellow-zap-glow'), 600);
+      if (typeof spawnFloatingNumberOn === 'function') {
+        spawnFloatingNumberOn(targetEl, '⚡ -5 DMG!', 'damage');
+      }
+    }
+  }, 210);
+}
+
+function playAllAuraAnimation(targetOwner, targetSlot) {
+  const targetEl = typeof getSlotEl === 'function' ? getSlotEl(targetOwner, targetSlot) : null;
+  if (targetEl) {
+    targetEl.classList.add('all-aura-glow');
+    if (typeof spawnFloatingNumberOn === 'function') {
+      spawnFloatingNumberOn(targetEl, '✨ ALL AURA (3 TNS)!', 'heal');
+    }
+  }
+  if (typeof Sound !== 'undefined' && Sound.buff) Sound.buff();
+}
+
+function playSacrificeManReviveAnimation(owner, slot, left) {
+  const targetEl = typeof getSlotEl === 'function' ? getSlotEl(owner, slot) : null;
+  if (targetEl) {
+    targetEl.classList.add('yellow-zap-glow');
+    setTimeout(() => targetEl.classList.remove('yellow-zap-glow'), 800);
+    if (typeof spawnFloatingNumberOn === 'function') {
+      spawnFloatingNumberOn(targetEl, `🛡️ REVIVED! (${left} LEFT)`, 'heal');
+    }
+  }
+  if (typeof Sound !== 'undefined' && Sound.buff) Sound.buff();
+}
+
+window.playRocketBoomAnimation = playRocketBoomAnimation;
+window.playSuddenDeathAnimation = playSuddenDeathAnimation;
+window.playHackAnimation = playHackAnimation;
+window.playOrangeHealAnimation = playOrangeHealAnimation;
+window.playSanctionedAnimation = playSanctionedAnimation;
+window.playZapAnimation = playZapAnimation;
+window.playAllAuraAnimation = playAllAuraAnimation;
+window.playSacrificeManReviveAnimation = playSacrificeManReviveAnimation;
+
 
 
 

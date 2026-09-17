@@ -313,6 +313,14 @@ function killCard(state, ownerKey, slot, deathSource) {
   const p = state.players[ownerKey];
   const card = p.board[slot];
   if (!card) return;
+
+  if ((card.ability === 'sacrificeman_ability' || card.name === 'Sacrifice Man') && (card.sacrificesLeft || 0) > 0) {
+    card.sacrificesLeft--;
+    card.hp = card.maxHp;
+    pushFx(state, { type: 'sacrificeManRevive', owner: ownerKey, slot, left: card.sacrificesLeft });
+    pushLog(state, `🛡️ ${card.name} was sacrificed/destroyed and returned instantly! (${card.sacrificesLeft} uses left)`);
+    return;
+  }
   // BUGFIX: this used to also require p.everMergedUp (i.e. the player must
   // have already completed at least one merge before Blue would ever come
   // back from a death) - that meant a fresh player who owns blueprints but
@@ -572,7 +580,7 @@ function castSpell(state, playerKey, spellInstanceId, targetOwnerKey, targetSlot
   const targetP = state.players[targetOwnerKey];
   const targetCard = targetP.board[targetSlot];
   if (!targetCard) return { ok: false, error: 'no target' };
-  const source = { kind: 'spell', name: spell.name, owner: playerKey };
+  const source = { kind: 'spell', name: spell.name, owner: playerKey, chainLightning: !!spell.chainLightning };
   if (spell.dmg) damageCard(state, targetOwnerKey, targetSlot, spell.dmg, source);
   if (spell.heal) {
     healCard(targetCard, spell.heal);
@@ -607,7 +615,110 @@ function castSpell(state, playerKey, spellInstanceId, targetOwnerKey, targetSlot
       pushFx(state, { type: 'selfBuff', owner: targetOwnerKey, slot: targetSlot, stat: 'dmg', amount: spell.buffDmg, source });
     }
   }
-  p.spells.splice(idx, 1);
+  if (spell.chainLightning) {
+    pushFx(state, { type: 'chainLightning', targetOwner: targetOwnerKey, targetSlot, source });
+    state.order.forEach(pk => {
+      const targetP = state.players[pk];
+      if (targetP && Array.isArray(targetP.board)) {
+        targetP.board.forEach((c, sIdx) => {
+          if (c) {
+            damageCard(state, pk, sIdx, 1, source);
+          }
+        });
+      }
+    });
+    healAllAllies(state, playerKey, 2, source);
+  }
+  if (spell.suddenDeath || spell.defId === 'suddendeath') {
+    pushFx(state, { type: 'suddenDeath', targetOwner: targetOwnerKey, targetSlot, source });
+    state.order.forEach(pk => {
+      const pBoard = state.players[pk].board;
+      if (Array.isArray(pBoard)) {
+        pBoard.forEach(c => {
+          if (c) c.hp = 1;
+        });
+      }
+    });
+  }
+  if (spell.hack || spell.defId === 'hack') {
+    pushFx(state, { type: 'hack', targetOwner: targetOwnerKey, targetSlot, source });
+    damageCard(state, targetOwnerKey, targetSlot, 2, source);
+    healAllAllies(state, playerKey, 1, source);
+  }
+  if (spell.orange || spell.defId === 'orange') {
+    const stillAlive = state.players[targetOwnerKey].board[targetSlot];
+    if (stillAlive) {
+      stillAlive.hp = stillAlive.maxHp;
+      pushFx(state, { type: 'orangeHeal', targetOwner: targetOwnerKey, targetSlot, source });
+    }
+    const otherSpellIdx = p.spells.findIndex((s, i) => i !== idx);
+    if (otherSpellIdx !== -1) {
+      const sac = p.spells[otherSpellIdx];
+      p.spells.splice(otherSpellIdx, 1);
+      pushFx(state, { type: 'sacrificeSpell', owner: playerKey, cardName: sac.name });
+    }
+  }
+  if (spell.rocketBoom || spell.defId === 'rocketboom') {
+    const stillAlive = state.players[targetOwnerKey].board[targetSlot];
+    if (stillAlive) {
+      stillAlive.hp = 1;
+      pushFx(state, { type: 'rocketBoom', targetOwner: targetOwnerKey, targetSlot, source });
+    }
+  }
+
+  if (spell.sanctioned || spell.defId === 'sanctioned') {
+    const otherSpellIdx = p.spells.findIndex((s, i) => i !== idx);
+    if (otherSpellIdx === -1) {
+      return { ok: false, error: 'Sanctioned requires 1 other spell in hand to sacrifice' };
+    }
+    const targetCard = state.players[targetOwnerKey].board[targetSlot];
+    if (targetCard) {
+      targetCard.cannotDefend = true;
+      targetCard.sanctioned = true;
+      pushFx(state, { type: 'sanctioned', targetOwner: targetOwnerKey, targetSlot, source });
+    }
+    const sac = p.spells[otherSpellIdx];
+    p.spells.splice(otherSpellIdx, 1);
+    pushFx(state, { type: 'sacrificeSpell', owner: playerKey, cardName: sac.name });
+  }
+  if (spell.zap || spell.defId === 'zap') {
+    pushFx(state, { type: 'zap', targetOwner: targetOwnerKey, targetSlot, source });
+    damageCard(state, targetOwnerKey, targetSlot, 5, source);
+  }
+  if (spell.allAura || spell.defId === 'allaura') {
+    const targetCard = state.players[targetOwnerKey].board[targetSlot];
+    if (targetCard) {
+      targetCard.disabledTurns = 3;
+      pushFx(state, { type: 'allAura', targetOwner: targetOwnerKey, targetSlot, source });
+    }
+  }
+
+  let removeSpell = true;
+  if (spell.sanctioned || spell.defId === 'sanctioned') {
+    removeSpell = false; // Infinite use
+  }
+  if (spell.allAura || spell.defId === 'allaura') {
+    if (spell.usesLeft === undefined) spell.usesLeft = 2;
+    spell.usesLeft--;
+    if (spell.usesLeft > 0) {
+      spell.text = `[1 Use Left] Enemy card cannot attack or defend for 3 turns.`;
+      removeSpell = false;
+    }
+  }
+  if (spell.defId === 'chainlightning') {
+    if (spell.usesLeft === undefined) {
+      spell.usesLeft = 2;
+    }
+    spell.usesLeft--;
+    if (spell.usesLeft > 0) {
+      spell.text = `[1 Use Left] Deal 1 damage to all cards on the board, then heal all of your own cards for 2.`;
+      removeSpell = false;
+    }
+  }
+  if (removeSpell) {
+    const removeIdx = p.spells.findIndex(s => s.id === spellInstanceId);
+    if (removeIdx !== -1) p.spells.splice(removeIdx, 1);
+  }
   pushLog(state, `${playerKey} casts ${spell.name}`);
   return { ok: true };
 }
@@ -653,6 +764,8 @@ function setDefend(state, playerKey, slot) {
   const p = state.players[playerKey];
   const card = p.board[slot];
   if (!card) return { ok: false, error: 'no card in slot' };
+  if (card.cannotDefend || card.sanctioned) return { ok: false, error: 'this card is Sanctioned and cannot defend for the entire match' };
+  if (card.disabledTurns > 0) return { ok: false, error: 'this card is under All Aura and cannot defend' };
   const tierInfo = TIERS[card.tier];
   if (tierInfo.defends <= 0) return { ok: false, error: 'this card cannot defend' };
   // v2.0: since every deck starts as mostly Blues, a player's Blues can't
@@ -687,6 +800,7 @@ function setAttack(state, playerKey, slot, targetOwnerKey, targetSlot) {
   const p = state.players[playerKey];
   const card = p.board[slot];
   if (!card) return { ok: false, error: 'no card in slot' };
+  if (card.disabledTurns > 0) return { ok: false, error: 'this card is under All Aura and cannot attack' };
   if (p.defendingSlots[slot]) return { ok: false, error: 'card is defending this round and cannot attack' };
   // Snapshot damage/pierce/name now: if this attacker is later killed by a
   // spell/chip before the simultaneous resolution runs, its queued attack
@@ -908,6 +1022,14 @@ function startPlacementPhase(state) {
   state.order.forEach(k => {
     const p = state.players[k];
     p.board.forEach((card, slot) => {
+      if (card && card.disabledTurns > 0) {
+        card.disabledTurns--;
+        if (card.disabledTurns > 0) {
+          pushLog(state, `${card.name} is disabled by All Aura (${card.disabledTurns} turns remaining)`);
+        } else {
+          pushLog(state, `${card.name} is no longer disabled by All Aura`);
+        }
+      }
       if (!card || !(card.burnRounds > 0)) return;
       const dmg = card.burnDmg || 1;
       pushLog(state, `${card.name} takes ${dmg} burn damage`);

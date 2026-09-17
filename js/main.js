@@ -34,9 +34,26 @@ let shopHostSelectedWager = 0; // wager amount picked on the "Host a Wagered Mat
 // `meteorShowerDone` guards the shared celebration to at most once per match.
 let matchVictoryAnims = {};
 let meteorShowerDone = false;
+let epicVictoryDone = false;
 const _lowHpWarned = new Set(); // card ids we've already played the low-hp warning tone for
 const COMBAT_ANIM_MS = 900;
 const BOT_THINK_MS_MIN = 450, BOT_THINK_MS_MAX = 900;
+const THEME_UNLOCK_CHECK = {};
+
+function setMatchInfo(desktopText, mobileText) {
+  const topBarInfo = document.getElementById('top-bar-info');
+  if (topBarInfo) {
+    topBarInfo.dataset.desktopText = desktopText;
+    topBarInfo.dataset.mobileText = mobileText || desktopText;
+    topBarInfo.textContent = window.innerWidth <= 768 ? topBarInfo.dataset.mobileText : topBarInfo.dataset.desktopText;
+  }
+}
+window.addEventListener('resize', () => {
+  const topBarInfo = document.getElementById('top-bar-info');
+  if (topBarInfo && topBarInfo.dataset.desktopText) {
+    topBarInfo.textContent = window.innerWidth <= 768 ? topBarInfo.dataset.mobileText : topBarInfo.dataset.desktopText;
+  }
+});
 
 // ---- NEW FEATURE: Undo Last Placement --------------------------------------
 // Single-level undo, local vs-bot matches only (skipped in multiplayer,
@@ -69,8 +86,234 @@ function trackDamageStats(fxList) {
   });
 }
 
+// ---- NEW FEATURE: Match Replays ------------------------------------------
+let matchReplayData = null;
+function initReplayLog(seed, p1id, p2id, deckConfigs) {
+  matchReplayData = {
+    seed,
+    p1id,
+    p2id,
+    deckConfigs,
+    actions: [],
+    timestamp: Date.now()
+  };
+}
+function logReplayAction(action) {
+  if (matchReplayData) {
+    matchReplayData.actions.push(action);
+  }
+}
+function saveMatchReplay() {
+  if (matchReplayData) {
+    try {
+      localStorage.setItem('mehrbod-cards-last-replay', JSON.stringify(matchReplayData));
+    } catch (e) {
+      console.error('Failed to save replay', e);
+    }
+  }
+}
+
+function loadReplayData() {
+  try {
+    const raw = localStorage.getItem('mehrbod-cards-last-replay');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+let replayInterval = null;
+let currentReplayData = null;
+let currentReplayIndex = 0;
+let isReplayPlaying = false;
+let replaySpeed = 1;
+
+function cancelReplay() {
+  if (replayInterval) {
+    clearTimeout(replayInterval);
+    replayInterval = null;
+  }
+  if (typeof combatAnimTimer !== 'undefined' && combatAnimTimer) {
+    clearTimeout(combatAnimTimer);
+    combatAnimTimer = null;
+  }
+  animatingCombat = false;
+}
+
+function renderReplayControls() {
+  const controls = document.getElementById('replay-controls');
+  if (!controls) return;
+  if (mode !== 'replay') {
+    controls.classList.add('hidden');
+    return;
+  }
+  controls.classList.remove('hidden');
+  document.getElementById('btn-replay-playpause').textContent = isReplayPlaying ? '⏸' : '▶';
+  document.getElementById('replay-speed-label').textContent = replaySpeed + 'x';
+}
+
+function buildReplayState(upToIndex) {
+  state = createMatch(currentReplayData.seed, currentReplayData.p1id, currentReplayData.p2id, currentReplayData.deckConfigs);
+  resetMatchCardStats();
+  const originalToast = window.showToast;
+  window.showToast = () => {};
+  for (let i = 0; i < upToIndex; i++) {
+    const res = applyAction(state, currentReplayData.actions[i]);
+    if (res && res.fx) trackDamageStats(res.fx);
+  }
+  window.showToast = originalToast;
+  
+  if (state.phase === 'gameover') state.phase = 'gameover_replay';
+  render();
+  if (state.phase === 'gameover_replay') state.phase = 'gameover';
+}
+
+function stepReplayForward(animate = false) {
+  if (!currentReplayData || currentReplayIndex >= currentReplayData.actions.length) {
+    isReplayPlaying = false;
+    renderReplayControls();
+    if (animate) showToast("Replay Finished!");
+    return;
+  }
+  
+  const action = currentReplayData.actions[currentReplayIndex];
+  currentReplayIndex++;
+  
+  if (!animate) {
+    buildReplayState(currentReplayIndex);
+    return;
+  }
+
+  const isReadyAttack = action.type === 'readyAttack';
+  const isChainLightning = action.type === 'spell' && action.spellId === 'chainlightning';
+  const snapshot = (isReadyAttack || isChainLightning) ? snapshotBoards(state) : null;
+  
+  const originalToast = window.showToast;
+  window.showToast = () => {};
+  const res = applyAction(state, action);
+  window.showToast = originalToast;
+  
+  if (res.ok) {
+      if (action.type === 'place') Sound.place();
+      else if (action.type === 'defend') Sound.defend();
+      else if (action.type === 'merge') Sound.place();
+  }
+  
+  if (state.phase === 'gameover') state.phase = 'gameover_replay'; 
+  
+  if (isChainLightning && res.ok && snapshot) {
+    const realBoards = {};
+    state.order.forEach(k => {
+      realBoards[k] = state.players[k].board;
+      state.players[k].board = snapshot[k].board;
+    });
+    render();
+    state.order.forEach(k => { state.players[k].board = realBoards[k]; });
+    playFx(res.fx);
+    
+    const activeCardCount = Object.values(snapshot).reduce((acc, p) => acc + (p.board || []).filter(Boolean).length, 0);
+    const fxDelay = activeCardCount * 130 + 800;
+    combatAnimTimer = setTimeout(() => {
+      render();
+      if (state.phase === 'gameover_replay') state.phase = 'gameover';
+      if (isReplayPlaying) replayInterval = setTimeout(() => stepReplayForward(true), 800 / replaySpeed);
+    }, fxDelay / replaySpeed);
+  } else if (isReadyAttack && res.resolved) {
+    playCombatAnimation(snapshot, res.fx || [], () => {
+      render();
+      if (state.phase === 'gameover_replay') state.phase = 'gameover';
+      if (isReplayPlaying) replayInterval = setTimeout(() => stepReplayForward(true), 1000 / replaySpeed);
+    }, replaySpeed);
+  } else {
+    render();
+    if (res.ok) playFx(res.fx);
+    if (state.phase === 'gameover_replay') state.phase = 'gameover';
+    if (isReplayPlaying) replayInterval = setTimeout(() => stepReplayForward(true), 1200 / replaySpeed);
+  }
+}
+
+function stepReplayBackward() {
+  if (!currentReplayData || currentReplayIndex <= 0) return;
+  currentReplayIndex--;
+  buildReplayState(currentReplayIndex);
+}
+
+document.getElementById('btn-replay-prev').addEventListener('click', () => {
+  if (typeof Sound !== 'undefined' && Sound.replayStep) Sound.replayStep();
+  cancelReplay();
+  isReplayPlaying = false;
+  renderReplayControls();
+  stepReplayBackward();
+});
+document.getElementById('btn-replay-next').addEventListener('click', () => {
+  if (typeof Sound !== 'undefined' && Sound.replayStep) Sound.replayStep();
+  cancelReplay();
+  isReplayPlaying = false;
+  renderReplayControls();
+  stepReplayForward(false);
+});
+document.getElementById('btn-replay-playpause').addEventListener('click', () => {
+  if (typeof Sound !== 'undefined' && Sound.replayStep) Sound.replayStep();
+  if (isReplayPlaying) {
+    isReplayPlaying = false;
+    cancelReplay();
+  } else {
+    if (currentReplayIndex >= currentReplayData.actions.length) {
+      currentReplayIndex = 0;
+      buildReplayState(0);
+    }
+    isReplayPlaying = true;
+    stepReplayForward(true);
+  }
+  renderReplayControls();
+});
+document.getElementById('replay-speed').addEventListener('input', (e) => {
+  replaySpeed = parseFloat(e.target.value);
+  document.getElementById('replay-speed-label').textContent = replaySpeed + 'x';
+});
+
+function watchLastReplay() {
+  const data = loadReplayData();
+  if (!data || !data.actions || data.actions.length === 0) {
+    showToast("No recent replay found!");
+    return;
+  }
+  
+  mode = 'replay';
+  tutorialActive = false;
+  currentWager = 0;
+  _lowHpWarned.clear();
+  resetMatchCardStats();
+  lastPlacement = null;
+  cancelBotThinking();
+  cancelReplay();
+  
+  currentReplayData = data;
+  currentReplayIndex = 0;
+  isReplayPlaying = true;
+  replaySpeed = parseFloat(document.getElementById('replay-speed').value);
+  
+  localKey = data.p1id;
+  remoteKey = data.p2id;
+  
+  resetSelections();
+  showScreen('screen-game');
+  setMatchInfo('▶ Match Replay', '▶ Replay');
+  renderReplayControls();
+  
+  buildReplayState(0);
+  replayInterval = setTimeout(() => stepReplayForward(true), 1000 / replaySpeed);
+}
+
 // ---- Screen management ---------------------------------------------------
 function showScreen(id) {
+  if (typeof Sound !== 'undefined' && Sound.screenTransition) Sound.screenTransition();
+  if (id !== 'screen-game') {
+    cancelReplay();
+    mode = 'menu';
+    const controls = document.getElementById('replay-controls');
+    if (controls) controls.classList.add('hidden');
+  }
   document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
   document.getElementById(id).classList.remove('hidden');
   const buxCounter = document.getElementById('bux-counter');
@@ -90,7 +333,12 @@ function showScreen(id) {
 // CSS :active pseudo-class - guarantees only the exact button the user is
 // touching/clicking ever gets the press effect, never its siblings.
 function wirePressFeedback(el) {
-  const press = () => el.classList.add('pressed');
+  const press = () => {
+    el.classList.add('pressed');
+    if (typeof Sound !== 'undefined' && Sound.buttonPress && !el.classList.contains('no-sfx')) {
+      Sound.buttonPress();
+    }
+  };
   const release = () => el.classList.remove('pressed');
   el.addEventListener('pointerdown', press);
   el.addEventListener('pointerup', release);
@@ -140,8 +388,8 @@ function updateBuxDisplay() {
 }
 
 // ---- Card collection & starter pack (v2.2) ---------------------------------
-const ALL_SPELL_IDS = SPELL_DEFS.map(s => s.id);
-const ALL_CHIP_IDS = CHIP_DEFS.map(c => c.id);
+const ALL_SPELL_IDS = (typeof SPELL_DEFS !== 'undefined') ? SPELL_DEFS.map(s => s.id) : [];
+const ALL_CHIP_IDS = (typeof CHIP_DEFS !== 'undefined') ? CHIP_DEFS.map(c => c.id) : [];
 const ALL_NONBLUE_UNIT_IDS = [2, 3, 4].flatMap(tier => UNIT_ARCHETYPES[tier].map(a => a.id));
 
 function shuffleArray(arr) {
@@ -220,9 +468,20 @@ function findArchetypeById(archetypeId) {
   } catch (e) {}
 })();
 
+(function grantChainLightningToEveryone() {
+  try {
+    const col = loadCollection();
+    if (!col.spells.includes('chainlightning')) {
+      col.spells.push('chainlightning');
+      saveCollection(col);
+    }
+  } catch (e) {}
+})();
+
 const PACK_COST = 20;
 function buyCardPack() {
   if (!spendBux(PACK_COST)) { showToast("You don't have enough Mehrbod Bux for a pack."); return; }
+  if (typeof Sound !== 'undefined' && Sound.packTear) Sound.packTear();
   const col = loadCollection();
   const unownedUnits = ALL_NONBLUE_UNIT_IDS.filter(id => !col.units.includes(id));
   const unownedSpells = ALL_SPELL_IDS.filter(id => !col.spells.includes(id));
@@ -246,6 +505,7 @@ function buyCardPack() {
   saveCollection(col);
   updateThemeButtons();
   checkAchievements();
+  if (typeof Sound !== 'undefined' && Sound.packCardFlip) Sound.packCardFlip();
   const names = granted.map(g => {
     if (g.kind === 'unit') return findArchetypeById(g.id).name;
     return (g.kind === 'spell' ? SPELL_DEFS : CHIP_DEFS).find(d => d.id === g.id).name;
@@ -303,6 +563,16 @@ function dbAdjustUnit(archetypeId, delta) {
   const total = dbTotalUnits();
   if (delta > 0 && total >= REQUIRED_UNIT_COUNT) return;
   const next = Math.max(0, current + delta);
+  if (next === current) return;
+  if (typeof Sound !== 'undefined') {
+    if (delta > 0) {
+      const arch = findArchetypeById(archetypeId);
+      if (arch && Sound.tierChime) Sound.tierChime(arch.tier);
+      else if (Sound.counterTick) Sound.counterTick(delta);
+    } else {
+      if (Sound.counterTick) Sound.counterTick(delta);
+    }
+  }
   if (next === 0) delete dbUnitCounts[archetypeId];
   else dbUnitCounts[archetypeId] = next;
   renderDeckBuilder();
@@ -310,14 +580,30 @@ function dbAdjustUnit(archetypeId, delta) {
 
 function dbToggleSpell(id) {
   const idx = dbSelectedSpells.indexOf(id);
-  if (idx !== -1) { dbSelectedSpells.splice(idx, 1); }
-  else if (dbSelectedSpells.length < REQUIRED_SPELL_COUNT) { dbSelectedSpells.push(id); }
+  if (idx !== -1) {
+    dbSelectedSpells.splice(idx, 1);
+    if (typeof Sound !== 'undefined' && Sound.undo) Sound.undo();
+  } else if (dbSelectedSpells.length < REQUIRED_SPELL_COUNT) {
+    dbSelectedSpells.push(id);
+    if (typeof Sound !== 'undefined') {
+      if (Sound.spellChime) Sound.spellChime();
+      else if (Sound.cardEquip) Sound.cardEquip();
+    }
+  }
   renderDeckBuilder();
 }
 function dbToggleChip(id) {
   const idx = dbSelectedChips.indexOf(id);
-  if (idx !== -1) { dbSelectedChips.splice(idx, 1); }
-  else if (dbSelectedChips.length < REQUIRED_CHIP_COUNT) { dbSelectedChips.push(id); }
+  if (idx !== -1) {
+    dbSelectedChips.splice(idx, 1);
+    if (typeof Sound !== 'undefined' && Sound.undo) Sound.undo();
+  } else if (dbSelectedChips.length < REQUIRED_CHIP_COUNT) {
+    dbSelectedChips.push(id);
+    if (typeof Sound !== 'undefined') {
+      if (Sound.chipChime) Sound.chipChime();
+      else if (Sound.cardEquip) Sound.cardEquip();
+    }
+  }
   renderDeckBuilder();
 }
 
@@ -439,6 +725,7 @@ document.getElementById('btn-deck-builder-confirm').addEventListener('click', ()
 // composes with manual picks instead of overwriting them. Handy for
 // quickly getting into a match, or for exploring random combinations.
 function autoFillDeck() {
+  if (typeof Sound !== 'undefined' && Sound.shuffle) Sound.shuffle();
   const col = loadCollection();
   const ownedUnitIds = [...UNIT_ARCHETYPES[1].map(a => a.id), ...col.units];
   let total = dbTotalUnits();
@@ -507,6 +794,7 @@ function saveCurrentDeckAsPreset() {
   });
   saveDeckPresetsList(presets);
   if (nameInput) nameInput.value = '';
+  if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
   showToast(`💾 Saved deck "${name}"`, 2200);
   renderDeckPresets();
 }
@@ -514,6 +802,7 @@ function saveCurrentDeckAsPreset() {
 function loadDeckPreset(id) {
   const preset = loadDeckPresets().find(p => p.id === id);
   if (!preset) return;
+  if (typeof Sound !== 'undefined' && Sound.cardEquip) Sound.cardEquip();
   // Only load archetypes/spells/chips the player still actually owns (in
   // case their collection changed since saving) - never crash or silently
   // produce an invalid deck, just load whatever's still valid.
@@ -678,6 +967,7 @@ function equipSleeve(id) {
 function buyOrEquipCosmetic(item) {
   if (!ownsCosmetic(item.id)) {
     if (!spendBux(item.cost)) { showToast("You don't have enough Mehrbod Bux for that."); return; }
+    if (typeof Sound !== 'undefined' && Sound.coinPurchase) Sound.coinPurchase();
     const owned = loadOwnedCosmetics();
     owned.push(item.id);
     saveOwnedCosmetics(owned);
@@ -687,8 +977,12 @@ function buyOrEquipCosmetic(item) {
     renderCosmeticsShop();
     return;
   }
-  if (item.kind === 'sleeve') equipSleeve(item.id);
-  else if (item.kind === 'theme') showToast('Open Settings → Themes to wear it!', 2400);
+  if (item.kind === 'sleeve') {
+    if (typeof Sound !== 'undefined' && Sound.cardEquip) Sound.cardEquip();
+    equipSleeve(item.id);
+  } else if (item.kind === 'theme') {
+    showToast('Open Settings → Themes to wear it!', 2400);
+  }
 }
 
 function renderCosmeticsShop() {
@@ -885,6 +1179,7 @@ document.getElementById('btn-how-to-play').addEventListener('click', () => start
 document.getElementById('btn-single-player').addEventListener('click', () => showScreen('screen-single-player'));
 document.getElementById('btn-multiplayer').addEventListener('click', () => showScreen('screen-multiplayer'));
 function openModernShop() {
+  if (typeof Sound !== 'undefined' && Sound.coin) Sound.coin();
   updateBuxDisplay();
   renderCosmeticsShop();
   showScreen('screen-shop-cosmetics');
@@ -901,6 +1196,14 @@ document.getElementById('btn-bot-mode-normal').addEventListener('click', () => {
 document.getElementById('btn-bot-mode-wager').addEventListener('click', () => { updateBuxDisplay(); showScreen('screen-shop-bot'); });
 
 document.getElementById('btn-host-menu').addEventListener('click', () => showScreen('screen-host-mode'));
+
+document.getElementById('btn-matchmaking-menu').addEventListener('click', () => {
+  openDeckBuilder((config) => beginMatchmaking(config));
+});
+
+document.getElementById('btn-matchmaking-cancel').addEventListener('click', () => {
+  cancelMatchmaking();
+});
 
 document.getElementById('btn-host-mode-normal').addEventListener('click', () => {
   openDeckBuilder((config) => beginHost(0, config));
@@ -931,12 +1234,17 @@ const BACK_TARGETS = {
   'screen-bot-setup': 'screen-single-player',
   'screen-host': 'screen-menu',
   'screen-join': 'screen-multiplayer',
+  'screen-matchmaking': 'screen-multiplayer',
 };
 document.querySelectorAll('.back-btn').forEach(btn => {
   const screenEl = btn.closest('.screen');
   if (!screenEl) return;
   wirePressFeedback(btn);
   btn.addEventListener('click', () => {
+    if (screenEl.id === 'screen-matchmaking') {
+      cancelMatchmaking();
+      return;
+    }
     if ((screenEl.id === 'screen-host' || screenEl.id === 'screen-join') && net) {
       net.destroy();
       net = null;
@@ -1041,6 +1349,7 @@ function recordMatchHistory(entry) {
 // "📊 Stats" button in the menu footer (where "How to play" used to live -
 // that's moved into the Single Player screen instead).
 function showPlayerReport() {
+  if (typeof Sound !== 'undefined' && Sound.modalOpen) Sound.modalOpen();
   const s = getBattleStats();
   const total = s.wins + s.losses;
   const rate = total ? Math.round((s.wins / total) * 100) : 0;
@@ -1070,6 +1379,9 @@ function showPlayerReport() {
       <div class="stats-ledger">
         <span>NET WAGER PROFIT</span>
         <b>${s.wagerWon - s.wagerLost} BUX</b>
+      </div>
+      <div style="margin-top: 15px;">
+        <button id="btn-stats-watch-replay" class="primary-btn" style="width: 100%;">▶ Watch Last Replay</button>
       </div>
 
       <div class="deck-builder-heading" style="margin-top:20px;"><span>◈ Bux Ledger</span></div>
@@ -1101,8 +1413,20 @@ function showPlayerReport() {
       </div>
     </div>`;
   document.body.appendChild(overlay);
-  overlay.querySelector('.feature-close').onclick = () => overlay.remove();
-  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  overlay.querySelector('#btn-stats-watch-replay').addEventListener('click', () => {
+    overlay.remove();
+    watchLastReplay();
+  });
+  overlay.querySelector('.feature-close').onclick = () => {
+    if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
+    overlay.remove();
+  };
+  overlay.onclick = e => {
+    if (e.target === overlay) {
+      if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
+      overlay.remove();
+    }
+  };
 }
 
 /* ============================================================
@@ -1355,7 +1679,8 @@ function completeDailyChallenge() {
   recordEconomyChange(reward, 'Daily Challenge completed');
   recordRecentActivity(`Completed the Daily Challenge (${s.streak}-day streak) — +${reward} Bux`);
   showToast(`⚡ Daily Challenge complete! +${reward} Bux (${s.streak}-day streak)`, 3200);
-  Sound.sparkle();
+  if (typeof Sound !== 'undefined' && Sound.questClaim) Sound.questClaim();
+  else if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
   checkAchievements();
 }
 
@@ -1434,6 +1759,7 @@ function startVsBot(wagerAmount = 0, deckConfig = null) {
   const seed = makeSeed();
   gameOverAnnounced = false;
   meteorShowerDone = false;
+  epicVictoryDone = false;
   matchVictoryAnims = { you: deckConfig?.victoryAnim || null, bot: null };
   matchStartTime = Date.now();
   currentWager = wagerAmount || 0;
@@ -1442,12 +1768,17 @@ function startVsBot(wagerAmount = 0, deckConfig = null) {
   lastPlacement = null;
   cancelBotThinking();
   if (deckConfig) lastVsBotDeckConfig = deckConfig;
-  state = createMatch(seed, 'you', 'bot', deckConfig ? { you: deckConfig } : {});
+  const configs1 = deckConfig ? { you: deckConfig } : {};
+  state = createMatch(seed, 'you', 'bot', configs1);
+  initReplayLog(seed, 'you', 'bot', configs1);
   botRng = new RngStream(seed + 999);
   botActedKey = null;
   resetSelections();
   showScreen('screen-game');
-  document.getElementById('top-bar-info').textContent = `Vs Bot · ${botDifficulty}` + (currentWager > 0 ? ` · 💰${currentWager.toLocaleString()}` : '');
+  setMatchInfo(
+    `Vs Bot · ${botDifficulty}` + (currentWager > 0 ? ` · 💰${currentWager.toLocaleString()}` : ''),
+    `${botDifficulty} vs Bot` + (currentWager > 0 ? ` · 💰${currentWager.toLocaleString()}` : '')
+  );
   ensureBotActs(() => render());
   render();
 }
@@ -1585,6 +1916,7 @@ function startTutorialMatch() {
   const seed = makeSeed();
   gameOverAnnounced = false;
   meteorShowerDone = false;
+  epicVictoryDone = false;
   matchVictoryAnims = {};
   matchStartTime = Date.now();
   currentWager = 0;
@@ -1598,12 +1930,13 @@ function startTutorialMatch() {
   // guided steps below need, and since everything is visible from round 1
   // the deck's internal order no longer matters.
   state = createMatch(seed, 'you', 'bot');
+  initReplayLog(seed, 'you', 'bot', {});
   botRng = new RngStream(seed + 999);
   botActedKey = null;
   resetSelections();
 
   showScreen('screen-game');
-  document.getElementById('top-bar-info').textContent = 'Tutorial · Practice Match';
+  setMatchInfo('Tutorial · Practice Match', 'Tutorial Match');
   render();
   renderTutorialOverlay();
 }
@@ -1775,7 +2108,213 @@ function spawnAttackLine(fromEl, toEl, blocked) {
   setTimeout(() => burst.remove(), 500);
 }
 
-function spawnCastEffect(ownerKey, slot, kind, amount) {
+function drawLightningArc(x1, y1, x2, y2) {
+  const overlay = document.getElementById('attack-lines-overlay');
+  if (!overlay) return;
+  const ns = 'http://www.w3.org/2000/svg';
+  
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const dist = Math.hypot(dx, dy);
+  const steps = Math.max(3, Math.floor(dist / 30));
+  
+  const path = document.createElementNS(ns, 'path');
+  let d = `M ${x1} ${y1}`;
+  
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps;
+    let px = x1 + dx * t;
+    let py = y1 + dy * t;
+    
+    const nx = -dy / dist;
+    const ny = dx / dist;
+    
+    const offset = (Math.random() - 0.5) * 24;
+    px += nx * offset;
+    py += ny * offset;
+    
+    d += ` L ${px} ${py}`;
+  }
+  
+  d += ` L ${x2} ${y2}`;
+  path.setAttribute('d', d);
+  path.setAttribute('class', 'lightning-arc-fx');
+  overlay.appendChild(path);
+  
+  setTimeout(() => path.remove(), 600);
+}
+
+function drawArcingCurve(x1, y1, x2, y2) {
+  const overlay = document.getElementById('attack-lines-overlay');
+  if (!overlay) return;
+  const ns = 'http://www.w3.org/2000/svg';
+  
+  const mx = (x1 + x2) / 2;
+  const my = (y1 + y2) / 2;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const dist = Math.hypot(dx, dy);
+  if (dist === 0) return;
+  
+  // Create beautiful quadratic curve control point offset
+  const nx = -dy / dist;
+  const ny = dx / dist;
+  const offset = dist * 0.18;
+  const cx = mx + nx * offset;
+  const cy = my + ny * offset;
+  
+  const d = `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`;
+  
+  // Background guide glow line
+  const guide = document.createElementNS(ns, 'path');
+  guide.setAttribute('d', d);
+  guide.setAttribute('class', 'lightning-path-guide');
+  overlay.appendChild(guide);
+  
+  // Foreground traveling spark line
+  const spark = document.createElementNS(ns, 'path');
+  spark.setAttribute('d', d);
+  spark.setAttribute('class', 'lightning-path-spark');
+  
+  const len = Math.floor(dist * 1.15);
+  spark.style.strokeDasharray = `${len}`;
+  spark.style.strokeDashoffset = `${len}`;
+  overlay.appendChild(spark);
+  
+  requestAnimationFrame(() => {
+    // Force browser style evaluation
+    void spark.getBoundingClientRect();
+    spark.style.transition = 'stroke-dashoffset 0.5s cubic-bezier(0.25, 1, 0.5, 1)';
+    spark.style.strokeDashoffset = '0';
+  });
+  
+  setTimeout(() => {
+    guide.remove();
+    spark.remove();
+  }, 1200);
+}
+
+function triggerChainLightningArcs(targetOwner, targetSlot, fxList) {
+  const container = document.getElementById('screen-game');
+  if (!container) return;
+  const cRect = container.getBoundingClientRect();
+
+  Sound.chainLightningCrack();
+
+  const chainDmgEvts = (fxList || []).filter(e => e.type === 'damage' && e.source && e.source.chainLightning);
+  const chainBlockEvts = (fxList || []).filter(e => e.type === 'block' && e.source && e.source.chainLightning);
+  const chainHealEvts = (fxList || []).filter(e => e.type === 'heal' && e.source && e.source.chainLightning);
+
+  const activeSlots = [];
+  [localKey, remoteKey].forEach(owner => {
+    for (let slot = 0; slot < 5; slot++) {
+      const slotEl = getSlotEl(owner, slot);
+      if (slotEl && slotEl.querySelector('.card')) {
+        activeSlots.push({ owner, slot, el: slotEl });
+      }
+    }
+  });
+
+  if (activeSlots.length === 0) return;
+
+  if (!reducedMotion) {
+    let shakeClass = 'shake-light';
+    if (activeSlots.length >= 7) {
+      shakeClass = 'shake-heavy';
+    } else if (activeSlots.length >= 4) {
+      shakeClass = 'shake-medium';
+    }
+    container.classList.remove('shake-light', 'shake-medium', 'shake-heavy');
+    void container.offsetWidth;
+    container.classList.add(shakeClass);
+    setTimeout(() => {
+      container.classList.remove(shakeClass);
+    }, 600);
+  }
+
+  const startIdx = activeSlots.findIndex(s => s.owner === targetOwner && s.slot === targetSlot);
+  let currentSlot = startIdx >= 0 ? activeSlots.splice(startIdx, 1)[0] : activeSlots.shift();
+  
+  if (!currentSlot) return;
+
+  const chain = [currentSlot];
+  while (activeSlots.length > 0) {
+    const cRect1 = currentSlot.el.getBoundingClientRect();
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < activeSlots.length; i++) {
+      const cRect2 = activeSlots[i].el.getBoundingClientRect();
+      const dist = Math.hypot(cRect1.left - cRect2.left, cRect1.top - cRect2.top);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIdx = i;
+      }
+    }
+    currentSlot = activeSlots.splice(bestIdx, 1)[0];
+    chain.push(currentSlot);
+  }
+
+  chain.forEach((node, idx) => {
+    setTimeout(() => {
+      if (idx < chain.length - 1) {
+        const nextNode = chain[idx + 1];
+        const r1 = node.el.getBoundingClientRect();
+        const r2 = nextNode.el.getBoundingClientRect();
+        
+        const x1 = r1.left + r1.width / 2 - cRect.left;
+        const y1 = r1.top + r1.height / 2 - cRect.top;
+        const x2 = r2.left + r2.width / 2 - cRect.left;
+        const y2 = r2.top + r2.height / 2 - cRect.top;
+        
+        drawLightningArc(x1, y1, x2, y2);
+        drawArcingCurve(x1, y1, x2, y2);
+      }
+      spawnCastEffect(node.owner, node.slot, 'lightning', null);
+      
+      const dmgEvt = chainDmgEvts.find(e => e.targetOwner === node.owner && e.targetSlot === node.slot);
+      const blockEvt = chainBlockEvts.find(e => e.owner === node.owner && e.slot === node.slot);
+      
+      if (blockEvt) {
+        spawnFloatingNumberOn(node.el, 'BLOCKED', 'block');
+        Sound.block();
+      } else if (dmgEvt) {
+        spawnFloatingNumberOn(node.el, '-' + dmgEvt.amount, 'damage');
+        const cardNode = node.el.querySelector('.card');
+        if (cardNode) {
+          cardNode.classList.remove('anim-hit');
+          void cardNode.offsetWidth;
+          cardNode.classList.add('anim-hit');
+          setTimeout(() => { if (cardNode.isConnected) cardNode.classList.remove('anim-hit'); }, 450);
+        }
+        if (dmgEvt.killed) {
+          Sound.death();
+          spawnFloatingNumberOn(node.el, '💀', 'damage');
+          spawnDeathCauseLabel(node.el, dmgEvt.source);
+        }
+      }
+      
+      const slotEl = getSlotEl(node.owner, node.slot);
+      if (slotEl) {
+        slotEl.classList.remove('residual-charge');
+        void slotEl.offsetWidth;
+        slotEl.classList.add('residual-charge');
+        setTimeout(() => slotEl.classList.remove('residual-charge'), 2000);
+      }
+    }, idx * 130);
+  });
+
+  const totalHitDuration = chain.length * 130;
+  setTimeout(() => {
+    chainHealEvts.forEach(evt => {
+      const slotEl = getSlotEl(evt.targetOwner, evt.targetSlot);
+      if (slotEl) {
+        spawnCastEffect(evt.targetOwner, evt.targetSlot, 'cast', { text: '+' + evt.amount, kind: 'heal' });
+      }
+    });
+  }, totalHitDuration + 150);
+}
+
+function spawnCastEffect(ownerKey, slot, kind, amount, tier) {
   const slotEl = getSlotEl(ownerKey, slot);
   if (!slotEl) return;
   if (kind === 'lightning') {
@@ -1810,6 +2349,7 @@ function spawnCastEffect(ownerKey, slot, kind, amount) {
     fx.className = 'merge-fx';
     slotEl.appendChild(fx);
     setTimeout(() => fx.remove(), 500);
+    if (typeof Sound !== 'undefined' && Sound.merge) Sound.merge(tier || 2);
     vibrate([20, 25, 20]);
   } else if (kind === 'bigmerge') {
     // NEW: extra-juicy celebration for a 3-4 card fusion or any merge that
@@ -1828,7 +2368,7 @@ function spawnCastEffect(ownerKey, slot, kind, amount) {
       setTimeout(() => p.remove(), 800);
     }
     setTimeout(() => fx.remove(), 780);
-    Sound.megaMerge();
+    if (typeof Sound !== 'undefined' && Sound.megaMerge) Sound.megaMerge(tier || 4);
     vibrate([25, 30, 40]);
   } else if (kind === 'defend') {
     const fx = document.createElement('div');
@@ -1843,7 +2383,26 @@ function spawnCastEffect(ownerKey, slot, kind, amount) {
     setTimeout(() => fx.remove(), 600);
     Sound.heal();
   }
-  if (amount) spawnFloatingNumberOn(slotEl, amount.text, amount.kind);
+  if (amount) {
+    spawnFloatingNumberOn(slotEl, amount.text, amount.kind);
+    if (amount.kind === 'damage') {
+      const cardNode = slotEl.querySelector('.card');
+      if (cardNode) {
+        cardNode.classList.remove('anim-hit');
+        void cardNode.offsetWidth;
+        cardNode.classList.add('anim-hit');
+        setTimeout(() => { if (cardNode.isConnected) cardNode.classList.remove('anim-hit'); }, 450);
+      }
+    }
+  } else if (kind === 'lightning') {
+    const cardNode = slotEl.querySelector('.card');
+    if (cardNode) {
+      cardNode.classList.remove('anim-hit');
+      void cardNode.offsetWidth;
+      cardNode.classList.add('anim-hit');
+      setTimeout(() => { if (cardNode.isConnected) cardNode.classList.remove('anim-hit'); }, 450);
+    }
+  }
 }
 
 function playFx(fxList) {
@@ -1853,7 +2412,7 @@ function playFx(fxList) {
       case 'merge': {
         const cardCount = evt.cardCount || 2;
         const big = cardCount > 2 || evt.resultTier === 4;
-        spawnCastEffect(evt.owner, evt.toSlot, big ? 'bigmerge' : 'merge');
+        spawnCastEffect(evt.owner, evt.toSlot, big ? 'bigmerge' : 'merge', null, evt.resultTier);
         if (cardCount > 2) {
           showToast(`💥 ${cardCount}-card fusion → ${TIERS[evt.resultTier].name}!`, 2400);
           if (!tutorialActive) unlockAchievement('mega_fusion');
@@ -1865,6 +2424,7 @@ function playFx(fxList) {
         break;
       }
       case 'chipAttach': {
+        if (typeof Sound !== 'undefined' && Sound.chipAttach) Sound.chipAttach();
         let text = null;
         const parts = [];
         if (evt.dmgAmount) parts.push(`${evt.dmgAmount > 0 ? '+' : ''}${evt.dmgAmount}⚔`);
@@ -1880,10 +2440,12 @@ function playFx(fxList) {
         break;
       }
       case 'refreshDefense': {
+        if (typeof Sound !== 'undefined' && Sound.buff) Sound.buff();
         spawnCastEffect(evt.owner, evt.slot, 'refresh');
         break;
       }
       case 'shieldCharge': {
+        if (typeof Sound !== 'undefined' && Sound.buff) Sound.buff();
         spawnFloatingNumberOn(getSlotEl(evt.owner, evt.slot), '+1🛡', 'heal');
         break;
       }
@@ -1892,18 +2454,25 @@ function playFx(fxList) {
         Sound.sparkle();
         break;
       }
+      case 'chainLightning': {
+        triggerChainLightningArcs(evt.targetOwner, evt.targetSlot, fxList);
+        break;
+      }
       case 'heal': {
+        if (evt.source && evt.source.chainLightning) break;
         const kind = evt.source && evt.source.kind === 'spell' ? 'cast' : 'ability';
         spawnCastEffect(evt.targetOwner, evt.targetSlot, kind, { text: '+' + evt.amount, kind: 'heal' });
         break;
       }
       case 'block': {
+        if (evt.source && evt.source.chainLightning) break;
         if (evt.source && evt.source.kind === 'attack') break;
         spawnFloatingNumberOn(getSlotEl(evt.owner, evt.slot), 'BLOCKED', 'block');
         Sound.block();
         break;
       }
       case 'damage': {
+        if (evt.source && evt.source.chainLightning) break;
         if (evt.source && (evt.source.kind === 'attack' || evt.source.kind === 'queued-attack')) break;
         const slotEl = getSlotEl(evt.targetOwner, evt.targetSlot);
         const kind = evt.source && evt.source.kind === 'spell' ? 'lightning' : 'ability';
@@ -1912,11 +2481,14 @@ function playFx(fxList) {
           Sound.death();
           spawnFloatingNumberOn(slotEl, '💀', 'damage');
           spawnDeathCauseLabel(slotEl, evt.source);
+        } else if (evt.targetOwner === localKey && typeof Sound !== 'undefined' && Sound.playerDamage) {
+          Sound.playerDamage();
         }
         break;
       }
       case 'selfBuff': {
         if (evt.amount === 0) break;
+        if (typeof Sound !== 'undefined' && Sound.buff) Sound.buff();
         // v3.11: Green Tinkerer's +1 chip slot buffs `sp`, not dmg/hp - give
         // it its own symbol instead of defaulting to the heart icon.
         const symbol = evt.stat === 'dmg' ? '⚔' : evt.stat === 'sp' ? '⛃' : '❤';
@@ -1930,6 +2502,51 @@ function playFx(fxList) {
         Sound.block();
         break;
       }
+      case 'suddenDeath': {
+        if (typeof playSuddenDeathAnimation === 'function') playSuddenDeathAnimation();
+        showToast('💀 SUDDEN DEATH! All cards set to 1 HP!', 2800);
+        break;
+      }
+      case 'hack': {
+        if (typeof playHackAnimation === 'function') playHackAnimation(evt.targetOwner, evt.targetSlot);
+        showToast('💻 HACK! 2 DMG dealt & allies healed!', 2000);
+        break;
+      }
+      case 'orangeHeal': {
+        if (typeof playOrangeHealAnimation === 'function') playOrangeHealAnimation(evt.targetOwner, evt.targetSlot);
+        showToast('🍊 ORANGE! Card healed to full HP!', 2200);
+        break;
+      }
+      case 'sacrificeSpell': {
+        const whose = evt.owner === localKey ? 'your' : (mode === 'bot' ? "the bot's" : "your opponent's");
+        showToast(`🔥 Sacrificed a spell card from ${whose} hand!`, 2000);
+        break;
+      }
+      case 'rocketBoom': {
+        if (typeof playRocketBoomAnimation === 'function') playRocketBoomAnimation(evt.targetOwner, evt.targetSlot);
+        else showToast('🚀 ROCKET BOOM! Target set to 1 HP!', 2400);
+        break;
+      }
+      case 'sanctioned': {
+        if (typeof playSanctionedAnimation === 'function') playSanctionedAnimation(evt.targetOwner, evt.targetSlot);
+        showToast('🔨 SANCTIONED! Target card cannot defend for entire match!', 2500);
+        break;
+      }
+      case 'zap': {
+        if (typeof playZapAnimation === 'function') playZapAnimation(evt.targetOwner, evt.targetSlot);
+        showToast('⚡ ZAP! Dealt 5 DMG to enemy card!', 2000);
+        break;
+      }
+      case 'allAura': {
+        if (typeof playAllAuraAnimation === 'function') playAllAuraAnimation(evt.targetOwner, evt.targetSlot);
+        showToast('✨ ALL AURA! Target cannot attack or defend for 3 turns!', 2500);
+        break;
+      }
+      case 'sacrificeManRevive': {
+        if (typeof playSacrificeManReviveAnimation === 'function') playSacrificeManReviveAnimation(evt.owner, evt.slot, evt.left);
+        showToast(`🛡️ SACRIFICE MAN REVIVED! (${evt.left} uses left)`, 2200);
+        break;
+      }
       default: break;
     }
   });
@@ -1938,16 +2555,23 @@ function playFx(fxList) {
 function applyActionAndRender(action, { afterBotCheck } = {}) {
   if (!state) return { ok: false };
   const isReadyAttack = action.type === 'readyAttack';
-  const snapshot = isReadyAttack ? snapshotBoards(state) : null;
+  const isChainLightning = action.type === 'spell' && action.spellId === 'chainlightning';
+  const snapshot = (isReadyAttack || isChainLightning) ? snapshotBoards(state) : null;
 
   const res = applyAction(state, action);
   if (!res.ok && action.player === localKey) showToast(res.error);
   if (res.ok) {
+    logReplayAction(action);
     if (action.type === 'place') {
-      Sound.place();
+      const placedCard = state.players[action.player]?.board[action.slot];
+      const tier = placedCard ? placedCard.tier : 1;
+      Sound.cardPlace(tier);
       if (action.player === localKey) vibrate(20);
     }
     else if (action.type === 'merge') {
+      const mergedCard = state.players[action.player]?.board[res.mergedSlot];
+      const tier = mergedCard ? mergedCard.tier : 2;
+      Sound.merge(tier);
       if (action.player === localKey) vibrate([20, 25, 20]);
     }
     else if (action.type === 'defend') Sound.defend();
@@ -1969,7 +2593,30 @@ function applyActionAndRender(action, { afterBotCheck } = {}) {
       progressDailyChallenge('defend', 1);
     }
   }
-  if (isReadyAttack && res.resolved) {
+  
+  if (isChainLightning && res.ok && snapshot) {
+    const realBoards = {};
+    state.order.forEach(k => {
+      realBoards[k] = state.players[k].board;
+      state.players[k].board = snapshot[k].board;
+    });
+    
+    render();
+    
+    state.order.forEach(k => {
+      state.players[k].board = realBoards[k];
+    });
+    
+    playFx(res.fx);
+    
+    const activeCardCount = Object.values(snapshot).reduce((acc, p) => acc + (p.board || []).filter(Boolean).length, 0);
+    const totalDuration = activeCardCount * 130 + 800;
+    
+    setTimeout(() => {
+      render();
+      if (afterBotCheck) ensureBotActs(() => render());
+    }, totalDuration);
+  } else if (isReadyAttack && res.resolved) {
     playCombatAnimation(snapshot, res.fx || [], () => {
       render();
       if (afterBotCheck) ensureBotActs(() => render());
@@ -2046,15 +2693,17 @@ async function beginHost(wagerAmount, hostDeckConfig) {
     onGuestConfig: (guestDeckConfig) => {
       gameOverAnnounced = false;
       meteorShowerDone = false;
+      epicVictoryDone = false;
       matchVictoryAnims = { host: hostDeckConfig?.victoryAnim || null, guest: guestDeckConfig?.victoryAnim || null };
       matchStartTime = Date.now();
       _lowHpWarned.clear();
       resetMatchCardStats();
       lastPlacement = null;
       state = createMatch(seed, 'host', 'guest', { host: hostDeckConfig, guest: guestDeckConfig });
+      initReplayLog(seed, 'host', 'guest', { host: hostDeckConfig, guest: guestDeckConfig });
       resetSelections();
       showScreen('screen-game');
-      document.getElementById('top-bar-info').textContent = 'Multiplayer · Host' + (currentWager > 0 ? ` · 💰${currentWager.toLocaleString()}` : '');
+      setMatchInfo('Multiplayer · Host' + (currentWager > 0 ? ` · 💰${currentWager.toLocaleString()}` : ''), 'Host Match');
       render();
       net.sendInit();
     },
@@ -2079,6 +2728,7 @@ document.getElementById('btn-join-confirm').addEventListener('click', async () =
     onInit: (data) => {
       gameOverAnnounced = false;
       meteorShowerDone = false;
+      epicVictoryDone = false;
       matchVictoryAnims = { host: data.hostDeckConfig?.victoryAnim || null, guest: pendingGuestDeckConfig?.victoryAnim || null };
       matchStartTime = Date.now();
       currentWager = 0;
@@ -2094,9 +2744,10 @@ document.getElementById('btn-join-confirm').addEventListener('click', async () =
       resetMatchCardStats();
       lastPlacement = null;
   state = createMatch(data.seed, 'host', 'guest', { host: data.hostDeckConfig, guest: pendingGuestDeckConfig });
+  initReplayLog(data.seed, 'host', 'guest', { host: data.hostDeckConfig, guest: pendingGuestDeckConfig });
       resetSelections();
       showScreen('screen-game');
-      document.getElementById('top-bar-info').textContent = 'Multiplayer · Guest' + (currentWager > 0 ? ` · 💰${currentWager.toLocaleString()}` : '');
+      setMatchInfo('Multiplayer · Guest' + (currentWager > 0 ? ` · 💰${currentWager.toLocaleString()}` : ''), 'Guest Match');
       render();
     },
     onApplied: (action) => applyActionAndRender(action),
@@ -2119,6 +2770,156 @@ document.getElementById('join-code-input').addEventListener('keydown', (e) => {
     document.getElementById('btn-join-confirm').click();
   }
 });
+
+let matchmakingRoomCode = null;
+let matchmakingIsHost = false;
+
+async function beginMatchmaking(deckConfig) {
+  showScreen('screen-matchmaking');
+  document.getElementById('matchmaking-status').textContent = 'Connecting to matchmaking server...';
+  
+  matchmakingRoomCode = null;
+  matchmakingIsHost = false;
+  
+  try {
+    const joinRes = await fetch('/api/matchmaking/join', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const joinData = await joinRes.json();
+    
+    if (joinData.matchFound && joinData.roomCode) {
+      document.getElementById('matchmaking-status').textContent = 'Match found! Connecting to host...';
+      matchmakingRoomCode = joinData.roomCode;
+      matchmakingIsHost = false;
+      
+      mode = 'mp'; localKey = 'guest'; remoteKey = 'host';
+      pendingGuestDeckConfig = deckConfig;
+      
+      net = new NetSession({
+        onInit: (data) => {
+          gameOverAnnounced = false;
+          meteorShowerDone = false;
+          epicVictoryDone = false;
+          matchVictoryAnims = { host: data.hostDeckConfig?.victoryAnim || null, guest: pendingGuestDeckConfig?.victoryAnim || null };
+          matchStartTime = Date.now();
+          currentWager = 0;
+          _lowHpWarned.clear();
+          resetMatchCardStats();
+          lastPlacement = null;
+          state = createMatch(data.seed, 'host', 'guest', { host: data.hostDeckConfig, guest: pendingGuestDeckConfig });
+          initReplayLog(data.seed, 'host', 'guest', { host: data.hostDeckConfig, guest: pendingGuestDeckConfig });
+          resetSelections();
+          showScreen('screen-game');
+          setMatchInfo('Multiplayer · Public Match', 'Public Match');
+          render();
+        },
+        onApplied: (action) => applyActionAndRender(action),
+        onStatus: (status) => {
+          document.getElementById('matchmaking-status').textContent =
+            status === 'connected' ? 'Connected! Handshaking match data...' :
+            status === 'disconnected' ? 'Match disconnected.' : 'Connecting...';
+        },
+        onPeerError: (err) => {
+          console.warn('Guest connection failed, transitioning to host fallback...', err);
+          document.getElementById('matchmaking-status').textContent = 'Matched lobby went offline. Creating fresh lobby...';
+          if (net) { net.destroy(); net = null; }
+          startHostingMatchmaking(deckConfig);
+        },
+        onForfeit: () => handleOpponentForfeit(),
+      });
+      
+      await net.joinGame(matchmakingRoomCode, pendingGuestDeckConfig);
+    } else {
+      await startHostingMatchmaking(deckConfig);
+    }
+  } catch (err) {
+    document.getElementById('matchmaking-status').textContent = 'Failed to connect to matchmaking: ' + err.message;
+    showToast('Matchmaking error: ' + err.message);
+  }
+}
+
+async function startHostingMatchmaking(deckConfig) {
+  document.getElementById('matchmaking-status').textContent = 'Creating public lobby...';
+  matchmakingIsHost = true;
+  mode = 'mp'; localKey = 'host'; remoteKey = 'guest';
+  currentWager = 0;
+  
+  const seed = makeSeed();
+  net = new NetSession({
+    onInit: () => {},
+    onApplied: (action) => applyActionAndRender(action),
+    onStatus: (status) => {
+      document.getElementById('matchmaking-status').textContent =
+        status === 'waiting' ? 'Lobby registered! Waiting for another player...' :
+        status === 'connected' ? 'Player found! Instantiating battle...' :
+        status === 'disconnected' ? 'Player disconnected.' : 'Connecting...';
+    },
+    onGuestConfig: (guestDeckConfig) => {
+      gameOverAnnounced = false;
+      meteorShowerDone = false;
+      epicVictoryDone = false;
+      matchVictoryAnims = { host: deckConfig?.victoryAnim || null, guest: guestDeckConfig?.victoryAnim || null };
+      matchStartTime = Date.now();
+      _lowHpWarned.clear();
+      resetMatchCardStats();
+      lastPlacement = null;
+      state = createMatch(seed, 'host', 'guest', { host: deckConfig, guest: guestDeckConfig });
+      initReplayLog(seed, 'host', 'guest', { host: deckConfig, guest: guestDeckConfig });
+      resetSelections();
+      showScreen('screen-game');
+      setMatchInfo('Multiplayer · Public Match', 'Public Match');
+      render();
+      net.sendInit();
+    },
+    onPeerError: (err) => {
+      document.getElementById('matchmaking-status').textContent = err.message || ('Connection failed: ' + err.type);
+      setTimeout(() => {
+        if (!document.getElementById('screen-matchmaking').classList.contains('hidden')) {
+          cancelMatchmaking();
+        }
+      }, 3000);
+    },
+    onForfeit: () => handleOpponentForfeit(),
+  });
+  
+  try {
+    const code = await net.hostGame(seed, 0, deckConfig);
+    matchmakingRoomCode = code;
+    
+    await fetch('/api/matchmaking/host', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roomCode: code })
+    });
+  } catch (e) {
+    document.getElementById('matchmaking-status').textContent = 'Failed to create public lobby.';
+    showToast('Matchmaking host error: ' + e);
+  }
+}
+
+async function cancelMatchmaking() {
+  if (matchmakingIsHost && matchmakingRoomCode) {
+    try {
+      await fetch('/api/matchmaking/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomCode: matchmakingRoomCode })
+      });
+    } catch (e) {
+      console.warn('Could not deregister matchmaking lobby: ', e);
+    }
+  }
+  
+  if (net) {
+    net.destroy();
+    net = null;
+  }
+  
+  matchmakingRoomCode = null;
+  matchmakingIsHost = false;
+  showScreen('screen-multiplayer');
+}
 
 // ---- Action dispatch --------------------------------------------------------
 function dispatch(action) {
@@ -2150,6 +2951,7 @@ function undoLastPlacement() {
   if (!card) { render(); return; }
   p.board[slot] = null;
   p.deck.push(card);
+  if (typeof Sound !== 'undefined' && Sound.undo) Sound.undo();
   showToast('↩️ Placement undone', 1400);
   render();
 }
@@ -2217,7 +3019,7 @@ function pressReady() {
 document.getElementById('btn-ready').addEventListener('click', pressReady);
 
 document.addEventListener('keydown', (e) => {
-  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.metaKey || e.ctrlKey || e.altKey || mode === 'replay') return;
   const tag = document.activeElement && document.activeElement.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA') return;
   const gameScreen = document.getElementById('screen-game');
@@ -2264,6 +3066,14 @@ function triggerEmote(owner, emoji) {
   bubble.className = 'emote-bubble';
   bubble.textContent = emoji;
   
+  if (emoji.length > 3) {
+    bubble.classList.add('text-bubble');
+    bubble.style.fontSize = '0.92rem';
+    bubble.style.fontWeight = '700';
+    bubble.style.borderRadius = '12px';
+    bubble.style.fontFamily = 'var(--font-display)';
+  }
+  
   const rect = targetBoard.getBoundingClientRect();
   const gameRect = gameScreen.getBoundingClientRect();
   
@@ -2276,71 +3086,70 @@ function triggerEmote(owner, emoji) {
   Sound.select();
   vibrate(10);
   
-  if (isLocal && mode === 'bot' && Math.random() < 0.65) {
-    const botEmotes = ['⚔️', '🛡️', '🔥', '👏', '💀', '🤖'];
-    const botPick = botEmotes[Math.floor(Math.random() * botEmotes.length)];
+  if (isLocal && mode === 'mp' && net) {
+    net.sendEmote(emoji);
+  }
+  
+  if (isLocal && mode === 'bot' && Math.random() < 0.8) {
+    let botPick;
+    if (emoji === 'Good luck!') {
+      const luckyReplies = ['Thanks, you too! 🍀', 'Good luck! ⚔️', 'Let the best deck win! 🤝'];
+      botPick = luckyReplies[Math.floor(Math.random() * luckyReplies.length)];
+    } else if (emoji === 'Well played!') {
+      const wpReplies = ['Well played! 🤝', 'Thank you! 👏', 'Close match! 🔥'];
+      botPick = wpReplies[Math.floor(Math.random() * wpReplies.length)];
+    } else if (emoji === 'Nice move!') {
+      const nmReplies = ['Thanks! ⚡', 'Haha, thanks! 😅', 'You too! 👏'];
+      botPick = nmReplies[Math.floor(Math.random() * nmReplies.length)];
+    } else if (emoji === 'Oops!') {
+      const oopsReplies = ['Oops! 😅', 'No worries!', 'Calculated! 😎'];
+      botPick = oopsReplies[Math.floor(Math.random() * oopsReplies.length)];
+    } else {
+      const botEmotes = ['⚔️', '🛡️', '🔥', '👏', '💀', '🤖'];
+      botPick = botEmotes[Math.floor(Math.random() * botEmotes.length)];
+    }
     setTimeout(() => {
       triggerEmote(remoteKey, botPick);
-    }, 600 + Math.random() * 500);
+    }, 600 + Math.random() * 800);
   }
 }
 
 const emoteToggleBtn = document.getElementById('btn-emote-toggle');
 const emotesPopover = document.getElementById('emotes-popover');
 
-function positionEmotesPopover() {
-  if (!emoteToggleBtn || !emotesPopover) return;
-  const rect = emoteToggleBtn.getBoundingClientRect();
-  emotesPopover.style.position = 'fixed';
-  emotesPopover.style.top = `${Math.max(10, rect.top - 52)}px`;
-  emotesPopover.style.left = `${Math.max(10, Math.min(window.innerWidth - 220, rect.left + rect.width / 2 - 100))}px`;
-  emotesPopover.style.zIndex = '99999';
-}
-
 if (emoteToggleBtn && emotesPopover) {
-  let touchHandled = false;
   const togglePopover = (e) => {
     e.stopPropagation();
-    if (e.type === 'touchstart') {
-      touchHandled = true;
-    } else if (e.type === 'click' && touchHandled) {
-      touchHandled = false;
-      return;
-    }
-    const isHidden = emotesPopover.classList.contains('hidden');
-    if (isHidden) {
-      positionEmotesPopover();
-      emotesPopover.classList.remove('hidden');
-    } else {
-      emotesPopover.classList.add('hidden');
-    }
+    e.preventDefault();
+    emotesPopover.classList.toggle('hidden');
   };
 
   emoteToggleBtn.addEventListener('click', togglePopover);
-  emoteToggleBtn.addEventListener('touchstart', togglePopover, { passive: true });
+  emoteToggleBtn.addEventListener('touchend', togglePopover, { passive: false });
 
   document.addEventListener('pointerdown', (e) => {
     if (!emotesPopover.classList.contains('hidden')) {
-      if (!emotesPopover.contains(e.target) && !emoteToggleBtn.contains(e.target)) {
+      const wrapper = document.getElementById('emote-picker-wrapper');
+      if (wrapper && !wrapper.contains(e.target)) {
         emotesPopover.classList.add('hidden');
       }
     }
   });
-
-  window.addEventListener('resize', () => {
-    if (!emotesPopover.classList.contains('hidden')) {
-      positionEmotesPopover();
-    }
-  });
 }
 
-document.querySelectorAll('.emote-btn').forEach(btn => {
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const emote = btn.dataset.emote;
-    if (emote) triggerEmote(localKey, emote);
-    if (emotesPopover) emotesPopover.classList.add('hidden');
-  });
+const handleEmoteItem = (e) => {
+  e.stopPropagation();
+  e.preventDefault();
+  const emote = e.currentTarget.dataset.emote;
+  const phrase = e.currentTarget.dataset.phrase;
+  if (emote) triggerEmote(localKey, emote);
+  if (phrase) triggerEmote(localKey, phrase);
+  if (emotesPopover) emotesPopover.classList.add('hidden');
+};
+
+document.querySelectorAll('.emote-btn, .quick-chat-btn').forEach(btn => {
+  btn.addEventListener('click', handleEmoteItem);
+  btn.addEventListener('touchend', handleEmoteItem, { passive: false });
 });
 
 document.getElementById('btn-rematch').addEventListener('click', () => {
@@ -2363,18 +3172,43 @@ document.getElementById('btn-play-again').addEventListener('click', () => {
 // ---- Options modal ----------------------------------------------------------
 function openOptions() {
   const inMatch = !!state && state.phase !== 'gameover';
-  document.getElementById('quit-match-section').classList.toggle('hidden', !inMatch);
+  const isReplay = mode === 'replay';
+  
+  const quitSection = document.getElementById('quit-match-section');
+  quitSection.classList.toggle('hidden', !inMatch && !isReplay);
+  
+  if (inMatch || isReplay) {
+    const quitP = quitSection.querySelector('p');
+    const quitBtn = document.getElementById('btn-quit-match');
+    if (isReplay) {
+      quitP.textContent = 'Leave the replay and return to the menu.';
+      quitBtn.textContent = 'Close Replay';
+      quitBtn.classList.remove('danger');
+    } else {
+      quitP.textContent = 'Leaving now forfeits the match.';
+      quitBtn.textContent = 'Quit Match';
+      quitBtn.classList.add('danger');
+    }
+  }
+  
   const resetSection = document.getElementById('reset-progress-section');
-  if (resetSection) resetSection.classList.toggle('hidden', inMatch);
+  if (resetSection) resetSection.classList.toggle('hidden', inMatch || isReplay);
+  const splashToggle = document.getElementById('btn-splash-toggle');
+  if (splashToggle) splashToggle.classList.toggle('hidden', inMatch || isReplay);
   document.getElementById('options-overlay').classList.remove('hidden');
+  if (typeof Sound !== 'undefined' && Sound.modalOpen) Sound.modalOpen();
 }
 document.getElementById('btn-options').addEventListener('click', openOptions);
 document.getElementById('btn-open-settings-menu').addEventListener('click', openOptions);
 document.getElementById('btn-options-close').addEventListener('click', () => {
   document.getElementById('options-overlay').classList.add('hidden');
+  if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
 });
 document.getElementById('options-overlay').addEventListener('click', (e) => {
-  if (e.target.id === 'options-overlay') document.getElementById('options-overlay').classList.add('hidden');
+  if (e.target.id === 'options-overlay') {
+    document.getElementById('options-overlay').classList.add('hidden');
+    if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
+  }
 });
 let _activeConfirmCleanup = null;
 function showConfirmDialog({ kicker = 'CONFIRMATION', title = 'Are you sure?', message = '', okText = 'Confirm', cancelText = 'Cancel', danger = true, onConfirm, onCancel }) {
@@ -2494,13 +3328,14 @@ function quitCurrentMatch() {
   state = null;
   if (typeof trialTowerActive !== 'undefined') trialTowerActive = false;
 
+  const wasReplay = (mode === 'replay');
   showScreen('screen-menu');
-  showToast('🏳️ Match forfeited.');
+  showToast(wasReplay ? '⏹ Replay closed.' : '🏳️ Match forfeited.');
 }
 
 function promptQuitMatch() {
   const midMatch = state && state.phase !== 'gameover';
-  if (!midMatch) {
+  if (!midMatch || mode === 'replay') {
     quitCurrentMatch();
     return;
   }
@@ -2530,6 +3365,7 @@ function handleOpponentForfeit() {
 
 // ---- Click delegation on the game screen ------------------------------------
 document.getElementById('screen-game').addEventListener('click', (e) => {
+  if (mode === 'replay') return;
   if (!state || state.phase === 'gameover') return;
   if (suppressNextClick) { suppressNextClick = false; return; }
 
@@ -2543,6 +3379,11 @@ document.getElementById('screen-game').addEventListener('click', (e) => {
     const idx = Number(handCardEl.dataset.handIdx);
     selMode = null; selSpellId = null; selChipId = null; selAttackerSlot = null; selMergeSlots = [];
     selHandIdx = (selHandIdx === idx) ? null : idx;
+    if (selHandIdx !== null && typeof Sound !== 'undefined') {
+      const card = state.players[localKey]?.deck[idx];
+      const tier = card ? card.tier : 1;
+      if (Sound.cardSelect) Sound.cardSelect(tier);
+    }
     render();
     return;
   }
@@ -2551,6 +3392,7 @@ document.getElementById('screen-game').addEventListener('click', (e) => {
     const id = spellEl.dataset.spellId;
     resetSelections();
     selSpellId = id;
+    if (typeof Sound !== 'undefined' && Sound.spellSelect) Sound.spellSelect();
     render();
     return;
   }
@@ -2559,6 +3401,7 @@ document.getElementById('screen-game').addEventListener('click', (e) => {
     const id = chipEl.dataset.chipId;
     resetSelections();
     selChipId = id;
+    if (typeof Sound !== 'undefined' && Sound.chipSelect) Sound.chipSelect();
     render();
     return;
   }
@@ -2582,7 +3425,10 @@ document.getElementById('screen-game').addEventListener('click', (e) => {
         if (card.tier === 4) { showToast('Orange is already the highest tier and cannot merge with anything.'); return; }
         if (selMergeSlots.length >= 4) { showToast('You can combine at most 4 cards in one fusion.'); return; }
         selMergeSlots.push(slot);
-        Sound.select();
+        if (typeof Sound !== 'undefined') {
+          if (Sound.tierChime) Sound.tierChime(card.tier);
+          else if (Sound.select) Sound.select();
+        }
       }
       render();
       return;
@@ -2600,8 +3446,12 @@ document.getElementById('screen-game').addEventListener('click', (e) => {
     }
     if (selMode === 'defend') {
       if (!card || !isMine) return;
-      if (state.players[localKey].defendingSlots[slot]) dispatch({ type: 'cancelDefend', slot });
-      else dispatch({ type: 'defend', slot });
+      if (state.players[localKey].defendingSlots[slot]) {
+        dispatch({ type: 'cancelDefend', slot });
+        if (typeof Sound !== 'undefined' && Sound.undo) Sound.undo();
+      } else {
+        dispatch({ type: 'defend', slot });
+      }
       render(); return;
     }
     if (selHandIdx !== null) {
@@ -2613,14 +3463,21 @@ document.getElementById('screen-game').addEventListener('click', (e) => {
       if (selAttackerSlot === null) {
         if (!card || !isMine) return;
         if (state.players[localKey].defendingSlots[slot]) { showToast('This card is defending and cannot attack.'); return; }
-        selAttackerSlot = slot; render(); return;
+        selAttackerSlot = slot;
+        if (typeof Sound !== 'undefined' && Sound.cardSelect) Sound.cardSelect();
+        render(); return;
       } else {
         if (isMine) {
-          if (card && !state.players[localKey].defendingSlots[slot]) { selAttackerSlot = slot; render(); }
+          if (card && !state.players[localKey].defendingSlots[slot]) {
+            selAttackerSlot = slot;
+            if (typeof Sound !== 'undefined' && Sound.cardSelect) Sound.cardSelect();
+            render();
+          }
           return;
         }
         if (!card) return;
         dispatch({ type: 'attack', slot: selAttackerSlot, targetOwner: owner, targetSlot: slot });
+        if (typeof Sound !== 'undefined' && Sound.cardSelect) Sound.cardSelect();
         selAttackerSlot = null; render(); return;
       }
     }
@@ -2644,8 +3501,10 @@ function snapshotBoards(state) {
   return snap;
 }
 
-function playCombatAnimation(snapshot, fx, doneCallback) {
+let combatAnimTimer = null;
+function playCombatAnimation(snapshot, fx, doneCallback, playbackSpeedModifier = 1) {
   animatingCombat = true;
+  if (combatAnimTimer) clearTimeout(combatAnimTimer);
   fx = fx || [];
   trackDamageStats(fx);
 
@@ -2685,6 +3544,7 @@ function playCombatAnimation(snapshot, fx, doneCallback) {
   const anyAttacks = fx.some(e => e.source && (e.source.kind === 'attack' || e.source.kind === 'queued-attack'));
   if (anyAttacks) {
     Sound.attack();
+    if (typeof Sound !== 'undefined' && Sound.combatClash) Sound.combatClash();
     vibrate(15);
     if (!reducedMotion) {
       const screenEl = document.getElementById('screen-game');
@@ -2749,23 +3609,61 @@ function playCombatAnimation(snapshot, fx, doneCallback) {
     });
   }
 
-  setTimeout(() => { animatingCombat = false; doneCallback(); }, reducedMotion ? 150 : COMBAT_ANIM_MS);
+  combatAnimTimer = setTimeout(() => { animatingCombat = false; doneCallback(); }, (reducedMotion ? 150 : COMBAT_ANIM_MS) / playbackSpeedModifier);
 }
 
+let _lastRenderedPhaseRound = null;
 function render() {
   if (!state) return;
+  
+  const currentPR = state.phase + ':' + state.round;
+  if (_lastRenderedPhaseRound !== currentPR) {
+    const wasInitial = _lastRenderedPhaseRound === null;
+    _lastRenderedPhaseRound = currentPR;
+    if (!wasInitial && state.phase === 'placement' && typeof Sound !== 'undefined' && Sound.turnStart) {
+      Sound.turnStart();
+    }
+  }
+
+  const gameScreen = document.getElementById('screen-game');
+  if (gameScreen) {
+    gameScreen.classList.toggle('phase-placement', state.phase === 'placement');
+    gameScreen.classList.toggle('phase-attack', state.phase === 'attack');
+  }
+
   document.getElementById('phase-label').textContent = state.phase === 'placement' ? 'Placement' : state.phase === 'attack' ? 'Attack' : 'Game Over';
   document.getElementById('round-label').textContent = `Round ${state.round}`;
 
   const readyField = state.phase === 'attack' ? 'readyAttack' : 'readyPlacement';
   const youBadge = document.getElementById('you-ready-badge');
   const oppBadge = document.getElementById('opp-ready-badge');
+  const youAvatarInner = document.getElementById('you-avatar-inner');
+  const oppAvatarInner = document.getElementById('opp-avatar-inner');
+
   const youReady = !!state.players[localKey][readyField];
   const oppReady = !!state.players[remoteKey][readyField];
-  youBadge.textContent = youReady ? 'You ✓' : 'You';
-  oppBadge.textContent = oppReady ? 'Opponent ✓' : 'Opponent';
-  youBadge.classList.toggle('ready', youReady);
-  oppBadge.classList.toggle('ready', oppReady);
+
+  const playerName = (typeof loadPlayerName === 'function' ? loadPlayerName() : null) || 'Player';
+  const playerLetter = playerName.trim().charAt(0).toUpperCase() || 'P';
+  if (youAvatarInner) {
+    youAvatarInner.textContent = playerLetter;
+    if (typeof getProfileAvatarGradientCss === 'function') {
+      youAvatarInner.style.background = getProfileAvatarGradientCss(playerName);
+    }
+  }
+  if (youBadge) youBadge.classList.toggle('ready', youReady);
+
+  const isBot = (mode === 'bot' || remoteKey === 'bot');
+  if (oppAvatarInner) {
+    if (isBot) {
+      oppAvatarInner.textContent = '🤖';
+      oppAvatarInner.style.background = 'linear-gradient(135deg, #1e293b, #0f172a)';
+    } else {
+      oppAvatarInner.textContent = 'O';
+      oppAvatarInner.style.background = 'linear-gradient(135deg, #475569, #334155)';
+    }
+  }
+  if (oppBadge) oppBadge.classList.toggle('ready', oppReady);
 
   const oppBoardEl = document.getElementById('opponent-board');
   const myBoardEl = document.getElementById('player-board');
@@ -2932,6 +3830,15 @@ function render() {
       playMeteorShowerEffect(() => render());
       return;
     }
+
+    const isBotWin = !epicVictoryDone && state.winner === localKey && mode === 'bot';
+    if (isBotWin) {
+      epicVictoryDone = true;
+      if (typeof window.playEpicVictoryAnimation === 'function') {
+        window.playEpicVictoryAnimation(botDifficulty, () => render());
+        return;
+      }
+    }
     const overlay = document.getElementById('gameover-overlay');
     const title = document.getElementById('gameover-title');
     if (state.winner === 'draw') title.textContent = "It's a draw!";
@@ -2948,9 +3855,36 @@ function render() {
         : '';
     }
     overlay.classList.remove('hidden');
+    const isWin = state.winner === localKey;
+    const isDraw = state.winner === 'draw';
+    const cardEl = document.getElementById('gameover-card');
+    if (cardEl) {
+      cardEl.classList.remove('is-win', 'is-loss');
+      if (isWin) cardEl.classList.add('is-win');
+      else if (!isDraw) cardEl.classList.add('is-loss');
+    }
+    const particleContainer = document.getElementById('gameover-particles');
+    if (particleContainer) {
+      particleContainer.innerHTML = '';
+      const count = isWin ? 35 : 22;
+      const colors = isWin ? ['#4ade80', '#fbbf24', '#38bdf8', '#f43f5e'] : ['#f87171', '#fb923c', '#a855f7'];
+      for (let i = 0; i < count; i++) {
+        const p = document.createElement('div');
+        p.className = 'gameover-particle';
+        p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        p.style.left = `${Math.random() * 100}%`;
+        p.style.top = `${60 + Math.random() * 40}%`;
+        p.style.width = `${4 + Math.random() * 7}px`;
+        p.style.height = p.style.width;
+        p.style.animationDelay = `${Math.random() * 1.5}s`;
+        p.style.animationDuration = `${1.2 + Math.random() * 1.5}s`;
+        particleContainer.appendChild(p);
+      }
+    }
     document.getElementById('btn-play-again').classList.toggle('hidden', mode !== 'bot');
     if (!gameOverAnnounced) {
       gameOverAnnounced = true;
+      saveMatchReplay();
       if (!tutorialActive) {
         recordMatchHistory({
           mode: mode === 'bot' ? `Vs Bot (${botDifficulty})` : 'Multiplayer',
@@ -3277,6 +4211,34 @@ document.getElementById('volume-slider')?.addEventListener('input', (e) => {
 });
 updateVolumeUI();
 
+// ---- Ambient background sound controls ------------------------------------
+function updateAmbientUI() {
+  const btn = document.getElementById('btn-ambient-toggle');
+  if (btn && typeof Sound !== 'undefined' && Sound.ambient) {
+    btn.textContent = Sound.ambient.isEnabled() ? '🎵 Ambience: On' : '🔇 Ambience: Off';
+  }
+  const slider = document.getElementById('ambient-volume-slider');
+  const label = document.getElementById('ambient-volume-value');
+  if (typeof Sound !== 'undefined' && Sound.ambient) {
+    const pct = Math.round(Sound.ambient.getVolume() * 100);
+    if (slider) slider.value = String(pct);
+    if (label) label.textContent = pct + '%';
+  }
+}
+document.getElementById('btn-ambient-toggle')?.addEventListener('click', () => {
+  if (typeof Sound !== 'undefined' && Sound.ambient) {
+    Sound.ambient.setEnabled(!Sound.ambient.isEnabled());
+    updateAmbientUI();
+  }
+});
+document.getElementById('ambient-volume-slider')?.addEventListener('input', (e) => {
+  if (typeof Sound !== 'undefined' && Sound.ambient) {
+    Sound.ambient.setVolume(Number(e.target.value) / 100);
+    updateAmbientUI();
+  }
+});
+updateAmbientUI();
+
 // ---- NEW SETTING: haptics (vibration) toggle -------------------------------
 // A short buzz on hits, deaths, merges, and wins, mirroring what most
 // mobile games offer as a toggleable "Vibration" option. No-ops silently
@@ -3324,7 +4286,7 @@ const RESET_PROGRESS_KEYS = [
   'mehrbod-cards-theme', 'mehrbod-cards-last-difficulty', 'mehrbod-cards-tutorial-seen',
   'mehrbod-cards-player-name', 'mehrbod-cards-profile-gradient', 'mehrbod_favorite_cards', 'mehrbod-cards-inventory-backup-v1',
   'mehrbod-cards-last-seen-version', 'mehrbod-cards-muted', 'mehrbod-cards-reduced-motion',
-  'mehrbod-cards-volume', 'mehrbod-cards-haptics',
+  'mehrbod-cards-volume', 'mehrbod-cards-haptics', 'mehrbod-cards-splash-text-enabled',
 ];
 function resetAllProgress() {
   showConfirmDialog({
@@ -3365,6 +4327,31 @@ function applyReducedMotion(on) {
 }
 document.getElementById('btn-motion-toggle').addEventListener('click', () => applyReducedMotion(!reducedMotion));
 applyReducedMotion(reducedMotion);
+
+// ---- Splash text setting ------------------------------------------------
+let splashTextEnabled = loadSplashTextSetting();
+function loadSplashTextSetting() {
+  try {
+    const saved = localStorage.getItem('mehrbod-cards-splash-text-enabled');
+    if (saved !== null) return saved === '1';
+  } catch (e) {}
+  return false;
+}
+function applySplashTextSetting(on) {
+  splashTextEnabled = on;
+  const splashEl = document.getElementById('minecraft-splash');
+  if (splashEl) {
+    splashEl.classList.toggle('hidden', !on);
+    if (on) {
+      initMinecraftSplashText();
+    }
+  }
+  const btn = document.getElementById('btn-splash-toggle');
+  if (btn) btn.textContent = on ? '✨ Splash Text: On' : '✨ Splash Text: Off';
+  try { localStorage.setItem('mehrbod-cards-splash-text-enabled', on ? '1' : '0'); } catch (e) {}
+}
+document.getElementById('btn-splash-toggle')?.addEventListener('click', () => applySplashTextSetting(!splashTextEnabled));
+applySplashTextSetting(splashTextEnabled);
 
 // ---- Themes -----------------------------------------------------------------
 const ALL_DIFFICULTIES = ['Easy', 'Medium', 'Hard', 'Expert', 'Master'];
@@ -3504,7 +4491,7 @@ function isCollectionComplete() {
   const allChipsOwned = ALL_CHIP_IDS.every(id => owned.chips.includes(id));
   return allUnitsOwned && allSpellsOwned && allChipsOwned;
 }
-const THEME_UNLOCK_CHECK = {
+Object.assign(THEME_UNLOCK_CHECK, {
   dark: () => true, light: () => true,
   verdant: () => isAllThemesUnlocked() || isThemeUnlockedByDiff('verdant'),
   pink: () => isAllThemesUnlocked() || isThemeUnlockedByDiff('pink'),
@@ -3521,7 +4508,7 @@ const THEME_UNLOCK_CHECK = {
   astral: () => isAstralThemeUnlocked(),
   celestial: () => isCelestialThemeUnlocked(),
   collector: () => isAllThemesUnlocked() || isCollectionComplete(),
-};
+});
 const THEME_LOCK_MESSAGE = {
   verdant: '🔒 Beat Easy difficulty to unlock the Verdant theme!',
   pink: '🔒 Beat Medium difficulty to unlock Pink Mode!',
@@ -3562,6 +4549,12 @@ function applyTheme(theme) {
   updateThemeButtons();
   const themesBtn = document.getElementById('btn-open-themes');
   if (themesBtn) themesBtn.textContent = `🎨 Themes: ${themeDisplayName(theme)}`;
+  if (typeof Sound !== 'undefined') {
+    if (Sound.themeChange) Sound.themeChange();
+    if (Sound.ambient && Sound.ambient.setTheme) {
+      Sound.ambient.setTheme(theme);
+    }
+  }
 }
 function updateThemeButtons() {
   const beaten = loadBeatenDifficulties();
@@ -3586,7 +4579,10 @@ function updateThemeButtons() {
   }
 }
 document.querySelectorAll('.theme-btn').forEach(btn => {
-  btn.addEventListener('click', () => applyTheme(btn.dataset.theme));
+  btn.addEventListener('click', () => {
+    if (typeof Sound !== 'undefined' && Sound.themeChange) Sound.themeChange();
+    applyTheme(btn.dataset.theme);
+  });
 });
 applyTheme(currentTheme);
 updateThemeButtons();
@@ -3595,15 +4591,20 @@ equipSleeve(loadEquippedSleeve());
 
 // ---- Themes modal -----------------------------------------------------------
 function openThemes() {
+  if (typeof Sound !== 'undefined' && Sound.modalOpen) Sound.modalOpen();
   updateThemeButtons();
   document.getElementById('themes-overlay').classList.remove('hidden');
 }
 document.getElementById('btn-open-themes').addEventListener('click', openThemes);
 document.getElementById('btn-themes-close').addEventListener('click', () => {
+  if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
   document.getElementById('themes-overlay').classList.add('hidden');
 });
 document.getElementById('themes-overlay').addEventListener('click', (e) => {
-  if (e.target.id === 'themes-overlay') document.getElementById('themes-overlay').classList.add('hidden');
+  if (e.target.id === 'themes-overlay') {
+    if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
+    document.getElementById('themes-overlay').classList.add('hidden');
+  }
 });
 
 // ---- Collection Book (Cards / Themes chooser) ------------------------------
@@ -3611,10 +4612,12 @@ document.getElementById('themes-overlay').addEventListener('click', (e) => {
 // reached from the one 📖 Collection link on the main menu footer (and the
 // COLLECTION card in the feature strip, which jumps straight to Cards).
 function openCollectionBook() {
+  if (typeof Sound !== 'undefined' && Sound.modalOpen) Sound.modalOpen();
   renderCollectionScreen();
   showScreen('screen-collection');
 }
 function closeCollectionBook() {
+  if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
   document.getElementById('collection-book-overlay').classList.add('hidden');
 }
 document.getElementById('btn-open-collection').addEventListener('click', openCollectionBook);
@@ -3652,6 +4655,7 @@ const SPELL_RARITIES = {
   adrenaline:  { class: 'exotic',   name: 'EXOTIC',   effectText: '+3 DMG' },
   frostbolt:   { class: 'rare',     name: 'RARE',     effectText: '2 DMG / -1 ATK' },
   warcry:      { class: 'mythic',   name: 'MYTHIC',   effectText: 'ALL +1 DMG' },
+  chainlightning: { class: 'legendary', name: 'LEGENDARY', effectText: '1 DMG ALL / OWN HEAL 2' },
 };
 
 const CHIP_RARITIES = {
@@ -3791,7 +4795,12 @@ function inspectLockerCard(cardData, animateFlip = false) {
   }
 
   if (animateFlip && flipContainer) {
-    if (typeof Sound !== 'undefined' && Sound.select) Sound.select();
+    if (typeof Sound !== 'undefined') {
+      if (cardData.type === 'spell' && Sound.spellChime) Sound.spellChime();
+      else if (cardData.type === 'chip' && Sound.chipChime) Sound.chipChime();
+      else if (Sound.tierChime) Sound.tierChime(cardData.tier || 1);
+      else if (Sound.select) Sound.select();
+    }
 
     flipContainer.classList.remove('is-flipping');
     void flipContainer.offsetWidth; // Force reflow
@@ -3819,6 +4828,7 @@ function setupLockerCategoryTabs() {
     btn.onclick = () => {
       document.querySelectorAll('.locker-cat-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      if (typeof Sound !== 'undefined' && Sound.whoosh) Sound.whoosh('fast', 0.05);
       const cat = btn.dataset.cat;
       document.querySelectorAll('.locker-section').forEach(sec => {
         const secCat = sec.dataset.section;
@@ -4193,16 +5203,21 @@ function renderQuests() {
     themeRowsHtml + allDiffsRowHtml;
 }
 function openQuests() {
+  if (typeof Sound !== 'undefined' && Sound.modalOpen) Sound.modalOpen();
   renderQuests();
   document.getElementById('quests-overlay').classList.remove('hidden');
 }
 document.getElementById('btn-open-quests').addEventListener('click', openQuests);
 document.getElementById('btn-open-quests-menu').addEventListener('click', openQuests);
 document.getElementById('btn-quests-close').addEventListener('click', () => {
+  if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
   document.getElementById('quests-overlay').classList.add('hidden');
 });
 document.getElementById('quests-overlay').addEventListener('click', (e) => {
-  if (e.target.id === 'quests-overlay') document.getElementById('quests-overlay').classList.add('hidden');
+  if (e.target.id === 'quests-overlay') {
+    if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
+    document.getElementById('quests-overlay').classList.add('hidden');
+  }
 });
 
 // ---- Copy room code ------------------------------------------------------
@@ -4211,6 +5226,7 @@ document.getElementById('btn-copy-code').addEventListener('click', async () => {
   if (!code || code === '------') return;
   try {
     await navigator.clipboard.writeText(code);
+    if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
     showToast('Room code copied!');
   } catch (e) {
     try {
@@ -4225,6 +5241,7 @@ document.getElementById('btn-copy-code').addEventListener('click', async () => {
       const success = document.execCommand('copy');
       ta.remove();
       if (success) {
+        if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
         showToast('Room code copied!');
         return;
       }
@@ -4491,13 +5508,18 @@ updateVersionBadge();
 document.getElementById('btn-version').addEventListener('click', () => {
   renderPatchNotes();
   document.getElementById('patchnotes-overlay').classList.remove('hidden');
+  if (typeof Sound !== 'undefined' && Sound.modalOpen) Sound.modalOpen();
   markPatchNotesSeen();
 });
 document.getElementById('btn-patchnotes-close').addEventListener('click', () => {
   document.getElementById('patchnotes-overlay').classList.add('hidden');
+  if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
 });
 document.getElementById('patchnotes-overlay').addEventListener('click', (e) => {
-  if (e.target.id === 'patchnotes-overlay') document.getElementById('patchnotes-overlay').classList.add('hidden');
+  if (e.target.id === 'patchnotes-overlay') {
+    document.getElementById('patchnotes-overlay').classList.add('hidden');
+    if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
+  }
 });
 
 // ---- "NEW" badge for unseen patch notes ------------------------------------
@@ -4520,7 +5542,11 @@ document.addEventListener('keydown', (e) => {
   const overlays = ['confirm-overlay', 'patchnotes-overlay', 'options-overlay', 'quests-overlay', 'themes-overlay', 'collection-book-overlay', 'player-name-overlay', 'stats-hub-overlay'];
   for (const id of overlays) {
     const el = document.getElementById(id);
-    if (el && !el.classList.contains('hidden')) { el.classList.add('hidden'); return; }
+    if (el && !el.classList.contains('hidden')) {
+      el.classList.add('hidden');
+      if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
+      return;
+    }
   }
 
   // Pack opening overlay
@@ -4660,6 +5686,12 @@ const MINECRAFT_SPLASH_TEXTS = [
 function initMinecraftSplashText() {
   const splashEl = document.getElementById('minecraft-splash');
   if (!splashEl) return;
+
+  if (typeof splashTextEnabled !== 'undefined' && !splashTextEnabled) {
+    splashEl.classList.add('hidden');
+    return;
+  }
+  splashEl.classList.remove('hidden');
 
   const splash = MINECRAFT_SPLASH_TEXTS[Math.floor(Math.random() * MINECRAFT_SPLASH_TEXTS.length)];
   splashEl.textContent = splash;

@@ -74,6 +74,7 @@ const ABILITIES = {
   green_onplay_ward1:      { id: 'green_onplay_ward1', label: 'On placement: gains a Ward that completely blocks the next instance of damage it would take.' },
   green_onplay_stealcard:  { id: 'green_onplay_stealcard', label: "On placement: steals the enemy's weakest Blue card onto your board, if you have room." },
   green_onplay_chipslot1:  { id: 'green_onplay_chipslot1', label: 'On placement: permanently gains +1 chip slot.' },
+  sacrificeman_ability:    { id: 'sacrificeman_ability', label: 'When sacrificed or destroyed, revives instantly (up to 3 times total).' },
   red_onplay_burn2:        { id: 'red_onplay_burn2', label: 'On placement: burns a random enemy card, dealing 1 dmg at the start of each of the next 2 rounds.' },
   red_onplay_purge_weak:   { id: 'red_onplay_purge_weak', label: 'On placement: destroys every enemy card with 2 or less max HP.' },
   red_onattack_doublestrike:{ id: 'red_onattack_doublestrike', label: "This card's attacks strike twice." },
@@ -89,55 +90,46 @@ const ABILITIES = {
 // Blue's pools are all ['none'] only - Blue cards can never roll a special
 // ability (see fix note below).
 const UNIT_ARCHETYPES = {
-  1: [ // Blue - bugfix: Blue used to be able to roll onplay_dmg1 from its
-       // pool. Blue is meant to be the disposable, ability-free tier (it's
-       // also the only tier that regenerates for free), so every Blue
-       // archetype's pool is fixed to 'none' with no exceptions. Every Blue
-       // archetype is always owned for free - they're mechanically
-       // identical, so there's no reason to gate them behind the Shop.
-    { id: 'blue_sprite',  name: 'Blue Sprite',  pool: ['none'] },
-    { id: 'blue_recruit', name: 'Blue Recruit', pool: ['none'] },
-    { id: 'blue_scout',   name: 'Blue Scout',   pool: ['none'] },
-    { id: 'blue_cadet',   name: 'Blue Cadet',   pool: ['none'] },
-    { id: 'blue_drifter', name: 'Blue Drifter', pool: ['none'] },
-    // v3.11: 3 more Blue archetypes - purely cosmetic variety, same as the
-    // five above. Blue stays permanently ability-free by design.
-    { id: 'blue_vanguard', name: 'Blue Vanguard', pool: ['none'] },
-    { id: 'blue_herald',   name: 'Blue Herald',   pool: ['none'] },
-    { id: 'blue_wisp',     name: 'Blue Wisp',     pool: ['none'] },
+  1: [ // Blue
+    { id: 'blue_sprite',  name: 'Sprite',  pool: ['none'] },
+    { id: 'blue_recruit', name: 'Recruit', pool: ['none'] },
+    { id: 'blue_scout',   name: 'Scout',   pool: ['none'] },
+    { id: 'blue_cadet',   name: 'Cadet',   pool: ['none'] },
+    { id: 'blue_drifter', name: 'Drifter', pool: ['none'] },
+    { id: 'blue_vanguard', name: 'Vanguard', pool: ['none'] },
+    { id: 'blue_herald',   name: 'Herald',   pool: ['none'] },
+    { id: 'blue_wisp',     name: 'Wisp',     pool: ['none'] },
   ],
   2: [ // Green
-    { id: 'green_warden',     name: 'Green Warden',     pool: ['onplay_heal2'] },
-    { id: 'green_chaplain',   name: 'Green Chaplain',   pool: ['green_onplay_healall1'] },
-    { id: 'green_pathfinder', name: 'Green Pathfinder', pool: ['green_ondeath_draw1'] },
-    { id: 'green_bulwark',    name: 'Green Bulwark',    pool: ['green_onplay_selftoughen1'] },
-    { id: 'green_saboteur',   name: 'Green Saboteur',   pool: ['green_onplay_discard1'] },
-    // v3.11: 3 new Green archetypes with mechanically fresh abilities.
-    { id: 'green_warden_ii',  name: 'Green Sentinel',   pool: ['green_onplay_ward1'] },
-    { id: 'green_footpad',    name: 'Green Footpad',    pool: ['green_onplay_stealcard'] },
-    { id: 'green_tinkerer',   name: 'Green Tinkerer',   pool: ['green_onplay_chipslot1'] },
+    { id: 'green_warden',     name: 'Warden',     pool: ['onplay_heal2'] },
+    { id: 'green_chaplain',   name: 'Chaplain',   pool: ['green_onplay_healall1'] },
+    { id: 'green_pathfinder', name: 'Pathfinder', pool: ['green_ondeath_draw1'] },
+    { id: 'green_bulwark',    name: 'Bulwark',    pool: ['green_onplay_selftoughen1'] },
+    { id: 'green_saboteur',   name: 'Saboteur',   pool: ['green_onplay_discard1'] },
+    { id: 'green_warden_ii',  name: 'Sentinel',   pool: ['green_onplay_ward1'] },
+    { id: 'green_footpad',    name: 'Footpad',    pool: ['green_onplay_stealcard'] },
+    { id: 'green_tinkerer',   name: 'Tinkerer',   pool: ['green_onplay_chipslot1'] },
+    { id: 'green_sacrificeman', name: 'Sacrifice Man', pool: ['sacrificeman_ability'] },
   ],
   3: [ // Red
-    { id: 'red_wraith',      name: 'Red Wraith',      pool: ['onattack_pierce'] },
-    { id: 'red_firestarter', name: 'Red Firestarter', pool: ['red_onplay_dmgall1'] },
-    { id: 'red_vindicator',  name: 'Red Vindicator',  pool: ['red_ondeath_thorns1'] },
-    { id: 'red_warchief',    name: 'Red Warchief',    pool: ['red_onplay_buffallies_dmg1'] },
-    { id: 'red_cannoneer',   name: 'Red Cannoneer',   pool: ['red_onattack_splash1'] },
-    // v3.11: 3 new Red archetypes with mechanically fresh abilities.
-    { id: 'red_immolator',   name: 'Red Immolator',   pool: ['red_onplay_burn2'] },
-    { id: 'red_purger',      name: 'Red Purger',      pool: ['red_onplay_purge_weak'] },
-    { id: 'red_duelist',     name: 'Red Duelist',     pool: ['red_onattack_doublestrike'] },
+    { id: 'red_wraith',      name: 'Wraith',      pool: ['onattack_pierce'] },
+    { id: 'red_firestarter', name: 'Firestarter', pool: ['red_onplay_dmgall1'] },
+    { id: 'red_vindicator',  name: 'Vindicator',  pool: ['red_ondeath_thorns1'] },
+    { id: 'red_warchief',    name: 'Warchief',    pool: ['red_onplay_buffallies_dmg1'] },
+    { id: 'red_cannoneer',   name: 'Cannoneer',   pool: ['red_onattack_splash1'] },
+    { id: 'red_immolator',   name: 'Immolator',   pool: ['red_onplay_burn2'] },
+    { id: 'red_purger',      name: 'Purger',      pool: ['red_onplay_purge_weak'] },
+    { id: 'red_duelist',     name: 'Duelist',     pool: ['red_onattack_doublestrike'] },
   ],
   4: [ // Orange
-    { id: 'orange_colossus',   name: 'Orange Colossus',   pool: ['onplay_dmg2'] },
-    { id: 'orange_devastator', name: 'Orange Devastator', pool: ['orange_onplay_execute'] },
-    { id: 'orange_juggernaut', name: 'Orange Juggernaut', pool: ['orange_onplay_scaledmg'] },
-    { id: 'orange_reaper',     name: 'Orange Reaper',     pool: ['orange_ondeath_dmg4'] },
-    { id: 'orange_sentinel',   name: 'Orange Sentinel',   pool: ['orange_onplay_refreshall'] },
-    // v3.11: 3 new Orange archetypes with mechanically fresh abilities.
-    { id: 'orange_harvester',  name: 'Orange Harvester',  pool: ['orange_onplay_soulharvest'] },
-    { id: 'orange_phoenix',    name: 'Orange Phoenix',    pool: ['orange_ondeath_rebirth2'] },
-    { id: 'orange_warlord',    name: 'Orange Warlord',    pool: ['orange_onplay_alphastrike'] },
+    { id: 'orange_colossus',   name: 'Colossus',   pool: ['onplay_dmg2'] },
+    { id: 'orange_devastator', name: 'Devastator', pool: ['orange_onplay_execute'] },
+    { id: 'orange_juggernaut', name: 'Juggernaut', pool: ['orange_onplay_scaledmg'] },
+    { id: 'orange_reaper',     name: 'Reaper',     pool: ['orange_ondeath_dmg4'] },
+    { id: 'orange_sentinel',   name: 'Vanguard',   pool: ['orange_onplay_refreshall'] },
+    { id: 'orange_harvester',  name: 'Harvester',  pool: ['orange_onplay_soulharvest'] },
+    { id: 'orange_phoenix',    name: 'Phoenix',    pool: ['orange_ondeath_rebirth2'] },
+    { id: 'orange_warlord',    name: 'Warlord',    pool: ['orange_onplay_alphastrike'] },
   ],
 };
 
@@ -147,7 +139,7 @@ function nextId() { return 'c' + (++_uid); }
 function makeUnitCardFromArchetype(tier, archetype, rng, forcedAbility) {
   const t = TIERS[tier];
   const ability = forcedAbility || rng.pick(archetype.pool);
-  return {
+  const card = {
     id: nextId(),
     kind: 'unit',
     tier,
@@ -161,6 +153,10 @@ function makeUnitCardFromArchetype(tier, archetype, rng, forcedAbility) {
     canAttackAgain: false,  // set when a queued attack must resolve next cycle
     pendingAttackTargetId: null,
   };
+  if (archetype.name === 'Sacrifice Man' || ability === 'sacrificeman_ability') {
+    card.sacrificesLeft = 3;
+  }
+  return card;
 }
 
 function makeUnitCard(tier, rng, forcedAbility) {
@@ -195,6 +191,14 @@ const SPELL_DEFS = [
   { id: 'adrenaline', kind: 'spell', name: 'Adrenaline', text: 'Deal 1 damage to target card, but permanently grant it +3 DMG.', dmg: 1, buffDmg: 3 },
   { id: 'frostbolt', kind: 'spell', name: 'Frost Bolt', text: 'Deal 2 damage to target card and permanently reduce its DMG by 1.', dmg: 2, weakenDmg: 1 },
   { id: 'warcry', kind: 'spell', name: 'War Cry', text: "Permanently grant all of target's owner's cards +1 DMG.", buffAllDmg: 1 },
+  { id: 'chainlightning', kind: 'spell', name: 'Chain Lightning', text: 'Deal 1 damage to all cards on the board, then heal all of your own cards for 2. (Can be used twice)', chainLightning: true },
+  { id: 'suddendeath', kind: 'spell', name: 'Sudden Death', text: 'During 1 round of attack all cards on the board have 1 HP.', suddenDeath: true },
+  { id: 'hack', kind: 'spell', name: 'Hack', text: 'Deal 2 DMG to enemy card, Heal yours for 1.', hack: true },
+  { id: 'orange', kind: 'spell', name: 'Orange', text: 'Heal target card to full HP. (Sacrifice 1 Spell card)', orange: true },
+  { id: 'rocketboom', kind: 'spell', name: 'Rocket Boom', text: 'Chosen card now has 1 HP. (One use)', rocketBoom: true },
+  { id: 'sanctioned', kind: 'spell', name: 'Sanctioned', text: 'Target card cannot defend for entire match. (Infinite use) (sacrifice 1 Spell card)', sanctioned: true },
+  { id: 'zap', kind: 'spell', name: 'Zap!', text: 'Deal 5 damage to an enemy card.', zap: true, dmg: 5 },
+  { id: 'allaura', kind: 'spell', name: 'All Aura', text: 'Enemy card cannot attack or defend for 3 turns. (Can be used twice)', allAura: true },
 ];
 
 const CHIP_DEFS = [

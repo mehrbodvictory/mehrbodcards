@@ -41,7 +41,7 @@ const CONNECT_TIMEOUT_MS = 20000;
 const TIMEOUT_MESSAGE = "Connection timed out. This can happen on restrictive networks (school or work wifi). Try a mobile hotspot or a different network.";
 
 class NetSession {
-  constructor({ onInit, onApplied, onStatus, onPeerError, onGuestConfig, onForfeit }) {
+  constructor({ onInit, onApplied, onStatus, onPeerError, onGuestConfig, onForfeit, onEmote }) {
     this.peer = null;
     this.conn = null;
     this.isHost = false;
@@ -51,6 +51,7 @@ class NetSession {
     this.onPeerError = onPeerError || (() => {});
     this.onGuestConfig = onGuestConfig || (() => {}); // host-only: (deckConfig) => void
     this.onForfeit = onForfeit || (() => {}); // fires when the other side quits or disconnects mid-match
+    this.onEmote = onEmote || (() => {});
   }
 
   _makeRoomCode() {
@@ -119,12 +120,21 @@ class NetSession {
   _wireHostConn() {
     this.conn.on('data', data => {
       if (data.type === 'intent') {
+        if (!data.action || data.action.player !== 'guest') return;
         this.onApplied(data.action);
         this._send({ type: 'applied', action: data.action });
       } else if (data.type === 'guestConfig') {
+        if (this.receivedGuestConfig) return;
+        this.receivedGuestConfig = true;
         this.onGuestConfig(data.deckConfig);
       } else if (data.type === 'forfeit') {
         this.onForfeit();
+      } else if (data.type === 'emote') {
+        if (this.onEmote && this.onEmote !== (() => {})) {
+          this.onEmote(data.emoji);
+        } else if (typeof triggerEmote === 'function') {
+          triggerEmote(typeof remoteKey !== 'undefined' ? remoteKey : 'guest', data.emoji);
+        }
       }
     });
     // BUGFIX: destroy() below closes this same `conn`, which fires this
@@ -147,6 +157,13 @@ class NetSession {
       if (data.type === 'init') this.onInit(data);
       else if (data.type === 'applied') this.onApplied(data.action);
       else if (data.type === 'forfeit') this.onForfeit();
+      else if (data.type === 'emote') {
+        if (this.onEmote && this.onEmote !== (() => {})) {
+          this.onEmote(data.emoji);
+        } else if (typeof triggerEmote === 'function') {
+          triggerEmote(typeof remoteKey !== 'undefined' ? remoteKey : 'host', data.emoji);
+        }
+      }
     });
     this.conn.on('close', () => {
       if (this.manualDisconnect) return;
@@ -159,6 +176,8 @@ class NetSession {
   // remaining player doesn't just see a dead connection - they get an
   // explicit, immediate win instead of waiting for a raw disconnect.
   sendForfeit() { this._send({ type: 'forfeit' }); }
+
+  sendEmote(emoji) { this._send({ type: 'emote', emoji }); }
 
   // Called by the local UI when the local human wants to perform an action.
   submitAction(action) {

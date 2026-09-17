@@ -492,7 +492,11 @@
   <!-- ===== MULTIPLAYER ===== -->
   <section id="screen-multiplayer" class="screen hidden">
     <h2>Multiplayer</h2>
-    <div class="menu-grid two-col">
+    <div class="menu-grid three-col">
+      <button class="menu-card" id="btn-matchmaking-menu">
+        <span class="menu-card-title">🌐 Find Match</span>
+        <span class="menu-card-sub">Quickly pair with another online player</span>
+      </button>
       <button class="menu-card" id="btn-host-menu">
         <span class="menu-card-title">Host Match</span>
         <span class="menu-card-sub">Create a room code for a friend</span>
@@ -503,6 +507,20 @@
       </button>
     </div>
     <button class="link-btn back-btn">← Back</button>
+  </section>
+
+  <!-- ===== PUBLIC MATCHMAKING SCREEN ===== -->
+  <section id="screen-matchmaking" class="screen hidden">
+    <h2>🌐 Finding Opponent</h2>
+    <div class="search-pulse-container">
+      <div class="search-pulse-ring"></div>
+      <div class="search-pulse-ring"></div>
+      <div class="search-pulse-ring"></div>
+      <div class="search-pulse-icon">⚡</div>
+    </div>
+    <p class="sub">Searching for a public lobby...</p>
+    <p class="sub small" id="matchmaking-status">Initializing connection...</p>
+    <button class="link-btn" id="btn-matchmaking-cancel">← Cancel</button>
   </section>
 
   <!-- ===== HOST MATCH MODE SELECT ===== -->
@@ -889,11 +907,15 @@
       <span id="phase-label">Placement</span>
       <span id="round-label">Round 1</span>
       <span id="ready-indicators">
-        <span id="you-ready-badge" class="ready-badge">You</span>
-        <span id="opp-ready-badge" class="ready-badge">Opponent</span>
+        <div id="you-ready-badge" class="match-avatar-badge" title="You">
+          <span id="you-avatar-inner" class="match-avatar-circle"></span>
+        </div>
+        <div id="opp-ready-badge" class="match-avatar-badge" title="Opponent">
+          <span id="opp-avatar-inner" class="match-avatar-circle"></span>
+        </div>
       </span>
       <button id="btn-options" class="icon-btn" title="Options">⚙</button>
-      <button id="btn-ready" class="primary-btn small" title="Ready up (R)"><span class="ready-text-full">Ready</span><span class="ready-text-mobile">R</span> <span class="hotkey-hint">(R)</span></button>
+      <button id="btn-ready" class="primary-btn small" title="Ready up (R)">Ready <span class="hotkey-hint">(R)</span></button>
     </div>
 
     <div id="power-bar-label"><span>Your Power</span><span>Enemy Power</span></div>
@@ -918,11 +940,20 @@
       <div id="emote-picker-wrapper" class="emote-picker-wrapper">
         <button id="btn-emote-toggle" class="mode-btn emote-toggle-btn" title="Send Emote">💬 <span class="emote-toggle-label">Emotes</span></button>
         <div id="emotes-popover" class="emotes-popover hidden">
-          <button class="emote-btn" data-emote="⚔️" title="Send ⚔️ emote">⚔️</button>
-          <button class="emote-btn" data-emote="🛡️" title="Send 🛡️ emote">🛡️</button>
-          <button class="emote-btn" data-emote="🔥" title="Send 🔥 emote">🔥</button>
-          <button class="emote-btn" data-emote="👏" title="Send 👏 emote">👏</button>
-          <button class="emote-btn" data-emote="💀" title="Send 💀 emote">💀</button>
+          <div class="emotes-emoji-row">
+            <button class="emote-btn" data-emote="⚔️" title="Send ⚔️ emote">⚔️</button>
+            <button class="emote-btn" data-emote="🛡️" title="Send 🛡️ emote">🛡️</button>
+            <button class="emote-btn" data-emote="🔥" title="Send 🔥 emote">🔥</button>
+            <button class="emote-btn" data-emote="👏" title="Send 👏 emote">👏</button>
+            <button class="emote-btn" data-emote="💀" title="Send 💀 emote">💀</button>
+          </div>
+          <div class="quick-chat-divider"></div>
+          <div class="quick-chat-column">
+            <button class="quick-chat-btn" data-phrase="Good luck!" title="Send 'Good luck!'">🍀 Good luck</button>
+            <button class="quick-chat-btn" data-phrase="Well played!" title="Send 'Well played!'">🤝 Well played</button>
+            <button class="quick-chat-btn" data-phrase="Nice move!" title="Send 'Nice move!'">⚡ Nice move</button>
+            <button class="quick-chat-btn" data-phrase="Oops!" title="Send 'Oops!'">😅 Oops</button>
+          </div>
         </div>
       </div>
       <span id="hint-text"></span>
@@ -935,6 +966,17 @@
     <div id="hand-label">Your Cards <span id="hand-count"></span></div>
     <div id="hand-row"></div>
     <div id="spells-chips-row"></div>
+
+    <div id="replay-controls" class="hidden">
+      <button id="btn-replay-prev" class="icon-btn" title="Previous Step">⏮</button>
+      <button id="btn-replay-playpause" class="icon-btn" title="Play/Pause">⏸</button>
+      <button id="btn-replay-next" class="icon-btn" title="Next Step">⏭</button>
+      <div id="replay-speed-container">
+        <label for="replay-speed" class="small">Speed</label>
+        <input type="range" id="replay-speed" min="0.25" max="2" step="0.25" value="1">
+        <span id="replay-speed-label" class="small">1x</span>
+      </div>
+    </div>
   </section>
 
   <!-- ===== LIVE GUIDED TUTORIAL ===== -->
@@ -969,6 +1011,7 @@
   <div id="toast"></div>
   <div id="gameover-overlay" class="hidden">
     <div id="gameover-card">
+      <div id="gameover-particles"></div>
       <span class="modal-kicker">MATCH RESULT</span>
       <h2 id="gameover-title"></h2>
       <p id="gameover-duration" class="sub small"></p>
@@ -1005,8 +1048,15 @@
         <input type="range" id="volume-slider" min="0" max="100" step="5" value="100">
         <span id="volume-value">100%</span>
       </div>
+      <button class="mode-btn" id="btn-ambient-toggle">🎵 Ambience: On</button>
+      <div id="ambient-volume-row">
+        <label for="ambient-volume-slider">🎶 Ambience</label>
+        <input type="range" id="ambient-volume-slider" min="0" max="100" step="5" value="65">
+        <span id="ambient-volume-value">65%</span>
+      </div>
       <button class="mode-btn" id="btn-haptics-toggle">📳 Vibration: On</button>
       <button class="mode-btn" id="btn-motion-toggle">🎬 Reduced motion: Off</button>
+      <button class="mode-btn" id="btn-splash-toggle">✨ Splash Text: Off</button>
       <button class="mode-btn" id="btn-open-themes">🎨 Themes</button>
       <div id="quit-match-section">
         <p class="sub small">Leaving now forfeits the match.</p>
@@ -1079,6 +1129,60 @@
             <div class="cmd-info">
               <span class="cmd-title">✨ Unlock All Themes</span>
               <span class="cmd-subtitle">Instantly unlock every theme in the game (Quest themes, Shop themes, Trial Tower Astral Void &amp; Collector)</span>
+            </div>
+            <div class="cmd-arrow">➔</div>
+          </button>
+
+          <button type="button" id="btn-secret-test-card-reveal" class="secret-cmd-card">
+            <div class="cmd-icon-box">✨</div>
+            <div class="cmd-info">
+              <span class="cmd-title">🎭 Test 3D Card Reveal</span>
+              <span class="cmd-subtitle">Trigger a simulated 3D flip card reveal animation with vibrant particle explosion</span>
+            </div>
+            <div class="cmd-arrow">➔</div>
+          </button>
+
+          <button type="button" id="btn-secret-test-easy-win" class="secret-cmd-card">
+            <div class="cmd-icon-box">🟢</div>
+            <div class="cmd-info">
+              <span class="cmd-title">🟢 Test Easy Bot Victory</span>
+              <span class="cmd-subtitle">Simulate a win against the Easy bot to trigger the cheerful green overlay &amp; encouraging chime</span>
+            </div>
+            <div class="cmd-arrow">➔</div>
+          </button>
+
+          <button type="button" id="btn-secret-test-medium-win" class="secret-cmd-card">
+            <div class="cmd-icon-box">🟡</div>
+            <div class="cmd-info">
+              <span class="cmd-title">🟡 Test Medium Bot Victory</span>
+              <span class="cmd-subtitle">Simulate a win against the Medium bot to trigger the shiny gold overlay &amp; double chime</span>
+            </div>
+            <div class="cmd-arrow">➔</div>
+          </button>
+
+          <button type="button" id="btn-secret-test-hard-win" class="secret-cmd-card">
+            <div class="cmd-icon-box">🟠</div>
+            <div class="cmd-info">
+              <span class="cmd-title">🟠 Test Hard Bot Victory</span>
+              <span class="cmd-subtitle">Simulate a win against the Hard bot to trigger the intense orange overlay &amp; fanfare riff</span>
+            </div>
+            <div class="cmd-arrow">➔</div>
+          </button>
+
+          <button type="button" id="btn-secret-test-expert-win" class="secret-cmd-card">
+            <div class="cmd-icon-box">🌌</div>
+            <div class="cmd-info">
+              <span class="cmd-title">⚡ Test Expert Bot Victory</span>
+              <span class="cmd-subtitle">Simulate a win against the Expert bot to trigger the celestial aurora overlay &amp; custom chime sound</span>
+            </div>
+            <div class="cmd-arrow">➔</div>
+          </button>
+
+          <button type="button" id="btn-secret-test-master-win" class="secret-cmd-card">
+            <div class="cmd-icon-box">👑</div>
+            <div class="cmd-info">
+              <span class="cmd-title">👑 Test Master Bot Victory</span>
+              <span class="cmd-subtitle">Simulate a win against the Master bot to trigger the royal crown overlay &amp; epic chime sound</span>
             </div>
             <div class="cmd-arrow">➔</div>
           </button>

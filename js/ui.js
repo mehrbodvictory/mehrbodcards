@@ -33,20 +33,29 @@ function cardEl(card, { owner, slot, selected, defending, attacking, forceGlow, 
   // A card down to its last hit point pulses red so neither player has to
   // do mental math mid-combat to notice it's one hit from dying.
   if (card.hp === 1 && card.maxHp > 1) el.classList.add('low-hp');
+  if (card.sanctioned || card.cannotDefend) el.classList.add('sanctioned-cracked');
+  if (card.disabledTurns > 0) el.classList.add('all-aura-glow');
   el.dataset.owner = owner;
   el.dataset.slot = slot;
   el.dataset.cardId = card.id;
   const chips = card.chipsAttached ? card.chipsAttached.length : 0;
   const abilityText = card.ability && card.ability !== 'none' ? abilityLabel(card.ability) : '';
+  const sanctionedBadge = (card.sanctioned || card.cannotDefend) ? `<div style="font-size:0.52rem;color:#facc15;font-weight:bold;">🔨 NO DEF</div>` : '';
+  const auraBadge = card.disabledTurns > 0 ? `<div style="font-size:0.52rem;color:#fde047;font-weight:bold;">✨ AURA (${card.disabledTurns}T)</div>` : '';
+  const sacBadge = card.sacrificesLeft !== undefined ? `<div style="font-size:0.52rem;color:#4ade80;font-weight:bold;">🛡️ (${card.sacrificesLeft} SAC)</div>` : '';
+
   el.innerHTML = `
     <div class="card-name"><span class="tier-glyph">${TIER_GLYPHS[card.tier] || ''}</span>${card.name}</div>
-    <div class="card-ability">${abilityText}</div>
+    <div class="card-ability">${abilityText} ${sanctionedBadge} ${auraBadge} ${sacBadge}</div>
     <div class="card-stats">
       <span class="hp">${Math.max(0, card.hp)}❤</span>
       <span class="dmg">${card.dmg}⚔</span>
       <span class="sp">${chips}/${card.sp}⛃</span>
     </div>
     ${mergePickNumber ? `<div class="merge-pick-badge">${mergePickNumber}</div>` : ''}`;
+  el.addEventListener('mouseenter', () => {
+    if (typeof Sound !== 'undefined' && Sound.cardHover) Sound.cardHover();
+  });
   return el;
 }
 
@@ -87,6 +96,7 @@ const ABILITY_SHORT = {
   orange_onplay_soulharvest: "Play: +1 dmg per death this match",
   orange_ondeath_rebirth2: 'Death: reborn as 2 Blue cards',
   orange_onplay_alphastrike: 'Play: instantly strikes a random foe',
+  sacrificeman_ability: 'When sacrificed/killed, returns up to 3x',
 };
 function abilityLabel(id) { return ABILITY_SHORT[id] || ''; }
 
@@ -126,8 +136,10 @@ function renderBoard(container, playerState, ownerKey, { selectedSlot, selectedS
 // until a matching merge consumes them.
 function renderHand(container, playerState, selectedHandIdx) {
   container.innerHTML = '';
+  let hadFresh = false;
   playerState.deck.forEach((card, idx) => {
     const isFresh = isFreshCard('hand', card.id);
+    if (isFresh) hadFresh = true;
     const el = cardEl(card, {
       owner: 'hand', slot: idx, selected: selectedHandIdx === idx, popIn: isFresh,
       extraClass: card.tier !== 1 ? 'blueprint-card' : '',
@@ -136,8 +148,14 @@ function renderHand(container, playerState, selectedHandIdx) {
     el.dataset.handIdx = idx;
     el.dataset.role = 'hand-card';
     if (card.tier !== 1) el.title = "Blueprint: can't be placed directly - merging Blues into this tier will consume it and use its ability.";
+    el.addEventListener('mouseenter', () => {
+      if (typeof Sound !== 'undefined' && Sound.cardHover) Sound.cardHover();
+    });
     container.appendChild(el);
   });
+  if (hadFresh && typeof Sound !== 'undefined' && Sound.cardDraw) {
+    Sound.cardDraw();
+  }
 }
 
 function renderSpellsChips(container, playerState, selection) {
@@ -148,6 +166,9 @@ function renderSpellsChips(container, playerState, selection) {
     el.dataset.role = 'spell'; el.dataset.spellId = spell.id;
     if (selection && selection.mode === 'spell' && selection.id === spell.id) el.classList.add('selected');
     el.innerHTML = `<div class="card-name">${spell.name}</div><div class="card-ability">${spell.text}</div>`;
+    el.addEventListener('mouseenter', () => {
+      if (typeof Sound !== 'undefined' && Sound.cardHover) Sound.cardHover();
+    });
     container.appendChild(el);
   });
   playerState.chips.forEach(chip => {
@@ -156,11 +177,15 @@ function renderSpellsChips(container, playerState, selection) {
     el.dataset.role = 'chip'; el.dataset.chipId = chip.id;
     if (selection && selection.mode === 'chip' && selection.id === chip.id) el.classList.add('selected');
     el.innerHTML = `<div class="card-name">${chip.name}</div><div class="card-ability">${chip.text}</div>`;
+    el.addEventListener('mouseenter', () => {
+      if (typeof Sound !== 'undefined' && Sound.cardHover) Sound.cardHover();
+    });
     container.appendChild(el);
   });
 }
 
 function showToast(msg, ms = 2200) {
+  if (typeof Sound !== 'undefined' && Sound.toast) Sound.toast();
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('show');
