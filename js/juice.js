@@ -535,6 +535,23 @@ function applyArenaRankChange(won) {
   }
 }
 
+function grantArenaRP(amount) {
+  if (!amount) return;
+  const s = loadArenaRankState();
+  const beforeIdx = arenaRankIndexFromRP(s.rp);
+  s.rp = Math.max(0, s.rp + amount);
+  saveArenaRankState(s);
+  const afterIdx = arenaRankIndexFromRP(s.rp);
+  if (afterIdx > beforeIdx) {
+    const reward = 20 + afterIdx * 15;
+    addBux(reward);
+    recordEconomyChange(reward, `Ranked up to ${ARENA_RANKS[afterIdx]}`);
+    recordRecentActivity(`Ranked up to ${ARENA_RANKS[afterIdx]} — +${reward} Bux`);
+    showToast(`🏅 Ranked up to ${ARENA_RANKS[afterIdx]}! +${reward} Bux`, 3000);
+    Sound.sparkle();
+  }
+}
+
 /* ============================================================
    NEW PROGRESSION SYSTEM: Prestige
    Once a player reaches a high enough Player Level, they can choose
@@ -658,6 +675,49 @@ function resolveTrialTowerMatch(won) {
     recordRecentActivity(`Cleared Trial Tower floor ${s.floor} — +${reward} Bux`);
     showToast(`🗼 Floor ${s.floor} cleared! +${reward} Bux`, 3000);
     s.best = Math.max(s.best || 0, s.floor);
+    
+    // Check for Trial Tower theme unlocks at floors 10, 15, 30, and 50
+    if (s.floor >= 10 || s.best >= 10) {
+      if (localStorage.getItem('theme_quantum_unlocked') !== 'true') {
+        localStorage.setItem('theme_quantum_unlocked', 'true');
+        setTimeout(() => {
+          showToast('⚡ CONGRATULATIONS! You reached Floor 10 and unlocked the QUANTUM FLUX Theme!', 5000);
+          if (typeof fireConfetti === 'function') fireConfetti();
+          if (typeof updateThemeButtons === 'function') updateThemeButtons();
+        }, 800);
+      }
+    }
+    if (s.floor >= 15 || s.best >= 15) {
+      if (localStorage.getItem('theme_glacier_unlocked') !== 'true') {
+        localStorage.setItem('theme_glacier_unlocked', 'true');
+        setTimeout(() => {
+          showToast('❄️ CONGRATULATIONS! You reached Floor 15 and unlocked the GLACIAL FROST Theme!', 5000);
+          if (typeof fireConfetti === 'function') fireConfetti();
+          if (typeof updateThemeButtons === 'function') updateThemeButtons();
+        }, 1200);
+      }
+    }
+    if (s.floor >= 30 || s.best >= 30) {
+      if (localStorage.getItem('theme_astral_unlocked') !== 'true') {
+        localStorage.setItem('theme_astral_unlocked', 'true');
+        setTimeout(() => {
+          showToast('🌌 CONGRATULATIONS! You cleared Floor 30 and unlocked the ASTRAL VOID Theme!', 5000);
+          if (typeof fireConfetti === 'function') fireConfetti();
+          if (typeof updateThemeButtons === 'function') updateThemeButtons();
+        }, 1600);
+      }
+    }
+    if (s.floor >= 50 || s.best >= 50) {
+      if (localStorage.getItem('theme_celestial_unlocked') !== 'true') {
+        localStorage.setItem('theme_celestial_unlocked', 'true');
+        setTimeout(() => {
+          showToast('👑 CONGRATULATIONS! You conquered Floor 50 and unlocked the CELESTIAL DIVINITY Theme!', 6000);
+          if (typeof fireConfetti === 'function') fireConfetti();
+          if (typeof updateThemeButtons === 'function') updateThemeButtons();
+        }, 2000);
+      }
+    }
+
     s.floor += 1;
     s.pendingResult = 'win';
   } else {
@@ -675,29 +735,150 @@ document.getElementById('btn-quit-match')?.addEventListener('click', () => { tri
 document.getElementById('btn-play-again')?.addEventListener('click', () => { trialTowerActive = false; });
 document.getElementById('btn-rematch')?.addEventListener('click', () => { trialTowerActive = false; });
 
-/* ---------- Trial Tower infographic: a real climbable/explodable tower - */
-function renderTrialTowerBricks(container, upToFloor, clearedUpTo) {
+/* ---------- Trial Tower infographic: a real climbable/explodable tower ---------- */
+function towerFloorIntel(floor) {
+  const diff = towerFloorDifficulty(floor);
+  if (diff === 'Easy') {
+    return {
+      desc: 'Baseline AI combatants with simple unit placement. Ascend through early defenses to build your rhythm.',
+      xp: 45 + floor * 5,
+    };
+  } else if (diff === 'Medium') {
+    return {
+      desc: 'Tactical bots employing elemental synergies and adaptive counter-swaps. Plan your mana curves carefully.',
+      xp: 65 + floor * 6,
+    };
+  } else if (diff === 'Hard') {
+    return {
+      desc: 'Aggressive bot decks wielding high-tier elemental fusions and heavy tempo swings. Expect relentless pressure.',
+      xp: 90 + floor * 8,
+    };
+  } else if (diff === 'Expert') {
+    return {
+      desc: 'Elite tower guardians utilizing precision spell cards, chips, and tactical board wipes. One misplay can cost the run.',
+      xp: 125 + floor * 10,
+    };
+  } else {
+    return {
+      desc: 'Grandmaster AI evaluating deep future lines, optimal chip combos, and ruthless counter-strategies. The apex trial.',
+      xp: 175 + floor * 15,
+    };
+  }
+}
+
+function updateTowerConsoleForFloor(floor, isCleared, isCurrent, isLocked, activeFloor, bestRecord) {
+  const diff = towerFloorDifficulty(floor);
+  const reward = towerFloorReward(floor);
+  const intel = towerFloorIntel(floor);
+
+  const diffBadge = document.getElementById('tower-console-diff-badge');
+  if (diffBadge) {
+    diffBadge.textContent = diff;
+    diffBadge.style.background = trialTowerBrickColor(floor);
+  }
+
+  const floorTitle = document.getElementById('tower-console-floor-title');
+  if (floorTitle) {
+    floorTitle.textContent = isCurrent ? `Floor ${floor} Challenge` : (isCleared ? `Floor ${floor} (Cleared)` : `Floor ${floor} (Upcoming)`);
+  }
+
+  const descEl = document.getElementById('tower-console-desc');
+  if (descEl) descEl.textContent = intel.desc;
+
+  const buxEl = document.getElementById('tower-console-bux-val');
+  if (buxEl) buxEl.textContent = `+${reward} Bux`;
+
+  const xpEl = document.getElementById('tower-console-xp-val');
+  if (xpEl) xpEl.textContent = `+${intel.xp} XP`;
+
+  const bestEl = document.getElementById('tower-console-best-val');
+  if (bestEl) bestEl.textContent = `Floor ${bestRecord}`;
+
+  const headerBest = document.getElementById('tower-header-best');
+  if (headerBest) headerBest.textContent = `Floor ${bestRecord}`;
+
+  const headerCur = document.getElementById('tower-header-current');
+  if (headerCur) headerCur.textContent = `Floor ${activeFloor}`;
+
+  const startBtn = document.getElementById('btn-tower-page-begin');
+  if (startBtn) {
+    if (isCurrent) {
+      startBtn.disabled = false;
+      startBtn.innerHTML = `<span>⚔️ Ascend to Floor ${floor} — vs ${diff} (+${reward} Bux)</span>`;
+      startBtn.style.opacity = '1';
+    } else if (isLocked) {
+      startBtn.disabled = true;
+      startBtn.innerHTML = `<span>🔒 Floor ${floor} Locked — Clear Floor ${activeFloor} First</span>`;
+      startBtn.style.opacity = '0.6';
+    } else {
+      startBtn.disabled = false;
+      startBtn.innerHTML = `<span>⚔️ Resume Active Ascent (Floor ${activeFloor})</span>`;
+      startBtn.style.opacity = '1';
+    }
+  }
+}
+
+function renderTrialTowerBricks(container, targetFloor, clearedUpTo) {
+  if (!container) return;
   container.innerHTML = '';
-  const startFloor = Math.max(1, upToFloor - 11);
-  if (startFloor > 1) {
+  const s = loadTrialTowerState();
+  const activeFloor = s.floor || 1;
+  const bestRecord = s.best || 1;
+
+  const minFloor = Math.max(1, targetFloor - 7);
+  const maxFloor = targetFloor + 3;
+
+  if (minFloor > 1) {
     const more = document.createElement('div');
     more.className = 'tower-more-indicator';
-    more.textContent = `⋮ +${startFloor - 1} floor${startFloor - 1 === 1 ? '' : 's'} below`;
+    more.textContent = `⋮ +${minFloor - 1} cleared floor${minFloor - 1 === 1 ? '' : 's'} below`;
     container.appendChild(more);
   }
-  for (let f = startFloor; f <= upToFloor; f++) {
+
+  for (let f = minFloor; f <= maxFloor; f++) {
     const brick = document.createElement('div');
     brick.className = 'tower-brick';
     brick.dataset.floor = String(f);
     brick.style.setProperty('--brick-color', trialTowerBrickColor(f));
-    const cleared = f < clearedUpTo;
-    const current = f === clearedUpTo;
-    if (cleared) brick.classList.add('cleared');
-    if (current) brick.classList.add('current');
-    brick.innerHTML = `<span class="tower-brick-num">Floor ${f}</span><span class="tower-brick-diff">${towerFloorDifficulty(f)}</span>${cleared ? '<span class="tower-brick-check">✓</span>' : (current ? '<span class="tower-brick-flag">🚩</span>' : '')}`;
+    
+    const isCleared = f < clearedUpTo;
+    const isCurrent = f === clearedUpTo;
+    const isLocked = f > clearedUpTo;
+
+    if (isCleared) brick.classList.add('cleared');
+    if (isCurrent) brick.classList.add('current');
+    if (isLocked) brick.classList.add('locked-preview');
+
+    const diff = towerFloorDifficulty(f);
+    const reward = towerFloorReward(f);
+
+    brick.innerHTML = `
+      <div class="tower-brick-left">
+        <span class="tower-brick-num">Floor ${f}</span>
+        <span class="tower-brick-diff">${diff}</span>
+      </div>
+      <div class="tower-brick-right">
+        <span class="tower-brick-bounty">+${reward} Bux</span>
+        ${isCleared ? '<span class="tower-brick-check">✓</span>' : (isCurrent ? '<span class="tower-brick-flag">🚩</span>' : '<span style="font-size:0.75rem;opacity:0.6;">🔒</span>')}
+      </div>
+    `;
+
+    brick.addEventListener('click', () => {
+      updateTowerConsoleForFloor(f, isCleared, isCurrent, isLocked, activeFloor, bestRecord);
+      if (typeof Sound !== 'undefined' && Sound && Sound.tap) Sound.tap();
+    });
+
     container.appendChild(brick);
   }
+
+  setTimeout(() => {
+    const curEl = container.querySelector('.tower-brick.current');
+    if (curEl) {
+      curEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, 70);
 }
+
 function playTowerAdvanceAnimation(stack, clearedFloor, newFloor, onDone) {
   const topBrick = stack.querySelector(`.tower-brick[data-floor="${clearedFloor}"]`);
   if (topBrick) {
@@ -708,7 +889,8 @@ function playTowerAdvanceAnimation(stack, clearedFloor, newFloor, onDone) {
     const check = document.createElement('span');
     check.className = 'tower-brick-check pop';
     check.textContent = '✓';
-    topBrick.appendChild(check);
+    const right = topBrick.querySelector('.tower-brick-right') || topBrick;
+    right.appendChild(check);
   }
   if (typeof vibrate === 'function') vibrate([20, 30, 20]);
   setTimeout(() => {
@@ -716,17 +898,32 @@ function playTowerAdvanceAnimation(stack, clearedFloor, newFloor, onDone) {
     newBrick.className = 'tower-brick current new-brick';
     newBrick.dataset.floor = String(newFloor);
     newBrick.style.setProperty('--brick-color', trialTowerBrickColor(newFloor));
-    newBrick.innerHTML = `<span class="tower-brick-num">Floor ${newFloor}</span><span class="tower-brick-diff">${towerFloorDifficulty(newFloor)}</span><span class="tower-brick-flag">🚩</span>`;
-    stack.insertBefore(newBrick, stack.firstChild); // column-reverse: prepend = appears on top
-    Sound.chipAttach();
-    setTimeout(onDone, 480);
+    const diff = towerFloorDifficulty(newFloor);
+    const reward = towerFloorReward(newFloor);
+    newBrick.innerHTML = `
+      <div class="tower-brick-left">
+        <span class="tower-brick-num">Floor ${newFloor}</span>
+        <span class="tower-brick-diff">${diff}</span>
+      </div>
+      <div class="tower-brick-right">
+        <span class="tower-brick-bounty">+${reward} Bux</span>
+        <span class="tower-brick-flag">🚩</span>
+      </div>
+    `;
+    stack.insertBefore(newBrick, stack.firstChild);
+    if (typeof Sound !== 'undefined' && Sound && Sound.chipAttach) Sound.chipAttach();
+    setTimeout(onDone, 520);
   }, 480);
 }
-function playTowerExplodeAnimation(panel, stack, onDone) {
+
+function playTowerExplodeAnimation(wrapper, stack, onDone) {
   const bricks = Array.from(stack.querySelectorAll('.tower-brick'));
-  if (typeof Sound.meteorBoom === 'function') Sound.meteorBoom();
+  if (typeof Sound !== 'undefined' && Sound && typeof Sound.meteorBoom === 'function') Sound.meteorBoom();
   if (typeof vibrate === 'function') vibrate([40, 30, 40, 30, 70]);
-  if (panel) { panel.classList.add('tower-shake'); setTimeout(() => panel.classList.remove('tower-shake'), 520); }
+  if (wrapper) {
+    wrapper.classList.add('tower-shake');
+    setTimeout(() => wrapper.classList.remove('tower-shake'), 520);
+  }
   bricks.forEach((b, i) => {
     setTimeout(() => {
       const angle = Math.random() * 360;
@@ -734,45 +931,28 @@ function playTowerExplodeAnimation(panel, stack, onDone) {
       b.style.setProperty('--angle', angle + 'deg');
       b.style.setProperty('--dist', dist + 'px');
       b.classList.add('exploding');
-    }, i * 45);
+    }, i * 40);
   });
-  setTimeout(() => { stack.innerHTML = ''; onDone(); }, bricks.length * 45 + 650);
+  setTimeout(() => { stack.innerHTML = ''; onDone(); }, bricks.length * 40 + 650);
 }
+
 function openTrialTowerScreen() {
-  const old = document.getElementById('trial-tower-overlay');
-  if (old) old.remove();
+  if (typeof showScreen === 'function') {
+    showScreen('screen-trial-tower');
+  } else {
+    document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+    document.getElementById('screen-trial-tower')?.classList.remove('hidden');
+  }
 
-  const overlay = document.createElement('div');
-  overlay.id = 'trial-tower-overlay';
-  overlay.className = 'feature-overlay';
-  overlay.innerHTML = `
-    <div class="feature-panel trial-tower-panel">
-      <button class="feature-close">✕</button>
-      <span class="feature-kicker">HOW HIGH CAN YOU CLIMB?</span>
-      <h2>🗼 Trial Tower</h2>
-      <p>Win to advance a floor against tougher bots. Lose, and the tower comes crashing down back to Floor 1 - your best floor is remembered forever.</p>
-      <div class="tower-stats-row">
-        <div class="tower-stat"><b id="tower-current-floor-num">-</b><span>Current Floor</span></div>
-        <div class="tower-stat"><b id="tower-best-floor-num">-</b><span>Best Ever</span></div>
-      </div>
-      <div class="tower-viewport"><div class="tower-stack" id="tower-stack"></div></div>
-      <button type="button" class="primary-btn" id="btn-tower-begin" style="margin-top:16px;">Begin</button>
-    </div>`;
-  document.body.appendChild(overlay);
-  const panel = overlay.querySelector('.trial-tower-panel');
-  overlay.querySelector('.feature-close').onclick = () => overlay.remove();
-  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-
-  const stack = document.getElementById('tower-stack');
-  const beginBtn = document.getElementById('btn-tower-begin');
+  const stack = document.getElementById('tower-citadel-stack');
+  const citadelContainer = document.getElementById('tower-citadel-container');
+  const beginBtn = document.getElementById('btn-tower-page-begin');
   const s = loadTrialTowerState();
 
   function settleView() {
     const cur = loadTrialTowerState();
-    document.getElementById('tower-current-floor-num').textContent = cur.floor;
-    document.getElementById('tower-best-floor-num').textContent = cur.best;
     renderTrialTowerBricks(stack, cur.floor, cur.floor);
-    beginBtn.textContent = `Begin Floor ${cur.floor} — vs ${towerFloorDifficulty(cur.floor)} (+${towerFloorReward(cur.floor)} Bux)`;
+    updateTowerConsoleForFloor(cur.floor, false, true, false, cur.floor, cur.best);
   }
 
   if (s.pendingResult === 'win') {
@@ -780,35 +960,58 @@ function openTrialTowerScreen() {
     renderTrialTowerBricks(stack, clearedFloor, clearedFloor);
     s.pendingResult = null;
     saveTrialTowerState(s);
-    document.getElementById('tower-current-floor-num').textContent = clearedFloor;
-    document.getElementById('tower-best-floor-num').textContent = s.best;
+    updateTowerConsoleForFloor(clearedFloor, true, false, false, s.floor, s.best);
     setTimeout(() => playTowerAdvanceAnimation(stack, clearedFloor, s.floor, settleView), 320);
   } else if (s.pendingResult === 'loss') {
     const runFloor = s.lastRunFloor || 1;
-    renderTrialTowerBricks(stack, runFloor, runFloor + 1); // clearedUpTo = runFloor+1 -> every rendered floor shows as "cleared" for the pre-explosion snapshot
+    renderTrialTowerBricks(stack, runFloor, runFloor + 1);
     s.pendingResult = null;
     saveTrialTowerState(s);
-    document.getElementById('tower-current-floor-num').textContent = 1;
-    document.getElementById('tower-best-floor-num').textContent = s.best;
-    setTimeout(() => playTowerExplodeAnimation(panel, stack, settleView), 320);
+    updateTowerConsoleForFloor(1, false, true, false, 1, s.best);
+    setTimeout(() => playTowerExplodeAnimation(citadelContainer, stack, settleView), 320);
   } else {
     settleView();
   }
 
-  beginBtn.addEventListener('click', () => { overlay.remove(); enterTrialTower(); });
+  if (beginBtn && !beginBtn.dataset.bound) {
+    beginBtn.dataset.bound = 'true';
+    beginBtn.addEventListener('click', () => {
+      enterTrialTower();
+    });
+    if (typeof wirePressFeedback === 'function') wirePressFeedback(beginBtn);
+  }
+
+  const backBtn = document.getElementById('btn-trial-tower-back');
+  if (backBtn && !backBtn.dataset.bound) {
+    backBtn.dataset.bound = 'true';
+    backBtn.addEventListener('click', () => {
+      if (typeof showScreen === 'function') showScreen('screen-single-player');
+    });
+    if (typeof wirePressFeedback === 'function') wirePressFeedback(backBtn);
+  }
 }
+
 function ensureTrialTowerMenuCard() {
+  const menuCard = document.getElementById('btn-trial-tower-menu');
+  if (menuCard && !menuCard.dataset.bound) {
+    menuCard.dataset.bound = 'true';
+    menuCard.addEventListener('click', () => openTrialTowerScreen());
+    if (typeof wirePressFeedback === 'function') wirePressFeedback(menuCard);
+  }
+
   const grid = document.querySelector('#screen-single-player .menu-grid');
-  if (!grid || document.getElementById('btn-trial-tower')) return;
-  const btn = document.createElement('button');
-  btn.className = 'menu-card';
-  btn.id = 'btn-trial-tower';
-  btn.innerHTML = `
-    <span class="menu-card-title">🗼 Trial Tower</span>
-    <span class="menu-card-sub">Climb an endless gauntlet of tougher and tougher bots</span>`;
-  btn.addEventListener('click', () => openTrialTowerScreen());
-  grid.appendChild(btn);
-  if (typeof wirePressFeedback === 'function') wirePressFeedback(btn);
+  if (!grid) return;
+  if (!document.getElementById('btn-trial-tower-menu') && !document.getElementById('btn-trial-tower')) {
+    const btn = document.createElement('button');
+    btn.className = 'menu-card';
+    btn.id = 'btn-trial-tower';
+    btn.innerHTML = `
+      <span class="menu-card-title">🗼 Trial Tower</span>
+      <span class="menu-card-sub">Climb an endless citadel of escalating bots</span>`;
+    btn.addEventListener('click', () => openTrialTowerScreen());
+    grid.appendChild(btn);
+    if (typeof wirePressFeedback === 'function') wirePressFeedback(btn);
+  }
 }
 ensureTrialTowerMenuCard();
 
@@ -901,13 +1104,13 @@ function renderProgressionExtras() {
   const tower = loadTrialTowerState();
   const towerHtml = `
     <div class="deck-builder-heading" style="margin-top:18px;"><span>🗼 Trial Tower</span><span>Best: Floor ${tower.best}</span></div>
-    <div class="quest-row">
+    <div class="quest-row" id="quest-row-trial-tower" style="cursor:pointer;" title="Click to open Trial Tower">
       <div class="quest-icon">🗼</div>
       <div class="quest-body">
         <div class="quest-title">Currently on Floor ${tower.floor}</div>
-        <div class="quest-desc">Head to Single Player → 🗼 Trial Tower to keep climbing.</div>
+        <div class="quest-desc">Click here or head to Single Player → 🗼 Trial Tower to climb.</div>
       </div>
-      <div class="quest-status"></div>
+      <div class="quest-status"><span style="color:var(--accent); font-size:0.8rem; font-weight:800;">OPEN →</span></div>
     </div>`;
 
   const setState = loadSetBonusState();
@@ -947,6 +1150,11 @@ function renderProgressionExtras() {
     ${vaultRows}`;
 
   list.insertAdjacentHTML('beforeend', levelHtml + rankHtml + towerHtml + setHtml + vaultHtml);
+
+  document.getElementById('quest-row-trial-tower')?.addEventListener('click', () => {
+    document.getElementById('quests-overlay')?.remove();
+    openTrialTowerScreen();
+  });
 
   document.getElementById('btn-do-prestige')?.addEventListener('click', () => doPrestige());
   list.querySelectorAll('[data-claim-vault]').forEach(btn => {
@@ -1037,6 +1245,54 @@ function buyIndividualCard(entry) {
 
 /* ---------- Shop Codes: a simple redeemable-code system --------------- */
 const REDEEMED_CODES_KEY = 'mehrbod_redeemed_codes_v1';
+const ALL_MEHRBOD_SHOP_CODES = [
+  {
+    code: 'Leo',
+    reward: '🦁 Small Card Pack (2 Cards Opening Animation) + 25 Player XP + 10 Vault Points',
+    icon: '🦁'
+  },
+  {
+    code: 'coolsauce',
+    reward: '👑 Master Unlock: All Units, Spells & Chips + All Cosmetics + 1,000,000 Mehrbod Bux',
+    icon: '👑'
+  },
+  {
+    code: 'jackpot',
+    reward: '💰 High-Roller Bounty: +2,500 Mehrbod Bux Vault Deposit',
+    icon: '💰'
+  },
+  {
+    code: '2ndyear',
+    reward: '💘 Secret Valentine Theme (Floating hearts, Cupid glow & card burst)',
+    icon: '💘'
+  },
+  {
+    code: 'royalty',
+    reward: '👑 ✨ Gold Sleeves Equipped + 500 Bux (or +1,000 Bux if already owned)',
+    icon: '✨'
+  },
+  {
+    code: 'lucky7',
+    reward: '🎰 Lucky Sevens: +777 Mehrbod Bux added to balance',
+    icon: '🎰'
+  },
+  {
+    code: 'cybergrid',
+    reward: '⚡ System Overdrive: Unlock All Chips + 75 Arena RP + 400 Bux',
+    icon: '⚡'
+  },
+  {
+    code: 'givemelava',
+    reward: '🌋 Molten Core: Unlock & Equip Magma Theme (+600 Bux if already owned)',
+    icon: '🌋'
+  },
+  {
+    code: 'stargazer',
+    reward: '🌌 Celestial Boon: +350 Bux + 80 Player XP + 25 Weekly Vault Points',
+    icon: '🌌'
+  }
+];
+
 function loadRedeemedCodes() {
   try { const a = JSON.parse(localStorage.getItem(REDEEMED_CODES_KEY) || '[]'); return Array.isArray(a) ? a : []; }
   catch (e) { return []; }
@@ -1050,7 +1306,63 @@ function redeemShopCode(rawCode) {
   const redeemed = loadRedeemedCodes();
   if (redeemed.includes(code)) { showToast('That code has already been redeemed on this device.'); return; }
 
-  if (code === 'coolsauce') {
+  if (code === 'leo') {
+    const col = loadCollection();
+    const unownedUnits = ALL_NONBLUE_UNIT_IDS.filter(id => !col.units.includes(id));
+    const unownedSpells = ALL_SPELL_IDS.filter(id => !col.spells.includes(id));
+    const unownedChips = ALL_CHIP_IDS.filter(id => !col.chips.includes(id));
+    let pool = shuffleArray(
+      unownedUnits.map(id => ({ id, kind: 'unit' }))
+        .concat(unownedSpells.map(id => ({ id, kind: 'spell' })))
+        .concat(unownedChips.map(id => ({ id, kind: 'chip' })))
+    );
+    let isFullCollection = false;
+    if (pool.length === 0) {
+      isFullCollection = true;
+      pool = shuffleArray(
+        ALL_NONBLUE_UNIT_IDS.map(id => ({ id, kind: 'unit' }))
+          .concat(ALL_SPELL_IDS.map(id => ({ id, kind: 'spell' })))
+          .concat(ALL_CHIP_IDS.map(id => ({ id, kind: 'chip' })))
+      );
+      addBux(300);
+      recordEconomyChange(300, 'Redeemed code: Leo (Full Collection Bonus)');
+    }
+    const count = 2;
+    const granted = pool.slice(0, count);
+    if (!isFullCollection) {
+      granted.forEach(g => {
+        if (g.kind === 'unit') { if (!col.units.includes(g.id)) col.units.push(g.id); }
+        else if (g.kind === 'spell') { if (!col.spells.includes(g.id)) col.spells.push(g.id); }
+        else { if (!col.chips.includes(g.id)) col.chips.push(g.id); }
+      });
+      saveCollection(col);
+      updateThemeButtons();
+      checkAchievements();
+    }
+    grantPlayerXP(25, 'Leo Pack opened');
+    grantWeeklyPoints(10);
+    recordRecentActivity('Redeemed code "Leo" — opened a Small Card Pack');
+
+    const cardsForReveal = granted.map(g => {
+      if (g.kind === 'unit') {
+        const arch = findArchetypeById(g.id);
+        return { name: arch ? arch.name : 'Unknown Unit', tier: arch ? arch.tier : 2, kind: 'unit' };
+      }
+      const def = (g.kind === 'spell' ? SPELL_DEFS : CHIP_DEFS).find(d => d.id === g.id);
+      return { name: def ? def.name : 'Secret Card', tier: null, kind: g.kind };
+    });
+
+    playPackOpeningEffect(cardsForReveal, () => {
+      const names = cardsForReveal.map(c => c.name);
+      if (isFullCollection) {
+        showToast(`🦁 Leo Pack opened: ${names.join(', ')} (Already owned: +300 Bux bonus)!`, 3600);
+      } else {
+        showToast(`🦁 Leo Pack opened: ${names.join(', ')} added to your collection!`, 3600);
+      }
+      if (typeof renderCollectionScreen === 'function') renderCollectionScreen();
+    });
+    Sound.sparkle();
+  } else if (code === 'coolsauce') {
     grantCards(ALL_NONBLUE_UNIT_IDS.slice(), ALL_SPELL_IDS.slice(), ALL_CHIP_IDS.slice());
     const owned = loadOwnedCosmetics();
     COSMETIC_ITEMS.forEach(c => { if (!owned.includes(c.id)) owned.push(c.id); });
@@ -1067,10 +1379,79 @@ function redeemShopCode(rawCode) {
     recordRecentActivity('Redeemed a secret code — unlocked the Valentine theme');
     showToast('💘 Secret theme unlocked! Open Options → Themes to wear it.', 3800);
     Sound.sparkle();
+  } else if (code === 'jackpot') {
+    addBux(2500);
+    recordEconomyChange(2500, 'Redeemed code: jackpot');
+    recordRecentActivity('Redeemed code "jackpot" — +2,500 Bux');
+    showToast('💰 JACKPOT! +2,500 Mehrbod Bux added to your vault.', 3600);
+    Sound.sparkle();
+  } else if (code === 'royalty') {
+    const owned = loadOwnedCosmetics();
+    const hasSleeve = owned.includes('sleeve_gold');
+    if (!hasSleeve) {
+      owned.push('sleeve_gold');
+      saveOwnedCosmetics(owned);
+      if (typeof equipSleeve === 'function') equipSleeve('sleeve_gold');
+      addBux(500);
+      recordEconomyChange(500, 'Redeemed code: royalty (Gold Sleeves + 500 Bux)');
+      recordRecentActivity('Redeemed code "royalty" — unlocked ✨ Gold Sleeves + 500 Bux');
+      showToast('👑 Royalty redeemed! ✨ Gold Sleeves equipped + 500 Bux.', 3800);
+    } else {
+      addBux(1000);
+      recordEconomyChange(1000, 'Redeemed code: royalty (+1,000 Bux)');
+      recordRecentActivity('Redeemed code "royalty" — +1,000 Bux');
+      showToast('👑 Royalty redeemed! You already own Gold Sleeves, so here is +1,000 Bux!', 3800);
+    }
+    Sound.sparkle();
+  } else if (code === 'lucky7') {
+    addBux(777);
+    recordEconomyChange(777, 'Redeemed a secret code');
+    recordRecentActivity('Redeemed a secret code — +777 Bux');
+    showToast('🎰 Lucky Sevens! +777 Mehrbod Bux added to your balance.', 3600);
+    Sound.sparkle();
+  } else if (code === 'cybergrid') {
+    grantCards([], [], ALL_CHIP_IDS.slice());
+    grantArenaRP(75);
+    addBux(400);
+    recordEconomyChange(400, 'Redeemed a secret code');
+    recordRecentActivity('Redeemed a secret code — Chips unlocked + 75 Arena RP + 400 Bux');
+    checkAchievements();
+    showToast('⚡ System Overdrive! All Chips unlocked + 75 Arena RP + 400 Bux.', 4000);
+    Sound.sparkle();
+  } else if (code === 'givemelava') {
+    const owned = loadOwnedCosmetics();
+    const alreadyOwned = owned.includes('theme_magma');
+    if (!alreadyOwned) {
+      owned.push('theme_magma');
+      saveOwnedCosmetics(owned);
+      if (typeof updateThemeButtons === 'function') updateThemeButtons();
+    }
+    if (typeof applyTheme === 'function') applyTheme('magma');
+    if (alreadyOwned) {
+      addBux(600);
+      recordEconomyChange(600, 'Redeemed code: GIVEMELAVA (+600 Bux bonus)');
+      recordRecentActivity('Redeemed code "GIVEMELAVA" — equipped Magma theme + 600 Bux bonus');
+      showToast('🌋 Magma theme equipped! You already owned it, so here is +600 Bux!', 3800);
+    } else {
+      recordRecentActivity('Redeemed code "GIVEMELAVA" — unlocked the 🌋 Magma theme');
+      showToast('🌋 The molten core awakes! 🌋 Magma theme unlocked & equipped!', 3800);
+    }
+    Sound.sparkle();
+  } else if (code === 'stargazer') {
+    addBux(350);
+    recordEconomyChange(350, 'Redeemed a secret code');
+    grantPlayerXP(80);
+    grantWeeklyPoints(25);
+    recordRecentActivity('Redeemed a secret code — +350 Bux + 80 XP + 25 Vault Pts');
+    showToast('✨ Celestial boon granted! +350 Bux, 80 Player XP & 25 Vault Points.', 3800);
+    Sound.sparkle();
   } else {
     showToast("That code isn't valid.");
     return; // don't burn an attempt on a code that never worked
   }
+
+  const inputEl = document.getElementById('shop-code-input');
+  if (inputEl) inputEl.value = '';
 
   redeemed.push(code);
   saveRedeemedCodes(redeemed);
@@ -1323,12 +1704,92 @@ function renderCosmeticsShop() {
    ============================================================ */
 const ARENA_RANK_COLORS = ['#cd7f32', '#c0c0c0', '#ffd700', '#67e8f9', '#60a5fa', '#a78bfa', '#fb7185'];
 
+const PROFILE_GRADIENT_KEY = 'mehrbod-cards-profile-gradient';
+const PROFILE_GRADIENT_PRESETS = [
+  { name: 'Astral Void', c1: '#8b5cf6', c2: '#06b6d4', angle: 135 },
+  { name: 'Solar Flare', c1: '#f97316', c2: '#ef4444', angle: 135 },
+  { name: 'Cyber Neon', c1: '#06b6d4', c2: '#3b82f6', angle: 135 },
+  { name: 'Emerald Mint', c1: '#10b981', c2: '#059669', angle: 135 },
+  { name: 'Royal Gold', c1: '#eab308', c2: '#ca8a04', angle: 135 },
+  { name: 'Neon Rose', c1: '#ec4899', c2: '#8b5cf6', angle: 135 },
+  { name: 'Molten Magma', c1: '#dc2626', c2: '#7c2d12', angle: 135 },
+  { name: 'Deep Ocean', c1: '#0284c7', c2: '#1e1b4b', angle: 135 },
+  { name: 'Twilight Rune', c1: '#6366f1', c2: '#4338ca', angle: 135 },
+  { name: 'Pastel Sunset', c1: '#f472b6', c2: '#fb923c', angle: 135 },
+  { name: 'Toxic Volt', c1: '#84cc16', c2: '#0d9488', angle: 135 },
+  { name: 'Vampire Dark', c1: '#881337', c2: '#1c1917', angle: 135 },
+];
+
+function hslToHex(h, s, l) {
+  l /= 100;
+  const a = (s * Math.min(l, 1 - l)) / 100;
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+function loadProfileGradient() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PROFILE_GRADIENT_KEY) || 'null');
+    if (raw && typeof raw === 'object' && raw.c1 && raw.c2) {
+      return {
+        c1: String(raw.c1),
+        c2: String(raw.c2),
+        angle: typeof raw.angle === 'number' ? raw.angle : 135
+      };
+    }
+  } catch (e) {}
+  return null;
+}
+
+function saveProfileGradient(grad) {
+  try {
+    if (!grad) {
+      localStorage.removeItem(PROFILE_GRADIENT_KEY);
+    } else {
+      localStorage.setItem(PROFILE_GRADIENT_KEY, JSON.stringify({
+        c1: grad.c1,
+        c2: grad.c2,
+        angle: typeof grad.angle === 'number' ? grad.angle : 135
+      }));
+    }
+  } catch (e) {}
+}
+
 function profileAvatarColors(name) {
   let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  const safeName = String(name || 'Player');
+  for (let i = 0; i < safeName.length; i++) hash = safeName.charCodeAt(i) + ((hash << 5) - hash);
   const hue1 = Math.abs(hash) % 360;
   const hue2 = (hue1 + 40) % 360;
-  return { c1: `hsl(${hue1}, 62%, 46%)`, c2: `hsl(${hue2}, 62%, 34%)` };
+  return {
+    c1: `hsl(${hue1}, 62%, 46%)`,
+    c2: `hsl(${hue2}, 62%, 34%)`,
+    hex1: hslToHex(hue1, 62, 46),
+    hex2: hslToHex(hue2, 62, 34)
+  };
+}
+
+function getActiveProfileGradient(name) {
+  const custom = loadProfileGradient();
+  if (custom) {
+    return { ...custom, isCustom: true };
+  }
+  const defaultColors = profileAvatarColors(name || loadPlayerName() || 'Player');
+  return {
+    c1: defaultColors.hex1 || '#8b5cf6',
+    c2: defaultColors.hex2 || '#06b6d4',
+    angle: 150,
+    isCustom: false
+  };
+}
+
+function getProfileAvatarGradientCss(name) {
+  const grad = getActiveProfileGradient(name);
+  return `linear-gradient(${grad.angle || 135}deg, ${grad.c1}, ${grad.c2})`;
 }
 
 function removeOldStatsFooterButton() {
@@ -1343,16 +1804,31 @@ function ensureProfileHud() {
   if (document.getElementById('profile-avatar-btn')) { updateProfileAvatar(); return; }
   const buxCounter = document.getElementById('bux-counter');
   if (!buxCounter || !buxCounter.parentNode) return;
-  const wrapper = document.createElement('div');
-  wrapper.id = 'top-right-hud';
-  buxCounter.parentNode.insertBefore(wrapper, buxCounter);
+
+  // Create top-left wrapper for profile avatar
+  let leftWrapper = document.getElementById('top-left-hud');
+  if (!leftWrapper) {
+    leftWrapper = document.createElement('div');
+    leftWrapper.id = 'top-left-hud';
+    document.body.appendChild(leftWrapper);
+  }
+
   const avatarBtn = document.createElement('button');
   avatarBtn.id = 'profile-avatar-btn';
   avatarBtn.setAttribute('aria-label', 'Open your profile');
   avatarBtn.innerHTML = `<span id="profile-avatar-letter"></span><span id="profile-prestige-badge" class="profile-exclaim hidden">!</span>`;
   avatarBtn.addEventListener('click', () => openProfilePanel());
-  wrapper.appendChild(avatarBtn);
-  wrapper.appendChild(buxCounter);
+  leftWrapper.appendChild(avatarBtn);
+
+  // Leave bux counter in top-right wrapper
+  let rightWrapper = document.getElementById('top-right-hud');
+  if (!rightWrapper) {
+    rightWrapper = document.createElement('div');
+    rightWrapper.id = 'top-right-hud';
+    buxCounter.parentNode.insertBefore(rightWrapper, buxCounter);
+    rightWrapper.appendChild(buxCounter);
+  }
+
   updateProfileAvatar();
 }
 
@@ -1363,9 +1839,8 @@ function updateProfileAvatar() {
   if (!letterEl || !btn) return;
   const name = loadPlayerName() || 'Player';
   const letter = name.trim().charAt(0).toUpperCase() || 'P';
-  const colors = profileAvatarColors(name);
   letterEl.textContent = letter;
-  btn.style.background = `linear-gradient(150deg, ${colors.c1}, ${colors.c2})`;
+  btn.style.background = getProfileAvatarGradientCss(name);
   if (badge) badge.classList.toggle('hidden', !canPrestigeNow());
 }
 
@@ -1375,7 +1850,7 @@ function openProfilePanel() {
 
   const name = loadPlayerName() || 'Player';
   const letter = name.trim().charAt(0).toUpperCase() || 'P';
-  const colors = profileAvatarColors(name);
+  const avatarGradCss = getProfileAvatarGradientCss(name);
 
   const info = playerLevelFromXP(loadPlayerXP());
   const xpPct = Math.round((info.into / info.need) * 100);
@@ -1410,15 +1885,20 @@ function openProfilePanel() {
       <button class="feature-close">✕</button>
       <div class="profile-hero">
         <div class="profile-hero-row">
-          <div class="profile-hero-avatar" style="background:linear-gradient(150deg, ${colors.c1}, ${colors.c2})">${letter}</div>
+          <div class="profile-hero-avatar" id="profile-hero-avatar" title="Click to customize profile gradient" style="background:${avatarGradCss}">${letter}</div>
           <div style="flex:1; min-width:0;">
-            <div class="profile-hero-name">${escapePresetText(name)} <button type="button" class="link-btn" id="btn-profile-rename">✎ rename</button></div>
+            <div class="profile-hero-name" id="profile-name-container">
+              <span id="profile-name-text">${escapePresetText(name)}</span>
+              <button type="button" class="link-btn" id="btn-profile-rename" title="Change your player name">✎ rename</button>
+              <button type="button" class="link-btn" id="btn-profile-color" title="Pick profile avatar gradient">🎨 color</button>
+            </div>
             <div class="profile-hero-sub">
               <span class="profile-level-chip">⭐ Level ${info.level}</span>
               ${prestige.count > 0 ? `<span class="profile-level-chip" style="margin-left:6px;">✦ Prestige ${prestige.count}</span>` : ''}
             </div>
           </div>
         </div>
+        <div id="profile-gradient-picker-card" class="profile-gradient-picker-card hidden"></div>
         <div class="profile-xp-track"><div class="profile-xp-fill" style="width:${xpPct}%"></div></div>
         <div class="profile-xp-label"><span>${info.into}/${info.need} XP</span><span>Level ${info.level + 1}</span></div>
         ${canPrestigeNow() ? `<button type="button" class="primary-btn small" id="btn-profile-prestige" style="margin-top:12px;">✦ Prestige Now</button>` : ''}
@@ -1449,11 +1929,11 @@ function openProfilePanel() {
             <div class="ppc-desc">${vault.claimedTiers.length}/${WEEKLY_VAULT_TIERS.length} tiers claimed</div>
             <div class="ppc-bar"><div class="ppc-bar-fill" style="width:${vaultPct}%"></div></div>
           </div>
-          <div class="profile-prog-card" style="--card-color:#f97316">
+          <div class="profile-prog-card" id="profile-card-trial-tower" style="--card-color:#f97316; cursor:pointer;" title="Click to open Trial Tower">
             <div class="ppc-icon">🗼</div>
             <div class="ppc-title">Trial Tower</div>
             <div class="ppc-value">Floor ${tower.floor}</div>
-            <div class="ppc-desc">Best ever: Floor ${tower.best}</div>
+            <div class="ppc-desc">Best ever: Floor ${tower.best} · Click to open</div>
           </div>
           <div class="profile-prog-card" style="--card-color:#a78bfa">
             <div class="ppc-icon">🧩</div>
@@ -1493,13 +1973,254 @@ function openProfilePanel() {
 
   overlay.querySelector('.feature-close').onclick = () => overlay.remove();
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-  document.getElementById('btn-profile-rename')?.addEventListener('click', () => {
-    showPlayerNamePrompt(() => { updateProfileAvatar(); openProfilePanel(); });
+
+  const RANDOM_NAMES = [
+    'ShadowBlade', 'VoidWalker', 'Solaris', 'NeonKnight', 'StormCaller',
+    'CyberDuelist', 'MysticRune', 'FrostFang', 'AetherMage', 'VortexKing',
+    'ChronoPilot', 'BlazeStrike', 'EchoStriker', 'TitanGuard', 'NexusHero',
+    'StarGazer', 'Mehrbodian', 'ArcaneAce', 'ApexStriker', 'OmegaByte',
+    'IronClaw', 'PhantomAce', 'NovaKnight', 'RuneSeeker', 'Vanguard'
+  ];
+
+  const renameBtn = document.getElementById('btn-profile-rename');
+  const nameContainer = document.getElementById('profile-name-container');
+
+  renameBtn?.addEventListener('click', () => {
+    if (!nameContainer) return;
+    const currentName = loadPlayerName() || 'Player';
+    nameContainer.innerHTML = `
+      <div class="profile-name-edit-box">
+        <input type="text" id="profile-name-input" class="profile-inline-input" value="${escapePresetText(currentName)}" maxlength="24" placeholder="Enter name..." autocomplete="off">
+        <div class="profile-name-actions">
+          <button type="button" class="primary-btn profile-name-btn" id="btn-profile-name-save">Save</button>
+          <button type="button" class="secondary-btn profile-name-btn" id="btn-profile-name-random" title="Generate random name">🎲 Random</button>
+          <button type="button" class="link-btn profile-name-btn" id="btn-profile-name-cancel">Cancel</button>
+        </div>
+      </div>
+    `;
+
+    const input = document.getElementById('profile-name-input');
+    const saveBtn = document.getElementById('btn-profile-name-save');
+    const randBtn = document.getElementById('btn-profile-name-random');
+    const cancelBtn = document.getElementById('btn-profile-name-cancel');
+
+    if (input) {
+      input.focus();
+      input.select();
+    }
+
+    const doSave = () => {
+      const val = (input?.value || '').trim();
+      if (!val) {
+        if (typeof showToast === 'function') showToast('Please enter a valid name.');
+        input?.focus();
+        return;
+      }
+      if (typeof savePlayerName === 'function') {
+        savePlayerName(val);
+      }
+      updateProfileAvatar();
+      openProfilePanel();
+      if (typeof showToast === 'function') showToast(`✨ Name updated to ${val}!`, 2600);
+    };
+
+    const doCancel = () => {
+      openProfilePanel();
+    };
+
+    saveBtn?.addEventListener('click', doSave);
+    cancelBtn?.addEventListener('click', doCancel);
+    randBtn?.addEventListener('click', () => {
+      const available = RANDOM_NAMES.filter(n => n !== input?.value);
+      const picked = available[Math.floor(Math.random() * available.length)] || 'ApexDuelist';
+      if (input) {
+        input.value = picked;
+        input.focus();
+        input.select();
+      }
+    });
+
+    input?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        doSave();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        doCancel();
+      }
+    });
   });
+
   document.getElementById('btn-profile-prestige')?.addEventListener('click', () => {
     doPrestige();
     updateProfileAvatar();
     openProfilePanel();
+  });
+
+  // Profile Gradient Picker Setup
+  const pickerCard = overlay.querySelector('#profile-gradient-picker-card');
+  const heroAvatar = overlay.querySelector('#profile-hero-avatar');
+  const colorBtn = document.getElementById('btn-profile-color');
+
+  const renderPickerContent = () => {
+    if (!pickerCard) return;
+    const currentName = loadPlayerName() || 'Player';
+    const currentGrad = getActiveProfileGradient(currentName);
+    const defaultNameColors = profileAvatarColors(currentName);
+    const isAuto = !currentGrad.isCustom;
+
+    pickerCard.innerHTML = `
+      <div class="picker-heading-row">
+        <div class="picker-title">🎨 Avatar Gradient Customizer</div>
+        <button type="button" class="link-btn" id="btn-picker-close">✕ close</button>
+      </div>
+
+      <div>
+        <div class="picker-presets-label">Preset Palettes</div>
+        <div class="picker-presets-grid">
+          <button type="button" class="picker-preset-dot auto-default ${isAuto ? 'active' : ''}" 
+            data-preset="auto" 
+            title="Auto: Derived from player name (${defaultNameColors.hex1} ➔ ${defaultNameColors.hex2})" 
+            style="background:linear-gradient(150deg, ${defaultNameColors.hex1}, ${defaultNameColors.hex2});"></button>
+          ${PROFILE_GRADIENT_PRESETS.map((p, idx) => {
+            const isMatch = currentGrad.isCustom && currentGrad.c1.toLowerCase() === p.c1.toLowerCase() && currentGrad.c2.toLowerCase() === p.c2.toLowerCase();
+            return `<button type="button" class="picker-preset-dot ${isMatch ? 'active' : ''}" 
+              data-preset-idx="${idx}" 
+              title="${p.name} (${p.c1} ➔ ${p.c2})" 
+              style="background:linear-gradient(${p.angle}deg, ${p.c1}, ${p.c2});"></button>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <div class="picker-controls-row">
+        <div class="picker-color-group">
+          <span class="picker-color-label">Color 1</span>
+          <input type="color" id="picker-c1" class="picker-color-input" value="${currentGrad.c1}">
+          <span id="picker-c1-hex" class="picker-color-hex">${currentGrad.c1.toUpperCase()}</span>
+        </div>
+
+        <div class="picker-color-group">
+          <span class="picker-color-label">Color 2</span>
+          <input type="color" id="picker-c2" class="picker-color-input" value="${currentGrad.c2}">
+          <span id="picker-c2-hex" class="picker-color-hex">${currentGrad.c2.toUpperCase()}</span>
+        </div>
+
+        <div class="picker-angle-group">
+          <span class="picker-color-label">Angle</span>
+          <input type="range" id="picker-angle" class="picker-angle-slider" min="0" max="360" step="5" value="${currentGrad.angle || 135}">
+          <span id="picker-angle-val" class="picker-angle-val">${currentGrad.angle || 135}°</span>
+        </div>
+      </div>
+
+      <div class="picker-actions-row">
+        <button type="button" class="secondary-btn" id="btn-picker-random" title="Generate random custom gradient">🎲 Random</button>
+        <button type="button" class="link-btn" id="btn-picker-reset" title="Reset to default name color">↺ Default</button>
+      </div>
+    `;
+
+    const c1Input = pickerCard.querySelector('#picker-c1');
+    const c2Input = pickerCard.querySelector('#picker-c2');
+    const angleInput = pickerCard.querySelector('#picker-angle');
+    const c1Hex = pickerCard.querySelector('#picker-c1-hex');
+    const c2Hex = pickerCard.querySelector('#picker-c2-hex');
+    const angleVal = pickerCard.querySelector('#picker-angle-val');
+    const closeBtn = pickerCard.querySelector('#btn-picker-close');
+    const randomBtn = pickerCard.querySelector('#btn-picker-random');
+    const resetBtn = pickerCard.querySelector('#btn-picker-reset');
+
+    const applyLive = (c1, c2, angle, isCustom) => {
+      const gradCss = `linear-gradient(${angle}deg, ${c1}, ${c2})`;
+      if (heroAvatar) heroAvatar.style.background = gradCss;
+      const hudBtn = document.getElementById('profile-avatar-btn');
+      if (hudBtn) hudBtn.style.background = gradCss;
+
+      if (isCustom) {
+        saveProfileGradient({ c1, c2, angle });
+      } else {
+        saveProfileGradient(null);
+      }
+    };
+
+    closeBtn?.addEventListener('click', () => {
+      pickerCard.classList.add('hidden');
+    });
+
+    c1Input?.addEventListener('input', (e) => {
+      const val = e.target.value;
+      if (c1Hex) c1Hex.textContent = val.toUpperCase();
+      applyLive(val, c2Input.value, parseInt(angleInput.value, 10), true);
+      pickerCard.querySelectorAll('.picker-preset-dot').forEach(d => d.classList.remove('active'));
+    });
+
+    c2Input?.addEventListener('input', (e) => {
+      const val = e.target.value;
+      if (c2Hex) c2Hex.textContent = val.toUpperCase();
+      applyLive(c1Input.value, val, parseInt(angleInput.value, 10), true);
+      pickerCard.querySelectorAll('.picker-preset-dot').forEach(d => d.classList.remove('active'));
+    });
+
+    angleInput?.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value, 10);
+      if (angleVal) angleVal.textContent = `${val}°`;
+      applyLive(c1Input.value, c2Input.value, val, true);
+    });
+
+    pickerCard.querySelectorAll('.picker-preset-dot[data-preset="auto"]').forEach(dot => {
+      dot.addEventListener('click', () => {
+        saveProfileGradient(null);
+        applyLive(defaultNameColors.hex1, defaultNameColors.hex2, 150, false);
+        renderPickerContent();
+        if (typeof showToast === 'function') showToast('↺ Avatar gradient reset to name default.');
+      });
+    });
+
+    pickerCard.querySelectorAll('.picker-preset-dot[data-preset-idx]').forEach(dot => {
+      dot.addEventListener('click', () => {
+        const idx = parseInt(dot.getAttribute('data-preset-idx'), 10);
+        const preset = PROFILE_GRADIENT_PRESETS[idx];
+        if (!preset) return;
+        saveProfileGradient(preset);
+        applyLive(preset.c1, preset.c2, preset.angle, true);
+        renderPickerContent();
+        if (typeof showToast === 'function') showToast(`✨ Applied "${preset.name}" gradient!`);
+      });
+    });
+
+    randomBtn?.addEventListener('click', () => {
+      const rHex = () => '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+      const rc1 = rHex();
+      const rc2 = rHex();
+      const rAngle = [0, 45, 90, 135, 150, 180, 225, 270, 315][Math.floor(Math.random() * 9)];
+      saveProfileGradient({ c1: rc1, c2: rc2, angle: rAngle });
+      applyLive(rc1, rc2, rAngle, true);
+      renderPickerContent();
+      if (typeof showToast === 'function') showToast('🎲 Rolled random profile gradient!');
+    });
+
+    resetBtn?.addEventListener('click', () => {
+      saveProfileGradient(null);
+      applyLive(defaultNameColors.hex1, defaultNameColors.hex2, 150, false);
+      renderPickerContent();
+      if (typeof showToast === 'function') showToast('↺ Avatar gradient reset to name default.');
+    });
+  };
+
+  const togglePicker = () => {
+    if (!pickerCard) return;
+    if (pickerCard.classList.contains('hidden')) {
+      renderPickerContent();
+      pickerCard.classList.remove('hidden');
+    } else {
+      pickerCard.classList.add('hidden');
+    }
+  };
+
+  heroAvatar?.addEventListener('click', togglePicker);
+  colorBtn?.addEventListener('click', togglePicker);
+
+  document.getElementById('profile-card-trial-tower')?.addEventListener('click', () => {
+    overlay.remove();
+    openTrialTowerScreen();
   });
 }
 
@@ -1511,6 +2232,7 @@ ensureProfileHud();
   window.showScreen = function (id) {
     original(id);
     document.getElementById('top-right-hud')?.classList.toggle('hidden', id === 'screen-game');
+    document.getElementById('top-left-hud')?.classList.toggle('hidden', id === 'screen-game');
     updateProfileAvatar();
   };
 })();
@@ -1534,4 +2256,365 @@ ensureProfileHud();
   };
   MENU_TOUR_STEPS.splice(MENU_TOUR_STEPS.length - 1, 0, newStep);
 })();
+
+/* ============================================================
+   SECRET MENU // 5-TAP "M" CIPHER OVERRIDE
+   ============================================================ */
+(function initSecretMenuSystem() {
+  let mClickCount = 0;
+  let mResetTimer = null;
+  const mTrigger = document.getElementById('secret-m-trigger');
+  const overlay = document.getElementById('secret-menu-overlay');
+  const closeBtn = document.getElementById('btn-secret-close');
+  const authForm = document.getElementById('secret-auth-form');
+  const cipherInput = document.getElementById('secret-cipher-input');
+  const authStatus = document.getElementById('secret-auth-status');
+  const stageAuth = document.getElementById('secret-stage-auth');
+  const stageUnlocked = document.getElementById('secret-stage-unlocked');
+  const unlockAllCardsBtn = document.getElementById('btn-secret-unlock-all-cards');
+  const unlockAllBtn = document.getElementById('btn-secret-unlock-all-themes');
+  const showCodesBtn = document.getElementById('btn-secret-show-codes');
+  const codesManifest = document.getElementById('secret-codes-manifest');
+  const execResult = document.getElementById('secret-exec-result');
+
+  function renderCodesManifest() {
+    if (!codesManifest) return;
+    const redeemed = loadRedeemedCodes();
+    codesManifest.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; padding:0 2px;">
+        <span style="font-family:monospace; font-size:0.75rem; color:#38bdf8; letter-spacing:0.05em; font-weight:700;">CLASSIFIED SHOP PROMO CODES (${ALL_MEHRBOD_SHOP_CODES.length})</span>
+        <span style="font-family:monospace; font-size:0.7rem; color:#c4b5fd;">${redeemed.length}/${ALL_MEHRBOD_SHOP_CODES.length} Claimed</span>
+      </div>
+    ` + ALL_MEHRBOD_SHOP_CODES.map(item => {
+      const isRedeemed = redeemed.includes(item.code.toLowerCase());
+      return `
+        <div class="secret-code-item">
+          <div class="secret-code-left">
+            <div class="secret-code-tag">${item.icon} ${item.code}</div>
+            <div class="secret-code-desc">${item.reward}</div>
+          </div>
+          <div>
+            ${isRedeemed 
+              ? `<button type="button" class="secret-code-redeem-btn redeemed" disabled>CLAIMED</button>`
+              : `<button type="button" class="secret-code-redeem-btn" data-shop-code="${item.code}">⚡ REDEEM</button>`
+            }
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    codesManifest.querySelectorAll('.secret-code-redeem-btn[data-shop-code]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const codeToRedeem = btn.getAttribute('data-shop-code');
+        if (codeToRedeem) {
+          redeemShopCode(codeToRedeem);
+          renderCodesManifest();
+        }
+      });
+    });
+  }
+
+  function openSecretMenu() {
+    if (!overlay) return;
+    overlay.classList.remove('hidden');
+    stageAuth?.classList.remove('hidden');
+    stageUnlocked?.classList.add('hidden');
+    if (cipherInput) {
+      cipherInput.value = '';
+      setTimeout(() => cipherInput.focus(), 100);
+    }
+    if (authStatus) {
+      authStatus.textContent = '';
+      authStatus.className = 'secret-status-line';
+    }
+    if (execResult) {
+      execResult.textContent = '';
+      execResult.classList.add('hidden');
+    }
+    if (typeof playSound === 'function') {
+      try { playSound('menu'); } catch (e) {}
+    }
+  }
+
+  function closeSecretMenu() {
+    overlay?.classList.add('hidden');
+  }
+
+  if (mTrigger) {
+    mTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      mClickCount++;
+      clearTimeout(mResetTimer);
+
+      if (mClickCount >= 5) {
+        mClickCount = 0;
+        if (typeof fireConfetti === 'function') fireConfetti();
+        openSecretMenu();
+      } else {
+        mResetTimer = setTimeout(() => {
+          mClickCount = 0;
+        }, 3500);
+      }
+    });
+  }
+
+  closeBtn?.addEventListener('click', closeSecretMenu);
+  overlay?.addEventListener('click', (e) => {
+    if (e.target === overlay) closeSecretMenu();
+  });
+
+  authForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const entered = (cipherInput?.value || '').trim();
+    if (entered.toLowerCase() === 'ohio') {
+      // Access Granted!
+      if (authStatus) {
+        authStatus.textContent = 'STATUS: DECRYPT SUCCESSFUL. ACCESS GRANTED.';
+        authStatus.className = 'secret-status-line success';
+      }
+      if (typeof fireConfetti === 'function') fireConfetti();
+      setTimeout(() => {
+        stageAuth?.classList.add('hidden');
+        stageUnlocked?.classList.remove('hidden');
+      }, 400);
+    } else {
+      // Access Denied
+      if (authStatus) {
+        authStatus.textContent = 'STATUS: ACCESS DENIED. INVALID CIPHER KEY.';
+        authStatus.className = 'secret-status-line error';
+      }
+      const card = document.getElementById('secret-terminal-card');
+      if (card) {
+        card.classList.remove('terminal-shake');
+        void card.offsetWidth;
+        card.classList.add('terminal-shake');
+      }
+      if (cipherInput) {
+        cipherInput.select();
+        cipherInput.focus();
+      }
+    }
+  });
+
+  unlockAllCardsBtn?.addEventListener('click', () => {
+    try {
+      // Gather all unit archetypes across all tiers (Green, Red, Orange)
+      const allUnitIds = [2, 3, 4].flatMap(tier => (typeof UNIT_ARCHETYPES !== 'undefined' && UNIT_ARCHETYPES[tier] ? UNIT_ARCHETYPES[tier].map(a => a.id) : []));
+      const allSpellIds = (typeof SPELL_DEFS !== 'undefined') ? SPELL_DEFS.map(s => s.id) : [];
+      const allChipIds = (typeof CHIP_DEFS !== 'undefined') ? CHIP_DEFS.map(c => c.id) : [];
+
+      if (typeof grantCards === 'function') {
+        grantCards(allUnitIds, allSpellIds, allChipIds);
+      } else {
+        const col = {
+          units: allUnitIds,
+          spells: allSpellIds,
+          chips: allChipIds
+        };
+        localStorage.setItem('mehrbod-cards-collection', JSON.stringify(col));
+      }
+
+      // Also ensure plenty of Mehrbod Bux
+      if (typeof loadBux === 'function' && typeof saveBux === 'function') {
+        const currentBux = loadBux();
+        if (currentBux < 50000) {
+          saveBux(50000);
+          if (typeof updateBuxDisplay === 'function') updateBuxDisplay();
+        }
+      }
+
+      // Refresh UI components
+      if (typeof renderCollectionScreen === 'function') renderCollectionScreen();
+      if (typeof updateThemeButtons === 'function') updateThemeButtons();
+      if (typeof renderDeckBuilder === 'function') renderDeckBuilder();
+      if (typeof fireConfetti === 'function') fireConfetti();
+      if (typeof showToast === 'function') {
+        showToast('🃏 All Cards, Spells & Chips Unlocked (100% Collection)!', 4500);
+      }
+
+      if (execResult) {
+        execResult.textContent = '✔ SUCCESS: All Units (Green/Red/Orange), Spells, and Chips unlocked! (100% Complete Collection)';
+        execResult.className = 'secret-exec-result success';
+        execResult.classList.remove('hidden');
+      }
+    } catch (err) {
+      console.error('Unlock all cards error:', err);
+    }
+  });
+
+  unlockAllBtn?.addEventListener('click', () => {
+    // Permanently unlock all themes in local storage
+    try {
+      localStorage.setItem('mehrbod_all_themes_unlocked', 'true');
+      localStorage.setItem('theme_quantum_unlocked', 'true');
+      localStorage.setItem('theme_glacier_unlocked', 'true');
+      localStorage.setItem('theme_astral_unlocked', 'true');
+      localStorage.setItem('theme_celestial_unlocked', 'true');
+
+      // Also ensure cosmetics array contains shop themes so inventory is pristine
+      const allShopThemes = ['theme_mrmoney', 'theme_cyberneon', 'theme_abyss', 'theme_magma'];
+      const ownedCosmetics = JSON.parse(localStorage.getItem('mehrbod-cards-cosmetics') || '[]');
+      allShopThemes.forEach(t => {
+        if (!ownedCosmetics.includes(t)) ownedCosmetics.push(t);
+      });
+      localStorage.setItem('mehrbod-cards-cosmetics', JSON.stringify(ownedCosmetics));
+    } catch (e) {}
+
+    // Refresh UI & theme buttons
+    if (typeof updateThemeButtons === 'function') updateThemeButtons();
+    if (typeof fireConfetti === 'function') fireConfetti();
+    if (typeof showToast === 'function') {
+      showToast('✨ All Themes Unlocked! Enjoy your collection.', 4500);
+    }
+
+    if (execResult) {
+      execResult.textContent = '✔ SUCCESS: All Themes have been unlocked & added to your collection!';
+      execResult.className = 'secret-exec-result success';
+      execResult.classList.remove('hidden');
+    }
+  });
+
+  showCodesBtn?.addEventListener('click', () => {
+    if (!codesManifest) return;
+    if (codesManifest.classList.contains('hidden')) {
+      renderCodesManifest();
+      codesManifest.classList.remove('hidden');
+      if (execResult) {
+        execResult.textContent = 'ℹ MANIFEST DECRYPTED: All active Mehrbod Shop codes loaded.';
+        execResult.className = 'secret-exec-result success';
+        execResult.classList.remove('hidden');
+      }
+    } else {
+      codesManifest.classList.add('hidden');
+    }
+  });
+})();
+
+// ===== GLOBAL COPY & SELECTION PREVENTION =====
+(function initCopyPrevention() {
+  document.addEventListener('copy', function(e) {
+    e.preventDefault();
+  }, { capture: true });
+
+  document.addEventListener('cut', function(e) {
+    e.preventDefault();
+  }, { capture: true });
+
+  document.addEventListener('selectstart', function(e) {
+    e.preventDefault();
+  }, { capture: true });
+
+  document.addEventListener('dragstart', function(e) {
+    e.preventDefault();
+  }, { capture: true });
+})();
+
+/* ============================================================
+   INTERACTIVE GAME TITLE LETTER GLOW BOUNCE (GRADIENT-SYNCED)
+   ============================================================ */
+(function initTitleLetterInteractions() {
+  const GRADIENT_STOPS = [
+    { pos: 0.00, r: 62,  g: 124, b: 177 }, // Tier 1 Blue #3e7cb1
+    { pos: 0.30, r: 76,  g: 154, b: 91  }, // Tier 2 Green #4c9a5b
+    { pos: 0.60, r: 208, g: 72,  b: 72  }, // Tier 3 Red #d04848
+    { pos: 0.85, r: 224, g: 138, b: 44  }, // Tier 4 Orange #e08a2c
+    { pos: 1.00, r: 62,  g: 124, b: 177 }, // Wrap to Tier 1 Blue
+  ];
+
+  function getLiveGradientColor(fraction) {
+    const cycle = ((performance.now() % 7000) / 7000);
+    const bgShift = (1 - Math.cos(cycle * 2 * Math.PI)) / 2;
+    let t = (fraction * 0.35 + bgShift * 0.65) % 1.0;
+    if (t < 0) t += 1.0;
+
+    let lower = GRADIENT_STOPS[0];
+    let upper = GRADIENT_STOPS[GRADIENT_STOPS.length - 1];
+    for (let i = 0; i < GRADIENT_STOPS.length - 1; i++) {
+      if (t >= GRADIENT_STOPS[i].pos && t <= GRADIENT_STOPS[i + 1].pos) {
+        lower = GRADIENT_STOPS[i];
+        upper = GRADIENT_STOPS[i + 1];
+        break;
+      }
+    }
+
+    const range = upper.pos - lower.pos || 1;
+    const ratio = Math.max(0, Math.min(1, (t - lower.pos) / range));
+    const r = Math.round(lower.r + (upper.r - lower.r) * ratio);
+    const g = Math.round(lower.g + (upper.g - lower.g) * ratio);
+    const b = Math.round(lower.b + (upper.b - lower.b) * ratio);
+
+    return {
+      r, g, b,
+      rgb: `rgb(${r}, ${g}, ${b})`,
+      glow1: `rgba(${r}, ${g}, ${b}, 0.95)`,
+      glow2: `rgba(${r}, ${g}, ${b}, 0.65)`,
+      subtle: `rgba(${r}, ${g}, ${b}, 0.4)`
+    };
+  }
+
+  const setupLetters = () => {
+    const letters = document.querySelectorAll('.game-title .title-letter');
+    if (!letters.length) return;
+
+    letters.forEach((letter, idx) => {
+      const fraction = idx / (letters.length - 1 || 1);
+
+      letter.addEventListener('pointerenter', () => {
+        const col = getLiveGradientColor(fraction);
+        letter.style.setProperty('--live-glow', col.rgb);
+      });
+
+      if (letter.dataset.bounceBound) return;
+      letter.dataset.bounceBound = 'true';
+
+      let currentAnim = null;
+
+      const triggerLetterBounce = () => {
+        const col = getLiveGradientColor(fraction);
+        letter.style.setProperty('--live-glow', col.rgb);
+
+        if (currentAnim) {
+          currentAnim.cancel();
+          currentAnim = null;
+        }
+
+        currentAnim = letter.animate([
+          { transform: 'scale(1) translateY(0)', filter: `drop-shadow(0 0 10px ${col.glow1}) drop-shadow(0 0 20px ${col.glow2}) brightness(1.2)` },
+          { transform: 'scale(1.42) translateY(-16px) rotate(-4deg)', filter: `drop-shadow(0 0 28px ${col.glow1}) drop-shadow(0 0 50px ${col.glow2}) drop-shadow(0 0 80px ${col.subtle}) brightness(1.85)`, offset: 0.28 },
+          { transform: 'scale(0.85) translateY(5px) rotate(2deg)', filter: `drop-shadow(0 0 18px ${col.glow1}) brightness(1.3)`, offset: 0.60 },
+          { transform: 'scale(1.12) translateY(-3px)', filter: `drop-shadow(0 0 14px ${col.glow2})`, offset: 0.82 },
+          { transform: 'scale(1) translateY(0) rotate(0deg)', filter: 'none' }
+        ], {
+          duration: 420,
+          easing: 'cubic-bezier(0.175, 0.885, 0.32, 1.35)',
+          fill: 'none'
+        });
+
+        currentAnim.onfinish = () => {
+          currentAnim = null;
+        };
+
+        try {
+          if (typeof Sound !== 'undefined' && Sound && typeof Sound.tap === 'function') {
+            Sound.tap();
+          }
+        } catch (e) {}
+      };
+
+      letter.addEventListener('pointerdown', () => {
+        triggerLetterBounce();
+      });
+    });
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupLetters);
+  } else {
+    setupLetters();
+  }
+})();
+
+
+
 

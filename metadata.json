@@ -1,0 +1,6 @@
+{
+  "name": "Mehrbod Cards",
+  "description": "A browser card battler with vs-bot practice and peer-to-peer multiplayer",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

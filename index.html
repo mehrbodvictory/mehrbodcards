@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Mehrbod Cards</title>
+<meta name="description" content="A browser card battler with vs-bot practice and peer-to-peer multiplayer">
+<meta property="og:title" content="Mehrbod Cards">
+<meta property="og:description" content="A browser card battler with vs-bot practice and peer-to-peer multiplayer">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -14,6 +17,10 @@
   <span class="bux-icon">💰</span><span id="bux-counter-value">0</span>
 </button>
 <div id="theme-flame-bg" aria-hidden="true">
+  <div class="flame-ambient-surge"></div>
+  <div class="flame-cavern-haze"></div>
+  <div class="flame-bed-back"></div>
+  <div class="flame-bed-front"></div>
   <div class="flame-tongue f1"></div>
   <div class="flame-tongue f2"></div>
   <div class="flame-tongue f3"></div>
@@ -168,6 +175,37 @@
   <div class="abyss-bubble bb9"></div>
   <div class="abyss-bubble bb10"></div>
 </div>
+<div id="theme-magma-bg" aria-hidden="true">
+  <div class="magma-heat-surge"></div>
+  <div class="magma-cavern-glow"></div>
+  <div class="magma-smoke-layer"></div>
+  <div class="magma-rock-crags left"></div>
+  <div class="magma-rock-crags right"></div>
+  <div class="magma-fissure f1"></div>
+  <div class="magma-fissure f2"></div>
+  <div class="magma-fissure f3"></div>
+  <div class="magma-sea-back"></div>
+  <div class="magma-sea-front"></div>
+  <div class="magma-bubble mb1"></div>
+  <div class="magma-bubble mb2"></div>
+  <div class="magma-bubble mb3"></div>
+  <div class="magma-bubble mb4"></div>
+  <div class="magma-bubble mb5"></div>
+  <div class="magma-ember e1"></div>
+  <div class="magma-ember e2"></div>
+  <div class="magma-ember e3"></div>
+  <div class="magma-ember e4"></div>
+  <div class="magma-ember e5"></div>
+  <div class="magma-ember e6"></div>
+  <div class="magma-ember e7"></div>
+  <div class="magma-ember e8"></div>
+  <div class="magma-ember e9"></div>
+  <div class="magma-ember e10"></div>
+  <div class="magma-ember e11"></div>
+  <div class="magma-ember e12"></div>
+  <div class="magma-ember e13"></div>
+  <div class="magma-ember e14"></div>
+</div>
 <div id="theme-aurora-bg" aria-hidden="true">
   <div class="galaxy-core"></div>
   <div class="solar-system">
@@ -201,6 +239,107 @@
   <div class="shooting-star ss1"></div>
   <div class="shooting-star ss2"></div>
 </div>
+<div id="theme-quantum-bg" aria-hidden="true">
+  <div class="quantum-space-mesh"></div>
+  <div class="quantum-core-pulse"></div>
+  <div class="quantum-time-ribbon r1"></div>
+  <div class="quantum-time-ribbon r2"></div>
+  <div class="quantum-tachyon-ring tr1"></div>
+  <div class="quantum-tachyon-ring tr2"></div>
+  <div class="quantum-tachyon-ring tr3"></div>
+  <div class="quantum-node qn1"></div>
+  <div class="quantum-node qn2"></div>
+  <div class="quantum-node qn3"></div>
+  <div class="quantum-node qn4"></div>
+  <div class="quantum-node qn5"></div>
+  <div class="quantum-node qn6"></div>
+  <div class="quantum-node qn7"></div>
+  <div class="quantum-node qn8"></div>
+  <div class="quantum-stream s1"></div>
+  <div class="quantum-stream s2"></div>
+  <div class="quantum-stream s3"></div>
+  <div class="quantum-stream s4"></div>
+  <div class="quantum-stream s5"></div>
+  <div class="quantum-stream s6"></div>
+</div>
+<div id="theme-glacier-bg" aria-hidden="true">
+  <div class="glacier-subzero-haze"></div>
+  <div class="glacier-aurora-wave gw1"></div>
+  <div class="glacier-aurora-wave gw2"></div>
+  <div class="glacier-aurora-wave gw3"></div>
+  <div class="glacier-crystal-spires left"></div>
+  <div class="glacier-crystal-spires right"></div>
+  <div class="glacier-ice-prism ip1"></div>
+  <div class="glacier-ice-prism ip2"></div>
+  <div class="glacier-ice-prism ip3"></div>
+  <div class="glacier-cryo-flake f1"></div>
+  <div class="glacier-cryo-flake f2"></div>
+  <div class="glacier-cryo-flake f3"></div>
+  <div class="glacier-cryo-flake f4"></div>
+  <div class="glacier-cryo-flake f5"></div>
+  <div class="glacier-cryo-flake f6"></div>
+  <div class="glacier-cryo-flake f7"></div>
+  <div class="glacier-cryo-flake f8"></div>
+  <div class="glacier-cryo-flake f9"></div>
+  <div class="glacier-cryo-flake f10"></div>
+  <div class="glacier-cryo-flake f11"></div>
+  <div class="glacier-cryo-flake f12"></div>
+</div>
+<div id="theme-celestial-bg" aria-hidden="true">
+  <div class="celestial-heavens-glow"></div>
+  <div class="celestial-god-ray ray1"></div>
+  <div class="celestial-god-ray ray2"></div>
+  <div class="celestial-god-ray ray3"></div>
+  <div class="celestial-god-ray ray4"></div>
+  <div class="celestial-mandala-outer"></div>
+  <div class="celestial-mandala-mid"></div>
+  <div class="celestial-mandala-inner"></div>
+  <div class="celestial-divine-orb"></div>
+  <div class="celestial-halo-ring hr1"></div>
+  <div class="celestial-halo-ring hr2"></div>
+  <div class="celestial-stardust st1"></div>
+  <div class="celestial-stardust st2"></div>
+  <div class="celestial-stardust st3"></div>
+  <div class="celestial-stardust st4"></div>
+  <div class="celestial-stardust st5"></div>
+  <div class="celestial-stardust st6"></div>
+  <div class="celestial-stardust st7"></div>
+  <div class="celestial-stardust st8"></div>
+  <div class="celestial-stardust st9"></div>
+  <div class="celestial-stardust st10"></div>
+  <div class="celestial-stardust st11"></div>
+  <div class="celestial-stardust st12"></div>
+</div>
+<div id="theme-astral-bg" aria-hidden="true">
+  <div class="astral-space-gradient"></div>
+  <div class="astral-nebula n1"></div>
+  <div class="astral-nebula n2"></div>
+  <div class="astral-nebula n3"></div>
+  <div class="astral-vortex-outer"></div>
+  <div class="astral-vortex-inner"></div>
+  <div class="astral-accretion-disk"></div>
+  <div class="astral-singularity-core"></div>
+  <div class="astral-pulsar-beam v"></div>
+  <div class="astral-pulsar-beam h"></div>
+  <div class="astral-glyph g1"></div>
+  <div class="astral-glyph g2"></div>
+  <div class="astral-star as1"></div>
+  <div class="astral-star as2"></div>
+  <div class="astral-star as3"></div>
+  <div class="astral-star as4"></div>
+  <div class="astral-star as5"></div>
+  <div class="astral-star as6"></div>
+  <div class="astral-star as7"></div>
+  <div class="astral-star as8"></div>
+  <div class="astral-star as9"></div>
+  <div class="astral-star as10"></div>
+  <div class="astral-star as11"></div>
+  <div class="astral-star as12"></div>
+  <div class="astral-star as13"></div>
+  <div class="astral-star as14"></div>
+  <div class="astral-comet ac1"></div>
+  <div class="astral-comet ac2"></div>
+</div>
 <div id="app">
 
   <header id="top-bar">
@@ -211,9 +350,7 @@
   <!-- ===== MENU ===== -->
   <section id="screen-menu" class="screen">
     <div class="hero hero-centered">
-      <h1 class="game-title">MEHRBOD<br>CARDS</h1>
-      <p class="tagline">Forge four elements. Break every board.</p>
-      <p class="sub">Blue merges into Green. Green into Red. Red into Orange. Draft twelve, fuse smart, and burn the other side to zero.</p>
+      <h1 class="game-title"><span class="title-word"><span class="title-letter" id="secret-m-trigger">M</span><span class="title-letter">E</span><span class="title-letter">H</span><span class="title-letter">R</span><span class="title-letter">B</span><span class="title-letter">O</span><span class="title-letter">D</span></span><br><span class="title-word"><span class="title-letter">C</span><span class="title-letter">A</span><span class="title-letter">R</span><span class="title-letter">D</span><span class="title-letter">S</span></span><div class="minecraft-splash-text" id="minecraft-splash"></div></h1>
     </div>
     <div class="menu-grid">
       <button class="menu-card" id="btn-single-player">
@@ -256,9 +393,84 @@
         <span class="menu-card-title">Practice vs Bot</span>
         <span class="menu-card-sub">Free play against 5 difficulty tiers</span>
       </button>
+      <button class="menu-card" id="btn-trial-tower-menu">
+        <span class="menu-card-title">🗼 Trial Tower</span>
+        <span class="menu-card-sub">Climb an endless citadel of escalating bots</span>
+      </button>
     </div>
     <button class="link-btn" id="btn-how-to-play">How to play</button>
     <button class="link-btn back-btn">← Back</button>
+  </section>
+
+  <!-- ===== TRIAL TOWER DEDICATED SCREEN ===== -->
+  <section id="screen-trial-tower" class="screen hidden">
+    <div class="tower-page-wrapper">
+      <div class="tower-page-header">
+        <button class="link-btn back-btn" id="btn-trial-tower-back">← Back to Single Player</button>
+        <div class="tower-page-title-wrap">
+          <h2 class="tower-page-heading">🗼 The Trial Tower</h2>
+        </div>
+        <div class="tower-page-stats-chips">
+          <div class="tower-stat-chip">
+            <span class="tsc-label">Best Record</span>
+            <span class="tsc-val" id="tower-header-best">Floor 1</span>
+          </div>
+          <div class="tower-stat-chip highlight">
+            <span class="tsc-label">Target Floor</span>
+            <span class="tsc-val" id="tower-header-current">Floor 1</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tower-page-layout">
+        <!-- Tower Visual Citadel -->
+        <div class="tower-citadel-wrapper" id="tower-citadel-container">
+          <div class="tower-spire-cap">
+            <div class="spire-crystal-orb">✦</div>
+            <div class="spire-title">ASTRAL APEX · FLOOR 30+</div>
+            <div class="spire-sub">Unlock a new theme when reaching floor 30.</div>
+          </div>
+          <div class="tower-citadel-viewport" id="tower-citadel-viewport">
+            <div class="tower-citadel-scroller" id="tower-citadel-stack">
+              <!-- Dynamically populated tower bricks -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Tower Ascent Command Console -->
+        <div class="tower-command-console" id="tower-command-console">
+          <div class="tower-mission-card">
+            <div class="tmc-badge-row">
+              <span class="tmc-diff-badge" id="tower-console-diff-badge">EASY</span>
+            </div>
+            <h3 class="tmc-floor-title" id="tower-console-floor-title">Floor 1 Challenge</h3>
+            <p class="tmc-desc" id="tower-console-desc">Ascend against baseline AI bots. Win to climb higher; defeat shatters the run back to Floor 1.</p>
+
+            <div class="tmc-rewards-grid">
+              <div class="tmc-reward-item">
+                <span class="tri-icon">💰</span>
+                <span class="tri-val" id="tower-console-bux-val">+20 Bux</span>
+                <span class="tri-label">Clear Bounty</span>
+              </div>
+              <div class="tmc-reward-item">
+                <span class="tri-icon">⭐</span>
+                <span class="tri-val" id="tower-console-xp-val">+45 XP</span>
+                <span class="tri-label">Profile XP</span>
+              </div>
+              <div class="tmc-reward-item">
+                <span class="tri-icon">🏆</span>
+                <span class="tri-val" id="tower-console-best-val">Floor 1</span>
+                <span class="tri-label">Personal Best</span>
+              </div>
+            </div>
+
+            <button type="button" class="primary-btn tower-start-btn" id="btn-tower-page-begin">
+              <span>⚔️ Ascend to Floor 1</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- ===== BOT MATCH MODE SELECT ===== -->
@@ -314,8 +526,10 @@
 
   <!-- ===== SHOP: MODERN ITEM SHOP ===== -->
   <section id="screen-shop-cosmetics" class="screen hidden">
+    <div class="shop-top-nav">
+      <button class="link-btn back-btn shop-exit-btn" id="shop-exit-btn" title="Exit to Main Menu (Esc)">← Exit Shop <span class="shop-esc-hint">ESC</span></button>
+    </div>
     <div id="shop-cosmetics-list"></div>
-    <button class="link-btn back-btn">← Back</button>
   </section>
 
   <!-- ===== SHOP: WAGER VS BOT ===== -->
@@ -323,7 +537,7 @@
   <section id="screen-shop-bot" class="screen hidden">
     <h2>⚔️ Wager vs Bot</h2>
     <div id="wager-picker">
-      <div class="wager-label">Your wager</div>
+      <div class="wager-label">Your wager <span id="wager-cap-label" class="sub small"></span></div>
       <div id="wager-presets">
         <button class="mode-btn wager-btn" data-amt="10">10</button>
         <button class="mode-btn wager-btn" data-amt="20">20</button>
@@ -402,49 +616,112 @@
     <button class="link-btn back-btn">← Back</button>
   </section>
 
-  <!-- ===== COLLECTION BOOK ===== -->
-  <section id="screen-collection" class="screen hidden">
-    <h2>📖 Collection Book — Cards</h2>
-    <div class="collection-tools">
-      <input id="collection-search" type="search" placeholder="Search cards..." aria-label="Search cards">
-      <select id="collection-filter" aria-label="Filter collection">
-        <option value="all">All cards</option>
-        <option value="owned">Owned</option>
-        <option value="missing">Missing</option>
-        <option value="favorites">Favorites</option>
-      </select>
+  <!-- ===== COLLECTION BOOK (FORTNITE LOCKER) ===== -->
+  <section id="screen-collection" class="screen hidden locker-screen">
+    <div class="locker-header">
+      <div class="locker-title-wrap">
+        <h1 class="locker-title-box">CARD LOCKER</h1>
+      </div>
+      <div class="locker-header-actions">
+        <button type="button" class="locker-tab-btn" id="btn-collection-book-switch">🎨 Themes Locker</button>
+        <button type="button" class="locker-back-btn back-btn">← Back to Menu</button>
+      </div>
     </div>
 
-    <div class="collection-book-toolbar">
-      <button class="link-btn" id="btn-collection-book-switch">🎨 Switch to Themes</button>
+    <!-- Category Tabs -->
+    <div class="locker-category-nav">
+      <button type="button" class="locker-cat-btn active" data-cat="all">ALL ITEMS</button>
+      <button type="button" class="locker-cat-btn" data-cat="units">🛡️ UNITS</button>
+      <button type="button" class="locker-cat-btn" data-cat="spells">⚡ SPELLS</button>
+      <button type="button" class="locker-cat-btn" data-cat="chips">💎 CHIPS</button>
+      <button type="button" class="locker-cat-btn" data-cat="radar">📊 COMPLETION</button>
     </div>
-    <p class="sub small">Every card in Mehrbod Cards. Owned cards are available in the deck builder — uncollected ones (greyed out) come from Card Packs in the Mehrbod Shop.</p>
-    <div id="collection-radar-summary" class="deck-builder-section"></div>
-    <div class="deck-builder-section">
-      <div class="deck-builder-heading"><span>Blue</span></div>
-      <div id="collection-blue" class="deck-builder-grid"></div>
+
+    <!-- Tools Bar: Search & Ownership Filters -->
+    <div class="locker-tools-bar">
+      <div class="locker-search-box">
+        <span class="search-icon">🔍</span>
+        <input id="collection-search" type="search" placeholder="Search locker cards..." aria-label="Search cards">
+      </div>
+      <div class="locker-filter-box">
+        <select id="collection-filter" aria-label="Filter collection">
+          <option value="all">Filter: All Items</option>
+          <option value="owned">Owned Items</option>
+          <option value="missing">Locked / Missing</option>
+          <option value="favorites">★ Favorites</option>
+        </select>
+      </div>
+      <div class="locker-stats-badge" id="locker-total-badge">
+        <span>COLLECTED</span>
+        <strong id="locker-collected-count">0/0</strong>
+      </div>
     </div>
-    <div class="deck-builder-section">
-      <div class="deck-builder-heading"><span>Green</span></div>
-      <div id="collection-green" class="deck-builder-grid"></div>
+
+    <!-- Main Locker Layout Split (Grid + Showcase) -->
+    <div class="locker-content-layout">
+      <!-- Left Column: Item Grids -->
+      <div class="locker-grid-scroll">
+        <div id="collection-radar-summary" class="locker-section" data-section="radar"></div>
+        <div class="locker-section" data-section="blue">
+          <div class="locker-section-head"><span class="rarity-tag rare">RARE</span> <span>Blue Units</span></div>
+          <div id="collection-blue" class="locker-grid"></div>
+        </div>
+        <div class="locker-section" data-section="green">
+          <div class="locker-section-head"><span class="rarity-tag uncommon">UNCOMMON</span> <span>Green Units</span></div>
+          <div id="collection-green" class="locker-grid"></div>
+        </div>
+        <div class="locker-section" data-section="red">
+          <div class="locker-section-head"><span class="rarity-tag epic">EPIC</span> <span>Red Units</span></div>
+          <div id="collection-red" class="locker-grid"></div>
+        </div>
+        <div class="locker-section" data-section="orange">
+          <div class="locker-section-head"><span class="rarity-tag legendary">LEGENDARY</span> <span>Orange Units</span></div>
+          <div id="collection-orange" class="locker-grid"></div>
+        </div>
+        <div class="locker-section" data-section="spells">
+          <div class="locker-section-head"><span class="rarity-tag exotic">MAGIC</span> <span>Spells</span></div>
+          <div id="collection-spells" class="locker-grid"></div>
+        </div>
+        <div class="locker-section" data-section="chips">
+          <div class="locker-section-head"><span class="rarity-tag mythic">AUGMENT</span> <span>Chips</span></div>
+          <div id="collection-chips" class="locker-grid"></div>
+        </div>
+      </div>
+
+      <!-- Right Column: Fortnite-Style Character / Card Showcase Box -->
+      <div class="locker-showcase-panel" id="locker-showcase-panel">
+        <div class="showcase-bg-glow" id="showcase-glow"></div>
+        <div class="showcase-content">
+          <div class="showcase-header">
+            <span class="showcase-rarity-pill" id="showcase-rarity">RARE ITEM</span>
+            <span class="showcase-category" id="showcase-category">UNIT CARD</span>
+          </div>
+          <h2 class="showcase-title" id="showcase-title">Select an item</h2>
+          <div class="showcase-card-stage">
+            <div class="showcase-card-wrapper" id="showcase-card-wrapper">
+              <div class="showcase-placeholder-icon">🎴</div>
+              <div class="showcase-placeholder-text">Click any card in your locker to inspect details and set favorites</div>
+            </div>
+          </div>
+          <div class="showcase-details">
+            <div class="showcase-stats-grid" id="showcase-stats-grid" style="display:none;">
+              <div class="sc-stat-box"><span class="sc-label">HEALTH</span><strong id="showcase-hp">--</strong></div>
+              <div class="sc-stat-box"><span class="sc-label">DAMAGE</span><strong id="showcase-dmg">--</strong></div>
+              <div class="sc-stat-box"><span class="sc-label">SLOTS</span><strong id="showcase-sp">--</strong></div>
+            </div>
+            <div class="showcase-desc" id="showcase-desc">Select an item from the locker grid to view stats, abilities, and collection status.</div>
+          </div>
+          <div class="showcase-actions">
+            <button type="button" class="locker-action-btn primary" id="showcase-favorite-btn" style="display:none;">
+              ★ <span id="showcase-fav-text">FAVORITE</span>
+            </button>
+            <button type="button" class="locker-action-btn secondary" id="showcase-shop-link-btn" style="display:none;">
+              🛒 SHOP PACKS
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="deck-builder-section">
-      <div class="deck-builder-heading"><span>Red</span></div>
-      <div id="collection-red" class="deck-builder-grid"></div>
-    </div>
-    <div class="deck-builder-section">
-      <div class="deck-builder-heading"><span>Orange</span></div>
-      <div id="collection-orange" class="deck-builder-grid"></div>
-    </div>
-    <div class="deck-builder-section">
-      <div class="deck-builder-heading"><span>Spells</span></div>
-      <div id="collection-spells" class="deck-builder-grid"></div>
-    </div>
-    <div class="deck-builder-section">
-      <div class="deck-builder-heading"><span>Chips</span></div>
-      <div id="collection-chips" class="deck-builder-grid"></div>
-    </div>
-    <button class="link-btn back-btn">← Back</button>
   </section>
 
   <!-- ===== BOT SETUP ===== -->
@@ -514,7 +791,7 @@
       <button id="btn-themes-close" class="modal-close" aria-label="Close themes">✕</button>
       <span class="modal-kicker">CUSTOMIZE</span>
       <h2>🎨 Themes</h2>
-      <p class="sub small">Dark and Light are free. Most others unlock from the Quests panel — Mr Money, Cyber Neon, and Abyss are bought in the Shop instead.</p>
+      <p class="sub small">Dark and Light are free. Progress through Single Player or the Trial Tower (Floors 10, 15, 30, 50) — Mr Money, Cyber Neon, Abyss, and Magma are bought in the Shop.</p>
       <div id="theme-options">
         <button class="theme-btn" id="theme-btn-dark" data-theme="dark" title="Dark">
           <span class="theme-icon">🌙</span><span>Dark</span>
@@ -558,6 +835,26 @@
           <span class="theme-icon">🌊</span><span>Abyss</span>
           <span class="theme-lock-icon">🔒</span>
         </button>
+        <button class="theme-btn locked" id="theme-btn-magma" data-theme="magma" title="Buy in the Mehrbod Shop for 1200 Bux!">
+          <span class="theme-icon">🌋</span><span>Magma</span>
+          <span class="theme-lock-icon">🔒</span>
+        </button>
+        <button class="theme-btn locked" id="theme-btn-quantum" data-theme="quantum" title="Reach Floor 10 of the Trial Tower to unlock!">
+          <span class="theme-icon">⚡</span><span>Quantum Flux</span>
+          <span class="theme-lock-icon">🔒</span>
+        </button>
+        <button class="theme-btn locked" id="theme-btn-glacier" data-theme="glacier" title="Reach Floor 15 of the Trial Tower to unlock!">
+          <span class="theme-icon">❄️</span><span>Glacial Frost</span>
+          <span class="theme-lock-icon">🔒</span>
+        </button>
+        <button class="theme-btn locked" id="theme-btn-astral" data-theme="astral" title="Clear Floor 30 of the Trial Tower to unlock!">
+          <span class="theme-icon">🌌</span><span>Astral Void</span>
+          <span class="theme-lock-icon">🔒</span>
+        </button>
+        <button class="theme-btn locked" id="theme-btn-celestial" data-theme="celestial" title="Reach Floor 50 of the Trial Tower to unlock!">
+          <span class="theme-icon">👑</span><span>Celestial Divinity</span>
+          <span class="theme-lock-icon">🔒</span>
+        </button>
         <button class="theme-btn locked" id="theme-btn-collector" data-theme="collector" title="Collect every current card to unlock!">
           <span class="theme-icon">💠</span><span>100% Collector</span>
           <span class="theme-lock-icon">🔒</span>
@@ -596,7 +893,7 @@
         <span id="opp-ready-badge" class="ready-badge">Opponent</span>
       </span>
       <button id="btn-options" class="icon-btn" title="Options">⚙</button>
-      <button id="btn-ready" class="primary-btn small" title="Ready up (R)">Ready</button>
+      <button id="btn-ready" class="primary-btn small" title="Ready up (R)"><span class="ready-text-full">Ready</span><span class="ready-text-mobile">R</span> <span class="hotkey-hint">(R)</span></button>
     </div>
 
     <div id="power-bar-label"><span>Your Power</span><span>Enemy Power</span></div>
@@ -615,9 +912,19 @@
 
     <div id="mode-bar">
       <button class="mode-btn" data-mode="defend">Defend</button>
-      <button class="mode-btn" data-mode="merge">🧬 Combine</button>
-      <button class="primary-btn small hidden" id="btn-confirm-merge">✅ Merge Selected</button>
-      <button class="link-btn hidden" id="btn-undo-placement">↩️ Undo</button>
+      <button class="mode-btn" data-mode="merge" title="Toggle Combine / Merge mode (M)">🧬 Combine <span class="hotkey-hint">(M)</span></button>
+      <button class="primary-btn small hidden" id="btn-confirm-merge" title="Confirm Merge (M)">✅ Merge Selected <span class="hotkey-hint">(M)</span></button>
+      <button class="link-btn hidden" id="btn-undo-placement" title="Undo placement (U)">↩️ Undo <span class="hotkey-hint">(U)</span></button>
+      <div id="emote-picker-wrapper" class="emote-picker-wrapper">
+        <button id="btn-emote-toggle" class="mode-btn emote-toggle-btn" title="Send Emote">💬 <span class="emote-toggle-label">Emotes</span></button>
+        <div id="emotes-popover" class="emotes-popover hidden">
+          <button class="emote-btn" data-emote="⚔️" title="Send ⚔️ emote">⚔️</button>
+          <button class="emote-btn" data-emote="🛡️" title="Send 🛡️ emote">🛡️</button>
+          <button class="emote-btn" data-emote="🔥" title="Send 🔥 emote">🔥</button>
+          <button class="emote-btn" data-emote="👏" title="Send 👏 emote">👏</button>
+          <button class="emote-btn" data-emote="💀" title="Send 💀 emote">💀</button>
+        </div>
+      </div>
       <span id="hint-text"></span>
       <button class="link-btn" id="btn-log-toggle">Log</button>
       <div id="merge-preview" class="hidden"></div>
@@ -673,6 +980,20 @@
     </div>
   </div>
 
+  <!-- ===== CONFIRM DIALOG OVERLAY ===== -->
+  <div id="confirm-overlay" class="hidden" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <div id="confirm-card">
+      <button id="btn-confirm-close" class="modal-close" aria-label="Cancel">✕</button>
+      <span class="modal-kicker" id="confirm-kicker">CONFIRMATION</span>
+      <h2 id="confirm-title">Are you sure?</h2>
+      <p id="confirm-message" class="sub"></p>
+      <div id="confirm-actions">
+        <button type="button" class="link-btn" id="btn-confirm-cancel">Cancel</button>
+        <button type="button" class="primary-btn danger" id="btn-confirm-ok">Confirm</button>
+      </div>
+    </div>
+  </div>
+
   <div id="options-overlay" class="hidden">
     <div id="options-card">
       <button id="btn-options-close" class="modal-close" aria-label="Close options">✕</button>
@@ -704,6 +1025,78 @@
       <span class="modal-kicker">WHAT'S NEW</span>
       <h2>Patch Notes</h2>
       <div id="patchnotes-list"></div>
+    </div>
+  </div>
+
+  <!-- ===== SECRET OVERRIDE / DEVELOPER VAULT MODAL ===== -->
+  <div id="secret-menu-overlay" class="hidden" role="dialog" aria-modal="true" aria-labelledby="secret-terminal-heading">
+    <div id="secret-terminal-card" class="secret-terminal-card">
+      <button id="btn-secret-close" class="modal-close" aria-label="Close secret terminal">✕</button>
+      
+      <div class="secret-terminal-topbar">
+        <div class="terminal-dots">
+          <span class="dot d-red"></span>
+          <span class="dot d-yellow"></span>
+          <span class="dot d-green"></span>
+        </div>
+        <span class="terminal-chip">CLASSIFIED // LEVEL 5 OVERRIDE</span>
+      </div>
+
+      <!-- Auth State (Password Prompt) -->
+      <div id="secret-stage-auth" class="secret-stage">
+        <div class="secret-hologram-glyph">🔐</div>
+        <h2 id="secret-terminal-heading" class="secret-terminal-heading">SYSTEM RESTRICTED</h2>
+        <p class="secret-desc">Direct cipher key authentication is required to bypass system lockouts.</p>
+        
+        <form id="secret-auth-form" onsubmit="return false;" class="secret-auth-form">
+          <div class="secret-field-box">
+            <span class="secret-prompt-symbol">&gt;</span>
+            <input type="password" id="secret-cipher-input" class="secret-cipher-input" placeholder="Enter cipher password..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="32">
+            <button type="submit" id="btn-secret-auth" class="secret-btn-submit">DECRYPT</button>
+          </div>
+          <div id="secret-auth-status" class="secret-status-line"></div>
+        </form>
+      </div>
+
+      <!-- Unlocked State (Developer Commands) -->
+      <div id="secret-stage-unlocked" class="secret-stage hidden">
+        <div class="secret-hologram-glyph glow-cyan">⚡</div>
+        <h2 class="secret-terminal-heading cyan-glow-text">TERMINAL UNLOCKED</h2>
+        <p class="secret-desc">Access granted, Commander. Executive override matrix activated.</p>
+        
+        <div class="secret-commands-matrix">
+          <button type="button" id="btn-secret-unlock-all-cards" class="secret-cmd-card">
+            <div class="cmd-icon-box">🃏</div>
+            <div class="cmd-info">
+              <span class="cmd-title">⚡ Unlock All Cards, Spells &amp; Chips</span>
+              <span class="cmd-subtitle">Instantly unlock every unit archetype, spell, and chip in the game (100% Collection)</span>
+            </div>
+            <div class="cmd-arrow">➔</div>
+          </button>
+
+          <button type="button" id="btn-secret-unlock-all-themes" class="secret-cmd-card">
+            <div class="cmd-icon-box">🎨</div>
+            <div class="cmd-info">
+              <span class="cmd-title">✨ Unlock All Themes</span>
+              <span class="cmd-subtitle">Instantly unlock every theme in the game (Quest themes, Shop themes, Trial Tower Astral Void &amp; Collector)</span>
+            </div>
+            <div class="cmd-arrow">➔</div>
+          </button>
+
+          <button type="button" id="btn-secret-show-codes" class="secret-cmd-card">
+            <div class="cmd-icon-box">🎟️</div>
+            <div class="cmd-info">
+              <span class="cmd-title">📜 View All Shop Codes</span>
+              <span class="cmd-subtitle">Classified manifest of all active Mehrbod Shop redeem codes, rewards &amp; 1-click redemption</span>
+            </div>
+            <div class="cmd-arrow">➔</div>
+          </button>
+        </div>
+
+        <div id="secret-codes-manifest" class="secret-codes-panel hidden"></div>
+
+        <div id="secret-exec-result" class="secret-exec-result hidden"></div>
+      </div>
     </div>
   </div>
 

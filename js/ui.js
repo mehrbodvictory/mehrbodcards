@@ -21,7 +21,11 @@ function cardEl(card, { owner, slot, selected, defending, attacking, forceGlow, 
   if (defending) el.classList.add('defending');
   if (attacking) el.classList.add('attacking-flag');
   if (forceGlow) el.classList.add('force-glow');
-  if (popIn) el.classList.add('pop-in');
+  if (popIn) {
+    el.classList.add('pop-in');
+    if (owner === 'hand') el.classList.add('pop-in-hand');
+    else el.classList.add('pop-in-board');
+  }
   if (attackAnim) el.classList.add('anim-attack');
   if (deathAnim) el.classList.add('anim-death');
   if (hitAnim) el.classList.add('anim-hit');
@@ -123,10 +127,12 @@ function renderBoard(container, playerState, ownerKey, { selectedSlot, selectedS
 function renderHand(container, playerState, selectedHandIdx) {
   container.innerHTML = '';
   playerState.deck.forEach((card, idx) => {
+    const isFresh = isFreshCard('hand', card.id);
     const el = cardEl(card, {
-      owner: 'hand', slot: idx, selected: selectedHandIdx === idx, popIn: isFreshCard('hand', card.id),
+      owner: 'hand', slot: idx, selected: selectedHandIdx === idx, popIn: isFresh,
       extraClass: card.tier !== 1 ? 'blueprint-card' : '',
     });
+    if (isFresh) el.style.animationDelay = `${idx * 0.04}s`;
     el.dataset.handIdx = idx;
     el.dataset.role = 'hand-card';
     if (card.tier !== 1) el.title = "Blueprint: can't be placed directly - merging Blues into this tier will consume it and use its ability.";

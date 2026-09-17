@@ -85,6 +85,7 @@ const Sound = (function () {
     sparkle() { [1046, 1318, 1568].forEach((f, i) => tone(f, 0.12, 'sine', 0.06, i * 0.05)); },
     abilityPing() { tone(980, 0.08, 'triangle', 0.08); },
     select() { tone(680, 0.05, 'triangle', 0.06); },
+    click() { tone(600, 0.04, 'sine', 0.06); },
     // NEW: pack-opening sounds (Pokemon/GW2-style pack reveal flow).
     packTear() { sweep(500, 130, 0.3, 'sawtooth', 0.14); tone(90, 0.18, 'square', 0.1, 0.08); },
     packCardFlip() { tone(700, 0.05, 'triangle', 0.07); tone(1050, 0.07, 'triangle', 0.08, 0.05); },

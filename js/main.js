@@ -75,6 +75,15 @@ function showScreen(id) {
   document.getElementById(id).classList.remove('hidden');
   const buxCounter = document.getElementById('bux-counter');
   if (buxCounter) buxCounter.classList.toggle('hidden', id === 'screen-game');
+  
+  // Hide top-bar brand on main menu, but keep visible in matches and other screens
+  const topBrand = document.querySelector('#top-bar .brand');
+  if (topBrand) {
+    const isMenu = (id === 'screen-menu');
+    topBrand.style.visibility = isMenu ? 'hidden' : 'visible';
+    topBrand.style.opacity = isMenu ? '0' : '1';
+    topBrand.style.pointerEvents = isMenu ? 'none' : 'auto';
+  }
 }
 
 // Explicit, per-element "pressed" feedback via Pointer Events instead of the
@@ -561,6 +570,7 @@ const COSMETIC_ITEMS = [
   { id: 'theme_mrmoney',    kind: 'theme',  name: '🤑 Mr Money Theme', desc: 'Green money-rain theme for the whole app.', cost: 1000 },
   { id: 'theme_cyberneon',  kind: 'theme',  name: '🌆 Cyber Neon Theme', desc: 'Neon-lit cyberpunk grid with drifting glyph particles.', cost: 1200 },
   { id: 'theme_abyss',      kind: 'theme',  name: '🌊 Abyss Theme', desc: 'Bioluminescent deep-sea vault with drifting jellyfish glow.', cost: 1200 },
+  { id: 'theme_magma',      kind: 'theme',  name: '🌋 Magma Theme', desc: 'A living volcanic core — undulating molten lava, rising fire embers, and pulsing magma fissures.', cost: 1200 },
   { id: 'sleeve_holo',      kind: 'sleeve', name: '🌈 Holographic Sleeves', desc: 'Shimmering rainbow card outlines.', cost: 400 },
   { id: 'sleeve_gold',      kind: 'sleeve', name: '✨ Gold Sleeves', desc: 'Gilded card outlines with a soft glow.', cost: 600 },
   { id: 'sleeve_prismatic', kind: 'sleeve', name: '🌈 Prismatic Sleeves', desc: 'A shifting spectrum frame around every card.', cost: 800 },
@@ -693,6 +703,7 @@ function renderCosmeticsShop() {
     { id:'theme_mrmoney', kind:'theme', name:'Mr Money Theme', desc:'Turn the whole game into a money-soaked neon vault.', cost:1000, tag:'FEATURED', art:'💸', original:1500 },
     { id:'theme_cyberneon', kind:'theme', name:'Cyber Neon Theme', desc:'A neon cyberpunk grid with drifting glyph particles and scanlines.', cost:1200, tag:'NEW', art:'🌆', original:1600 },
     { id:'theme_abyss', kind:'theme', name:'Abyss Theme', desc:'A bioluminescent deep-sea vault - drifting jellyfish glow and rising bubbles.', cost:1200, tag:'NEW', art:'🌊', original:1600 },
+    { id:'theme_magma', kind:'theme', name:'Magma Theme', desc:'A living volcanic core — undulating molten lava, rising fire embers, pulsing magma fissures, and seismic heat surges.', cost:1200, tag:'NEW', art:'🌋', original:1600 },
     { id:'victoryanim_meteor', kind:'victoryAnim', name:'Meteor Shower Victory', desc:'A blazing meteor shower streaks across the screen the instant you win - your opponent sees it too.', cost:500, tag:'NEW', art:'☄️', original:0 },
     { id:'sleeve_prismatic', kind:'sleeve', name:'Prismatic Sleeves', desc:'Animated spectrum borders for every card.', cost:800, tag:'', art:'🌈', original:1000 },
     { id:'sleeve_void', kind:'sleeve', name:'Void Sleeves', desc:'A dark cosmic frame with a violet glow.', cost:1200, tag:'RARE', art:'◈', original:1500 },
@@ -711,7 +722,7 @@ function renderCosmeticsShop() {
   // an item from `items` above can never silently misassign which cards
   // land in which shop section.
   const byId = (...ids) => ids.map(id => items.find(i => i.id === id)).filter(Boolean);
-  const featured = byId('theme_mrmoney', 'theme_cyberneon', 'theme_abyss');
+  const featured = byId('theme_mrmoney', 'theme_cyberneon', 'theme_abyss', 'theme_magma');
   const daily = byId('victoryanim_meteor', 'sleeve_prismatic', 'sleeve_void', 'sleeve_holo', 'sleeve_gold', 'effect_victoryburst', 'effect_confetti');
   const collection = [cardPack, ...items];
 
@@ -908,6 +919,7 @@ document.querySelectorAll('.menu-card').forEach(wirePressFeedback);
 // anything, so there was no way to back out of any submenu.
 const BACK_TARGETS = {
   'screen-single-player': 'screen-menu',
+  'screen-trial-tower': 'screen-single-player',
   'screen-bot-mode': 'screen-single-player',
   'screen-multiplayer': 'screen-menu',
   'screen-host-mode': 'screen-multiplayer',
@@ -1798,7 +1810,7 @@ function spawnCastEffect(ownerKey, slot, kind, amount) {
     fx.className = 'merge-fx';
     slotEl.appendChild(fx);
     setTimeout(() => fx.remove(), 500);
-    vibrate(15);
+    vibrate([20, 25, 20]);
   } else if (kind === 'bigmerge') {
     // NEW: extra-juicy celebration for a 3-4 card fusion or any merge that
     // lands on the peak Orange tier - a bigger burst plus a ring of
@@ -1817,7 +1829,7 @@ function spawnCastEffect(ownerKey, slot, kind, amount) {
     }
     setTimeout(() => fx.remove(), 780);
     Sound.megaMerge();
-    vibrate([20, 30, 20]);
+    vibrate([25, 30, 40]);
   } else if (kind === 'defend') {
     const fx = document.createElement('div');
     fx.className = 'shield-slam-fx';
@@ -1931,8 +1943,13 @@ function applyActionAndRender(action, { afterBotCheck } = {}) {
   const res = applyAction(state, action);
   if (!res.ok && action.player === localKey) showToast(res.error);
   if (res.ok) {
-    if (action.type === 'place') Sound.place();
-    else if (action.type === 'merge') { /* sound handled by playFx (merge/bigmerge) for correct sizing */ }
+    if (action.type === 'place') {
+      Sound.place();
+      if (action.player === localKey) vibrate(20);
+    }
+    else if (action.type === 'merge') {
+      if (action.player === localKey) vibrate([20, 25, 20]);
+    }
     else if (action.type === 'defend') Sound.defend();
     else if ((action.type === 'readyPlacement' || action.type === 'readyAttack') && action.player === localKey) Sound.ready();
   }
@@ -2200,18 +2217,130 @@ function pressReady() {
 document.getElementById('btn-ready').addEventListener('click', pressReady);
 
 document.addEventListener('keydown', (e) => {
-  if (e.key.toLowerCase() !== 'r' || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
   const tag = document.activeElement && document.activeElement.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-  if (document.getElementById('screen-game').classList.contains('hidden')) return;
-  e.preventDefault();
-  pressReady();
+  const gameScreen = document.getElementById('screen-game');
+  if (!gameScreen || gameScreen.classList.contains('hidden')) return;
+
+  const key = e.key.toLowerCase();
+  if (key === 'r') {
+    e.preventDefault();
+    pressReady();
+  } else if (key === 'u') {
+    e.preventDefault();
+    const undoBtn = document.getElementById('btn-undo-placement');
+    if (undoBtn && !undoBtn.classList.contains('hidden')) {
+      undoLastPlacement();
+    }
+  } else if (key === 'm') {
+    e.preventDefault();
+    const confirmBtn = document.getElementById('btn-confirm-merge');
+    if (selMode === 'merge' && selMergeSlots.length >= 2 && confirmBtn && !confirmBtn.classList.contains('hidden')) {
+      confirmBtn.click();
+    } else {
+      const wasActive = selMode === 'merge';
+      resetSelections();
+      selMode = wasActive ? null : 'merge';
+      if (selMode === 'merge') Sound.select();
+      render();
+    }
+  }
 });
 
 document.getElementById('btn-log-toggle').addEventListener('click', () => {
   logVisible = !logVisible;
   document.getElementById('log-panel').classList.toggle('hidden', !logVisible);
   render();
+});
+
+function triggerEmote(owner, emoji) {
+  const isLocal = owner === localKey;
+  const targetBoard = isLocal ? document.getElementById('player-board') : document.getElementById('opponent-board');
+  const gameScreen = document.getElementById('screen-game');
+  if (!targetBoard || !gameScreen) return;
+  
+  const bubble = document.createElement('div');
+  bubble.className = 'emote-bubble';
+  bubble.textContent = emoji;
+  
+  const rect = targetBoard.getBoundingClientRect();
+  const gameRect = gameScreen.getBoundingClientRect();
+  
+  bubble.style.left = `${Math.max(20, Math.min(gameRect.width - 60, (rect.left + rect.width / 2 - gameRect.left) - 20))}px`;
+  bubble.style.top = `${Math.max(10, (rect.top - gameRect.top + (isLocal ? -20 : 10)))}px`;
+  
+  gameScreen.appendChild(bubble);
+  setTimeout(() => bubble.remove(), 1800);
+  
+  Sound.select();
+  vibrate(10);
+  
+  if (isLocal && mode === 'bot' && Math.random() < 0.65) {
+    const botEmotes = ['⚔️', '🛡️', '🔥', '👏', '💀', '🤖'];
+    const botPick = botEmotes[Math.floor(Math.random() * botEmotes.length)];
+    setTimeout(() => {
+      triggerEmote(remoteKey, botPick);
+    }, 600 + Math.random() * 500);
+  }
+}
+
+const emoteToggleBtn = document.getElementById('btn-emote-toggle');
+const emotesPopover = document.getElementById('emotes-popover');
+
+function positionEmotesPopover() {
+  if (!emoteToggleBtn || !emotesPopover) return;
+  const rect = emoteToggleBtn.getBoundingClientRect();
+  emotesPopover.style.position = 'fixed';
+  emotesPopover.style.top = `${Math.max(10, rect.top - 52)}px`;
+  emotesPopover.style.left = `${Math.max(10, Math.min(window.innerWidth - 220, rect.left + rect.width / 2 - 100))}px`;
+  emotesPopover.style.zIndex = '99999';
+}
+
+if (emoteToggleBtn && emotesPopover) {
+  let touchHandled = false;
+  const togglePopover = (e) => {
+    e.stopPropagation();
+    if (e.type === 'touchstart') {
+      touchHandled = true;
+    } else if (e.type === 'click' && touchHandled) {
+      touchHandled = false;
+      return;
+    }
+    const isHidden = emotesPopover.classList.contains('hidden');
+    if (isHidden) {
+      positionEmotesPopover();
+      emotesPopover.classList.remove('hidden');
+    } else {
+      emotesPopover.classList.add('hidden');
+    }
+  };
+
+  emoteToggleBtn.addEventListener('click', togglePopover);
+  emoteToggleBtn.addEventListener('touchstart', togglePopover, { passive: true });
+
+  document.addEventListener('pointerdown', (e) => {
+    if (!emotesPopover.classList.contains('hidden')) {
+      if (!emotesPopover.contains(e.target) && !emoteToggleBtn.contains(e.target)) {
+        emotesPopover.classList.add('hidden');
+      }
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    if (!emotesPopover.classList.contains('hidden')) {
+      positionEmotesPopover();
+    }
+  });
+}
+
+document.querySelectorAll('.emote-btn').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const emote = btn.dataset.emote;
+    if (emote) triggerEmote(localKey, emote);
+    if (emotesPopover) emotesPopover.classList.add('hidden');
+  });
 });
 
 document.getElementById('btn-rematch').addEventListener('click', () => {
@@ -2235,6 +2364,8 @@ document.getElementById('btn-play-again').addEventListener('click', () => {
 function openOptions() {
   const inMatch = !!state && state.phase !== 'gameover';
   document.getElementById('quit-match-section').classList.toggle('hidden', !inMatch);
+  const resetSection = document.getElementById('reset-progress-section');
+  if (resetSection) resetSection.classList.toggle('hidden', inMatch);
   document.getElementById('options-overlay').classList.remove('hidden');
 }
 document.getElementById('btn-options').addEventListener('click', openOptions);
@@ -2245,18 +2376,148 @@ document.getElementById('btn-options-close').addEventListener('click', () => {
 document.getElementById('options-overlay').addEventListener('click', (e) => {
   if (e.target.id === 'options-overlay') document.getElementById('options-overlay').classList.add('hidden');
 });
-document.getElementById('btn-quit-match').addEventListener('click', () => {
+let _activeConfirmCleanup = null;
+function showConfirmDialog({ kicker = 'CONFIRMATION', title = 'Are you sure?', message = '', okText = 'Confirm', cancelText = 'Cancel', danger = true, onConfirm, onCancel }) {
+  const overlay = document.getElementById('confirm-overlay');
+  const kickerEl = document.getElementById('confirm-kicker');
+  const titleEl = document.getElementById('confirm-title');
+  const msgEl = document.getElementById('confirm-message');
+  let okBtn = document.getElementById('btn-confirm-ok');
+  let cancelBtn = document.getElementById('btn-confirm-cancel');
+  let closeBtn = document.getElementById('btn-confirm-close');
+
+  if (!overlay || !okBtn) {
+    if (onConfirm) onConfirm();
+    return;
+  }
+
+  // If a dialog was already open, clean up its previous listeners first
+  if (typeof _activeConfirmCleanup === 'function') {
+    _activeConfirmCleanup();
+    _activeConfirmCleanup = null;
+  }
+
+  // Clone action buttons to strip any prior accumulated listeners
+  const newOk = okBtn.cloneNode(true);
+  okBtn.parentNode.replaceChild(newOk, okBtn);
+  okBtn = newOk;
+
+  const newCancel = cancelBtn.cloneNode(true);
+  cancelBtn.parentNode.replaceChild(newCancel, cancelBtn);
+  cancelBtn = newCancel;
+
+  const newClose = closeBtn.cloneNode(true);
+  closeBtn.parentNode.replaceChild(newClose, closeBtn);
+  closeBtn = newClose;
+
+  if (kickerEl) kickerEl.textContent = kicker;
+  if (titleEl) titleEl.textContent = title;
+  if (msgEl) msgEl.textContent = message;
+  okBtn.textContent = okText;
+  okBtn.className = `primary-btn ${danger ? 'danger' : ''}`;
+  cancelBtn.textContent = cancelText;
+
+  let closed = false;
+  const doClose = () => {
+    if (closed) return;
+    closed = true;
+    overlay.classList.add('hidden');
+    document.removeEventListener('keydown', handleKeydown, true);
+    overlay.removeEventListener('click', handleBackdrop);
+    _activeConfirmCleanup = null;
+  };
+
+  const handleOk = (e) => {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    doClose();
+    if (typeof Sound !== 'undefined' && Sound.click) Sound.click();
+    if (onConfirm) {
+      try { onConfirm(); } catch (err) { console.error('Error in confirm action:', err); }
+    }
+  };
+
+  const handleCancel = (e) => {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    doClose();
+    if (typeof Sound !== 'undefined' && Sound.click) Sound.click();
+    if (onCancel) {
+      try { onCancel(); } catch (err) { console.error('Error in cancel action:', err); }
+    }
+  };
+
+  const handleBackdrop = (e) => {
+    if (e.target === overlay) handleCancel(e);
+  };
+
+  const handleKeydown = (e) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      e.preventDefault();
+      handleCancel(e);
+    } else if (e.key === 'Enter') {
+      e.stopPropagation();
+      e.preventDefault();
+      handleOk(e);
+    }
+  };
+
+  okBtn.addEventListener('click', handleOk);
+  cancelBtn.addEventListener('click', handleCancel);
+  closeBtn.addEventListener('click', handleCancel);
+  overlay.addEventListener('click', handleBackdrop);
+  document.addEventListener('keydown', handleKeydown, true);
+
+  _activeConfirmCleanup = doClose;
+
+  overlay.classList.remove('hidden');
+}
+
+function quitCurrentMatch() {
   const midMatch = state && state.phase !== 'gameover';
-  if (midMatch && !confirm('Quit this match and return to the menu? Your progress in this match will be lost.')) return;
-  document.getElementById('options-overlay').classList.add('hidden');
+  const optionsOverlay = document.getElementById('options-overlay');
+  if (optionsOverlay) optionsOverlay.classList.add('hidden');
+  const confirmOverlay = document.getElementById('confirm-overlay');
+  if (confirmOverlay) confirmOverlay.classList.add('hidden');
+  const gameoverOverlay = document.getElementById('gameover-overlay');
+  if (gameoverOverlay) gameoverOverlay.classList.add('hidden');
+
   cancelBotThinking();
   resetTutorialState();
-  if (net && mode === 'mp' && midMatch) { net.sendForfeit(); }
-  if (net) { net.destroy(); net = null; }
+  if (net && mode === 'mp' && midMatch) {
+    try { net.sendForfeit(); } catch (e) {}
+  }
+  if (net) {
+    try { net.destroy(); } catch (e) {}
+    net = null;
+  }
   currentWager = 0;
   state = null;
+  if (typeof trialTowerActive !== 'undefined') trialTowerActive = false;
+
   showScreen('screen-menu');
-});
+  showToast('🏳️ Match forfeited.');
+}
+
+function promptQuitMatch() {
+  const midMatch = state && state.phase !== 'gameover';
+  if (!midMatch) {
+    quitCurrentMatch();
+    return;
+  }
+  showConfirmDialog({
+    kicker: 'FORFEIT MATCH',
+    title: 'Quit this match?',
+    message: 'Leaving now forfeits the match and returns to the menu. Your progress in this match will be lost.',
+    okText: 'Quit Match',
+    cancelText: 'Keep Playing',
+    danger: true,
+    onConfirm: () => {
+      quitCurrentMatch();
+    }
+  });
+}
+
+document.getElementById('btn-quit-match').addEventListener('click', promptQuitMatch);
 
 function handleOpponentForfeit() {
   if (!state || state.phase === 'gameover') return;
@@ -3061,16 +3322,24 @@ const RESET_PROGRESS_KEYS = [
   'mehrbod-cards-beaten-diffs', 'mehrbod-cards-pink-unlocked', 'mehrbod-cards-reset-ehe-v1',
   'mehrbod_daily_challenge_v2', 'mehrbod_achievements_v1', 'mehrbod-cards-record',
   'mehrbod-cards-theme', 'mehrbod-cards-last-difficulty', 'mehrbod-cards-tutorial-seen',
-  'mehrbod-cards-player-name', 'mehrbod_favorite_cards', 'mehrbod-cards-inventory-backup-v1',
+  'mehrbod-cards-player-name', 'mehrbod-cards-profile-gradient', 'mehrbod_favorite_cards', 'mehrbod-cards-inventory-backup-v1',
   'mehrbod-cards-last-seen-version', 'mehrbod-cards-muted', 'mehrbod-cards-reduced-motion',
   'mehrbod-cards-volume', 'mehrbod-cards-haptics',
 ];
 function resetAllProgress() {
-  if (!confirm('This permanently erases your Mehrbod Bux, card collection, achievements, stats, and saved decks on this device. This cannot be undone. Continue?')) return;
-  if (!confirm('Are you absolutely sure? There is no way to get this back once it\'s gone.')) return;
-  try { RESET_PROGRESS_KEYS.forEach(k => localStorage.removeItem(k)); } catch (e) {}
-  showToast('🗑 Progress reset. Reloading…', 1600);
-  setTimeout(() => location.reload(), 700);
+  showConfirmDialog({
+    kicker: 'DANGER ZONE',
+    title: 'Reset All Progress?',
+    message: 'This permanently erases your Mehrbod Bux, card collection, achievements, stats, and saved decks on this device. This cannot be undone.',
+    okText: 'Erase Everything',
+    cancelText: 'Cancel',
+    danger: true,
+    onConfirm: () => {
+      try { RESET_PROGRESS_KEYS.forEach(k => localStorage.removeItem(k)); } catch (e) {}
+      showToast('🗑 Progress reset. Reloading…', 1600);
+      setTimeout(() => location.reload(), 700);
+    }
+  });
 }
 document.getElementById('btn-reset-progress')?.addEventListener('click', resetAllProgress);
 
@@ -3164,11 +3433,68 @@ function isAllDiffsUnlocked(set) {
   const beaten = set || loadBeatenDifficulties();
   return ALL_DIFFICULTIES.every(d => beaten.includes(d));
 }
+function isAllThemesUnlocked() {
+  try {
+    return localStorage.getItem('mehrbod_all_themes_unlocked') === 'true';
+  } catch (e) {
+    return false;
+  }
+}
+
+function isAstralThemeUnlocked() {
+  if (isAllThemesUnlocked()) return true;
+  try {
+    if (localStorage.getItem('theme_astral_unlocked') === 'true') return true;
+    if (typeof loadTrialTowerState === 'function') {
+      const tower = loadTrialTowerState();
+      if (tower && (tower.best >= 30 || tower.floor >= 30)) return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+function isQuantumThemeUnlocked() {
+  if (isAllThemesUnlocked()) return true;
+  try {
+    if (localStorage.getItem('theme_quantum_unlocked') === 'true') return true;
+    if (typeof loadTrialTowerState === 'function') {
+      const tower = loadTrialTowerState();
+      if (tower && (tower.best >= 10 || tower.floor >= 10)) return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+function isGlacierThemeUnlocked() {
+  if (isAllThemesUnlocked()) return true;
+  try {
+    if (localStorage.getItem('theme_glacier_unlocked') === 'true') return true;
+    if (typeof loadTrialTowerState === 'function') {
+      const tower = loadTrialTowerState();
+      if (tower && (tower.best >= 15 || tower.floor >= 15)) return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+function isCelestialThemeUnlocked() {
+  if (isAllThemesUnlocked()) return true;
+  try {
+    if (localStorage.getItem('theme_celestial_unlocked') === 'true') return true;
+    if (typeof loadTrialTowerState === 'function') {
+      const tower = loadTrialTowerState();
+      if (tower && (tower.best >= 50 || tower.floor >= 50)) return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
 function themeDisplayName(t) {
   return {
     dark: 'Dark', light: 'Light', verdant: 'Verdant', pink: 'Pink', storm: 'Storm',
     aurora: 'Aurora', sovereign: 'Sovereign', flame: 'Flame', mrmoney: 'Mr Money',
-    cyberneon: 'Cyber Neon', abyss: 'Abyss', collector: '100% Collector'
+    cyberneon: 'Cyber Neon', abyss: 'Abyss', magma: 'Magma', quantum: 'Quantum Flux',
+    glacier: 'Glacial Frost', astral: 'Astral Void', celestial: 'Celestial Divinity', collector: '100% Collector'
   }[t] || t;
 }
 function isCollectionComplete() {
@@ -3180,13 +3506,21 @@ function isCollectionComplete() {
 }
 const THEME_UNLOCK_CHECK = {
   dark: () => true, light: () => true,
-  verdant: () => isThemeUnlockedByDiff('verdant'), pink: () => isThemeUnlockedByDiff('pink'),
-  flame: () => isThemeUnlockedByDiff('flame'), aurora: () => isThemeUnlockedByDiff('aurora'),
-  sovereign: () => isThemeUnlockedByDiff('sovereign'), storm: () => isAllDiffsUnlocked(),
-  mrmoney: () => ownsCosmetic('theme_mrmoney'),
-  cyberneon: () => ownsCosmetic('theme_cyberneon'),
-  abyss: () => ownsCosmetic('theme_abyss'),
-  collector: () => isCollectionComplete(),
+  verdant: () => isAllThemesUnlocked() || isThemeUnlockedByDiff('verdant'),
+  pink: () => isAllThemesUnlocked() || isThemeUnlockedByDiff('pink'),
+  flame: () => isAllThemesUnlocked() || isThemeUnlockedByDiff('flame'),
+  aurora: () => isAllThemesUnlocked() || isThemeUnlockedByDiff('aurora'),
+  sovereign: () => isAllThemesUnlocked() || isThemeUnlockedByDiff('sovereign'),
+  storm: () => isAllThemesUnlocked() || isAllDiffsUnlocked(),
+  mrmoney: () => isAllThemesUnlocked() || ownsCosmetic('theme_mrmoney'),
+  cyberneon: () => isAllThemesUnlocked() || ownsCosmetic('theme_cyberneon'),
+  abyss: () => isAllThemesUnlocked() || ownsCosmetic('theme_abyss'),
+  magma: () => isAllThemesUnlocked() || ownsCosmetic('theme_magma'),
+  quantum: () => isQuantumThemeUnlocked(),
+  glacier: () => isGlacierThemeUnlocked(),
+  astral: () => isAstralThemeUnlocked(),
+  celestial: () => isCelestialThemeUnlocked(),
+  collector: () => isAllThemesUnlocked() || isCollectionComplete(),
 };
 const THEME_LOCK_MESSAGE = {
   verdant: '🔒 Beat Easy difficulty to unlock the Verdant theme!',
@@ -3198,9 +3532,14 @@ const THEME_LOCK_MESSAGE = {
   mrmoney: '🔒 Buy the Mr Money theme in the Mehrbod Shop for 1000 Bux!',
   cyberneon: '🔒 Buy the Cyber Neon theme in the Mehrbod Shop for 1200 Bux!',
   abyss: '🔒 Buy the Abyss theme in the Mehrbod Shop for 1200 Bux!',
+  magma: '🔒 Buy the Magma theme in the Mehrbod Shop for 1200 Bux!',
+  quantum: '🔒 Reach Floor 10 of the Trial Tower to unlock the Quantum Flux theme!',
+  glacier: '🔒 Reach Floor 15 of the Trial Tower to unlock the Glacial Frost theme!',
+  astral: '🔒 Clear Floor 30 of the Trial Tower to unlock the Astral Void theme!',
+  celestial: '🔒 Reach Floor 50 of the Trial Tower to unlock the Celestial Divinity theme!',
   collector: '🔒 Collect every current card to unlock the 100% Collector theme!',
 };
-const ALL_THEME_NAMES = ['dark', 'light', 'verdant', 'pink', 'flame', 'aurora', 'sovereign', 'storm', 'mrmoney', 'cyberneon', 'abyss', 'collector'];
+const ALL_THEME_NAMES = ['dark', 'light', 'verdant', 'pink', 'flame', 'aurora', 'sovereign', 'storm', 'mrmoney', 'cyberneon', 'abyss', 'magma', 'quantum', 'glacier', 'astral', 'celestial', 'collector'];
 function loadTheme() {
   try {
     const saved = localStorage.getItem('mehrbod-cards-theme');
@@ -3272,7 +3611,8 @@ document.getElementById('themes-overlay').addEventListener('click', (e) => {
 // reached from the one 📖 Collection link on the main menu footer (and the
 // COLLECTION card in the feature strip, which jumps straight to Cards).
 function openCollectionBook() {
-  document.getElementById('collection-book-overlay').classList.remove('hidden');
+  renderCollectionScreen();
+  showScreen('screen-collection');
 }
 function closeCollectionBook() {
   document.getElementById('collection-book-overlay').classList.add('hidden');
@@ -3297,12 +3637,230 @@ document.getElementById('btn-collection-book-switch').addEventListener('click', 
 
 // Populates the Collection screen's completion radar plus its six card
 // grids (Blue/Green/Red/Orange/Spells/Chips) from the player's actual
-// owned collection. The radar summary used to be its own separate popup
-// (Collection Radar) reached from the main-menu feature strip; it now
-// lives directly at the top of the Collection tab instead, since that's
-// exactly the screen it's summarizing.
+// Populates the Collection screen's completion radar plus its six card
+// grids (Blue/Green/Red/Orange/Spells/Chips) from the player's actual owned collection.
+let currentInspectedCard = null;
+
+const SPELL_RARITIES = {
+  bolt3:       { class: 'uncommon', name: 'UNCOMMON', effectText: '3 DMG' },
+  bolt5:       { class: 'epic',     name: 'EPIC',     effectText: '5 DMG' },
+  mend3:       { class: 'uncommon', name: 'UNCOMMON', effectText: '3 HEAL' },
+  purge:       { class: 'rare',     name: 'RARE',     effectText: 'REFRESH DEF' },
+  chainbolt:   { class: 'epic',     name: 'EPIC',     effectText: '2+1 SPLASH' },
+  massmend:    { class: 'legendary',name: 'LEGENDARY',effectText: 'ALL HEAL 2' },
+  weaken:      { class: 'rare',     name: 'RARE',     effectText: '-2 DMG' },
+  adrenaline:  { class: 'exotic',   name: 'EXOTIC',   effectText: '+3 DMG' },
+  frostbolt:   { class: 'rare',     name: 'RARE',     effectText: '2 DMG / -1 ATK' },
+  warcry:      { class: 'mythic',   name: 'MYTHIC',   effectText: 'ALL +1 DMG' },
+};
+
+const CHIP_RARITIES = {
+  chip_atk:        { class: 'uncommon', name: 'UNCOMMON', boostText: '+1 DMG' },
+  chip_hp:         { class: 'uncommon', name: 'UNCOMMON', boostText: '+2 HP' },
+  chip_twin:       { class: 'rare',     name: 'RARE',     boostText: '+1 DMG / +1 HP' },
+  chip_overcharge: { class: 'rare',     name: 'RARE',     boostText: '+2 DMG' },
+  chip_fortify:    { class: 'rare',     name: 'RARE',     boostText: '+3 HP' },
+  chip_lifeblood:  { class: 'epic',     name: 'EPIC',     boostText: '1 LIFESTEAL' },
+  chip_vampiric:   { class: 'legendary',name: 'LEGENDARY',boostText: '2 LIFESTEAL' },
+  chip_barrier:    { class: 'epic',     name: 'EPIC',     boostText: '+1 DEFENSE' },
+  chip_reflect:    { class: 'exotic',   name: 'EXOTIC',   boostText: '1 REFLECT' },
+  chip_focus:      { class: 'mythic',   name: 'MYTHIC',   boostText: '+2 DMG / -1 HP' },
+};
+
+function inspectLockerCard(cardData, animateFlip = false) {
+  if (!cardData) return;
+  currentInspectedCard = cardData;
+
+  // Fast selection update without DOM rebuild
+  document.querySelectorAll('#screen-collection [data-collection-card]').forEach(el => {
+    el.classList.toggle('selected', el.dataset.cardId === cardData.id);
+  });
+
+  const showcaseRarity = document.getElementById('showcase-rarity');
+  const showcaseCat = document.getElementById('showcase-category');
+  const showcaseTitle = document.getElementById('showcase-title');
+  const showcaseWrapper = document.getElementById('showcase-card-wrapper');
+  const showcaseStats = document.getElementById('showcase-stats-grid');
+  const showcaseDesc = document.getElementById('showcase-desc');
+  const showcaseGlow = document.getElementById('showcase-glow');
+  const favBtn = document.getElementById('showcase-favorite-btn');
+  const favText = document.getElementById('showcase-fav-text');
+  const shopBtn = document.getElementById('showcase-shop-link-btn');
+
+  if (!showcaseTitle || !showcaseWrapper) return;
+
+  function getHeroFrontHTML() {
+    let heroClass = `tier${cardData.tier}`;
+    let glyph = TIER_GLYPHS[cardData.tier] || '●';
+    let statsHTML = `<span>${cardData.hp}❤</span><span>${cardData.dmg}⚔</span><span>${cardData.sp}⛃</span>`;
+
+    if (cardData.type === 'spell') {
+      heroClass = cardData.rarityClass || 'rare';
+      glyph = '⚡';
+      statsHTML = `<span>${cardData.effectText}</span>`;
+    } else if (cardData.type === 'chip') {
+      heroClass = cardData.rarityClass || 'rare';
+      glyph = '💎';
+      statsHTML = `<span>${cardData.boostText}</span>`;
+    }
+
+    return `
+      <div class="showcase-card-hero ${heroClass} ${cardData.owned ? '' : 'locked'}">
+        <div class="sc-hero-glyph">${glyph}</div>
+        <div class="sc-hero-name">${cardData.name}</div>
+        <div class="sc-hero-stats">${statsHTML}</div>
+        ${cardData.favorite ? '<div class="sc-hero-fav">★</div>' : ''}
+        ${!cardData.owned ? '<div class="sc-hero-lock">🔒 LOCKED</div>' : ''}
+      </div>`;
+  }
+
+  // Ensure 3D Flip Container Structure exists
+  let flipContainer = showcaseWrapper.querySelector('.flip-card-3d');
+  if (!flipContainer) {
+    showcaseWrapper.innerHTML = `
+      <div class="flip-card-3d" id="showcase-flip-3d">
+        <div class="flip-card-face flip-card-front" id="showcase-card-front"></div>
+        <div class="flip-card-face flip-card-back">
+          <div class="card-back-inner">
+            <div class="card-back-emblem">⚡💎</div>
+            <div class="card-back-text">LOCKER</div>
+          </div>
+        </div>
+      </div>`;
+    flipContainer = showcaseWrapper.querySelector('.flip-card-3d');
+  }
+
+  const cardFront = document.getElementById('showcase-card-front');
+
+  function updatePanelData() {
+    let rarityLabel = cardData.rarityName || 'RARE';
+    let rarityClass = cardData.rarityClass || 'rare';
+    let catLabel = 'UNIT CARD';
+
+    if (cardData.type === 'unit') {
+      catLabel = `TIER ${cardData.tier} UNIT`;
+    } else if (cardData.type === 'spell') {
+      catLabel = 'SPELL CARD';
+    } else if (cardData.type === 'chip') {
+      catLabel = 'CHIP CARD';
+    }
+
+    if (showcaseRarity) {
+      showcaseRarity.textContent = rarityLabel;
+      showcaseRarity.className = `showcase-rarity-pill ${rarityClass}`;
+    }
+    if (showcaseCat) showcaseCat.textContent = catLabel;
+    if (showcaseTitle) showcaseTitle.textContent = cardData.name;
+
+    if (cardFront) cardFront.innerHTML = getHeroFrontHTML();
+
+    if (showcaseStats) {
+      showcaseStats.style.display = 'grid';
+      if (cardData.type === 'unit') {
+        showcaseStats.innerHTML = `
+          <div class="sc-stat-box"><span class="sc-label">HEALTH</span><strong>${cardData.hp}❤</strong></div>
+          <div class="sc-stat-box"><span class="sc-label">DAMAGE</span><strong>${cardData.dmg}⚔</strong></div>
+          <div class="sc-stat-box"><span class="sc-label">CHIP SLOTS</span><strong>${cardData.sp}⛃</strong></div>
+        `;
+      } else if (cardData.type === 'spell') {
+        showcaseStats.innerHTML = `
+          <div class="sc-stat-box"><span class="sc-label">TYPE</span><strong>SPELL</strong></div>
+          <div class="sc-stat-box"><span class="sc-label">PRIMARY EFFECT</span><strong>${cardData.effectText}</strong></div>
+          <div class="sc-stat-box"><span class="sc-label">TARGET</span><strong>BOARD</strong></div>
+        `;
+      } else if (cardData.type === 'chip') {
+        showcaseStats.innerHTML = `
+          <div class="sc-stat-box"><span class="sc-label">TYPE</span><strong>CHIP</strong></div>
+          <div class="sc-stat-box"><span class="sc-label">STAT BOOST</span><strong>${cardData.boostText}</strong></div>
+          <div class="sc-stat-box"><span class="sc-label">REQ</span><strong>1 SLOT</strong></div>
+        `;
+      }
+    }
+
+    if (showcaseGlow) showcaseGlow.className = `showcase-bg-glow glow-${rarityClass}`;
+    if (showcaseDesc) showcaseDesc.textContent = cardData.text || cardData.abilityText || 'No description available.';
+
+    if (favBtn) {
+      favBtn.style.display = cardData.owned ? 'inline-flex' : 'none';
+      if (favText) favText.textContent = cardData.favorite ? 'FAVORITED ★' : 'FAVORITE';
+      favBtn.classList.toggle('is-fav', !!cardData.favorite);
+    }
+    if (shopBtn) {
+      shopBtn.style.display = cardData.owned ? 'none' : 'inline-flex';
+    }
+  }
+
+  if (animateFlip && flipContainer) {
+    if (typeof Sound !== 'undefined' && Sound.select) Sound.select();
+
+    flipContainer.classList.remove('is-flipping');
+    void flipContainer.offsetWidth; // Force reflow
+    flipContainer.classList.add('is-flipping');
+
+    if (showcaseStats) showcaseStats.classList.add('sc-reveal-anim');
+    if (showcaseDesc) showcaseDesc.classList.add('sc-reveal-anim');
+
+    setTimeout(() => {
+      updatePanelData();
+    }, 220);
+
+    setTimeout(() => {
+      flipContainer.classList.remove('is-flipping');
+      if (showcaseStats) showcaseStats.classList.remove('sc-reveal-anim');
+      if (showcaseDesc) showcaseDesc.classList.remove('sc-reveal-anim');
+    }, 550);
+  } else {
+    updatePanelData();
+  }
+}
+
+function setupLockerCategoryTabs() {
+  document.querySelectorAll('.locker-cat-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.locker-cat-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const cat = btn.dataset.cat;
+      document.querySelectorAll('.locker-section').forEach(sec => {
+        const secCat = sec.dataset.section;
+        if (cat === 'all') {
+          sec.style.display = 'block';
+        } else if (cat === 'units') {
+          sec.style.display = ['blue', 'green', 'red', 'orange'].includes(secCat) ? 'block' : 'none';
+        } else if (cat === 'spells') {
+          sec.style.display = secCat === 'spells' ? 'block' : 'none';
+        } else if (cat === 'chips') {
+          sec.style.display = secCat === 'chips' ? 'block' : 'none';
+        } else if (cat === 'radar') {
+          sec.style.display = secCat === 'radar' ? 'block' : 'none';
+        }
+      });
+      if (typeof Sound !== 'undefined' && Sound.select) Sound.select();
+    };
+  });
+}
+
 function renderCollectionScreen() {
   const col = loadCollection();
+
+  // Total collected calculation
+  let totalUnitsCount = 0, totalOwnedUnits = 0;
+  [1, 2, 3, 4].forEach(t => {
+    totalUnitsCount += UNIT_ARCHETYPES[t].length;
+    totalOwnedUnits += UNIT_ARCHETYPES[t].filter(a => col.units.includes(a.id)).length;
+  });
+  const totalSpellsCount = ALL_SPELL_IDS.length;
+  const totalOwnedSpells = col.spells.length;
+  const totalChipsCount = ALL_CHIP_IDS.length;
+  const totalOwnedChips = col.chips.length;
+
+  const grandTotal = totalUnitsCount + totalSpellsCount + totalChipsCount;
+  const grandOwned = totalOwnedUnits + totalOwnedSpells + totalOwnedChips;
+  const grandPct = Math.round((grandOwned / Math.max(1, grandTotal)) * 100);
+
+  const totalCountEl = document.getElementById('locker-collected-count');
+  if (totalCountEl) {
+    totalCountEl.textContent = `${grandOwned}/${grandTotal} (${grandPct}%)`;
+  }
 
   const radarEl = document.getElementById('collection-radar-summary');
   if (radarEl) {
@@ -3314,7 +3872,7 @@ function renderCollectionScreen() {
       { name: 'Chips', owned: col.chips.length, total: ALL_CHIP_IDS.length },
     ].map(g => ({ ...g, pct: Math.round(g.owned / Math.max(1, g.total) * 100) }));
     radarEl.innerHTML = `
-      <div class="deck-builder-heading"><span>◎ Completion Radar</span></div>
+      <div class="locker-section-head"><span>◎ Completion Radar</span></div>
       <div class="radar-list">
         ${groups.map(g => `
           <div>
@@ -3325,19 +3883,53 @@ function renderCollectionScreen() {
       </div>`;
   }
 
+  const allCardsList = [];
+
   const tierContainerIds = { 1: 'collection-blue', 2: 'collection-green', 3: 'collection-red', 4: 'collection-orange' };
+  const tierRarityNames = { 1: 'RARE', 2: 'UNCOMMON', 3: 'EPIC', 4: 'LEGENDARY' };
+  const tierRarityClasses = { 1: 'rare', 2: 'uncommon', 3: 'epic', 4: 'legendary' };
+
   [1, 2, 3, 4].forEach(tier => {
     const container = document.getElementById(tierContainerIds[tier]);
     if (!container) return;
+    const tierDef = TIERS[tier] || { hp: tier, dmg: tier, sp: Math.max(0, tier - 1) };
+
     container.innerHTML = UNIT_ARCHETYPES[tier].map(a => {
       const owned = isUnitArchetypeOwned(a.id);
       const favorite = isFavoriteCard(a.id);
       const abilityText = a.pool[0] === 'none' ? 'No special ability' : (ABILITIES[a.pool[0]] ? ABILITIES[a.pool[0]].label : 'Unique ability');
-      return `<button type="button" class="dcard unit-dcard tier${tier} ${owned ? '' : 'locked'}"
-        data-collection-card data-card-id="${a.id}" data-card-name="${a.name}" data-card-group="${TIERS[tier].name}" data-owned="${owned}">
-        <div class="dcard-name">${favorite ? '★ ' : ''}${a.name}</div>
-        <div class="dcard-text">${abilityText}</div>
-        ${owned ? '' : '<div class="dcard-lock">🔒 Locked</div>'}
+      
+      const cardObj = {
+        id: a.id,
+        name: a.name,
+        type: 'unit',
+        tier: tier,
+        hp: tierDef.hp,
+        dmg: tierDef.dmg,
+        sp: tierDef.sp,
+        rarityName: tierRarityNames[tier],
+        rarityClass: tierRarityClasses[tier],
+        abilityText: abilityText,
+        text: abilityText,
+        owned: owned,
+        favorite: favorite
+      };
+      allCardsList.push(cardObj);
+
+      return `<button type="button" class="locker-tile tier${tier} ${owned ? '' : 'locked'} ${favorite ? 'favorite' : ''}"
+        data-collection-card data-card-id="${a.id}" data-card-name="${a.name}" data-card-type="unit" data-tier="${tier}" data-owned="${owned}">
+        <div class="tile-rarity-tag ${tierRarityClasses[tier]}">${tierRarityNames[tier]}</div>
+        ${favorite ? '<div class="tile-fav-star">★</div>' : ''}
+        <div class="tile-body">
+          <div class="tile-glyph">${TIER_GLYPHS[tier] || '●'}</div>
+          <div class="tile-name">${a.name}</div>
+        </div>
+        <div class="tile-tooltip">
+          <span class="tile-tooltip-stat hp">❤ ${tierDef.hp}</span>
+          <span class="tile-tooltip-stat dmg">⚔ ${tierDef.dmg}</span>
+          <span class="tile-tooltip-stat sp">⛃ ${tierDef.sp}</span>
+        </div>
+        ${owned ? '' : '<div class="tile-lock-overlay">🔒</div>'}
       </button>`;
     }).join('');
   });
@@ -3347,31 +3939,121 @@ function renderCollectionScreen() {
     spellsContainer.innerHTML = SPELL_DEFS.map(s => {
       const owned = col.spells.includes(s.id);
       const favorite = isFavoriteCard(s.id);
-      return `<div class="dcard ${owned ? '' : 'locked'}" data-collection-card data-card-id="${s.id}" data-card-name="${s.name}" data-card-group="Spells" data-owned="${owned}">
-        <div class="dcard-name">${favorite ? '★ ' : ''}${s.name}</div><div class="dcard-text">${s.text}</div>${owned ? '' : '<div class="dcard-lock">🔒 Locked</div>'}
-      </div>`;
+      const rarityInfo = SPELL_RARITIES[s.id] || { class: 'exotic', name: 'EXOTIC', effectText: 'SPELL' };
+
+      const cardObj = {
+        id: s.id,
+        name: s.name,
+        type: 'spell',
+        tier: 0,
+        rarityName: rarityInfo.name,
+        rarityClass: rarityInfo.class,
+        effectText: rarityInfo.effectText,
+        text: s.text,
+        owned: owned,
+        favorite: favorite
+      };
+      allCardsList.push(cardObj);
+
+      return `<button type="button" class="locker-tile spell ${rarityInfo.class} ${owned ? '' : 'locked'} ${favorite ? 'favorite' : ''}"
+        data-collection-card data-card-id="${s.id}" data-card-name="${s.name}" data-card-type="spell" data-owned="${owned}">
+        <div class="tile-rarity-tag ${rarityInfo.class}">${rarityInfo.name}</div>
+        ${favorite ? '<div class="tile-fav-star">★</div>' : ''}
+        <div class="tile-body">
+          <div class="tile-glyph">⚡</div>
+          <div class="tile-name">${s.name}</div>
+        </div>
+        <div class="tile-tooltip">
+          <span class="tile-tooltip-stat effect">⚡ ${rarityInfo.effectText}</span>
+        </div>
+        ${owned ? '' : '<div class="tile-lock-overlay">🔒</div>'}
+      </button>`;
     }).join('');
   }
+
   const chipsContainer = document.getElementById('collection-chips');
   if (chipsContainer) {
     chipsContainer.innerHTML = CHIP_DEFS.map(c => {
       const owned = col.chips.includes(c.id);
       const favorite = isFavoriteCard(c.id);
-      return `<div class="dcard ${owned ? '' : 'locked'}" data-collection-card data-card-id="${c.id}" data-card-name="${c.name}" data-card-group="Chips" data-owned="${owned}">
-        <div class="dcard-name">${favorite ? '★ ' : ''}${c.name}</div><div class="dcard-text">${c.text}</div>${owned ? '' : '<div class="dcard-lock">🔒 Locked</div>'}
-      </div>`;
+      const rarityInfo = CHIP_RARITIES[c.id] || { class: 'mythic', name: 'MYTHIC', boostText: 'CHIP' };
+
+      const cardObj = {
+        id: c.id,
+        name: c.name,
+        type: 'chip',
+        tier: 0,
+        rarityName: rarityInfo.name,
+        rarityClass: rarityInfo.class,
+        boostText: rarityInfo.boostText,
+        text: c.text,
+        owned: owned,
+        favorite: favorite
+      };
+      allCardsList.push(cardObj);
+
+      return `<button type="button" class="locker-tile chip ${rarityInfo.class} ${owned ? '' : 'locked'} ${favorite ? 'favorite' : ''}"
+        data-collection-card data-card-id="${c.id}" data-card-name="${c.name}" data-card-type="chip" data-owned="${owned}">
+        <div class="tile-rarity-tag ${rarityInfo.class}">${rarityInfo.name}</div>
+        ${favorite ? '<div class="tile-fav-star">★</div>' : ''}
+        <div class="tile-body">
+          <div class="tile-glyph">💎</div>
+          <div class="tile-name">${c.name}</div>
+        </div>
+        <div class="tile-tooltip">
+          <span class="tile-tooltip-stat effect">💎 ${rarityInfo.boostText}</span>
+        </div>
+        ${owned ? '' : '<div class="tile-lock-overlay">🔒</div>'}
+      </button>`;
     }).join('');
   }
 
+  // Setup click to inspect card
   document.querySelectorAll('#screen-collection [data-collection-card]').forEach(el => {
     el.addEventListener('click', () => {
-      toggleFavoriteCard(el.dataset.cardId);
-      renderCollectionScreen();
-      setupCollectionTools();
+      const id = el.dataset.cardId;
+      const found = allCardsList.find(c => c.id === id);
+      if (found) {
+        inspectLockerCard(found, true);
+      }
     });
   });
 
+  // Auto-inspect previously inspected card or first card
+  if (allCardsList.length) {
+    let toInspect = null;
+    if (currentInspectedCard) {
+      toInspect = allCardsList.find(c => c.id === currentInspectedCard.id);
+    }
+    if (!toInspect) {
+      toInspect = allCardsList.find(c => c.owned) || allCardsList[0];
+    }
+    if (toInspect) {
+      inspectLockerCard(toInspect);
+    }
+  }
+
+  setupLockerCategoryTabs();
   setupCollectionTools();
+
+  // Wire showcase favorite button
+  const favBtn = document.getElementById('showcase-favorite-btn');
+  if (favBtn) {
+    favBtn.onclick = () => {
+      if (!currentInspectedCard) return;
+      toggleFavoriteCard(currentInspectedCard.id);
+      renderCollectionScreen();
+    };
+  }
+
+  // Wire shop link button
+  const shopBtn = document.getElementById('showcase-shop-link-btn');
+  if (shopBtn) {
+    shopBtn.onclick = () => {
+      const btnShop = document.getElementById('btn-shop');
+      if (btnShop) btnShop.click();
+    };
+  }
 }
 
 function getFavoriteCards() {
@@ -3387,6 +4069,7 @@ function toggleFavoriteCard(id) {
   if (i >= 0) favorites.splice(i, 1);
   else favorites.push(id);
   saveFavoriteCards(favorites);
+  if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
   return i < 0;
 }
 function isFavoriteCard(id) {
@@ -3413,12 +4096,28 @@ function setupCollectionTools() {
         (modeVal === 'owned' && owned) ||
         (modeVal === 'missing' && !owned) ||
         (modeVal === 'favorites' && favorite);
-      el.hidden = !(matchesQuery && matchesMode);
+      
+      const visible = matchesQuery && matchesMode;
+      el.hidden = !visible;
+      el.style.display = visible ? 'flex' : 'none';
+    });
+
+    // Hide empty sections if no matching card tiles are visible
+    document.querySelectorAll('#screen-collection .locker-section').forEach(sec => {
+      const tiles = sec.querySelectorAll('[data-collection-card]');
+      if (tiles.length > 0) {
+        const hasVisible = Array.from(tiles).some(t => t.style.display !== 'none');
+        sec.style.display = hasVisible ? '' : 'none';
+      }
     });
   };
 
-  if (search) search.addEventListener('input', apply);
-  if (filter) filter.addEventListener('change', apply);
+  if (search) {
+    search.oninput = apply;
+    search.onsearch = apply;
+    search.onkeyup = apply;
+  }
+  if (filter) filter.onchange = apply;
   apply();
 }
 
@@ -3514,13 +4213,48 @@ document.getElementById('btn-copy-code').addEventListener('click', async () => {
     await navigator.clipboard.writeText(code);
     showToast('Room code copied!');
   } catch (e) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = code;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const success = document.execCommand('copy');
+      ta.remove();
+      if (success) {
+        showToast('Room code copied!');
+        return;
+      }
+    } catch (_) {}
     showToast('Could not copy — select and copy it manually.');
   }
 });
 
 // ---- Patch notes --------------------------------------------------------
-const CURRENT_VERSION = '3.13';
+const CURRENT_VERSION = '3.14';
 const PATCH_NOTES = [
+  {
+    version: '3.14',
+    notes: [
+      "PROFILE HUD: moved your colored-letter profile avatar button to the top-left corner of the screen so your Bux balance sits alone in the top-right corner.",
+      "IN-MATCH OPTIONS: hid the 'Reset All Progress' button from the Options menu while inside an active battle match (retained in main menu Settings).",
+      "MOBILE EMOTES FIX: fixed emote popover positioning on touch devices using viewport-fixed coordinates to prevent overflow clipping in mobile battle docks.",
+      "MOBILE OVERHAUL: completely redesigned the battle UI for touch screens with a glassmorphic header bar, compact 'R' ready button, responsive board slots, and horizontal deck scrolling, plus fixed a bug where the battle UI remained visible at the bottom of menu screens on mobile.",
+      "IN-MATCH EMOTES: added an Emote Popover menu ('💬 Emotes') in the battle bar that expands on hover/tap to let you send animated reaction bubbles (⚔️, 🛡️, 🔥, 👏, 💀) floating over boards with sound effects, haptics, and bot counter-reactions.",
+      "HOTKEYS: added global battle keyboard shortcuts (R to Ready, U to Undo placement, M to Combine/Merge) with contextual desktop key hints that automatically hide on touch/mobile devices.",
+      "MOBILE FIX: elevated the main menu footer (Collection, Quests, Settings, and Stats) above the Magma and Flame theme animations, giving it dedicated glass-pad styling and high-contrast typography so it never gets obscured by rolling lava waves on mobile devices.",
+      "VISUAL: completely reworked the Flame theme into a living blue fire inferno — replacing the rigid polygonal cutouts with organic fluid flame plumes, roaring dual plasma beds, deep subterranean thermal surges, dynamic multi-layered combustion cores, floating embers, and electric sparks.",
+      "QOL: moved the Mehrbod Shop exit button to the top left corner instead of the bottom, and added keyboard shortcut support so pressing Escape instantly takes you out of the shop to the main menu.",
+      "NEW: added a new living Magma theme to the Mehrbod Shop rotation — featuring undulating molten lava waves, buoyant rising embers, glowing fissure veins, and seismic thermal surges.",
+      "NEW: several new secret redeemable codes have been added to the Mehrbod Shop's Codes section — find and enter them to earn Bux, cosmetics, and progression rewards.",
+      "BALANCE: removed overpowered card-granting codes from the code redemption system to preserve progression balance.",
+      "FIX: the Quit Match button in the in-battle Options menu now reliably forfeits the match, cancels bot routines, cleans up connections, and returns to the main menu with a custom in-game confirmation dialog that works consistently across all environments.",
+      "CLEANUP: removed the experimental header forfeit button from the battle bar so the in-game header stays clean and uncluttered.",
+    ],
+  },
   {
     version: '3.13',
     notes: [
@@ -3783,11 +4517,50 @@ function markPatchNotesSeen() {
 // ---- Esc closes whatever overlay is currently open, or clears a selection ---
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
-  const overlays = ['patchnotes-overlay', 'options-overlay', 'quests-overlay', 'themes-overlay', 'collection-book-overlay'];
+  const overlays = ['confirm-overlay', 'patchnotes-overlay', 'options-overlay', 'quests-overlay', 'themes-overlay', 'collection-book-overlay', 'player-name-overlay', 'stats-hub-overlay'];
   for (const id of overlays) {
     const el = document.getElementById(id);
     if (el && !el.classList.contains('hidden')) { el.classList.add('hidden'); return; }
   }
+
+  // Pack opening overlay
+  const packOverlay = document.querySelector('.packopen-overlay');
+  if (packOverlay) {
+    const contBtn = packOverlay.querySelector('.packopen-continue:not(.hidden)');
+    if (contBtn) { contBtn.click(); return; }
+    packOverlay.remove();
+    return;
+  }
+
+  // Pressing Escape takes you out of the Mehrbod shop to the main menu
+  const shopEl = document.getElementById('screen-shop-cosmetics');
+  if (shopEl && !shopEl.classList.contains('hidden')) {
+    e.preventDefault();
+    if (document.activeElement && typeof document.activeElement.blur === 'function') {
+      document.activeElement.blur();
+    }
+    showScreen('screen-menu');
+    return;
+  }
+  const legacyShopEl = document.getElementById('screen-shop');
+  if (legacyShopEl && !legacyShopEl.classList.contains('hidden')) {
+    e.preventDefault();
+    showScreen('screen-menu');
+    return;
+  }
+  const shopBotEl = document.getElementById('screen-shop-bot');
+  if (shopBotEl && !shopBotEl.classList.contains('hidden')) {
+    e.preventDefault();
+    showScreen('screen-menu');
+    return;
+  }
+  const shopHostEl = document.getElementById('screen-shop-host-setup');
+  if (shopHostEl && !shopHostEl.classList.contains('hidden')) {
+    e.preventDefault();
+    showScreen('screen-menu');
+    return;
+  }
+
   if (!state || document.getElementById('screen-game').classList.contains('hidden')) return;
   if (isForced(state, localKey)) return;
   if (selMode !== null || selHandIdx !== null || selAttackerSlot !== null || selSpellId !== null || selChipId !== null) {
@@ -3840,7 +4613,61 @@ if (!hasTutorialBeenSeen()) {
   ensurePlayerNameThen(() => startFullTutorial());
 }
 
+// Minecraft-style Splash Texts for MEHRBOD CARDS Logo
+const MINECRAFT_SPLASH_TEXTS = [
+  "Blue merges into Green!",
+  "Break every board!",
+  "100% Organic Bux!",
+  "Now with 3D Card Flips!",
+  "Don't let the bot win!",
+  "Try Story Mode!",
+  "Over 9000 Bux!",
+  "Better than Solitaire!",
+  "Powered by Mehrbod Bux!",
+  "Awesome card art!",
+  "Press M for a secret!",
+  "Master Tier Bot awaits!",
+  "Also try Trial Tower!",
+  "Climb the citadel!",
+  "So many themes to unlock!",
+  "Burn the other side to zero!",
+  "Draft 12, fuse smart!",
+  "Spells & Chips included!",
+  "GG WP!",
+  "Mythic rarity unlocked!",
+  "It's a secret to everybody!",
+  "Do a barrel roll!",
+  "Sovereign Gold approved!",
+  "Cyberneon aesthetic!",
+  "Glacier subzero freezing!",
+  "Magma heat surge active!",
+  "Lifesteal activated!",
+  "Check the Card Locker!",
+  "Daily challenges ready!",
+  "Also play in Multiplayer!",
+  "Made with love!",
+  "Subzero frostbolts!",
+  "Warcry buffed!",
+  "Unstoppable combo!",
+  "Victory is yours!",
+  "Press Start to Play!",
+  "Unlimited potential!",
+  "Top tier strategies!",
+  "No mock data here!",
+  "100% Pure Skill!"
+];
+
+function initMinecraftSplashText() {
+  const splashEl = document.getElementById('minecraft-splash');
+  if (!splashEl) return;
+
+  const splash = MINECRAFT_SPLASH_TEXTS[Math.floor(Math.random() * MINECRAFT_SPLASH_TEXTS.length)];
+  splashEl.textContent = splash;
+}
+initMinecraftSplashText();
+
 document.addEventListener('DOMContentLoaded', () => {
+  initMinecraftSplashText();
   setTimeout(() => {
     const mastery = getCardMastery();
     document.querySelectorAll('[data-card-id]').forEach(card => {
