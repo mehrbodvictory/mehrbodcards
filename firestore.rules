@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isValidLobby(data) {
+      return data.keys().hasAll(['roomCode', 'hostPeerId', 'status', 'createdAt']) &&
+             data.roomCode is string &&
+             data.roomCode.size() >= 3 &&
+             data.roomCode.size() <= 10 &&
+             data.hostPeerId is string &&
+             data.status in ['waiting', 'matched', 'closed'] &&
+             data.createdAt is number;
+    }
+
+    match /matchmaking_lobbies/{lobbyId} {
+      allow read: if true;
+      allow create: if isValidLobby(request.resource.data) && request.resource.data.status == 'waiting';
+      allow update: if request.resource.data.status in ['waiting', 'matched', 'closed'];
+      allow delete: if true;
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

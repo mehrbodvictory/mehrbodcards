@@ -2811,20 +2811,39 @@ async function beginMatchmaking(deckConfig) {
   matchmakingIsHost = false;
   
   try {
-    const joinRes = await fetch('/api/matchmaking/join', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    
-    if (!joinRes.ok) {
-        throw new Error('Matchmaking server not available (Multiplayer matchmaking requires a backend API, which is not available on static hosting like GitHub Pages)');
+    let matchedLobby = null;
+
+    // 1. Try Firebase Firestore matchmaking discovery
+    if (typeof FirebaseMatchmaking !== 'undefined' && FirebaseMatchmaking.isAvailable()) {
+      try {
+        document.getElementById('matchmaking-status').textContent = 'Searching for open public matches...';
+        matchedLobby = await FirebaseMatchmaking.findAndClaimLobby();
+      } catch (fbErr) {
+        console.warn('[Firebase Matchmaking] Search error, checking fallback:', fbErr);
+      }
+    }
+
+    // 2. If no Firebase lobby found, check local API fallback if available
+    if (!matchedLobby) {
+      try {
+        const joinRes = await fetch('/api/matchmaking/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (joinRes.ok) {
+          const joinData = await joinRes.json();
+          if (joinData && joinData.matchFound && joinData.roomCode) {
+            matchedLobby = { roomCode: joinData.roomCode };
+          }
+        }
+      } catch (apiErr) {
+        // Fallback API unavailable - proceed to host
+      }
     }
     
-    const joinData = await joinRes.json();
-    
-    if (joinData && joinData.matchFound && joinData.roomCode) {
-      document.getElementById('matchmaking-status').textContent = 'Match found! Connecting to host...';
-      matchmakingRoomCode = joinData.roomCode;
+    if (matchedLobby && matchedLobby.roomCode) {
+      document.getElementById('matchmaking-status').textContent = 'Match found! Establishing direct P2P connection...';
+      matchmakingRoomCode = matchedLobby.roomCode;
       matchmakingIsHost = false;
       
       mode = 'mp'; localKey = 'guest'; remoteKey = 'host';
@@ -2845,14 +2864,14 @@ async function beginMatchmaking(deckConfig) {
           initReplayLog(data.seed, 'host', 'guest', { host: data.hostDeckConfig, guest: pendingGuestDeckConfig });
           resetSelections();
           showScreen('screen-game');
-          setMatchInfo('Multiplayer · Public Match', 'Public Match');
+          setMatchInfo('Multiplayer · Public Match (P2P)', 'Public Match');
           render();
         },
         onApplied: (action) => applyActionAndRender(action),
         onStatus: (status) => {
           document.getElementById('matchmaking-status').textContent =
-            status === 'connected' ? 'Connected! Handshaking match data...' :
-            status === 'disconnected' ? 'Match disconnected.' : 'Connecting...';
+            status === 'connected' ? 'Connected via P2P! Handshaking match data...' :
+            status === 'disconnected' ? 'Match disconnected.' : 'Connecting to peer...';
         },
         onPeerError: (err) => {
           console.warn('Guest connection failed, transitioning to host fallback...', err);
@@ -2892,7 +2911,7 @@ async function startHostingMatchmaking(deckConfig) {
     onStatus: (status) => {
       document.getElementById('matchmaking-status').textContent =
         status === 'waiting' ? 'Lobby registered! Waiting for another player...' :
-        status === 'connected' ? 'Player found! Instantiating battle...' :
+        status === 'connected' ? 'Player found! Instantiating direct P2P battle...' :
         status === 'disconnected' ? 'Player disconnected.' : 'Connecting...';
     },
     onGuestConfig: (guestDeckConfig) => {
@@ -2908,9 +2927,14 @@ async function startHostingMatchmaking(deckConfig) {
       initReplayLog(seed, 'host', 'guest', { host: deckConfig, guest: guestDeckConfig });
       resetSelections();
       showScreen('screen-game');
-      setMatchInfo('Multiplayer · Public Match', 'Public Match');
+      setMatchInfo('Multiplayer · Public Match (P2P)', 'Public Match');
       render();
       net.sendInit();
+
+      // Once connected via direct P2P, deregister from Firebase lobby list
+      if (typeof FirebaseMatchmaking !== 'undefined' && matchmakingRoomCode) {
+        FirebaseMatchmaking.cancelLobby(matchmakingRoomCode).catch(() => {});
+      }
     },
     onPeerError: (err) => {
       document.getElementById('matchmaking-status').textContent = err.message || ('Connection failed: ' + err.type);
@@ -2927,11 +2951,25 @@ async function startHostingMatchmaking(deckConfig) {
     const code = await net.hostGame(seed, 0, deckConfig);
     matchmakingRoomCode = code;
     
-    await fetch('/api/matchmaking/host', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roomCode: code })
-    });
+    // Register in Firebase Firestore
+    if (typeof FirebaseMatchmaking !== 'undefined' && FirebaseMatchmaking.isAvailable()) {
+      try {
+        await FirebaseMatchmaking.registerLobby(code);
+      } catch (fbErr) {
+        console.warn('[Firebase Matchmaking] Failed to register in Firebase:', fbErr);
+      }
+    }
+
+    // Also register on local API
+    try {
+      await fetch('/api/matchmaking/host', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomCode: code })
+      });
+    } catch (apiErr) {
+      // Non-critical if Firebase is active
+    }
   } catch (e) {
     document.getElementById('matchmaking-status').textContent = 'Failed to create public lobby.';
     showToast('Matchmaking host error: ' + e);
@@ -2940,6 +2978,13 @@ async function startHostingMatchmaking(deckConfig) {
 
 async function cancelMatchmaking() {
   if (matchmakingIsHost && matchmakingRoomCode) {
+    if (typeof FirebaseMatchmaking !== 'undefined') {
+      try {
+        await FirebaseMatchmaking.cancelLobby(matchmakingRoomCode);
+      } catch (e) {
+        console.warn('Could not deregister Firebase lobby: ', e);
+      }
+    }
     try {
       await fetch('/api/matchmaking/cancel', {
         method: 'POST',
@@ -2947,7 +2992,7 @@ async function cancelMatchmaking() {
         body: JSON.stringify({ roomCode: matchmakingRoomCode })
       });
     } catch (e) {
-      console.warn('Could not deregister matchmaking lobby: ', e);
+      // Ignored
     }
   }
   

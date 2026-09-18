@@ -1,0 +1,43 @@
+{
+  "entities": {
+    "MatchmakingLobby": {
+      "title": "MatchmakingLobby",
+      "description": "Public matchmaking lobby for peer-to-peer WebRTC connection pairing",
+      "type": "object",
+      "properties": {
+        "roomCode": {
+          "type": "string",
+          "description": "Short 5-letter room code for the PeerJS peer ID"
+        },
+        "hostPeerId": {
+          "type": "string",
+          "description": "PeerJS ID for the hosting player"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["waiting", "matched", "closed"],
+          "description": "Current status of the matchmaking lobby"
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Timestamp when the lobby was created"
+        },
+        "guestJoined": {
+          "type": "boolean",
+          "description": "Flag indicating if a guest matched with this lobby"
+        },
+        "matchedAt": {
+          "type": "number",
+          "description": "Timestamp when a guest joined"
+        }
+      },
+      "required": ["roomCode", "hostPeerId", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/matchmaking_lobbies/{lobbyId}": {
+      "schema": "MatchmakingLobby",
+      "description": "Collection of active public matchmaking lobbies"
+    }
+  }
+}
