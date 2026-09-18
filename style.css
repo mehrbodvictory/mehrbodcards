@@ -157,6 +157,11 @@ html.theme-mrmoney {
   --bg-grad-2: #020e06;
 }
 
+html.theme-mrmoney #secret-m-trigger {
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+}
+
 * { box-sizing: border-box; }
 
 /* Progress bar used by the Daily Challenge panel. */

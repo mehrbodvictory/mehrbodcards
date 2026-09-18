@@ -1278,6 +1278,10 @@ document.getElementById('btn-bot-mode-wager').addEventListener('click', () => { 
 document.getElementById('btn-host-menu').addEventListener('click', () => showScreen('screen-host-mode'));
 
 document.getElementById('btn-matchmaking-menu').addEventListener('click', () => {
+  if (location.hostname.includes('github.io')) {
+    showToast('Multiplayer matchmaking is not available on GitHub Pages.');
+    return;
+  }
   openDeckBuilder((config) => beginMatchmaking(config));
 });
 
@@ -2811,6 +2815,11 @@ async function beginMatchmaking(deckConfig) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
+    
+    if (!joinRes.ok) {
+        throw new Error('Matchmaking server not available (Multiplayer matchmaking requires a backend API, which is not available on static hosting like GitHub Pages)');
+    }
+    
     const joinData = await joinRes.json();
     
     if (joinData && joinData.matchFound && joinData.roomCode) {
@@ -3438,6 +3447,7 @@ document.getElementById('screen-game').addEventListener('click', (e) => {
   }
 
   if (slotEl) {
+    e.stopPropagation();
     const owner = slotEl.dataset.owner;
     const slot = Number(slotEl.dataset.slot);
     const isMine = owner === localKey;
@@ -3495,7 +3505,7 @@ document.getElementById('screen-game').addEventListener('click', (e) => {
     if (selHandIdx !== null) {
       if (!isMine || card) { showToast('Choose an empty slot on your own board.'); return; }
       dispatch({ type: 'place', handIndex: selHandIdx, slot });
-      selHandIdx = null; render(); return;
+      resetSelections(); render(); return;
     }
     if (state.phase === 'attack') {
       if (selAttackerSlot === null) {
@@ -5935,8 +5945,24 @@ document.getElementById('btn-copy-code').addEventListener('click', async () => {
 });
 
 // ---- Patch notes --------------------------------------------------------
-const CURRENT_VERSION = '3.14';
+const CURRENT_VERSION = '4.0';
 const PATCH_NOTES = [
+  {
+    version: '4.0',
+    notes: [
+      "REWORKED: Stats accessibility — removed the redundant menu footer 'Stats' button. All player progress, including the Bux Ledger, Recent Activity, Match History, Net Wager Profit, and the new ▶ Watch Last Replay button, has been unified under the main Player Profile panel (accessible via the top-left avatar).",
+      "NEW: Watch Last Replay button added directly to the Player Profile panel for easier access to your previous match.",
+      "NEW: Net Wager Profit displayed directly in the Player Profile stats grid.",
+      "NEW: opening a Card Pack is now a real pack-opening moment — tear the foil pack open, then flip each card one by one with tier-colored glow, sound, and sparkle bursts, instead of an instant toast.",
+      "NEW progression system: Daily Login Rewards — a 7-day escalating streak, separate from the Daily Challenge, claimable once per calendar day from the menu footer.",
+      "REWORKED: Meteor Shower victory animation is longer and hits harder — more meteors, ground impact flashes, a deeper secondary boom, and a multi-pulse camera shake.",
+      "REWORKED: Void Sleeves now swirl with an animated corner portal and a pulsing void-energy glow.",
+      "REWORKED: Cyber Neon theme gained a periodic full-screen scan beam and a subtle glitch-flicker on cards.",
+      "REWORKED: Abyss theme gained a sweeping anglerfish lure light and a stronger jellyfish pulse.",
+      "REWORKED: 100% Collector (Diamond Vault) cards throw a little sparkle burst on hover.",
+      "POLISH: buttons and cards across the whole app got a tactile ripple/press feel and slightly livelier hover motion.",
+    ],
+  },
   {
     version: '3.14',
     notes: [

@@ -2126,6 +2126,10 @@ const Sound = (function () {
     cardSelect() {
       sweep(480, 720, 0.06, 'triangle', 0.08);
     },
+    cardPlace(tier) {
+      const baseFreq = 220 + (tier || 1) * 60;
+      tone(baseFreq, 0.05, 'triangle', 0.08);
+    },
     spellSelect() {
       [784, 1046].forEach((f, i) => tone(f, 0.08, 'sine', 0.06, i * 0.04));
     },

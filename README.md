@@ -45,34 +45,3 @@ js/sound.js            Procedural Web Audio sound engine
 ```
 
 `style-juice.css` and `js/juice.js` are additive layers loaded after the core files — they override a couple of functions/rules (card pack opening, the meteor shower victory animation, void sleeve styling, cyber neon/abyss/collector polish) and add the Daily Login Reward system, without needing to touch the core `main.js`/`style.css` files directly.
-
-## v3.9 — this build
-
-- **NEW**: opening a Card Pack is now a real pack-opening moment — tear the foil pack open, then flip each card one by one with tier-colored glow, sound, and sparkle bursts, instead of an instant toast (Pokemon / PVZ: Garden Warfare 2-style reveal).
-- **NEW progression system**: Daily Login Rewards — a 7-day escalating streak, separate from the Daily Challenge, claimable once per calendar day from the menu footer.
-- **REWORKED**: Meteor Shower victory animation is longer and hits harder — more meteors, ground impact flashes, a deeper secondary boom, and a multi-pulse camera shake.
-- **REWORKED**: Void Sleeves now swirl with an animated corner portal and a pulsing void-energy glow instead of a static outline.
-- **REWORKED**: Cyber Neon theme gained a periodic full-screen scan beam and a subtle glitch-flicker on cards.
-- **REWORKED**: Abyss theme gained a sweeping anglerfish lure light and a stronger jellyfish pulse.
-- **REWORKED**: 100% Collector (Diamond Vault) cards throw a little sparkle burst on hover.
-- **POLISH**: buttons and cards across the whole app got a tactile ripple/press feel and slightly livelier hover motion.
-- Storm theme is untouched, as requested.
-
-## Earlier changes
-
-- **SWAPPED**: Flame and Storm now unlock the opposite way they used to — Flame unlocks by beating Hard, Storm is now the secret 6th theme for beating every difficulty.
-- **REDESIGNED**: Storm theme (real supercell — four lightning bolts, full-sky flash, wind streaks, denser rain) and 100% Collector theme (now a "Diamond Vault" — icy white/rose-gold/champagne palette, no longer overlapping visually with Sovereign or its own old look).
-- **NEW**: two purchasable Shop themes — Cyber Neon (1200 Bux) and Abyss (1200 Bux).
-- **NEW cosmetic category**: Victory Animations. The first is Meteor Shower (500 Bux) — plays a full-screen meteor shower for both players the instant its owner wins, right before the win/lose screen appears.
-- **Removed**: Round Timer and Card of the Day (both pulled back out).
-- **FIX**: quitting your own multiplayer match no longer flashes "Your opponent forfeited — you win!" at the person who quit.
-- **FIX**: pressing Enter in the Join room-code field now submits it, same as tapping Connect.
-- **NEW**: Volume slider, Vibration toggle, and a two-step-confirmed Reset All Progress option, all in Options.
-- **NEW**: Round Timer (later removed), Deck Builder search & filter, Merge Preview.
-- **NEW**: multi-card merges (2-4 cards in one fusion) via 🧬 Combine mode, plus a "mega fusion" celebration for big/Orange merges.
-- **BUGFIX**: theme lock icons, Blue regeneration requiring a completed merge first.
-- **Removed the hand/draw system.** Every card in a player's deck is visible and available from round 1.
-- **Merges require a blueprint in the deck.** No generic "Tier X Fusion" fallback.
-- **Fixed a merge-economy bug** that made matches run on forever.
-- **Fixed a "cards randomly vanish" report** — delayed queued attacks now surface their own toast.
-- **Round cap** lowered from 300 to 60 as a backstop.

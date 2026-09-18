@@ -236,7 +236,8 @@ function makeSpellOrChip(def) {
 // from the very first round. Without a config (e.g. the bot's deck), a
 // weighted random spread across all four tiers is used instead, so bot
 // matches still show off named higher-tier archetypes.
-const RANDOM_DECK_TIER_WEIGHTS = [1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 3]; // 9 blue, 2 green, 1 red - kept Blue-heavy so a full-board opening placement doesn't clog on unplaceable blueprints
+// 2 of each tier (1, 2, 3, 4 = 8 cards) + 4 extra blue cards (total 12 cards)
+const RANDOM_DECK_TIER_WEIGHTS = [1, 1, 1, 1, 1, 1, 2, 2, 3, 3, 4, 4];
 
 function buildDeck(rng, config) {
   let units;
