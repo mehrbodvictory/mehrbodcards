@@ -3,10 +3,10 @@
 // Defense charges per tier: Blue is unlimited, Green gets exactly one
 // block, and Red/Orange can no longer defend at all.
 const TIERS = {
-  1: { name: 'Blue',   hex: '#3E7CB1', hp: 1, dmg: 1, sp: 0, defends: Infinity },
-  2: { name: 'Green',  hex: '#4C9A5B', hp: 2, dmg: 2, sp: 1, defends: 1 },
-  3: { name: 'Red',    hex: '#C1443C', hp: 3, dmg: 3, sp: 2, defends: 0 },
-  4: { name: 'Orange', hex: '#E08A2C', hp: 4, dmg: 4, sp: 3, defends: 0 },
+  1: { name: 'Blue',   hex: '#3E7CB1', hp: 1, dmg: 1, sp: 1, defends: Infinity },
+  2: { name: 'Green',  hex: '#4C9A5B', hp: 2, dmg: 2, sp: 3, defends: 1 },
+  3: { name: 'Red',    hex: '#C1443C', hp: 3, dmg: 3, sp: 5, defends: 0 },
+  4: { name: 'Orange', hex: '#E08A2C', hp: 4, dmg: 4, sp: 9, defends: 0 },
 };
 
 function tierOf(n) { return TIERS[n]; }
@@ -90,46 +90,46 @@ const ABILITIES = {
 // Blue's pools are all ['none'] only - Blue cards can never roll a special
 // ability (see fix note below).
 const UNIT_ARCHETYPES = {
-  1: [ // Blue
-    { id: 'blue_sprite',  name: 'Sprite',  pool: ['none'] },
-    { id: 'blue_recruit', name: 'Recruit', pool: ['none'] },
-    { id: 'blue_scout',   name: 'Scout',   pool: ['none'] },
-    { id: 'blue_cadet',   name: 'Cadet',   pool: ['none'] },
-    { id: 'blue_drifter', name: 'Drifter', pool: ['none'] },
-    { id: 'blue_vanguard', name: 'Vanguard', pool: ['none'] },
-    { id: 'blue_herald',   name: 'Herald',   pool: ['none'] },
-    { id: 'blue_wisp',     name: 'Wisp',     pool: ['none'] },
+  1: [ // Blue (All Blues have 1 SP)
+    { id: 'blue_sprite',   name: 'Sprite',   sp: 1, pool: ['none'] },
+    { id: 'blue_recruit',  name: 'Recruit',  sp: 1, pool: ['none'] },
+    { id: 'blue_scout',    name: 'Scout',    sp: 1, pool: ['none'] },
+    { id: 'blue_cadet',    name: 'Cadet',    sp: 1, pool: ['none'] },
+    { id: 'blue_drifter',  name: 'Drifter',  sp: 1, pool: ['none'] },
+    { id: 'blue_vanguard', name: 'Vanguard', sp: 1, pool: ['none'] },
+    { id: 'blue_herald',   name: 'Herald',   sp: 1, pool: ['none'] },
+    { id: 'blue_wisp',     name: 'Wisp',     sp: 1, pool: ['none'] },
   ],
-  2: [ // Green
-    { id: 'green_warden',     name: 'Warden',     pool: ['onplay_heal2'] },
-    { id: 'green_chaplain',   name: 'Chaplain',   pool: ['green_onplay_healall1'] },
-    { id: 'green_pathfinder', name: 'Pathfinder', pool: ['green_ondeath_draw1'] },
-    { id: 'green_bulwark',    name: 'Bulwark',    pool: ['green_onplay_selftoughen1'] },
-    { id: 'green_saboteur',   name: 'Saboteur',   pool: ['green_onplay_discard1'] },
-    { id: 'green_warden_ii',  name: 'Sentinel',   pool: ['green_onplay_ward1'] },
-    { id: 'green_footpad',    name: 'Footpad',    pool: ['green_onplay_stealcard'] },
-    { id: 'green_tinkerer',   name: 'Tinkerer',   pool: ['green_onplay_chipslot1'] },
-    { id: 'green_sacrificeman', name: 'Sacrifice Man', pool: ['sacrificeman_ability'] },
+  2: [ // Green (Scaling 2 - 4 SP)
+    { id: 'green_warden',       name: 'Warden',        sp: 3, pool: ['onplay_heal2'] },
+    { id: 'green_chaplain',     name: 'Chaplain',      sp: 2, pool: ['green_onplay_healall1'] },
+    { id: 'green_pathfinder',   name: 'Pathfinder',    sp: 3, pool: ['green_ondeath_draw1'] },
+    { id: 'green_bulwark',      name: 'Bulwark',       sp: 4, pool: ['green_onplay_selftoughen1'] },
+    { id: 'green_saboteur',     name: 'Saboteur',      sp: 3, pool: ['green_onplay_discard1'] },
+    { id: 'green_warden_ii',    name: 'Sentinel',      sp: 4, pool: ['green_onplay_ward1'] },
+    { id: 'green_footpad',      name: 'Footpad',       sp: 3, pool: ['green_onplay_stealcard'] },
+    { id: 'green_tinkerer',     name: 'Tinkerer',      sp: 4, pool: ['green_onplay_chipslot1'] },
+    { id: 'green_sacrificeman', name: 'Sacrifice Man', sp: 3, pool: ['sacrificeman_ability'] },
   ],
-  3: [ // Red
-    { id: 'red_wraith',      name: 'Wraith',      pool: ['onattack_pierce'] },
-    { id: 'red_firestarter', name: 'Firestarter', pool: ['red_onplay_dmgall1'] },
-    { id: 'red_vindicator',  name: 'Vindicator',  pool: ['red_ondeath_thorns1'] },
-    { id: 'red_warchief',    name: 'Warchief',    pool: ['red_onplay_buffallies_dmg1'] },
-    { id: 'red_cannoneer',   name: 'Cannoneer',   pool: ['red_onattack_splash1'] },
-    { id: 'red_immolator',   name: 'Immolator',   pool: ['red_onplay_burn2'] },
-    { id: 'red_purger',      name: 'Purger',      pool: ['red_onplay_purge_weak'] },
-    { id: 'red_duelist',     name: 'Duelist',     pool: ['red_onattack_doublestrike'] },
+  3: [ // Red (Scaling 4 - 6 SP)
+    { id: 'red_wraith',      name: 'Wraith',      sp: 5, pool: ['onattack_pierce'] },
+    { id: 'red_firestarter', name: 'Firestarter', sp: 5, pool: ['red_onplay_dmgall1'] },
+    { id: 'red_vindicator',  name: 'Vindicator',  sp: 6, pool: ['red_ondeath_thorns1'] },
+    { id: 'red_warchief',    name: 'Warchief',    sp: 5, pool: ['red_onplay_buffallies_dmg1'] },
+    { id: 'red_cannoneer',   name: 'Cannoneer',   sp: 6, pool: ['red_onattack_splash1'] },
+    { id: 'red_immolator',   name: 'Immolator',   sp: 5, pool: ['red_onplay_burn2'] },
+    { id: 'red_purger',      name: 'Purger',      sp: 6, pool: ['red_onplay_purge_weak'] },
+    { id: 'red_duelist',     name: 'Duelist',     sp: 4, pool: ['red_onattack_doublestrike'] },
   ],
-  4: [ // Orange
-    { id: 'orange_colossus',   name: 'Colossus',   pool: ['onplay_dmg2'] },
-    { id: 'orange_devastator', name: 'Devastator', pool: ['orange_onplay_execute'] },
-    { id: 'orange_juggernaut', name: 'Juggernaut', pool: ['orange_onplay_scaledmg'] },
-    { id: 'orange_reaper',     name: 'Reaper',     pool: ['orange_ondeath_dmg4'] },
-    { id: 'orange_sentinel',   name: 'Vanguard',   pool: ['orange_onplay_refreshall'] },
-    { id: 'orange_harvester',  name: 'Harvester',  pool: ['orange_onplay_soulharvest'] },
-    { id: 'orange_phoenix',    name: 'Phoenix',    pool: ['orange_ondeath_rebirth2'] },
-    { id: 'orange_warlord',    name: 'Warlord',    pool: ['orange_onplay_alphastrike'] },
+  4: [ // Orange (Scaling 7 - 9 SP, max 9)
+    { id: 'orange_colossus',   name: 'Colossus',   sp: 8, pool: ['onplay_dmg2'] },
+    { id: 'orange_devastator', name: 'Devastator', sp: 9, pool: ['orange_onplay_execute'] },
+    { id: 'orange_juggernaut', name: 'Juggernaut', sp: 9, pool: ['orange_onplay_scaledmg'] },
+    { id: 'orange_reaper',     name: 'Reaper',     sp: 8, pool: ['orange_ondeath_dmg4'] },
+    { id: 'orange_sentinel',   name: 'Vanguard',   sp: 7, pool: ['orange_onplay_refreshall'] },
+    { id: 'orange_harvester',  name: 'Harvester',  sp: 9, pool: ['orange_onplay_soulharvest'] },
+    { id: 'orange_phoenix',    name: 'Phoenix',    sp: 8, pool: ['orange_ondeath_rebirth2'] },
+    { id: 'orange_warlord',    name: 'Warlord',    sp: 9, pool: ['orange_onplay_alphastrike'] },
   ],
 };
 
@@ -139,6 +139,7 @@ function nextId() { return 'c' + (++_uid); }
 function makeUnitCardFromArchetype(tier, archetype, rng, forcedAbility) {
   const t = TIERS[tier];
   const ability = forcedAbility || rng.pick(archetype.pool);
+  const spVal = archetype.sp !== undefined ? archetype.sp : t.sp;
   const card = {
     id: nextId(),
     kind: 'unit',
@@ -147,7 +148,7 @@ function makeUnitCardFromArchetype(tier, archetype, rng, forcedAbility) {
     hp: t.hp,
     maxHp: t.hp,
     dmg: t.dmg,
-    sp: t.sp,
+    sp: spVal,
     ability,
     defendChargesUsed: 0,   // how many times this card has already defended
     canAttackAgain: false,  // set when a queued attack must resolve next cycle
@@ -199,6 +200,10 @@ const SPELL_DEFS = [
   { id: 'sanctioned', kind: 'spell', name: 'Sanctioned', text: 'Target card cannot defend for entire match. (Infinite use) (sacrifice 1 Spell card)', sanctioned: true },
   { id: 'zap', kind: 'spell', name: 'Zap!', text: 'Deal 5 damage to an enemy card.', zap: true, dmg: 5 },
   { id: 'allaura', kind: 'spell', name: 'All Aura', text: 'Enemy card cannot attack or defend for 3 turns. (Can be used twice)', allAura: true },
+  { id: 'remainsmask', kind: 'spell', name: 'Remains Mask', text: 'All Sacrifice man cards regenerate their uses. (1x Use) (Sacrifice 1 Red Card)', remainsMask: true, usesLeft: 1 },
+  { id: 'supremeshirt', kind: 'spell', name: 'Supreme Shirt', text: '+2 HP, DMG and SP to Chosen Card.', supremeShirt: true },
+  { id: 'revivespell', kind: 'spell', name: 'Revive Spell', text: 'Revives 1 dead card from your graveyard onto your board.', reviveSpell: true },
+  { id: 'skeletonstaff', kind: 'spell', name: 'Skeleton Staff', text: 'Selected card has 1 HP, 1 ATK, 1 SP and cannot use chips.', skeletonStaff: true },
 ];
 
 const CHIP_DEFS = [
@@ -258,8 +263,9 @@ function buildDeck(rng, config) {
 }
 
 function chipSlotsFree(card) {
+  if (!card || card.cannotUseChips) return 0;
   const used = card.chipsAttached ? card.chipsAttached.length : 0;
-  return Math.max(0, card.sp - used);
+  return Math.max(0, (card.sp !== undefined ? card.sp : (TIERS[card.tier]?.sp || 0)) - used);
 }
 
 function cardHasChip(card, chipDefId) {

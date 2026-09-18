@@ -427,6 +427,12 @@ function isUnitArchetypeOwned(archetypeId) {
   if (UNIT_ARCHETYPES[1].some(a => a.id === archetypeId)) return true;
   return loadCollection().units.includes(archetypeId);
 }
+function isSpellOwned(spellId) {
+  return loadCollection().spells.includes(spellId);
+}
+function isChipOwned(chipId) {
+  return loadCollection().chips.includes(chipId);
+}
 function findArchetypeById(archetypeId) {
   for (let tier = 1; tier <= 4; tier++) {
     const found = UNIT_ARCHETYPES[tier].find(a => a.id === archetypeId);
@@ -471,8 +477,15 @@ function findArchetypeById(archetypeId) {
 (function grantChainLightningToEveryone() {
   try {
     const col = loadCollection();
-    if (!col.spells.includes('chainlightning')) {
-      col.spells.push('chainlightning');
+    const spellsToAdd = ['chainlightning', 'remainsmask', 'supremeshirt', 'revivespell', 'skeletonstaff'];
+    let changed = false;
+    spellsToAdd.forEach(sid => {
+      if (!col.spells.includes(sid)) {
+        col.spells.push(sid);
+        changed = true;
+      }
+    });
+    if (changed) {
       saveCollection(col);
     }
   } catch (e) {}
@@ -578,19 +591,37 @@ function dbAdjustUnit(archetypeId, delta) {
   renderDeckBuilder();
 }
 
-function dbToggleSpell(id) {
-  const idx = dbSelectedSpells.indexOf(id);
-  if (idx !== -1) {
-    dbSelectedSpells.splice(idx, 1);
-    if (typeof Sound !== 'undefined' && Sound.undo) Sound.undo();
-  } else if (dbSelectedSpells.length < REQUIRED_SPELL_COUNT) {
+function dbSpellCount(id) {
+  return dbSelectedSpells.filter(s => s === id).length;
+}
+
+function dbAdjustSpell(id, delta) {
+  const count = dbSpellCount(id);
+  const total = dbSelectedSpells.length;
+  if (delta > 0 && total >= REQUIRED_SPELL_COUNT) return;
+  if (delta < 0 && count <= 0) return;
+  if (delta > 0) {
     dbSelectedSpells.push(id);
     if (typeof Sound !== 'undefined') {
       if (Sound.spellChime) Sound.spellChime();
       else if (Sound.cardEquip) Sound.cardEquip();
     }
+  } else if (delta < 0) {
+    const idx = dbSelectedSpells.lastIndexOf(id);
+    if (idx !== -1) dbSelectedSpells.splice(idx, 1);
+    if (typeof Sound !== 'undefined' && Sound.undo) Sound.undo();
   }
   renderDeckBuilder();
+}
+
+function dbToggleSpell(id) {
+  const count = dbSpellCount(id);
+  const total = dbSelectedSpells.length;
+  if (count > 0 && total >= REQUIRED_SPELL_COUNT) {
+    dbAdjustSpell(id, -1);
+  } else {
+    dbAdjustSpell(id, 1);
+  }
 }
 function dbToggleChip(id) {
   const idx = dbSelectedChips.indexOf(id);
@@ -648,14 +679,34 @@ function renderDeckBuilder() {
     btn.addEventListener('click', () => dbAdjustUnit(btn.dataset.unitDec, -1));
   });
 
+  const atSpellCap = dbSelectedSpells.length >= REQUIRED_SPELL_COUNT;
   spellsContainer.innerHTML = '';
   SPELL_DEFS.forEach(s => {
     const owned = col.spells.includes(s.id);
-    const selected = dbSelectedSpells.includes(s.id);
+    const count = dbSpellCount(s.id);
+    const selected = count > 0;
     const el = document.createElement('div');
     el.className = `dcard ${owned ? '' : 'locked'} ${selected ? 'selected' : ''}`;
-    el.innerHTML = `<div class="dcard-name">${s.name}</div><div class="dcard-text">${s.text}</div>${owned ? '' : '<div class="dcard-lock">🔒 Locked</div>'}`;
-    if (owned) el.addEventListener('click', () => dbToggleSpell(s.id));
+    el.innerHTML = `
+      <div class="dcard-name">${s.name}</div>
+      <div class="dcard-text">${s.text}</div>
+      ${owned
+        ? `<div class="dcard-stepper" style="margin-top: 8px;">
+             <button type="button" class="stepper-btn" data-spell-dec="${s.id}" ${count <= 0 ? 'disabled' : ''}>−</button>
+             <span class="stepper-count">${count}</span>
+             <button type="button" class="stepper-btn" data-spell-inc="${s.id}" ${atSpellCap ? 'disabled' : ''}>+</button>
+           </div>`
+        : '<div class="dcard-lock">🔒 Locked</div>'}
+    `;
+    if (owned) {
+      el.querySelector('[data-spell-inc]')?.addEventListener('click', (e) => { e.stopPropagation(); dbAdjustSpell(s.id, 1); });
+      el.querySelector('[data-spell-dec]')?.addEventListener('click', (e) => { e.stopPropagation(); dbAdjustSpell(s.id, -1); });
+      el.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        if (!atSpellCap || count === 0) dbAdjustSpell(s.id, 1);
+        else dbAdjustSpell(s.id, -1);
+      });
+    }
     spellsContainer.appendChild(el);
   });
 
@@ -713,7 +764,7 @@ document.getElementById('btn-deck-builder-confirm').addEventListener('click', ()
   if (totalUnits !== REQUIRED_UNIT_COUNT || dbSelectedSpells.length !== REQUIRED_SPELL_COUNT || dbSelectedChips.length !== REQUIRED_CHIP_COUNT) return;
   const unitIds = [];
   Object.entries(dbUnitCounts).forEach(([id, count]) => { for (let i = 0; i < count; i++) unitIds.push(id); });
-  const config = { unitIds, spellIds: dbSelectedSpells.slice(), chipIds: dbSelectedChips.slice(), victoryAnim: ownsCosmetic('victoryanim_meteor') ? 'meteor' : null };
+  const config = { unitIds, spellIds: dbSelectedSpells.slice(), chipIds: dbSelectedChips.slice(), victoryAnim: loadEquippedVictoryAnim() };
   const cb = dbOnConfirm;
   dbOnConfirm = null;
   if (cb) cb(config);
@@ -735,10 +786,9 @@ function autoFillDeck() {
     dbUnitCounts[pick] = (dbUnitCounts[pick] || 0) + 1;
     total++;
   }
-  const remainingSpells = col.spells.filter(id => !dbSelectedSpells.includes(id));
-  while (dbSelectedSpells.length < REQUIRED_SPELL_COUNT && remainingSpells.length) {
-    const i = Math.floor(Math.random() * remainingSpells.length);
-    dbSelectedSpells.push(remainingSpells.splice(i, 1)[0]);
+  while (dbSelectedSpells.length < REQUIRED_SPELL_COUNT && col.spells.length) {
+    const pick = col.spells[Math.floor(Math.random() * col.spells.length)];
+    dbSelectedSpells.push(pick);
   }
   const remainingChips = col.chips.filter(id => !dbSelectedChips.includes(id));
   while (dbSelectedChips.length < REQUIRED_CHIP_COUNT && remainingChips.length) {
@@ -856,17 +906,48 @@ document.getElementById('deck-preset-name-input').addEventListener('keydown', (e
 
 // ---- Cosmetics (v2.0) -------------------------------------------------------
 const COSMETIC_ITEMS = [
-  { id: 'theme_mrmoney',    kind: 'theme',  name: '🤑 Mr Money Theme', desc: 'Green money-rain theme for the whole app.', cost: 1000 },
-  { id: 'theme_cyberneon',  kind: 'theme',  name: '🌆 Cyber Neon Theme', desc: 'Neon-lit cyberpunk grid with drifting glyph particles.', cost: 1200 },
-  { id: 'theme_abyss',      kind: 'theme',  name: '🌊 Abyss Theme', desc: 'Bioluminescent deep-sea vault with drifting jellyfish glow.', cost: 1200 },
-  { id: 'theme_magma',      kind: 'theme',  name: '🌋 Magma Theme', desc: 'A living volcanic core — undulating molten lava, rising fire embers, and pulsing magma fissures.', cost: 1200 },
-  { id: 'sleeve_holo',      kind: 'sleeve', name: '🌈 Holographic Sleeves', desc: 'Shimmering rainbow card outlines.', cost: 400 },
-  { id: 'sleeve_gold',      kind: 'sleeve', name: '✨ Gold Sleeves', desc: 'Gilded card outlines with a soft glow.', cost: 600 },
-  { id: 'sleeve_prismatic', kind: 'sleeve', name: '🌈 Prismatic Sleeves', desc: 'A shifting spectrum frame around every card.', cost: 800 },
-  { id: 'sleeve_void',      kind: 'sleeve', name: '🕳️ Void Sleeves', desc: 'Deep-space black frames with a violet glow.', cost: 1200 },
-  { id: 'effect_confetti',  kind: 'effect', name: '🎉 Confetti+', desc: 'Bigger, longer victory confetti.', cost: 250 },
-  { id: 'effect_victoryburst', kind: 'effect', name: '✨ Victory Burst', desc: 'Adds a brighter burst to your win celebration.', cost: 350 },
-  { id: 'victoryanim_meteor', kind: 'victoryAnim', name: '☄️ Meteor Shower Victory', desc: "A blazing meteor shower streaks across the screen the instant you win a match - visible to your opponent too, right before the result appears.", cost: 500 },
+  // THEMES (11 total)
+  { id: 'theme_mrmoney',    kind: 'theme',       name: '🤑 Mr Money Theme', desc: 'Green money-rain theme for the whole app.', cost: 1000, rarity: 'MYTHIC', art: '💸', original: 1500, tag: 'FEATURED' },
+  { id: 'theme_cyberneon',  kind: 'theme',       name: '🌆 Cyber Neon Theme', desc: 'Neon-lit cyberpunk grid with drifting glyph particles.', cost: 1200, rarity: 'EPIC', art: '🌆', original: 1600, tag: 'CYBER' },
+  { id: 'theme_abyss',      kind: 'theme',       name: '🌊 Abyss Theme', desc: 'Bioluminescent deep-sea vault with drifting jellyfish glow.', cost: 1200, rarity: 'EPIC', art: '🌊', original: 1600, tag: 'DEEP SEA' },
+  { id: 'theme_magma',      kind: 'theme',       name: '🌋 Magma Theme', desc: 'Living volcanic core with undulating lava, fire embers, and magma fissures.', cost: 1200, rarity: 'MYTHIC', art: '🌋', original: 1600, tag: 'HOT' },
+  { id: 'theme_synthwave',  kind: 'theme',       name: '⚡ Synthwave Theme', desc: 'Retro outrun grid with chrome horizon and synth wave pulses.', cost: 950, rarity: 'EPIC', art: '⚡', original: 1300, tag: 'RETRO' },
+  { id: 'theme_matrix',     kind: 'theme',       name: '🟢 Digital Matrix Theme', desc: 'Cascading digital rain and tactical emerald terminal styling.', cost: 1100, rarity: 'EPIC', art: '🟢', original: 1400, tag: 'SPECIAL' },
+  { id: 'theme_sakura',     kind: 'theme',       name: '🌸 Sakura Blossom Theme', desc: 'Serene Japanese zen garden with floating pink cherry blossom petals.', cost: 1100, rarity: 'EPIC', art: '🌸', original: 1400, tag: 'ZEN' },
+  { id: 'theme_inferno',    kind: 'theme',       name: '🔥 Solar Inferno Theme', desc: 'Blazing solar flares, golden corona rays, and molten solar wind.', cost: 1300, rarity: 'MYTHIC', art: '🔥', original: 1700, tag: 'SOLAR' },
+  { id: 'theme_aurora',     kind: 'theme',       name: '🌌 Northern Aurora Theme', desc: 'Curving arctic aurora borealis light curtains and shimmering stars.', cost: 1050, rarity: 'EPIC', art: '🌌', original: 1350, tag: 'ARCTIC' },
+  { id: 'theme_steampunk',  kind: 'theme',       name: '⚙️ Brass Steampunk Theme', desc: 'Victorian brass clockwork gears, pressure gauges, and copper steam plumes.', cost: 950, rarity: 'RARE', art: '⚙️', original: 1200, tag: 'VINTAGE' },
+  { id: 'theme_galaxy',     kind: 'theme',       name: '✨ Deep Space Galaxy Theme', desc: 'Swirling spiral nebulae, distant star clusters, and cosmic dust clouds.', cost: 1250, rarity: 'LEGENDARY', art: '✨', original: 1650, tag: 'COSMIC' },
+
+  // SLEEVES (10 total)
+  { id: 'sleeve_holo',      kind: 'sleeve',      name: '🌈 Holographic Sleeves', desc: 'Shimmering rainbow card outlines with dynamic refraction.', cost: 400, rarity: 'RARE', art: '✦', original: 0, tag: 'SHIMMER' },
+  { id: 'sleeve_gold',      kind: 'sleeve',      name: '✨ Gold Sleeves', desc: 'Gilded 24k card outlines with a warm pulsing royal glow.', cost: 600, rarity: 'EPIC', art: '✨', original: 800, tag: 'ROYAL' },
+  { id: 'sleeve_prismatic', kind: 'sleeve',      name: '🌈 Prismatic Sleeves', desc: 'A shifting spectrum chromatic frame around every card.', cost: 800, rarity: 'LEGENDARY', art: '🌈', original: 1000, tag: 'CHROMATIC' },
+  { id: 'sleeve_void',      kind: 'sleeve',      name: '🕳️ Void Sleeves', desc: 'Deep-space dark matter frames with a pulsing violet singularity glow.', cost: 1200, rarity: 'MYTHIC', art: '◈', original: 1500, tag: 'DARK MATTER' },
+  { id: 'sleeve_crimson',   kind: 'sleeve',      name: '🩸 Crimson Core Sleeves', desc: 'High-intensity ruby red glowing combat edges for cards.', cost: 550, rarity: 'RARE', art: '🩸', original: 700, tag: 'COMBAT' },
+  { id: 'sleeve_cyber',     kind: 'sleeve',      name: '⚡ Cyber Circuit Sleeves', desc: 'Glowing neon cyan circuit trace lines pulsing around card edges.', cost: 500, rarity: 'RARE', art: '⚡', original: 650, tag: 'CYBER' },
+  { id: 'sleeve_frost',     kind: 'sleeve',      name: '❄️ Glacial Frost Sleeves', desc: 'Crystalline ice borders with floating frost particle shimmer.', cost: 650, rarity: 'EPIC', art: '❄️', original: 850, tag: 'FROST' },
+  { id: 'sleeve_phoenix',   kind: 'sleeve',      name: '🔥 Phoenix Ember Sleeves', desc: 'Radiant fiery flame borders shedding glowing phoenix sparks.', cost: 850, rarity: 'LEGENDARY', art: '🔥', original: 1100, tag: 'INFERNO' },
+  { id: 'sleeve_emerald',   kind: 'sleeve',      name: '❇️ Emerald Empress Sleeves', desc: 'Luminous jade emerald gemstone borders with gilded corner accents.', cost: 700, rarity: 'EPIC', art: '❇️', original: 900, tag: 'GEM' },
+  { id: 'sleeve_obsidian',  kind: 'sleeve',      name: '🖤 Tactical Obsidian Sleeves', desc: 'Sleek stealth carbon obsidian frames with crimson laser edging.', cost: 1000, rarity: 'MYTHIC', art: '🖤', original: 1300, tag: 'STEALTH' },
+
+  // VICTORY EFFECTS (7 total)
+  { id: 'effect_confetti',  kind: 'effect',      name: '🎉 Confetti+ Celebration', desc: 'Denser, longer-lasting victory confetti burst.', cost: 250, rarity: 'RARE', art: '🎉', original: 0, tag: 'CELEBRATE' },
+  { id: 'effect_victoryburst', kind: 'effect',   name: '✨ Victory Starburst', desc: 'Expansive golden starburst shockwave rings upon victory.', cost: 350, rarity: 'EPIC', art: '✧', original: 500, tag: 'BURST' },
+  { id: 'effect_fireworks', kind: 'effect',      name: '🎆 Fireworks Spectacular', desc: 'Multiple bursting colorful sky fireworks on match victory.', cost: 400, rarity: 'EPIC', art: '🎆', original: 550, tag: 'PYRO' },
+  { id: 'effect_cashrain',  kind: 'effect',      name: '💸 Bux Cash Rain', desc: 'Cascading golden coins and dollar bills falling across the victory banner.', cost: 450, rarity: 'EPIC', art: '💸', original: 600, tag: 'LOOT' },
+  { id: 'effect_lightning', kind: 'effect',      name: '⚡ Thunder Shockwave', desc: 'Crackling electric lightning bolts striking the victory podium.', cost: 380, rarity: 'RARE', art: '⚡', original: 500, tag: 'SHOCK' },
+  { id: 'effect_starfountain', kind: 'effect',   name: '🌟 Golden Star Fountain', desc: 'A erupting fountain of spinning golden stars and glitter particles.', cost: 300, rarity: 'RARE', art: '🌟', original: 420, tag: 'GLOW' },
+  { id: 'effect_dragonflame', kind: 'effect',    name: '🐉 Dragon Flame Aura', desc: 'A roaring dragon fire vortex swirling around your victory rank.', cost: 600, rarity: 'LEGENDARY', art: '🐉', original: 800, tag: 'DRAGON' },
+
+  // VICTORY FINISHER ANIMATIONS (7 total)
+  { id: 'victoryanim_meteor', kind: 'victoryAnim', name: '☄️ Meteor Shower Victory', desc: "Blazing meteor shower streaks down and erupts in shockwaves when you win.", cost: 500, rarity: 'MYTHIC', art: '☄️', original: 750, tag: 'FINISHER' },
+  { id: 'victoryanim_supernova', kind: 'victoryAnim', name: '🌌 Cosmic Supernova', desc: 'Blinding stellar explosion and supernova shockwave across the screen.', cost: 650, rarity: 'LEGENDARY', art: '🌌', original: 850, tag: 'STELLAR' },
+  { id: 'victoryanim_blackhole', kind: 'victoryAnim', name: '🕳️ Singularity Black Hole', desc: 'A swirling black hole devours the battlefield upon your ultimate win.', cost: 750, rarity: 'MYTHIC', art: '🕳️', original: 1000, tag: 'VOID' },
+  { id: 'victoryanim_orbital', kind: 'victoryAnim', name: '🛰️ Orbital Laser Strike', desc: 'A massive satellite laser beam blasts down with screen-shaking impact.', cost: 700, rarity: 'LEGENDARY', art: '🛰️', original: 900, tag: 'ORBITAL' },
+  { id: 'victoryanim_blizzard', kind: 'victoryAnim', name: '❄️ Subzero Frost Shatter', desc: 'Flash-freezes the arena into solid ice before shattering into crystalline shards.', cost: 550, rarity: 'EPIC', art: '❄️', original: 750, tag: 'SubZero' },
+  { id: 'victoryanim_nuke', kind: 'victoryAnim', name: '☢️ Tactical Nuke Blast', desc: 'A dramatic nuclear countdown mushroom cloud shockwave across the UI.', cost: 800, rarity: 'MYTHIC', art: '☢️', original: 1100, tag: 'NUKE' },
+  { id: 'victoryanim_phoenix', kind: 'victoryAnim', name: '🦅 Phoenix Rebirth Finisher', desc: 'A magnificent flaming phoenix spreads its wings in golden fire.', cost: 650, rarity: 'LEGENDARY', art: '🦅', original: 850, tag: 'PHOENIX' },
 ];
 
 function loadOwnedCosmetics() {
@@ -1174,7 +1255,6 @@ function renderCosmeticsShop() {
   });
 }
 
-document.getElementById('btn-player-stats').addEventListener('click', () => showPlayerReport());
 document.getElementById('btn-how-to-play').addEventListener('click', () => startFullTutorial());
 document.getElementById('btn-single-player').addEventListener('click', () => showScreen('screen-single-player'));
 document.getElementById('btn-multiplayer').addEventListener('click', () => showScreen('screen-multiplayer'));
@@ -1349,84 +1429,9 @@ function recordMatchHistory(entry) {
 // "📊 Stats" button in the menu footer (where "How to play" used to live -
 // that's moved into the Single Player screen instead).
 function showPlayerReport() {
-  if (typeof Sound !== 'undefined' && Sound.modalOpen) Sound.modalOpen();
-  const s = getBattleStats();
-  const total = s.wins + s.losses;
-  const rate = total ? Math.round((s.wins / total) * 100) : 0;
-  const ledgerItems = getEconomyLedger();
-  const activityItems = getRecentActivity();
-  const historyItems = getMatchHistory();
-
-  const old = document.getElementById('player-report-overlay');
-  if (old) old.remove();
-
-  const overlay = document.createElement('div');
-  overlay.id = 'player-report-overlay';
-  overlay.className = 'feature-overlay';
-  overlay.innerHTML = `
-    <div class="feature-panel" style="max-height:82vh; overflow-y:auto;">
-      <button class="feature-close">✕</button>
-      <span class="feature-kicker">YOUR PROGRESS</span>
-      <h2>PLAYER STATS</h2>
-      <div class="stats-grid">
-        <div><b>${s.wins}</b><span>WINS</span></div>
-        <div><b>${s.losses}</b><span>LOSSES</span></div>
-        <div><b>${rate}%</b><span>WIN RATE</span></div>
-        <div><b>${s.streak}</b><span>CURRENT STREAK</span></div>
-        <div><b>${s.bestStreak}</b><span>BEST STREAK</span></div>
-        <div><b>${s.biggestWin}</b><span>BIGGEST WIN</span></div>
-      </div>
-      <div class="stats-ledger">
-        <span>NET WAGER PROFIT</span>
-        <b>${s.wagerWon - s.wagerLost} BUX</b>
-      </div>
-      <div style="margin-top: 15px;">
-        <button id="btn-stats-watch-replay" class="primary-btn" style="width: 100%;">▶ Watch Last Replay</button>
-      </div>
-
-      <div class="deck-builder-heading" style="margin-top:20px;"><span>◈ Bux Ledger</span></div>
-      <div class="ledger-list">
-        ${ledgerItems.length ? ledgerItems.slice(0, 12).map(x => `
-          <div class="${x.amount >= 0 ? 'gain' : 'loss'}">
-            <b>${x.amount >= 0 ? '+' : ''}${x.amount} Bux</b>
-            <span>${escapePresetText(x.reason)}</span>
-            <small>${new Date(x.at).toLocaleString()}</small>
-          </div>`).join('') :
-          '<p class="activity-empty">No balance changes have been recorded yet.</p>'}
-      </div>
-
-      <div class="deck-builder-heading" style="margin-top:20px;"><span>◷ Recent Activity</span></div>
-      <div class="activity-list">
-        ${activityItems.length ? activityItems.map(x => `<div><span>✦</span><p>${escapePresetText(x.text)}<small>${new Date(x.at).toLocaleString()}</small></p></div>`).join('') :
-          '<p class="activity-empty">Your important rewards and purchases will appear here.</p>'}
-      </div>
-
-      <div class="deck-builder-heading" style="margin-top:20px;"><span>📜 Match History</span></div>
-      <div class="ledger-list">
-        ${historyItems.length ? historyItems.slice(0, 10).map(x => `
-          <div class="${x.result === 'Win' ? 'gain' : (x.result === 'Loss' ? 'loss' : '')}">
-            <b>${x.result === 'Win' ? '🏆 Win' : x.result === 'Loss' ? '💀 Loss' : '🤝 Draw'}</b>
-            <span>${escapePresetText(x.mode)} · ${x.rounds} round${x.rounds === 1 ? '' : 's'} · ${formatDuration(x.duration)}</span>
-            <small>${new Date(x.at).toLocaleString()}</small>
-          </div>`).join('') :
-          '<p class="activity-empty">Finish a match to start building your history.</p>'}
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-  overlay.querySelector('#btn-stats-watch-replay').addEventListener('click', () => {
-    overlay.remove();
-    watchLastReplay();
-  });
-  overlay.querySelector('.feature-close').onclick = () => {
-    if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
-    overlay.remove();
-  };
-  overlay.onclick = e => {
-    if (e.target === overlay) {
-      if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
-      overlay.remove();
-    }
-  };
+  if (typeof openProfilePanel === 'function') {
+    openProfilePanel();
+  }
 }
 
 /* ============================================================
@@ -2547,6 +2552,26 @@ function playFx(fxList) {
         showToast(`🛡️ SACRIFICE MAN REVIVED! (${evt.left} uses left)`, 2200);
         break;
       }
+      case 'remainsMask': {
+        if (typeof playRemainsMaskAnimation === 'function') playRemainsMaskAnimation(evt.owner, evt.slot);
+        showToast(`💀 REMAINS MASK! All Sacrifice Man cards fully recharged to 3 uses!`, 2500);
+        break;
+      }
+      case 'supremeShirt': {
+        if (typeof playSupremeShirtAnimation === 'function') playSupremeShirtAnimation(evt.targetOwner, evt.targetSlot);
+        showToast(`🎽 SUPREME SHIRT! +2 HP, +2 DMG, +2 SP!`, 2200);
+        break;
+      }
+      case 'reviveCard': {
+        if (typeof playReviveAnimation === 'function') playReviveAnimation(evt.owner, evt.slot, evt.cardName);
+        showToast(`✨ REVIVE! ${evt.cardName} brought back from the graveyard!`, 2500);
+        break;
+      }
+      case 'skeletonStaff': {
+        if (typeof playSkeletonStaffAnimation === 'function') playSkeletonStaffAnimation(evt.targetOwner, evt.targetSlot);
+        showToast(`🦴 SKELETON STAFF! Target reduced to 1 HP, 1 ATK, 1 SP with no chips!`, 2500);
+        break;
+      }
       default: break;
     }
   });
@@ -2788,7 +2813,7 @@ async function beginMatchmaking(deckConfig) {
     });
     const joinData = await joinRes.json();
     
-    if (joinData.matchFound && joinData.roomCode) {
+    if (joinData && joinData.matchFound && joinData.roomCode) {
       document.getElementById('matchmaking-status').textContent = 'Match found! Connecting to host...';
       matchmakingRoomCode = joinData.roomCode;
       matchmakingIsHost = false;
@@ -2829,13 +2854,19 @@ async function beginMatchmaking(deckConfig) {
         onForfeit: () => handleOpponentForfeit(),
       });
       
-      await net.joinGame(matchmakingRoomCode, pendingGuestDeckConfig);
+      try {
+        await net.joinGame(matchmakingRoomCode, pendingGuestDeckConfig);
+      } catch (err) {
+        console.warn('joinGame failed, falling back to host lobby:', err);
+        if (net) { net.destroy(); net = null; }
+        await startHostingMatchmaking(deckConfig);
+      }
     } else {
       await startHostingMatchmaking(deckConfig);
     }
   } catch (err) {
-    document.getElementById('matchmaking-status').textContent = 'Failed to connect to matchmaking: ' + err.message;
-    showToast('Matchmaking error: ' + err.message);
+    document.getElementById('matchmaking-status').textContent = 'Failed to connect to matchmaking: ' + (err.message || err);
+    showToast('Matchmaking error: ' + (err.message || err));
   }
 }
 
@@ -3435,7 +3466,14 @@ document.getElementById('screen-game').addEventListener('click', (e) => {
     }
 
     if (selSpellId) {
-      if (!card) return;
+      const activeSpell = state.players[localKey]?.spells.find(s => s.id === selSpellId);
+      const isRevive = activeSpell && (activeSpell.reviveSpell || activeSpell.defId === 'revivespell');
+      if (isRevive) {
+        if (!isMine) { showToast('Revive Spell must target an empty slot on your own board.'); return; }
+        if (card) { showToast('Choose an empty slot on your board to revive a card into.'); return; }
+      } else {
+        if (!card) return;
+      }
       dispatch({ type: 'spell', spellId: selSpellId, targetOwner: owner, targetSlot: slot });
       resetSelections(); render(); return;
     }
@@ -3693,7 +3731,16 @@ function render() {
   }
 
   let oppTargetable = [], ownTargetable = [];
-  if (selSpellId) { oppTargetable = filled(state.players[remoteKey]); ownTargetable = filled(state.players[localKey]); }
+  if (selSpellId) {
+    const activeSpell = state.players[localKey]?.spells.find(s => s.id === selSpellId);
+    if (activeSpell && (activeSpell.reviveSpell || activeSpell.defId === 'revivespell')) {
+      ownTargetable = state.players[localKey].board.map((c, i) => (!c ? i : -1)).filter(i => i >= 0);
+      oppTargetable = [];
+    } else {
+      oppTargetable = filled(state.players[remoteKey]);
+      ownTargetable = filled(state.players[localKey]);
+    }
+  }
   else if (selChipId) { ownTargetable = filled(state.players[localKey]); }
   else if (state.phase === 'attack' && selAttackerSlot !== null) { oppTargetable = filled(state.players[remoteKey]); }
 
@@ -3973,10 +4020,15 @@ function updateRecordDisplay() {
   el.textContent = text;
 }
 
-// ---- Confetti (a little something extra for the winner) --------------------
+// ---- Confetti / Victory Finisher celebration -------------------------------
 function launchConfetti() {
   if (reducedMotion) return;
-  const card = document.getElementById('gameover-card');
+  const equipped = loadEquippedVictoryAnim();
+  if (typeof playVictoryFinisherEffect === 'function') {
+    playVictoryFinisherEffect(equipped);
+    return;
+  }
+  const card = document.getElementById('gameover-card') || document.body;
   const colors = ['#3E7CB1', '#4C9A5B', '#C1443C', '#E08A2C', '#ffffff'];
   const enhanced = ownsCosmetic('effect_confetti');
   const count = enhanced ? 90 : 46;
@@ -3994,41 +4046,13 @@ function launchConfetti() {
   }
 }
 
-// ---- NEW COSMETIC: Victory Animations (Meteor Shower) ----------------------
-// A full-screen, shared celebration that plays for BOTH players the moment
-// a match ends, before the win/lose card appears - see the matchVictoryAnims
-// wiring in startVsBot/beginHost/join's onInit, and the gameover branch in
-// render() that defers the normal overlay reveal until this finishes.
+// ---- NEW COSMETIC: Victory Animations (Meteor Shower & Finishers) -----------
 function playMeteorShowerEffect(onDone) {
-  const overlay = document.createElement('div');
-  overlay.className = 'meteor-shower-overlay';
-  document.body.appendChild(overlay);
-  const count = reducedMotion ? 0 : 22;
-  for (let i = 0; i < count; i++) {
-    const m = document.createElement('div');
-    m.className = 'meteor-streak';
-    const startLeft = Math.random() * 110 - 15; // some start off the left edge, matching the diagonal fall
-    const scale = 0.6 + Math.random() * 0.9;
-    m.style.left = startLeft + '%';
-    m.style.animationDelay = (Math.random() * 0.7) + 's';
-    m.style.animationDuration = (0.7 + Math.random() * 0.55) + 's';
-    m.style.setProperty('--meteor-scale', String(scale));
-    overlay.appendChild(m);
+  if (typeof playVictoryFinisherEffect === 'function') {
+    playVictoryFinisherEffect('victoryanim_meteor', onDone);
+    return;
   }
-  Sound.meteor();
-  vibrate([50, 30, 50, 30, 80]);
-  if (!reducedMotion) {
-    const screenEl = document.getElementById('screen-game');
-    if (screenEl) {
-      screenEl.classList.add('screen-shake');
-      setTimeout(() => screenEl.classList.remove('screen-shake'), 500);
-    }
-  }
-  const duration = reducedMotion ? 150 : 1550;
-  setTimeout(() => {
-    overlay.remove();
-    if (onDone) onDone();
-  }, duration);
+  if (onDone) onDone();
 }
 
 // ---- NEW FEATURE: choose which blueprint a merge consumes ------------------
@@ -4508,6 +4532,11 @@ Object.assign(THEME_UNLOCK_CHECK, {
   astral: () => isAstralThemeUnlocked(),
   celestial: () => isCelestialThemeUnlocked(),
   collector: () => isAllThemesUnlocked() || isCollectionComplete(),
+  valentine: () => isAllThemesUnlocked() || ownsCosmetic('theme_valentine') || localStorage.getItem('theme_valentine_unlocked') === 'true',
+  sakura: () => isAllThemesUnlocked() || ownsCosmetic('theme_sakura') || localStorage.getItem('theme_sakura_unlocked') === 'true',
+  solar: () => isAllThemesUnlocked() || ownsCosmetic('theme_solar') || localStorage.getItem('theme_solar_unlocked') === 'true',
+  steampunk: () => isAllThemesUnlocked() || ownsCosmetic('theme_steampunk') || localStorage.getItem('theme_steampunk_unlocked') === 'true',
+  galaxy: () => isAllThemesUnlocked() || ownsCosmetic('theme_galaxy') || localStorage.getItem('theme_galaxy_unlocked') === 'true',
 });
 const THEME_LOCK_MESSAGE = {
   verdant: '🔒 Beat Easy difficulty to unlock the Verdant theme!',
@@ -4525,8 +4554,27 @@ const THEME_LOCK_MESSAGE = {
   astral: '🔒 Clear Floor 30 of the Trial Tower to unlock the Astral Void theme!',
   celestial: '🔒 Reach Floor 50 of the Trial Tower to unlock the Celestial Divinity theme!',
   collector: '🔒 Collect every current card to unlock the 100% Collector theme!',
+  valentine: '🔒 Secret code required or available in Mehrbod Shop!',
+  sakura: '🔒 Unlocked in Mehrbod Shop or special events!',
+  solar: '🔒 Unlocked in Mehrbod Shop or Trial Tower!',
+  steampunk: '🔒 Unlocked in Mehrbod Shop or Master Quests!',
+  galaxy: '🔒 Unlocked in Mehrbod Shop or Cosmic Quests!',
 };
-const ALL_THEME_NAMES = ['dark', 'light', 'verdant', 'pink', 'flame', 'aurora', 'sovereign', 'storm', 'mrmoney', 'cyberneon', 'abyss', 'magma', 'quantum', 'glacier', 'astral', 'celestial', 'collector'];
+const ALL_THEME_NAMES = [
+  'dark', 'light', 'verdant', 'pink', 'flame', 'aurora', 'sovereign', 'storm',
+  'mrmoney', 'cyberneon', 'abyss', 'magma', 'quantum', 'glacier', 'astral',
+  'celestial', 'collector', 'valentine', 'sakura', 'solar', 'steampunk', 'galaxy'
+];
+function isThemeUnlocked(theme) {
+  if (typeof isAllThemesUnlocked === 'function' && isAllThemesUnlocked()) return true;
+  if (!theme || theme === 'dark' || theme === 'light') return true;
+  if (THEME_UNLOCK_CHECK[theme]) return THEME_UNLOCK_CHECK[theme]();
+  if (typeof ownsCosmetic === 'function') {
+    if (ownsCosmetic('theme_' + theme) || ownsCosmetic(theme)) return true;
+  }
+  return false;
+}
+
 function loadTheme() {
   try {
     const saved = localStorage.getItem('mehrbod-cards-theme');
@@ -4587,7 +4635,53 @@ document.querySelectorAll('.theme-btn').forEach(btn => {
 applyTheme(currentTheme);
 updateThemeButtons();
 
-equipSleeve(loadEquippedSleeve());
+// ---- Collection Book (Fortnite Locker: Cards, Victory Effects, Themes, Sleeves) ----
+let currentLockerTopTab = 'cards';
+let currentInspectedLockerItem = null;
+let victoryPreviewAnimTimer = null;
+
+function loadEquippedVictoryAnim() {
+  try {
+    const saved = localStorage.getItem('mehrbod-cards-equipped-victory-anim');
+    if (saved) {
+      if (saved === 'default_confetti' || ownsCosmetic(saved)) return saved;
+    }
+    if (ownsCosmetic('victoryanim_meteor')) return 'victoryanim_meteor';
+  } catch (e) {}
+  return 'default_confetti';
+}
+
+function equipVictoryAnim(id) {
+  try {
+    localStorage.setItem('mehrbod-cards-equipped-victory-anim', id);
+  } catch (e) {}
+  if (typeof Sound !== 'undefined' && Sound.buff) Sound.buff();
+  if (typeof renderCollectionScreen === 'function') {
+    renderCollectionScreen(currentLockerTopTab || 'victoryeffects');
+  }
+}
+
+function loadEquippedSleeve() {
+  try {
+    const saved = localStorage.getItem('mehrbod-cards-equipped-sleeve');
+    if (saved && (saved === 'none' || ownsCosmetic(saved))) return saved;
+  } catch (e) {}
+  return 'none';
+}
+
+function equipSleeve(id) {
+  try {
+    localStorage.setItem('mehrbod-cards-equipped-sleeve', id);
+  } catch (e) {}
+  if (typeof Sound !== 'undefined' && Sound.buff) Sound.buff();
+  if (typeof renderCollectionScreen === 'function') {
+    renderCollectionScreen(currentLockerTopTab || 'sleeves');
+  }
+}
+
+try {
+  loadEquippedSleeve();
+} catch (e) {}
 
 // ---- Themes modal -----------------------------------------------------------
 function openThemes() {
@@ -4611,38 +4705,87 @@ document.getElementById('themes-overlay').addEventListener('click', (e) => {
 // The single entry point for browsing owned cards or switching themes,
 // reached from the one 📖 Collection link on the main menu footer (and the
 // COLLECTION card in the feature strip, which jumps straight to Cards).
-function openCollectionBook() {
+
+const THEME_DATA_REGISTRY = [
+  { id: 'dark', name: 'Dark Theme', emblem: '🌑', rarity: 'STARTER', rarityClass: 'rare', desc: 'Classic sleek obsidian dark theme with emerald green energy highlights.', unlockHint: 'Default unlocked starter theme', primary: '#4ade80', panel: '#151c2e', bg: '#0b0f19' },
+  { id: 'light', name: 'Light Theme', emblem: '☀️', rarity: 'STARTER', rarityClass: 'rare', desc: 'Crisp clean paper-white layout with cerulean blue accents.', unlockHint: 'Default unlocked starter theme', primary: '#0284c7', panel: '#ffffff', bg: '#f1f5f9' },
+  { id: 'verdant', name: 'Verdant', emblem: '🌱', rarity: 'QUEST', rarityClass: 'uncommon', desc: 'Lush evergreen canopy theme infused with life-force moss and jade accents.', unlockHint: 'Unlocked by defeating Easy Difficulty AI', primary: '#22c55e', panel: '#14532d', bg: '#052e16' },
+  { id: 'pink', name: 'Pink Mode', emblem: '💗', rarity: 'QUEST', rarityClass: 'rare', desc: 'Vibrant neon bubblegum aesthetic with sweet berry tones.', unlockHint: 'Unlocked by defeating Medium Difficulty AI', primary: '#f472b6', panel: '#831843', bg: '#500724' },
+  { id: 'flame', name: 'Flame', emblem: '🔥', rarity: 'QUEST', rarityClass: 'epic', desc: 'Blazing embers and scorched emberstone warmth.', unlockHint: 'Unlocked by defeating Hard Difficulty AI', primary: '#f97316', panel: '#7c2d12', bg: '#431407' },
+  { id: 'aurora', name: 'Aurora', emblem: '🌌', rarity: 'QUEST', rarityClass: 'epic', desc: 'Northern polar light auroras shimmering across icy glaciers.', unlockHint: 'Unlocked by defeating Expert Difficulty AI', primary: '#2dd4bf', panel: '#134e4a', bg: '#042f2e' },
+  { id: 'sovereign', name: 'The Sovereign', emblem: '👑', rarity: 'MASTER', rarityClass: 'legendary', desc: 'Imperial 24k gilded royal majesty with antique gold trim.', unlockHint: 'Unlocked by defeating Master Difficulty AI', primary: '#eab308', panel: '#713f12', bg: '#422006' },
+  { id: 'storm', name: 'Storm', emblem: '⛈️', rarity: 'LEGENDARY', rarityClass: 'legendary', desc: 'Crackling azure lightning surges across torrential thundercloud skies.', unlockHint: 'Unlocked by conquering all difficulty quests', primary: '#38bdf8', panel: '#0c4a6e', bg: '#082f49' },
+  { id: 'mrmoney', name: 'Mr Money', emblem: '🤑', rarity: 'SHOP', rarityClass: 'legendary', desc: 'Opulent high-roller casino vault dripping in gold bullion & banknotes.', unlockHint: 'Purchased in Cosmetics Shop for 1,000 Bux', primary: '#22c55e', panel: '#064e3b', bg: '#022c22' },
+  { id: 'cyberneon', name: 'Cyber Neon', emblem: '🌆', rarity: 'SHOP', rarityClass: 'exotic', desc: 'Cyberpunk neon grid lines pulsating with synthwave laser energy.', unlockHint: 'Purchased in Cosmetics Shop for 1,200 Bux', primary: '#f43f5e', panel: '#1e1b4b', bg: '#030712' },
+  { id: 'abyss', name: 'Abyss', emblem: '🌊', rarity: 'SHOP', rarityClass: 'exotic', desc: 'Deep oceanic hydrothermal trenches illuminated by bioluminescent jellyfish.', unlockHint: 'Purchased in Cosmetics Shop for 1,200 Bux', primary: '#06b6d4', panel: '#082f49', bg: '#021422' },
+  { id: 'magma', name: 'Magma', emblem: '🌋', rarity: 'SHOP', rarityClass: 'mythic', desc: 'A living volcanic caldera with undulating molten lava and rising heat sparks.', unlockHint: 'Purchased in Cosmetics Shop for 1,200 Bux', primary: '#ff4500', panel: '#4a0e04', bg: '#200600' },
+  { id: 'quantum', name: 'Quantum', emblem: '⚛️', rarity: 'LEVEL 10', rarityClass: 'mythic', desc: 'Subatomic quark fields and violet singularity particle distortions.', unlockHint: 'Unlocked at Player Level 10', primary: '#c084fc', panel: '#3b0764', bg: '#180828' },
+  { id: 'glacier', name: 'Glacier', emblem: '❄️', rarity: 'TRIAL TOWER', rarityClass: 'epic', desc: 'Crystalline sub-zero permafrost radiating pristine arctic frost.', unlockHint: 'Unlocked by clearing Floor 15 in the Trial Tower', primary: '#67e8f9', panel: '#0e4a66', bg: '#082736' },
+  { id: 'astral', name: 'Astral', emblem: '🌌', rarity: 'TRIAL TOWER', rarityClass: 'exotic', desc: 'Interstellar nebulas and distant spiral galaxies drifting in silent space.', unlockHint: 'Unlocked by clearing Floor 30 in the Trial Tower', primary: '#a855f7', panel: '#1f0b40', bg: '#09041a' },
+  { id: 'celestial', name: 'Celestial', emblem: '☀️', rarity: 'TRIAL TOWER', rarityClass: 'mythic', desc: 'Radiant golden divine solar flares from the throne of the stars.', unlockHint: 'Unlocked by conquering Floor 50 in the Trial Tower', primary: '#fde047', panel: '#593c06', bg: '#261a04' },
+  { id: 'collector', name: '100% Collector', emblem: '🏆', rarity: 'COMPLETION', rarityClass: 'mythic', desc: 'Exclusive prismatic aura awarded only to the master card collection archivist.', unlockHint: 'Unlocked when 100% of all cards, spells, and chips are collected', primary: '#f43f5e', panel: '#292524', bg: '#1c1917' },
+  { id: 'valentine', name: 'Valentine', emblem: '💘', rarity: 'SECRET', rarityClass: 'exotic', desc: 'Sweetheart confectionery theme filled with romantic rose petals.', unlockHint: 'Unlocked with secret code: LOVE', primary: '#fb7185', panel: '#881337', bg: '#4c0519' },
+];
+
+const SLEEVE_DATA_REGISTRY = [
+  { id: 'none', name: 'Standard Sleek', rarity: 'COMMON', rarityClass: 'rare', desc: 'Standard clean titanium card border.', cost: 0, sleeveClass: 'sleeve-none' },
+  { id: 'sleeve_holo', name: 'Holographic Sleeves', rarity: 'RARE', rarityClass: 'rare', desc: 'Dynamic shimmering rainbow iridescent sheen that glides across cards.', cost: 400, sleeveClass: 'sleeve-holo' },
+  { id: 'sleeve_gold', name: 'Gold Sleeves', rarity: 'EPIC', rarityClass: 'epic', desc: 'Gilded 24k gold card borders with a warm pulsing royal glow.', cost: 600, sleeveClass: 'sleeve-gold' },
+  { id: 'sleeve_crimson', name: 'Crimson Core Sleeves', rarity: 'RARE', rarityClass: 'rare', desc: 'High-intensity ruby red glowing combat edges for cards.', cost: 550, sleeveClass: 'sleeve-crimson' },
+  { id: 'sleeve_prismatic', name: 'Prismatic Sleeves', rarity: 'LEGENDARY', rarityClass: 'legendary', desc: 'A continuously shifting spectrum frame rotating through chromatic colors.', cost: 800, sleeveClass: 'sleeve-prismatic' },
+  { id: 'sleeve_void', name: 'Void Sleeves', rarity: 'MYTHIC', rarityClass: 'mythic', desc: 'Deep-space dark matter cosmic frames pulsing with violet singularity energy.', cost: 1200, sleeveClass: 'sleeve-void' },
+  { id: 'sleeve_cyber', name: 'Cyber Circuit Sleeves', rarity: 'RARE', rarityClass: 'rare', desc: 'Glowing neon cyan circuit trace lines pulsing around card edges.', cost: 500, sleeveClass: 'sleeve-cyber' },
+  { id: 'sleeve_frost', name: 'Glacial Frost Sleeves', rarity: 'EPIC', rarityClass: 'epic', desc: 'Crystalline ice borders with floating frost particle shimmer.', cost: 650, sleeveClass: 'sleeve-frost' },
+  { id: 'sleeve_phoenix', name: 'Phoenix Ember Sleeves', rarity: 'LEGENDARY', rarityClass: 'legendary', desc: 'Radiant fiery flame borders shedding glowing phoenix sparks.', cost: 850, sleeveClass: 'sleeve-phoenix' },
+  { id: 'sleeve_emerald', name: 'Emerald Empress Sleeves', rarity: 'EPIC', rarityClass: 'epic', desc: 'Luminous jade emerald gemstone borders with gilded corner accents.', cost: 700, sleeveClass: 'sleeve-emerald' },
+  { id: 'sleeve_obsidian', name: 'Tactical Obsidian Sleeves', rarity: 'MYTHIC', rarityClass: 'mythic', desc: 'Sleek stealth carbon obsidian frames with crimson laser edging.', cost: 1000, sleeveClass: 'sleeve-obsidian' },
+];
+
+const VICTORY_DATA_REGISTRY = [
+  { id: 'default_confetti', name: 'Classic Victory Confetti', rarity: 'STANDARD', rarityClass: 'rare', desc: 'Festive multicolored confetti burst upon securing victory.', cost: 0, animType: 'confetti' },
+  { id: 'victoryanim_meteor', name: 'Meteor Shower Victory', rarity: 'MYTHIC', rarityClass: 'mythic', desc: 'A blazing storm of meteors streaks down and erupts in explosive shockwaves when you win!', cost: 500, animType: 'meteor' },
+  { id: 'effect_confetti', name: 'Confetti+ Celebration', rarity: 'RARE', rarityClass: 'rare', desc: 'Denser, longer-lasting celebration confetti with enhanced gravity physics.', cost: 250, animType: 'confetti_plus' },
+  { id: 'effect_victoryburst', name: 'Victory Starburst', rarity: 'EPIC', rarityClass: 'epic', desc: 'A blazing central starburst explosion with shimmering golden shockwave rings.', cost: 350, animType: 'burst' },
+  { id: 'victoryanim_supernova', name: 'Cosmic Supernova', rarity: 'LEGENDARY', rarityClass: 'legendary', desc: 'Blinding stellar explosion and cosmic shockwave across the screen.', cost: 650, animType: 'burst' },
+  { id: 'effect_fireworks', name: 'Fireworks Spectacular', rarity: 'EPIC', rarityClass: 'epic', desc: 'Multiple bursting colorful sky fireworks on match victory.', cost: 400, animType: 'burst' },
+  { id: 'effect_cashrain', name: 'Bux Cash Rain', rarity: 'EPIC', rarityClass: 'epic', desc: 'Cascading golden coins and dollar bills falling across the victory banner.', cost: 450, animType: 'confetti_plus' },
+  { id: 'effect_lightning', name: 'Thunder Shockwave', rarity: 'RARE', rarityClass: 'rare', desc: 'Crackling electric lightning bolts striking the victory podium.', cost: 380, animType: 'burst' },
+  { id: 'effect_starfountain', name: 'Golden Star Fountain', rarity: 'RARE', rarityClass: 'rare', desc: 'A erupting fountain of spinning golden stars and glitter particles.', cost: 300, animType: 'burst' },
+  { id: 'effect_dragonflame', name: 'Dragon Flame Aura', rarity: 'LEGENDARY', rarityClass: 'legendary', desc: 'A roaring dragon fire vortex swirling around your victory rank.', cost: 600, animType: 'meteor' },
+  { id: 'victoryanim_blackhole', name: 'Singularity Black Hole', rarity: 'MYTHIC', rarityClass: 'mythic', desc: 'A swirling black hole devours the battlefield upon your ultimate win.', cost: 750, animType: 'meteor' },
+  { id: 'victoryanim_orbital', name: 'Orbital Laser Strike', rarity: 'LEGENDARY', rarityClass: 'legendary', desc: 'A massive satellite laser beam blasts down with screen-shaking impact.', cost: 700, animType: 'meteor' },
+  { id: 'victoryanim_blizzard', name: 'Subzero Frost Shatter', rarity: 'EPIC', rarityClass: 'epic', desc: 'Flash-freezes the arena into solid ice before shattering into crystalline shards.', cost: 550, animType: 'burst' },
+  { id: 'victoryanim_nuke', name: 'Tactical Nuke Blast', rarity: 'MYTHIC', rarityClass: 'mythic', desc: 'A dramatic nuclear countdown mushroom cloud shockwave across the UI.', cost: 800, animType: 'meteor' },
+  { id: 'victoryanim_phoenix', name: 'Phoenix Rebirth Finisher', rarity: 'LEGENDARY', rarityClass: 'legendary', desc: 'A magnificent flaming phoenix spreads its wings in golden fire.', cost: 650, animType: 'burst' },
+];
+
+function openCollectionBook(initialTab = 'cards') {
   if (typeof Sound !== 'undefined' && Sound.modalOpen) Sound.modalOpen();
-  renderCollectionScreen();
+  currentLockerTopTab = initialTab;
+  renderCollectionScreen(currentLockerTopTab);
   showScreen('screen-collection');
 }
 function closeCollectionBook() {
   if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
   document.getElementById('collection-book-overlay').classList.add('hidden');
 }
-document.getElementById('btn-open-collection').addEventListener('click', openCollectionBook);
-document.getElementById('btn-collection-book-close').addEventListener('click', closeCollectionBook);
-document.getElementById('collection-book-overlay').addEventListener('click', (e) => {
-  if (e.target.id === 'collection-book-overlay') closeCollectionBook();
-});
-document.getElementById('btn-collection-book-cards').addEventListener('click', () => {
-  closeCollectionBook();
-  renderCollectionScreen();
-  showScreen('screen-collection');
-});
-document.getElementById('btn-collection-book-themes').addEventListener('click', () => {
-  closeCollectionBook();
-  openThemes();
-});
-document.getElementById('btn-collection-book-switch').addEventListener('click', () => {
-  openThemes();
-});
 
-// Populates the Collection screen's completion radar plus its six card
-// grids (Blue/Green/Red/Orange/Spells/Chips) from the player's actual
-// Populates the Collection screen's completion radar plus its six card
-// grids (Blue/Green/Red/Orange/Spells/Chips) from the player's actual owned collection.
-let currentInspectedCard = null;
+const btnOpenCollection = document.getElementById('btn-open-collection');
+if (btnOpenCollection) btnOpenCollection.addEventListener('click', () => openCollectionBook('cards'));
+const btnCloseCollection = document.getElementById('btn-collection-book-close');
+if (btnCloseCollection) btnCloseCollection.addEventListener('click', closeCollectionBook);
+const overlayCollection = document.getElementById('collection-book-overlay');
+if (overlayCollection) {
+  overlayCollection.addEventListener('click', (e) => {
+    if (e.target.id === 'collection-book-overlay') closeCollectionBook();
+  });
+}
+const btnBookCards = document.getElementById('btn-collection-book-cards');
+if (btnBookCards) btnBookCards.addEventListener('click', () => { closeCollectionBook(); openCollectionBook('cards'); });
+const btnBookThemes = document.getElementById('btn-collection-book-themes');
+if (btnBookThemes) btnBookThemes.addEventListener('click', () => { closeCollectionBook(); openCollectionBook('themes'); });
+const btnBookSwitch = document.getElementById('btn-collection-book-switch');
+if (btnBookSwitch) btnBookSwitch.addEventListener('click', () => { openCollectionBook('themes'); });
 
 const SPELL_RARITIES = {
   bolt3:       { class: 'uncommon', name: 'UNCOMMON', effectText: '3 DMG' },
@@ -4671,59 +4814,295 @@ const CHIP_RARITIES = {
   chip_focus:      { class: 'mythic',   name: 'MYTHIC',   boostText: '+2 DMG / -1 HP' },
 };
 
-function inspectLockerCard(cardData, animateFlip = false) {
-  if (!cardData) return;
-  currentInspectedCard = cardData;
+// Start or stop live particle canvas preview for victory effects
+function startVictoryPreviewCanvas(animType) {
+  if (victoryPreviewAnimTimer) {
+    cancelAnimationFrame(victoryPreviewAnimTimer);
+    victoryPreviewAnimTimer = null;
+  }
+  const canvas = document.getElementById('victory-preview-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
 
-  // Fast selection update without DOM rebuild
-  document.querySelectorAll('#screen-collection [data-collection-card]').forEach(el => {
-    el.classList.toggle('selected', el.dataset.cardId === cardData.id);
+  const w = (canvas.width = canvas.parentElement ? canvas.parentElement.clientWidth || 320 : 320);
+  const h = (canvas.height = canvas.parentElement ? canvas.parentElement.clientHeight || 200 : 200);
+
+  const particles = [];
+  const meteors = [];
+  const shockwaves = [];
+
+  if (animType === 'meteor') {
+    for (let i = 0; i < 6; i++) {
+      meteors.push({
+        x: Math.random() * w * 0.9 - w * 0.1,
+        y: -20 - Math.random() * 120,
+        vx: 3.5 + Math.random() * 2.5,
+        vy: 5.5 + Math.random() * 3.5,
+        trail: [],
+        color: Math.random() > 0.35 ? '#ff5500' : '#ffaa00',
+        radius: 3 + Math.random() * 2.5,
+        hasExploded: false
+      });
+    }
+  } else if (animType === 'burst') {
+    for (let r = 0; r < 2; r++) {
+      shockwaves.push({
+        x: w / 2,
+        y: h / 2,
+        radius: 5,
+        maxRadius: Math.min(w, h) * 0.45,
+        speed: 3 + r * 1.5,
+        alpha: 0.9,
+        color: r === 0 ? '#facc15' : '#38bdf8',
+        delay: r * 30
+      });
+    }
+    for (let i = 0; i < 45; i++) {
+      const angle = (Math.PI * 2 * i) / 45 + (Math.random() - 0.5) * 0.4;
+      const speed = 1.2 + Math.random() * 3.8;
+      particles.push({
+        x: w / 2,
+        y: h / 2,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 0,
+        maxLife: 45 + Math.random() * 35,
+        color: ['#facc15', '#f59e0b', '#38bdf8', '#ec4899', '#ffffff', '#a855f7'][Math.floor(Math.random() * 6)],
+        size: 2 + Math.random() * 3,
+        decay: 0.97
+      });
+    }
+  } else {
+    // Confetti or Confetti+
+    const count = animType === 'confetti_plus' ? 65 : 35;
+    const colors = ['#f43f5e', '#3b82f6', '#10b981', '#facc15', '#a855f7', '#ec4899', '#ffffff', '#fb923c'];
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 1.8,
+        vy: 1.4 + Math.random() * 2.5,
+        rot: Math.random() * 360,
+        vrot: (Math.random() - 0.5) * 6,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        size: 3.5 + Math.random() * 4.5,
+        shape: Math.random() > 0.4 ? 'rect' : 'circle'
+      });
+    }
+  }
+
+  function loop() {
+    ctx.fillStyle = 'rgba(5, 7, 14, 0.22)';
+    ctx.fillRect(0, 0, w, h);
+
+    if (animType === 'meteor') {
+      meteors.forEach(m => {
+        m.trail.push({ x: m.x, y: m.y });
+        if (m.trail.length > 10) m.trail.shift();
+        m.x += m.vx;
+        m.y += m.vy;
+
+        for (let i = 0; i < m.trail.length; i++) {
+          const pt = m.trail[i];
+          const alpha = i / m.trail.length;
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, m.radius * (alpha * 1.2), 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 120, 0, ${alpha * 0.8})`;
+          ctx.fill();
+        }
+
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, m.radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff7ed';
+        ctx.shadowColor = '#f97316';
+        ctx.shadowBlur = 12;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        if (m.y > h * 0.88 || m.x > w) {
+          if (!m.hasExploded) {
+            m.hasExploded = true;
+            shockwaves.push({
+              x: m.x,
+              y: Math.min(m.y, h - 10),
+              radius: 2,
+              maxRadius: 28,
+              speed: 2.5,
+              alpha: 1,
+              color: '#f97316'
+            });
+          }
+          if (m.y > h + 20 || m.x > w + 20) {
+            m.x = Math.random() * w * 0.7 - w * 0.1;
+            m.y = -20 - Math.random() * 60;
+            m.trail = [];
+            m.hasExploded = false;
+          }
+        }
+      });
+
+      shockwaves.forEach((sw, idx) => {
+        sw.radius += sw.speed;
+        sw.alpha = Math.max(0, 1 - sw.radius / sw.maxRadius);
+        ctx.beginPath();
+        ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = sw.color;
+        ctx.lineWidth = 2 * sw.alpha;
+        ctx.globalAlpha = sw.alpha;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        if (sw.radius >= sw.maxRadius) shockwaves.splice(idx, 1);
+      });
+
+    } else if (animType === 'burst') {
+      shockwaves.forEach(sw => {
+        sw.radius += sw.speed;
+        sw.alpha = Math.max(0, 1 - sw.radius / sw.maxRadius);
+        ctx.beginPath();
+        ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = sw.color;
+        ctx.lineWidth = 3 * sw.alpha;
+        ctx.globalAlpha = sw.alpha;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        if (sw.radius >= sw.maxRadius) {
+          sw.radius = 2;
+        }
+      });
+
+      particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vx *= p.decay;
+        p.vy *= p.decay;
+        p.life++;
+        const alpha = Math.max(0, 1 - p.life / p.maxLife);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 6;
+        ctx.globalAlpha = alpha;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+
+        if (p.life >= p.maxLife) {
+          p.x = w / 2;
+          p.y = h / 2;
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 1.2 + Math.random() * 3.8;
+          p.vx = Math.cos(angle) * speed;
+          p.vy = Math.sin(angle) * speed;
+          p.life = 0;
+        }
+      });
+
+    } else {
+      particles.forEach(p => {
+        p.x += p.vx + Math.sin(p.y / 20) * 0.6;
+        p.y += p.vy;
+        p.rot += p.vrot;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate((p.rot * Math.PI) / 180);
+        ctx.fillStyle = p.color;
+        if (p.shape === 'rect') {
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 1.6);
+        } else {
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        if (p.y > h) {
+          p.y = -10;
+          p.x = Math.random() * w;
+        }
+      });
+    }
+
+    victoryPreviewAnimTimer = requestAnimationFrame(loop);
+  }
+
+  loop();
+}
+
+// Master inspect function handling both cards and all cosmetics
+function inspectLockerItem(item, animate = false) {
+  if (!item) return;
+  currentInspectedLockerItem = item;
+
+  // Highlight active tile in left grid
+  document.querySelectorAll('#screen-collection [data-locker-item-id]').forEach(el => {
+    el.classList.toggle('selected', el.dataset.lockerItemId === item.id);
   });
 
   const showcaseRarity = document.getElementById('showcase-rarity');
   const showcaseCat = document.getElementById('showcase-category');
   const showcaseTitle = document.getElementById('showcase-title');
-  const showcaseWrapper = document.getElementById('showcase-card-wrapper');
+  const showcaseStage = document.getElementById('showcase-card-stage');
   const showcaseStats = document.getElementById('showcase-stats-grid');
   const showcaseDesc = document.getElementById('showcase-desc');
   const showcaseGlow = document.getElementById('showcase-glow');
+  const equipBtn = document.getElementById('showcase-equip-btn');
+  const testAnimBtn = document.getElementById('showcase-preview-anim-btn');
   const favBtn = document.getElementById('showcase-favorite-btn');
   const favText = document.getElementById('showcase-fav-text');
   const shopBtn = document.getElementById('showcase-shop-link-btn');
 
-  if (!showcaseTitle || !showcaseWrapper) return;
+  if (!showcaseTitle || !showcaseStage) return;
 
-  function getHeroFrontHTML() {
-    let heroClass = `tier${cardData.tier}`;
-    let glyph = TIER_GLYPHS[cardData.tier] || '●';
-    let statsHTML = `<span>${cardData.hp}❤</span><span>${cardData.dmg}⚔</span><span>${cardData.sp}⛃</span>`;
-
-    if (cardData.type === 'spell') {
-      heroClass = cardData.rarityClass || 'rare';
-      glyph = '⚡';
-      statsHTML = `<span>${cardData.effectText}</span>`;
-    } else if (cardData.type === 'chip') {
-      heroClass = cardData.rarityClass || 'rare';
-      glyph = '💎';
-      statsHTML = `<span>${cardData.boostText}</span>`;
-    }
-
-    return `
-      <div class="showcase-card-hero ${heroClass} ${cardData.owned ? '' : 'locked'}">
-        <div class="sc-hero-glyph">${glyph}</div>
-        <div class="sc-hero-name">${cardData.name}</div>
-        <div class="sc-hero-stats">${statsHTML}</div>
-        ${cardData.favorite ? '<div class="sc-hero-fav">★</div>' : ''}
-        ${!cardData.owned ? '<div class="sc-hero-lock">🔒 LOCKED</div>' : ''}
-      </div>`;
+  if (victoryPreviewAnimTimer) {
+    cancelAnimationFrame(victoryPreviewAnimTimer);
+    victoryPreviewAnimTimer = null;
   }
 
-  // Ensure 3D Flip Container Structure exists
-  let flipContainer = showcaseWrapper.querySelector('.flip-card-3d');
-  if (!flipContainer) {
-    showcaseWrapper.innerHTML = `
-      <div class="flip-card-3d" id="showcase-flip-3d">
-        <div class="flip-card-face flip-card-front" id="showcase-card-front"></div>
+  const kind = item.kind || (item.type ? 'card' : 'item');
+
+  // Reset visibility for labels
+  if (showcaseCat) showcaseCat.style.display = 'block';
+  if (showcaseRarity) showcaseRarity.style.display = 'inline-block';
+  if (showcaseTitle) {
+    showcaseTitle.style.display = 'block';
+    showcaseTitle.textContent = item.name;
+  }
+
+  // Update Rarity & Category
+  const rarityName = item.rarityName || item.rarity || 'RARE';
+  const rarityClass = item.rarityClass || 'rare';
+  if (showcaseRarity) {
+    showcaseRarity.textContent = rarityName;
+    showcaseRarity.className = `showcase-rarity-pill ${rarityClass}`;
+  }
+  if (showcaseGlow) showcaseGlow.className = `showcase-bg-glow glow-${rarityClass}`;
+
+  if (kind === 'card') {
+    let catText = 'UNIT CARD';
+    if (item.type === 'unit') catText = `TIER ${item.tier} UNIT`;
+    else if (item.type === 'spell') catText = 'SPELL CARD';
+    else if (item.type === 'chip') catText = 'CHIP CARD';
+    if (showcaseCat) showcaseCat.textContent = catText;
+
+    let heroClass = item.type === 'unit' ? `tier${item.tier}` : item.rarityClass || 'rare';
+    let glyph = item.type === 'unit' ? (TIER_GLYPHS[item.tier] || '●') : item.type === 'spell' ? '⚡' : '💎';
+    let statsHTML = item.type === 'unit'
+      ? `<span>${item.hp}❤</span><span>${item.dmg}⚔</span><span>${item.sp}⛃</span>`
+      : item.type === 'spell' ? `<span>${item.effectText}</span>` : `<span>${item.boostText}</span>`;
+
+    showcaseStage.innerHTML = `
+      <div class="flip-card-3d ${animate ? 'is-flipping' : ''}" id="showcase-flip-3d">
+        <div class="flip-card-face flip-card-front">
+          <div class="showcase-card-hero ${heroClass} ${item.owned ? '' : 'locked'}">
+            <div class="sc-hero-glyph">${glyph}</div>
+            <div class="sc-hero-name">${item.name}</div>
+            <div class="sc-hero-stats">${statsHTML}</div>
+            ${item.favorite ? '<div class="sc-hero-fav">★</div>' : ''}
+            ${!item.owned ? '<div class="sc-hero-lock">🔒 LOCKED</div>' : ''}
+          </div>
+        </div>
         <div class="flip-card-face flip-card-back">
           <div class="card-back-inner">
             <div class="card-back-emblem">⚡💎</div>
@@ -4731,96 +5110,227 @@ function inspectLockerCard(cardData, animateFlip = false) {
           </div>
         </div>
       </div>`;
-    flipContainer = showcaseWrapper.querySelector('.flip-card-3d');
-  }
-
-  const cardFront = document.getElementById('showcase-card-front');
-
-  function updatePanelData() {
-    let rarityLabel = cardData.rarityName || 'RARE';
-    let rarityClass = cardData.rarityClass || 'rare';
-    let catLabel = 'UNIT CARD';
-
-    if (cardData.type === 'unit') {
-      catLabel = `TIER ${cardData.tier} UNIT`;
-    } else if (cardData.type === 'spell') {
-      catLabel = 'SPELL CARD';
-    } else if (cardData.type === 'chip') {
-      catLabel = 'CHIP CARD';
-    }
-
-    if (showcaseRarity) {
-      showcaseRarity.textContent = rarityLabel;
-      showcaseRarity.className = `showcase-rarity-pill ${rarityClass}`;
-    }
-    if (showcaseCat) showcaseCat.textContent = catLabel;
-    if (showcaseTitle) showcaseTitle.textContent = cardData.name;
-
-    if (cardFront) cardFront.innerHTML = getHeroFrontHTML();
 
     if (showcaseStats) {
       showcaseStats.style.display = 'grid';
-      if (cardData.type === 'unit') {
+      if (item.type === 'unit') {
         showcaseStats.innerHTML = `
-          <div class="sc-stat-box"><span class="sc-label">HEALTH</span><strong>${cardData.hp}❤</strong></div>
-          <div class="sc-stat-box"><span class="sc-label">DAMAGE</span><strong>${cardData.dmg}⚔</strong></div>
-          <div class="sc-stat-box"><span class="sc-label">CHIP SLOTS</span><strong>${cardData.sp}⛃</strong></div>
+          <div class="sc-stat-box"><span class="sc-label">HEALTH</span><strong>${item.hp}❤</strong></div>
+          <div class="sc-stat-box"><span class="sc-label">DAMAGE</span><strong>${item.dmg}⚔</strong></div>
+          <div class="sc-stat-box"><span class="sc-label">CHIP SLOTS</span><strong>${item.sp}⛃</strong></div>
         `;
-      } else if (cardData.type === 'spell') {
+      } else if (item.type === 'spell') {
         showcaseStats.innerHTML = `
           <div class="sc-stat-box"><span class="sc-label">TYPE</span><strong>SPELL</strong></div>
-          <div class="sc-stat-box"><span class="sc-label">PRIMARY EFFECT</span><strong>${cardData.effectText}</strong></div>
+          <div class="sc-stat-box"><span class="sc-label">POWER</span><strong>${item.effectText}</strong></div>
           <div class="sc-stat-box"><span class="sc-label">TARGET</span><strong>BOARD</strong></div>
         `;
-      } else if (cardData.type === 'chip') {
+      } else {
         showcaseStats.innerHTML = `
           <div class="sc-stat-box"><span class="sc-label">TYPE</span><strong>CHIP</strong></div>
-          <div class="sc-stat-box"><span class="sc-label">STAT BOOST</span><strong>${cardData.boostText}</strong></div>
-          <div class="sc-stat-box"><span class="sc-label">REQ</span><strong>1 SLOT</strong></div>
+          <div class="sc-stat-box"><span class="sc-label">STAT BOOST</span><strong>${item.boostText}</strong></div>
+          <div class="sc-stat-box"><span class="sc-label">SLOT REQ</span><strong>1</strong></div>
         `;
       }
     }
 
-    if (showcaseGlow) showcaseGlow.className = `showcase-bg-glow glow-${rarityClass}`;
-    if (showcaseDesc) showcaseDesc.textContent = cardData.text || cardData.abilityText || 'No description available.';
+    if (showcaseDesc) showcaseDesc.textContent = item.text || item.abilityText || 'Select a card to view combat details.';
 
+    if (equipBtn) equipBtn.style.display = 'none';
+    if (testAnimBtn) testAnimBtn.style.display = 'none';
     if (favBtn) {
-      favBtn.style.display = cardData.owned ? 'inline-flex' : 'none';
-      if (favText) favText.textContent = cardData.favorite ? 'FAVORITED ★' : 'FAVORITE';
-      favBtn.classList.toggle('is-fav', !!cardData.favorite);
+      favBtn.style.display = item.owned ? 'inline-flex' : 'none';
+      if (favText) favText.textContent = item.favorite ? 'FAVORITED ★' : 'FAVORITE';
+      favBtn.classList.toggle('is-fav', !!item.favorite);
     }
-    if (shopBtn) {
-      shopBtn.style.display = cardData.owned ? 'none' : 'inline-flex';
+    if (shopBtn) shopBtn.style.display = 'none';
+
+  } else if (kind === 'theme') {
+    if (showcaseCat) showcaseCat.style.display = 'none';
+    if (showcaseRarity) showcaseRarity.style.display = 'none';
+    if (showcaseTitle) showcaseTitle.style.display = 'none';
+    if (showcaseStats) showcaseStats.style.display = 'none';
+
+    const isCurrent = currentTheme === item.id;
+    const isUnlocked = isThemeUnlocked(item.id);
+
+    // Get live animated background effects for this theme if available in DOM
+    const themeBgDom = document.getElementById('theme-' + item.id + '-bg');
+    const bgEffectsHtml = themeBgDom ? themeBgDom.innerHTML : '';
+
+    showcaseStage.innerHTML = `
+      <div class="showcase-theme-canvas theme-${item.id}" style="background: ${item.bg}; border-color: ${item.primary}; box-shadow: 0 16px 40px ${item.primary}40;">
+        <div class="showcase-theme-bg-layer">${bgEffectsHtml}</div>
+      </div>`;
+
+    if (showcaseDesc) {
+      showcaseDesc.innerHTML = `
+        <div style="margin-bottom:6px;">${item.desc}</div>
+        <div style="font-weight:800; color:${item.primary}">✦ How to unlock: ${item.unlockHint}</div>
+      `;
+    }
+
+    if (favBtn) favBtn.style.display = 'none';
+    if (testAnimBtn) testAnimBtn.style.display = 'none';
+
+    if (equipBtn) {
+      equipBtn.style.display = 'inline-flex';
+      if (isCurrent) {
+        equipBtn.textContent = '✓ CURRENTLY EQUIPPED';
+        equipBtn.className = 'locker-action-btn equipped';
+        equipBtn.onclick = null;
+      } else if (isUnlocked) {
+        equipBtn.textContent = 'EQUIP THEME';
+        equipBtn.className = 'locker-action-btn primary';
+        equipBtn.onclick = () => {
+          applyTheme(item.id);
+          renderCollectionScreen(currentLockerTopTab);
+          inspectLockerItem({ ...item, equipped: true });
+        };
+      } else {
+        equipBtn.textContent = '🔒 LOCKED THEME';
+        equipBtn.className = 'locker-action-btn secondary';
+        equipBtn.onclick = () => {
+          if (typeof Sound !== 'undefined' && Sound.error) Sound.error();
+        };
+      }
+    }
+
+    if (shopBtn) shopBtn.style.display = 'none';
+
+  } else if (kind === 'sleeve') {
+    if (showcaseCat) showcaseCat.textContent = 'CARD SLEEVE';
+    if (showcaseStats) showcaseStats.style.display = 'none';
+
+    const equippedSleeve = loadEquippedSleeve();
+    const isEquipped = equippedSleeve === item.id;
+    const isOwned = item.id === 'none' || ownsCosmetic(item.id);
+
+    showcaseStage.innerHTML = `
+      <div class="showcase-sleeve-stage">
+        <div class="sleeve-preview-hero ${item.sleeveClass}">
+          <div style="font-size: 2.2rem;">🛡️</div>
+          <div style="font-family:var(--font-display); font-weight:900; font-size:0.9rem; color:#fff;">${item.name}</div>
+          <div style="font-size:0.65rem; color:#94a3b8; letter-spacing:0.06em;">SLEEVE PREVIEW</div>
+        </div>
+      </div>`;
+
+    if (showcaseDesc) {
+      showcaseDesc.innerHTML = `
+        <div style="margin-bottom:6px;">${item.desc}</div>
+        <div style="font-weight:800; color:#38bdf8;">✦ Cost: ${item.cost ? `${item.cost} Bux in Shop` : 'Default Free'}</div>
+      `;
+    }
+
+    if (favBtn) favBtn.style.display = 'none';
+    if (testAnimBtn) testAnimBtn.style.display = 'none';
+
+    if (equipBtn) {
+      equipBtn.style.display = 'inline-flex';
+      if (isEquipped) {
+        equipBtn.textContent = '✓ CURRENTLY EQUIPPED';
+        equipBtn.className = 'locker-action-btn equipped';
+        equipBtn.onclick = null;
+      } else if (isOwned) {
+        equipBtn.textContent = 'EQUIP SLEEVE';
+        equipBtn.className = 'locker-action-btn primary';
+        equipBtn.onclick = () => {
+          equipSleeve(item.id);
+          renderCollectionScreen(currentLockerTopTab);
+          inspectLockerItem({ ...item, equipped: true });
+        };
+      } else {
+        equipBtn.textContent = `🛒 UNLOCK (${item.cost} BUX)`;
+        equipBtn.className = 'locker-action-btn secondary';
+        equipBtn.onclick = () => {
+          const btnShop = document.getElementById('btn-shop');
+          if (btnShop) btnShop.click();
+        };
+      }
+    }
+
+    if (shopBtn) shopBtn.style.display = 'none';
+
+  } else if (kind === 'victoryAnim' || kind === 'victory') {
+    if (showcaseCat) showcaseCat.textContent = 'VICTORY FINISHER';
+    if (showcaseStats) showcaseStats.style.display = 'none';
+
+    const equippedVic = loadEquippedVictoryAnim();
+    const isEquipped = equippedVic === item.id;
+    const isOwned = item.id === 'default_confetti' || ownsCosmetic(item.id);
+
+    showcaseStage.innerHTML = `
+      <div class="showcase-victory-stage">
+        <canvas id="victory-preview-canvas" class="victory-preview-canvas"></canvas>
+      </div>`;
+
+    startVictoryPreviewCanvas(item.animType || 'confetti');
+
+    if (showcaseDesc) {
+      showcaseDesc.innerHTML = `
+        <div style="margin-bottom:6px;">${item.desc}</div>
+        <div style="font-weight:800; color:#facc15;">✦ Celebration: Triggers with sound upon securing match victory.</div>
+      `;
+    }
+
+    if (favBtn) favBtn.style.display = 'none';
+    if (shopBtn) shopBtn.style.display = 'none';
+
+    if (testAnimBtn) {
+      testAnimBtn.style.display = 'inline-flex';
+      testAnimBtn.onclick = () => {
+        if (typeof playVictoryFinisherEffect === 'function') {
+          playVictoryFinisherEffect(item.animType || item.id);
+        } else if (typeof playMeteorShowerEffect !== 'undefined' && (item.animType === 'meteor' || item.id === 'victoryanim_meteor')) {
+          playMeteorShowerEffect(() => {});
+        } else if (typeof launchConfetti !== 'undefined') {
+          launchConfetti();
+        }
+      };
+    }
+
+    if (equipBtn) {
+      equipBtn.style.display = 'inline-flex';
+      if (isEquipped) {
+        equipBtn.textContent = '✓ CURRENTLY EQUIPPED';
+        equipBtn.className = 'locker-action-btn equipped';
+        equipBtn.onclick = null;
+      } else if (isOwned) {
+        equipBtn.textContent = 'EQUIP FINISHER';
+        equipBtn.className = 'locker-action-btn primary';
+        equipBtn.onclick = () => {
+          equipVictoryAnim(item.id);
+          renderCollectionScreen(currentLockerTopTab);
+          inspectLockerItem({ ...item, equipped: true });
+        };
+      } else {
+        equipBtn.textContent = `🛒 UNLOCK (${item.cost} BUX)`;
+        equipBtn.className = 'locker-action-btn secondary';
+        equipBtn.onclick = () => {
+          const btnShop = document.getElementById('btn-shop');
+          if (btnShop) btnShop.click();
+        };
+      }
     }
   }
 
-  if (animateFlip && flipContainer) {
-    if (typeof Sound !== 'undefined') {
-      if (cardData.type === 'spell' && Sound.spellChime) Sound.spellChime();
-      else if (cardData.type === 'chip' && Sound.chipChime) Sound.chipChime();
-      else if (Sound.tierChime) Sound.tierChime(cardData.tier || 1);
-      else if (Sound.select) Sound.select();
-    }
-
-    flipContainer.classList.remove('is-flipping');
-    void flipContainer.offsetWidth; // Force reflow
-    flipContainer.classList.add('is-flipping');
-
-    if (showcaseStats) showcaseStats.classList.add('sc-reveal-anim');
-    if (showcaseDesc) showcaseDesc.classList.add('sc-reveal-anim');
-
-    setTimeout(() => {
-      updatePanelData();
-    }, 220);
-
-    setTimeout(() => {
-      flipContainer.classList.remove('is-flipping');
-      if (showcaseStats) showcaseStats.classList.remove('sc-reveal-anim');
-      if (showcaseDesc) showcaseDesc.classList.remove('sc-reveal-anim');
-    }, 550);
-  } else {
-    updatePanelData();
+  if (animate && typeof Sound !== 'undefined') {
+    if (Sound.select) Sound.select();
   }
+}
+
+// Top Category Tabs setup (Cards, Victory Effects, Themes, Sleeves)
+function setupLockerTopTabs() {
+  document.querySelectorAll('.locker-main-tab-btn').forEach(btn => {
+    btn.onclick = () => {
+      const topTab = btn.dataset.topTab;
+      if (topTab) {
+        currentLockerTopTab = topTab;
+        if (typeof Sound !== 'undefined' && Sound.whoosh) Sound.whoosh('fast', 0.05);
+        renderCollectionScreen(currentLockerTopTab);
+      }
+    };
+  });
 }
 
 function setupLockerCategoryTabs() {
@@ -4830,7 +5340,7 @@ function setupLockerCategoryTabs() {
       btn.classList.add('active');
       if (typeof Sound !== 'undefined' && Sound.whoosh) Sound.whoosh('fast', 0.05);
       const cat = btn.dataset.cat;
-      document.querySelectorAll('.locker-section').forEach(sec => {
+      document.querySelectorAll('#locker-cards-container .locker-section').forEach(sec => {
         const secCat = sec.dataset.section;
         if (cat === 'all') {
           sec.style.display = 'block';
@@ -4849,200 +5359,356 @@ function setupLockerCategoryTabs() {
   });
 }
 
-function renderCollectionScreen() {
+function renderCollectionScreen(activeTopTab = 'cards') {
+  currentLockerTopTab = activeTopTab;
   const col = loadCollection();
 
-  // Total collected calculation
-  let totalUnitsCount = 0, totalOwnedUnits = 0;
-  [1, 2, 3, 4].forEach(t => {
-    totalUnitsCount += UNIT_ARCHETYPES[t].length;
-    totalOwnedUnits += UNIT_ARCHETYPES[t].filter(a => col.units.includes(a.id)).length;
+  // Update top tabs active state
+  document.querySelectorAll('.locker-main-tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.topTab === activeTopTab);
   });
-  const totalSpellsCount = ALL_SPELL_IDS.length;
-  const totalOwnedSpells = col.spells.length;
-  const totalChipsCount = ALL_CHIP_IDS.length;
-  const totalOwnedChips = col.chips.length;
 
-  const grandTotal = totalUnitsCount + totalSpellsCount + totalChipsCount;
-  const grandOwned = totalOwnedUnits + totalOwnedSpells + totalOwnedChips;
-  const grandPct = Math.round((grandOwned / Math.max(1, grandTotal)) * 100);
+  // Toggle visible grid containers
+  const cardsContainer = document.getElementById('locker-cards-container');
+  const cardsSubnav = document.getElementById('locker-cards-subnav');
+  const victoryContainer = document.getElementById('locker-victory-container');
+  const themesContainer = document.getElementById('locker-themes-container');
+  const sleevesContainer = document.getElementById('locker-sleeves-container');
 
+  if (cardsContainer) cardsContainer.style.display = activeTopTab === 'cards' ? 'block' : 'none';
+  if (cardsSubnav) cardsSubnav.style.display = activeTopTab === 'cards' ? 'flex' : 'none';
+  if (victoryContainer) victoryContainer.style.display = activeTopTab === 'victory' ? 'block' : 'none';
+  if (themesContainer) themesContainer.style.display = activeTopTab === 'themes' ? 'block' : 'none';
+  if (sleevesContainer) sleevesContainer.style.display = activeTopTab === 'sleeves' ? 'block' : 'none';
+
+  const badgeLabel = document.getElementById('locker-badge-label');
   const totalCountEl = document.getElementById('locker-collected-count');
-  if (totalCountEl) {
-    totalCountEl.textContent = `${grandOwned}/${grandTotal} (${grandPct}%)`;
+
+  let activeItemList = [];
+
+  if (activeTopTab === 'cards') {
+    if (badgeLabel) badgeLabel.textContent = 'COLLECTED';
+    let totalUnitsCount = 0, totalOwnedUnits = 0;
+    [1, 2, 3, 4].forEach(t => {
+      totalUnitsCount += UNIT_ARCHETYPES[t].length;
+      totalOwnedUnits += UNIT_ARCHETYPES[t].filter(a => col.units.includes(a.id)).length;
+    });
+    const totalSpellsCount = ALL_SPELL_IDS.length;
+    const totalOwnedSpells = col.spells.length;
+    const totalChipsCount = ALL_CHIP_IDS.length;
+    const totalOwnedChips = col.chips.length;
+    const grandTotal = totalUnitsCount + totalSpellsCount + totalChipsCount;
+    const grandOwned = totalOwnedUnits + totalOwnedSpells + totalOwnedChips;
+    const grandPct = Math.round((grandOwned / Math.max(1, grandTotal)) * 100);
+
+    if (totalCountEl) totalCountEl.textContent = `${grandOwned}/${grandTotal} (${grandPct}%)`;
+
+    const radarEl = document.getElementById('collection-radar-summary');
+    if (radarEl) {
+      const groups = [
+        { name: 'Green', owned: UNIT_ARCHETYPES[2].filter(a => col.units.includes(a.id)).length, total: UNIT_ARCHETYPES[2].length },
+        { name: 'Red', owned: UNIT_ARCHETYPES[3].filter(a => col.units.includes(a.id)).length, total: UNIT_ARCHETYPES[3].length },
+        { name: 'Orange', owned: UNIT_ARCHETYPES[4].filter(a => col.units.includes(a.id)).length, total: UNIT_ARCHETYPES[4].length },
+        { name: 'Spells', owned: col.spells.length, total: ALL_SPELL_IDS.length },
+        { name: 'Chips', owned: col.chips.length, total: ALL_CHIP_IDS.length },
+      ].map(g => ({ ...g, pct: Math.round(g.owned / Math.max(1, g.total) * 100) }));
+      radarEl.innerHTML = `
+        <div class="locker-section-head"><span>◎ Completion Radar</span></div>
+        <div class="radar-list">
+          ${groups.map(g => `
+            <div>
+              <b>${g.name}</b>
+              <span>${g.owned}/${g.total} · ${g.pct}%</span>
+              <i><em style="width:${g.pct}%"></em></i>
+            </div>`).join('')}
+        </div>`;
+    }
+
+    const tierContainerIds = { 1: 'collection-blue', 2: 'collection-green', 3: 'collection-red', 4: 'collection-orange' };
+    const tierRarityNames = { 1: 'RARE', 2: 'UNCOMMON', 3: 'EPIC', 4: 'LEGENDARY' };
+    const tierRarityClasses = { 1: 'rare', 2: 'uncommon', 3: 'epic', 4: 'legendary' };
+
+    [1, 2, 3, 4].forEach(tier => {
+      const container = document.getElementById(tierContainerIds[tier]);
+      if (!container) return;
+      const tierDef = TIERS[tier] || { hp: tier, dmg: tier, sp: Math.max(0, tier - 1) };
+
+      container.innerHTML = UNIT_ARCHETYPES[tier].map(a => {
+        const owned = isUnitArchetypeOwned(a.id);
+        const favorite = isFavoriteCard(a.id);
+        const abilityText = a.pool[0] === 'none' ? 'No special ability' : (ABILITIES[a.pool[0]] ? ABILITIES[a.pool[0]].label : 'Unique ability');
+        const cardObj = {
+          id: a.id,
+          name: a.name,
+          tier,
+          type: 'unit',
+          kind: 'card',
+          hp: tierDef.hp,
+          dmg: tierDef.dmg,
+          sp: a.sp || tierDef.sp,
+          abilityText,
+          text: a.text || abilityText,
+          owned,
+          favorite,
+          rarityName: tierRarityNames[tier],
+          rarityClass: tierRarityClasses[tier]
+        };
+        activeItemList.push(cardObj);
+
+        return `
+        <button type="button" 
+                class="locker-tile tier${tier} ${tierRarityClasses[tier]} ${owned ? '' : 'locked'}"
+                data-locker-item-id="${a.id}"
+                data-collection-card="true"
+                data-card-id="${a.id}"
+                data-card-name="${a.name}"
+                data-owned="${owned}">
+          <span class="tile-rarity-tag ${tierRarityClasses[tier]}">${tierRarityNames[tier]}</span>
+          ${favorite ? '<span class="tile-fav-star">★</span>' : ''}
+          <div class="tile-body">
+            <span class="tile-glyph">${TIER_GLYPHS[tier] || '●'}</span>
+            <span class="tile-name">${a.name}</span>
+          </div>
+          <div class="tile-tooltip">
+            <span class="tile-tooltip-stat hp">❤ ${tierDef.hp}</span>
+            <span class="tile-tooltip-stat dmg">⚔ ${tierDef.dmg}</span>
+            <span class="tile-tooltip-stat sp">⛃ ${a.sp || tierDef.sp}</span>
+          </div>
+          ${owned ? '' : '<div class="tile-lock-overlay">🔒</div>'}
+        </button>`;
+      }).join('');
+    });
+
+    const spellsContainer = document.getElementById('collection-spells');
+    if (spellsContainer) {
+      spellsContainer.innerHTML = ALL_SPELL_IDS.map(id => {
+        const spell = typeof SPELL_DEFS !== 'undefined' ? SPELL_DEFS.find(s => s.id === id) : null;
+        if (!spell) return '';
+        const owned = isSpellOwned(id);
+        const favorite = isFavoriteCard(id);
+        const rarityInfo = SPELL_RARITIES[id] || { class: 'rare', name: 'RARE', effectText: 'SPELL' };
+        const cardObj = {
+          id,
+          name: spell.name,
+          type: 'spell',
+          kind: 'card',
+          text: spell.text || spell.desc || '',
+          effectText: rarityInfo.effectText,
+          owned,
+          favorite,
+          rarityName: rarityInfo.name,
+          rarityClass: rarityInfo.class
+        };
+        activeItemList.push(cardObj);
+
+        return `
+        <button type="button" 
+                class="locker-tile ${rarityInfo.class} ${owned ? '' : 'locked'}"
+                data-locker-item-id="${id}"
+                data-collection-card="true"
+                data-card-id="${id}"
+                data-card-name="${spell.name}"
+                data-owned="${owned}">
+          <span class="tile-rarity-tag ${rarityInfo.class}">${rarityInfo.name}</span>
+          ${favorite ? '<span class="tile-fav-star">★</span>' : ''}
+          <div class="tile-body">
+            <span class="tile-glyph">⚡</span>
+            <span class="tile-name">${spell.name}</span>
+          </div>
+          <div class="tile-tooltip">
+            <span class="tile-tooltip-stat effect">⚡ ${rarityInfo.effectText}</span>
+          </div>
+          ${owned ? '' : '<div class="tile-lock-overlay">🔒</div>'}
+        </button>`;
+      }).join('');
+    }
+
+    const chipsContainer = document.getElementById('collection-chips');
+    if (chipsContainer) {
+      chipsContainer.innerHTML = ALL_CHIP_IDS.map(id => {
+        const chip = typeof CHIP_DEFS !== 'undefined' ? CHIP_DEFS.find(c => c.id === id) : null;
+        if (!chip) return '';
+        const owned = isChipOwned(id);
+        const favorite = isFavoriteCard(id);
+        const rarityInfo = CHIP_RARITIES[id] || { class: 'rare', name: 'RARE', boostText: 'BOOST' };
+        const cardObj = {
+          id,
+          name: chip.name,
+          type: 'chip',
+          kind: 'card',
+          text: chip.text || chip.desc || '',
+          boostText: rarityInfo.boostText,
+          owned,
+          favorite,
+          rarityName: rarityInfo.name,
+          rarityClass: rarityInfo.class
+        };
+        activeItemList.push(cardObj);
+
+        return `
+        <button type="button" 
+                class="locker-tile ${rarityInfo.class} ${owned ? '' : 'locked'}"
+                data-locker-item-id="${id}"
+                data-collection-card="true"
+                data-card-id="${id}"
+                data-card-name="${chip.name}"
+                data-owned="${owned}">
+          <span class="tile-rarity-tag ${rarityInfo.class}">${rarityInfo.name}</span>
+          ${favorite ? '<span class="tile-fav-star">★</span>' : ''}
+          <div class="tile-body">
+            <span class="tile-glyph">💎</span>
+            <span class="tile-name">${chip.name}</span>
+          </div>
+          <div class="tile-tooltip">
+            <span class="tile-tooltip-stat effect">💎 ${rarityInfo.boostText}</span>
+          </div>
+          ${owned ? '' : '<div class="tile-lock-overlay">🔒</div>'}
+        </button>`;
+      }).join('');
+    }
+
+  } else if (activeTopTab === 'themes') {
+    if (badgeLabel) badgeLabel.textContent = 'THEMES';
+    const themesGrid = document.getElementById('collection-themes');
+    if (themesGrid) {
+      const totalThemes = THEME_DATA_REGISTRY.length;
+      const unlockedThemes = THEME_DATA_REGISTRY.filter(t => isThemeUnlocked(t.id)).length;
+      if (totalCountEl) totalCountEl.textContent = `${unlockedThemes}/${totalThemes} (${Math.round((unlockedThemes / totalThemes) * 100)}%)`;
+
+      themesGrid.innerHTML = THEME_DATA_REGISTRY.map(t => {
+        const unlocked = isThemeUnlocked(t.id);
+        const equipped = currentTheme === t.id;
+        const themeObj = { ...t, kind: 'theme', owned: unlocked, equipped };
+        activeItemList.push(themeObj);
+
+        return `
+        <button type="button"
+                class="locker-tile theme-preview-tile ${t.rarityClass} ${unlocked ? '' : 'locked'}"
+                data-locker-item-id="${t.id}"
+                data-collection-card="true"
+                data-card-id="${t.id}"
+                data-card-name="${t.name}"
+                data-owned="${unlocked}"
+                style="background: ${t.bg}; border-color: ${t.primary}; box-shadow: 0 8px 24px ${t.primary}25;">
+          ${equipped ? '<span class="tile-equipped-badge">✓ EQUIPPED</span>' : ''}
+          <div class="tile-body">
+            <span class="tile-glyph">${t.emblem}</span>
+            <span class="tile-name" style="color: ${t.primary}; text-shadow: 0 2px 8px rgba(0,0,0,0.8);">${t.name}</span>
+            <div class="tile-theme-swatches">
+              <span class="tile-theme-swatch" style="background:${t.primary}"></span>
+              <span class="tile-theme-swatch" style="background:${t.panel}"></span>
+              <span class="tile-theme-swatch" style="background:${t.bg}"></span>
+            </div>
+          </div>
+          <div class="tile-tooltip">
+            <span class="tile-tooltip-stat effect">${t.name} Theme</span>
+          </div>
+          ${unlocked ? '' : '<div class="tile-lock-overlay">🔒</div>'}
+        </button>`;
+      }).join('');
+    }
+
+  } else if (activeTopTab === 'sleeves') {
+    if (badgeLabel) badgeLabel.textContent = 'SLEEVES';
+    const sleevesGrid = document.getElementById('collection-sleeves');
+    if (sleevesGrid) {
+      const equippedSleeve = loadEquippedSleeve();
+      const ownedSleeves = SLEEVE_DATA_REGISTRY.filter(s => s.id === 'none' || ownsCosmetic(s.id)).length;
+      const totalSleeves = SLEEVE_DATA_REGISTRY.length;
+      if (totalCountEl) totalCountEl.textContent = `${ownedSleeves}/${totalSleeves} (${Math.round((ownedSleeves / totalSleeves) * 100)}%)`;
+
+      sleevesGrid.innerHTML = SLEEVE_DATA_REGISTRY.map(s => {
+        const owned = s.id === 'none' || ownsCosmetic(s.id);
+        const equipped = equippedSleeve === s.id;
+        const sleeveObj = { ...s, kind: 'sleeve', owned, equipped };
+        activeItemList.push(sleeveObj);
+
+        return `
+        <button type="button"
+                class="locker-tile ${s.rarityClass} ${owned ? '' : 'locked'}"
+                data-locker-item-id="${s.id}"
+                data-collection-card="true"
+                data-card-id="${s.id}"
+                data-card-name="${s.name}"
+                data-owned="${owned}">
+          <span class="tile-rarity-tag ${s.rarityClass}">${s.rarity}</span>
+          ${equipped ? '<span class="tile-equipped-badge">✓ EQUIPPED</span>' : ''}
+          <div class="tile-body">
+            <span class="tile-glyph">🛡️</span>
+            <span class="tile-name">${s.name}</span>
+          </div>
+          <div class="tile-tooltip">
+            <span class="tile-tooltip-stat effect">${s.name}</span>
+          </div>
+          ${owned ? '' : '<div class="tile-lock-overlay">🔒</div>'}
+        </button>`;
+      }).join('');
+    }
+
+  } else if (activeTopTab === 'victory') {
+    if (badgeLabel) badgeLabel.textContent = 'EFFECTS';
+    const victoryGrid = document.getElementById('collection-victory');
+    if (victoryGrid) {
+      const equippedVic = loadEquippedVictoryAnim();
+      const ownedVic = VICTORY_DATA_REGISTRY.filter(v => v.id === 'default_confetti' || ownsCosmetic(v.id)).length;
+      const totalVic = VICTORY_DATA_REGISTRY.length;
+      if (totalCountEl) totalCountEl.textContent = `${ownedVic}/${totalVic} (${Math.round((ownedVic / totalVic) * 100)}%)`;
+
+      victoryGrid.innerHTML = VICTORY_DATA_REGISTRY.map(v => {
+        const owned = v.id === 'default_confetti' || ownsCosmetic(v.id);
+        const equipped = equippedVic === v.id;
+        const vicObj = { ...v, kind: 'victoryAnim', owned, equipped };
+        activeItemList.push(vicObj);
+
+        return `
+        <button type="button"
+                class="locker-tile ${v.rarityClass} ${owned ? '' : 'locked'}"
+                data-locker-item-id="${v.id}"
+                data-collection-card="true"
+                data-card-id="${v.id}"
+                data-card-name="${v.name}"
+                data-owned="${owned}">
+          <span class="tile-rarity-tag ${v.rarityClass}">${v.rarity}</span>
+          ${equipped ? '<span class="tile-equipped-badge">✓ EQUIPPED</span>' : ''}
+          <div class="tile-body">
+            <span class="tile-glyph">🎆</span>
+            <span class="tile-name">${v.name}</span>
+          </div>
+          <div class="tile-tooltip">
+            <span class="tile-tooltip-stat effect">${v.name}</span>
+          </div>
+          ${owned ? '' : '<div class="tile-lock-overlay">🔒</div>'}
+        </button>`;
+      }).join('');
+    }
   }
 
-  const radarEl = document.getElementById('collection-radar-summary');
-  if (radarEl) {
-    const groups = [
-      { name: 'Green', owned: UNIT_ARCHETYPES[2].filter(a => col.units.includes(a.id)).length, total: UNIT_ARCHETYPES[2].length },
-      { name: 'Red', owned: UNIT_ARCHETYPES[3].filter(a => col.units.includes(a.id)).length, total: UNIT_ARCHETYPES[3].length },
-      { name: 'Orange', owned: UNIT_ARCHETYPES[4].filter(a => col.units.includes(a.id)).length, total: UNIT_ARCHETYPES[4].length },
-      { name: 'Spells', owned: col.spells.length, total: ALL_SPELL_IDS.length },
-      { name: 'Chips', owned: col.chips.length, total: ALL_CHIP_IDS.length },
-    ].map(g => ({ ...g, pct: Math.round(g.owned / Math.max(1, g.total) * 100) }));
-    radarEl.innerHTML = `
-      <div class="locker-section-head"><span>◎ Completion Radar</span></div>
-      <div class="radar-list">
-        ${groups.map(g => `
-          <div>
-            <b>${g.name}</b>
-            <span>${g.owned}/${g.total} · ${g.pct}%</span>
-            <i><em style="width:${g.pct}%"></em></i>
-          </div>`).join('')}
-      </div>`;
-  }
-
-  const allCardsList = [];
-
-  const tierContainerIds = { 1: 'collection-blue', 2: 'collection-green', 3: 'collection-red', 4: 'collection-orange' };
-  const tierRarityNames = { 1: 'RARE', 2: 'UNCOMMON', 3: 'EPIC', 4: 'LEGENDARY' };
-  const tierRarityClasses = { 1: 'rare', 2: 'uncommon', 3: 'epic', 4: 'legendary' };
-
-  [1, 2, 3, 4].forEach(tier => {
-    const container = document.getElementById(tierContainerIds[tier]);
-    if (!container) return;
-    const tierDef = TIERS[tier] || { hp: tier, dmg: tier, sp: Math.max(0, tier - 1) };
-
-    container.innerHTML = UNIT_ARCHETYPES[tier].map(a => {
-      const owned = isUnitArchetypeOwned(a.id);
-      const favorite = isFavoriteCard(a.id);
-      const abilityText = a.pool[0] === 'none' ? 'No special ability' : (ABILITIES[a.pool[0]] ? ABILITIES[a.pool[0]].label : 'Unique ability');
-      
-      const cardObj = {
-        id: a.id,
-        name: a.name,
-        type: 'unit',
-        tier: tier,
-        hp: tierDef.hp,
-        dmg: tierDef.dmg,
-        sp: tierDef.sp,
-        rarityName: tierRarityNames[tier],
-        rarityClass: tierRarityClasses[tier],
-        abilityText: abilityText,
-        text: abilityText,
-        owned: owned,
-        favorite: favorite
-      };
-      allCardsList.push(cardObj);
-
-      return `<button type="button" class="locker-tile tier${tier} ${owned ? '' : 'locked'} ${favorite ? 'favorite' : ''}"
-        data-collection-card data-card-id="${a.id}" data-card-name="${a.name}" data-card-type="unit" data-tier="${tier}" data-owned="${owned}">
-        <div class="tile-rarity-tag ${tierRarityClasses[tier]}">${tierRarityNames[tier]}</div>
-        ${favorite ? '<div class="tile-fav-star">★</div>' : ''}
-        <div class="tile-body">
-          <div class="tile-glyph">${TIER_GLYPHS[tier] || '●'}</div>
-          <div class="tile-name">${a.name}</div>
-        </div>
-        <div class="tile-tooltip">
-          <span class="tile-tooltip-stat hp">❤ ${tierDef.hp}</span>
-          <span class="tile-tooltip-stat dmg">⚔ ${tierDef.dmg}</span>
-          <span class="tile-tooltip-stat sp">⛃ ${tierDef.sp}</span>
-        </div>
-        ${owned ? '' : '<div class="tile-lock-overlay">🔒</div>'}
-      </button>`;
-    }).join('');
-  });
-
-  const spellsContainer = document.getElementById('collection-spells');
-  if (spellsContainer) {
-    spellsContainer.innerHTML = SPELL_DEFS.map(s => {
-      const owned = col.spells.includes(s.id);
-      const favorite = isFavoriteCard(s.id);
-      const rarityInfo = SPELL_RARITIES[s.id] || { class: 'exotic', name: 'EXOTIC', effectText: 'SPELL' };
-
-      const cardObj = {
-        id: s.id,
-        name: s.name,
-        type: 'spell',
-        tier: 0,
-        rarityName: rarityInfo.name,
-        rarityClass: rarityInfo.class,
-        effectText: rarityInfo.effectText,
-        text: s.text,
-        owned: owned,
-        favorite: favorite
-      };
-      allCardsList.push(cardObj);
-
-      return `<button type="button" class="locker-tile spell ${rarityInfo.class} ${owned ? '' : 'locked'} ${favorite ? 'favorite' : ''}"
-        data-collection-card data-card-id="${s.id}" data-card-name="${s.name}" data-card-type="spell" data-owned="${owned}">
-        <div class="tile-rarity-tag ${rarityInfo.class}">${rarityInfo.name}</div>
-        ${favorite ? '<div class="tile-fav-star">★</div>' : ''}
-        <div class="tile-body">
-          <div class="tile-glyph">⚡</div>
-          <div class="tile-name">${s.name}</div>
-        </div>
-        <div class="tile-tooltip">
-          <span class="tile-tooltip-stat effect">⚡ ${rarityInfo.effectText}</span>
-        </div>
-        ${owned ? '' : '<div class="tile-lock-overlay">🔒</div>'}
-      </button>`;
-    }).join('');
-  }
-
-  const chipsContainer = document.getElementById('collection-chips');
-  if (chipsContainer) {
-    chipsContainer.innerHTML = CHIP_DEFS.map(c => {
-      const owned = col.chips.includes(c.id);
-      const favorite = isFavoriteCard(c.id);
-      const rarityInfo = CHIP_RARITIES[c.id] || { class: 'mythic', name: 'MYTHIC', boostText: 'CHIP' };
-
-      const cardObj = {
-        id: c.id,
-        name: c.name,
-        type: 'chip',
-        tier: 0,
-        rarityName: rarityInfo.name,
-        rarityClass: rarityInfo.class,
-        boostText: rarityInfo.boostText,
-        text: c.text,
-        owned: owned,
-        favorite: favorite
-      };
-      allCardsList.push(cardObj);
-
-      return `<button type="button" class="locker-tile chip ${rarityInfo.class} ${owned ? '' : 'locked'} ${favorite ? 'favorite' : ''}"
-        data-collection-card data-card-id="${c.id}" data-card-name="${c.name}" data-card-type="chip" data-owned="${owned}">
-        <div class="tile-rarity-tag ${rarityInfo.class}">${rarityInfo.name}</div>
-        ${favorite ? '<div class="tile-fav-star">★</div>' : ''}
-        <div class="tile-body">
-          <div class="tile-glyph">💎</div>
-          <div class="tile-name">${c.name}</div>
-        </div>
-        <div class="tile-tooltip">
-          <span class="tile-tooltip-stat effect">💎 ${rarityInfo.boostText}</span>
-        </div>
-        ${owned ? '' : '<div class="tile-lock-overlay">🔒</div>'}
-      </button>`;
-    }).join('');
-  }
-
-  // Setup click to inspect card
-  document.querySelectorAll('#screen-collection [data-collection-card]').forEach(el => {
+  // Bind click inspection across all tiles
+  document.querySelectorAll('#screen-collection [data-locker-item-id]').forEach(el => {
     el.addEventListener('click', () => {
-      const id = el.dataset.cardId;
-      const found = allCardsList.find(c => c.id === id);
+      const id = el.dataset.lockerItemId;
+      const found = activeItemList.find(item => item.id === id);
       if (found) {
-        inspectLockerCard(found, true);
+        inspectLockerItem(found, true);
       }
     });
   });
 
-  // Auto-inspect previously inspected card or first card
-  if (allCardsList.length) {
+  // Auto inspect first or previously selected item
+  if (activeItemList.length) {
     let toInspect = null;
-    if (currentInspectedCard) {
-      toInspect = allCardsList.find(c => c.id === currentInspectedCard.id);
+    if (currentInspectedLockerItem) {
+      toInspect = activeItemList.find(item => item.id === currentInspectedLockerItem.id);
     }
     if (!toInspect) {
-      toInspect = allCardsList.find(c => c.owned) || allCardsList[0];
+      toInspect = activeItemList.find(item => item.equipped) || activeItemList.find(item => item.owned) || activeItemList[0];
     }
     if (toInspect) {
-      inspectLockerCard(toInspect);
+      inspectLockerItem(toInspect, false);
     }
   }
 
+  setupLockerTopTabs();
   setupLockerCategoryTabs();
   setupCollectionTools();
 
@@ -5050,16 +5716,23 @@ function renderCollectionScreen() {
   const favBtn = document.getElementById('showcase-favorite-btn');
   if (favBtn) {
     favBtn.onclick = () => {
-      if (!currentInspectedCard) return;
-      toggleFavoriteCard(currentInspectedCard.id);
-      renderCollectionScreen();
+      if (!currentInspectedLockerItem) return;
+      toggleFavoriteCard(currentInspectedLockerItem.id);
+      renderCollectionScreen(currentLockerTopTab);
     };
   }
 
-  // Wire shop link button
-  const shopBtn = document.getElementById('showcase-shop-link-btn');
-  if (shopBtn) {
-    shopBtn.onclick = () => {
+  // Wire shop link buttons
+  const shopLinkBtn = document.getElementById('btn-collection-shop-link');
+  if (shopLinkBtn) {
+    shopLinkBtn.onclick = () => {
+      const btnShop = document.getElementById('btn-shop');
+      if (btnShop) btnShop.click();
+    };
+  }
+  const showcaseShopBtn = document.getElementById('showcase-shop-link-btn');
+  if (showcaseShopBtn) {
+    showcaseShopBtn.onclick = () => {
       const btnShop = document.getElementById('btn-shop');
       if (btnShop) btnShop.click();
     };
@@ -5089,22 +5762,31 @@ function isFavoriteCard(id) {
 function setupCollectionTools() {
   const search = document.getElementById('collection-search');
   const filter = document.getElementById('collection-filter');
-  if (!search && !filter) return;
 
   const apply = () => {
     const query = (search?.value || '').trim().toLowerCase();
     const modeVal = filter?.value || 'all';
 
-    document.querySelectorAll('[data-collection-card]').forEach(el => {
-      const id = el.dataset.cardId || '';
+    const activeContainerId = currentLockerTopTab === 'themes' ? 'locker-themes-container'
+      : currentLockerTopTab === 'sleeves' ? 'locker-sleeves-container'
+      : currentLockerTopTab === 'victory' ? 'locker-victory-container'
+      : 'locker-cards-container';
+    
+    const activeContainer = document.getElementById(activeContainerId);
+    if (!activeContainer) return;
+
+    activeContainer.querySelectorAll('[data-locker-item-id]').forEach(el => {
+      const id = el.dataset.lockerItemId || '';
       const name = (el.dataset.cardName || '').toLowerCase();
       const owned = el.dataset.owned === 'true';
       const favorite = isFavoriteCard(id);
+      const isEquipped = el.querySelector('.tile-equipped-badge') !== null;
       const matchesQuery = !query || name.includes(query);
       const matchesMode =
         modeVal === 'all' ||
         (modeVal === 'owned' && owned) ||
         (modeVal === 'missing' && !owned) ||
+        (modeVal === 'equipped' && isEquipped) ||
         (modeVal === 'favorites' && favorite);
       
       const visible = matchesQuery && matchesMode;
@@ -5112,12 +5794,14 @@ function setupCollectionTools() {
       el.style.display = visible ? 'flex' : 'none';
     });
 
-    // Hide empty sections if no matching card tiles are visible
-    document.querySelectorAll('#screen-collection .locker-section').forEach(sec => {
-      const tiles = sec.querySelectorAll('[data-collection-card]');
+    // Reset and conditionally adjust locker sections within active container only
+    activeContainer.querySelectorAll('.locker-section').forEach(sec => {
+      const tiles = sec.querySelectorAll('[data-locker-item-id]');
       if (tiles.length > 0) {
         const hasVisible = Array.from(tiles).some(t => t.style.display !== 'none');
-        sec.style.display = hasVisible ? '' : 'none';
+        sec.style.display = hasVisible ? 'block' : 'none';
+      } else {
+        sec.style.display = 'block';
       }
     });
   };

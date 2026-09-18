@@ -192,56 +192,276 @@ function spawnMeteorExplosion(overlay, leftPct) {
   setTimeout(() => boom.remove(), 750);
 }
 
-function playMeteorShowerEffect(onDone) {
-  const overlay = document.createElement('div');
-  overlay.className = 'meteor-shower-overlay';
-  document.body.appendChild(overlay);
+function playVictoryFinisherEffect(effectType = 'default_confetti', onDone) {
+  const normType = (effectType || '').toLowerCase();
+  let mode = 'confetti';
+  if (normType.includes('meteor')) mode = 'meteor';
+  else if (normType.includes('burst') || normType.includes('starburst')) mode = 'burst';
+  else if (normType.includes('plus') || normType.includes('effect_confetti')) mode = 'confetti_plus';
 
-  const count = reducedMotion ? 0 : 26;
-  for (let i = 0; i < count; i++) {
-    const startLeft = Math.random() * 130 - 20;
-    const scale = 0.65 + Math.random() * 1.05;
-    const delay = Math.random() * 2.1;
-    const dur = 0.95 + Math.random() * 0.7;
-    const endLeft = startLeft + 55;
+  const canvas = document.createElement('canvas');
+  canvas.className = 'fullscreen-victory-canvas';
+  document.body.appendChild(canvas);
 
-    const unit = document.createElement('div');
-    unit.className = 'meteor-unit';
-    unit.style.left = startLeft + '%';
-    unit.style.animationDelay = delay + 's';
-    unit.style.animationDuration = dur + 's';
-    unit.style.setProperty('--meteor-scale', String(scale));
-    unit.innerHTML = `<div class="meteor-tail"></div><div class="meteor-rock"></div>`;
-    overlay.appendChild(unit);
+  const ctx = canvas.getContext('2d');
+  let w = (canvas.width = window.innerWidth);
+  let h = (canvas.height = window.innerHeight);
 
-    setTimeout(() => {
-      unit.remove();
-      if (overlay.isConnected) spawnMeteorExplosion(overlay, endLeft);
-    }, (delay + dur) * 1000);
+  const onResize = () => {
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+  };
+  window.addEventListener('resize', onResize);
+
+  let animFrameId = null;
+  const startTime = performance.now();
+  const maxDuration = mode === 'meteor' ? 3200 : mode === 'burst' ? 2400 : 2800;
+
+  // Sound and haptics triggers
+  if (mode === 'meteor') {
+    if (typeof Sound !== 'undefined' && Sound.meteor) Sound.meteor();
+    if (typeof Sound !== 'undefined' && Sound.meteorBoom) {
+      setTimeout(() => Sound.meteorBoom(), 600);
+      setTimeout(() => Sound.meteorBoom(), 1400);
+    }
+    if (typeof vibrate === 'function') vibrate([60, 40, 60, 40, 90, 50, 100]);
+  } else if (mode === 'burst') {
+    if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
+    if (typeof Sound !== 'undefined' && Sound.buff) setTimeout(() => Sound.buff(), 250);
+    if (typeof vibrate === 'function') vibrate([40, 50, 40, 50, 70]);
+  } else {
+    if (typeof Sound !== 'undefined' && Sound.win) Sound.win();
+    if (typeof vibrate === 'function') vibrate([40, 40, 60]);
   }
 
-  Sound.meteor();
-  if (typeof vibrate === 'function') vibrate([50, 30, 50, 30, 80, 40, 90]);
-  setTimeout(() => { if (typeof Sound.meteorBoom === 'function') Sound.meteorBoom(); }, 1500);
-
+  // Trigger screen shake if enabled
   if (!reducedMotion) {
-    const screenEl = document.getElementById('screen-game');
+    const screenEl = document.getElementById('screen-game') || document.getElementById('screen-collection') || document.body;
     if (screenEl) {
-      const shakeAt = [0, 800, 1650, 2500];
-      shakeAt.forEach(t => setTimeout(() => {
+      screenEl.classList.add(mode === 'meteor' ? 'screen-shake-big' : 'shake-light');
+      setTimeout(() => {
         screenEl.classList.remove('screen-shake-big');
-        void screenEl.offsetWidth; // restart the animation each pulse
-        screenEl.classList.add('screen-shake-big');
-      }, t));
-      setTimeout(() => screenEl.classList.remove('screen-shake-big'), 3400);
+        screenEl.classList.remove('shake-light');
+      }, mode === 'meteor' ? 1200 : 450);
     }
   }
 
-  const duration = reducedMotion ? 150 : 3300;
-  setTimeout(() => {
-    overlay.remove();
-    if (onDone) onDone();
-  }, duration);
+  // Particle systems matching the previews
+  const particles = [];
+  const meteors = [];
+  const shockwaves = [];
+
+  if (mode === 'meteor') {
+    const meteorCount = reducedMotion ? 4 : 14;
+    for (let i = 0; i < meteorCount; i++) {
+      const startX = Math.random() * (w * 0.9) - (w * 0.1);
+      const startY = -40 - Math.random() * (h * 0.6);
+      const speed = 12 + Math.random() * 8;
+      const angle = (Math.PI / 4) + (Math.random() - 0.5) * 0.2; // approx 45 degrees
+      meteors.push({
+        x: startX,
+        y: startY,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        trail: [],
+        color: Math.random() > 0.35 ? '#ff5500' : '#ffaa00',
+        radius: 4.5 + Math.random() * 4.5,
+        spawnDelay: Math.random() * 1200,
+        hasExploded: false
+      });
+    }
+  } else if (mode === 'burst') {
+    const ringCount = 3;
+    for (let r = 0; r < ringCount; r++) {
+      shockwaves.push({
+        x: w / 2,
+        y: h / 2,
+        radius: 10,
+        maxRadius: Math.min(w, h) * (0.45 + r * 0.2),
+        speed: 8 + r * 3,
+        alpha: 0.9,
+        color: r === 0 ? '#facc15' : r === 1 ? '#38bdf8' : '#ec4899',
+        delay: r * 200
+      });
+    }
+    const count = reducedMotion ? 40 : 120;
+    const colors = ['#facc15', '#f59e0b', '#38bdf8', '#ec4899', '#ffffff', '#a855f7'];
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+      const speed = 3 + Math.random() * 9;
+      particles.push({
+        x: w / 2,
+        y: h / 2,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 0,
+        maxLife: 60 + Math.random() * 45,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        size: 3 + Math.random() * 4.5,
+        decay: 0.96 + Math.random() * 0.02
+      });
+    }
+  } else {
+    // Confetti or Confetti+
+    const count = mode === 'confetti_plus' ? (reducedMotion ? 50 : 130) : (reducedMotion ? 30 : 80);
+    const colors = ['#f43f5e', '#3b82f6', '#10b981', '#facc15', '#a855f7', '#ec4899', '#ffffff', '#fb923c'];
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: Math.random() * w,
+        y: -20 - Math.random() * (h * 0.5),
+        vx: (Math.random() - 0.5) * 3.5,
+        vy: 3 + Math.random() * 4.5,
+        rot: Math.random() * 360,
+        vrot: (Math.random() - 0.5) * 8,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        size: 6 + Math.random() * 8,
+        shape: Math.random() > 0.4 ? 'rect' : 'circle'
+      });
+    }
+  }
+
+  function frame(now) {
+    const elapsed = now - startTime;
+    ctx.clearRect(0, 0, w, h);
+
+    if (mode === 'meteor') {
+      // Draw falling meteors with blazing trails and ground shockwaves
+      meteors.forEach(m => {
+        if (elapsed < m.spawnDelay) return;
+        m.trail.push({ x: m.x, y: m.y });
+        if (m.trail.length > 12) m.trail.shift();
+
+        m.x += m.vx;
+        m.y += m.vy;
+
+        // Draw hot trailing embers
+        for (let i = 0; i < m.trail.length; i++) {
+          const pt = m.trail[i];
+          const alpha = (i / m.trail.length) * 0.85;
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, m.radius * (i / m.trail.length) * 1.3, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 120, 0, ${alpha})`;
+          ctx.shadowColor = '#ff4400';
+          ctx.shadowBlur = 10;
+          ctx.fill();
+        }
+
+        // Draw meteor head
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, m.radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#fb923c';
+        ctx.shadowBlur = 18;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Check ground impact
+        if ((m.y > h * 0.85 || m.x > w) && !m.hasExploded) {
+          m.hasExploded = true;
+          shockwaves.push({
+            x: m.x,
+            y: Math.min(m.y, h - 20),
+            radius: 5,
+            maxRadius: 60 + Math.random() * 50,
+            speed: 6,
+            alpha: 1,
+            color: '#f97316'
+          });
+        }
+      });
+
+      // Draw explosion shockwaves
+      shockwaves.forEach((sw, idx) => {
+        sw.radius += sw.speed;
+        sw.alpha = Math.max(0, 1 - sw.radius / sw.maxRadius);
+        ctx.beginPath();
+        ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = sw.color;
+        ctx.lineWidth = 4 * sw.alpha;
+        ctx.globalAlpha = sw.alpha;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      });
+
+    } else if (mode === 'burst') {
+      // Draw expanding shockwaves
+      shockwaves.forEach(sw => {
+        if (elapsed < (sw.delay || 0)) return;
+        sw.radius += sw.speed;
+        sw.alpha = Math.max(0, 1 - sw.radius / sw.maxRadius);
+        ctx.beginPath();
+        ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = sw.color;
+        ctx.lineWidth = 5 * sw.alpha;
+        ctx.globalAlpha = sw.alpha;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      });
+
+      // Draw glittering starburst sparks
+      particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vx *= p.decay;
+        p.vy *= p.decay;
+        p.life++;
+        const alpha = Math.max(0, 1 - p.life / p.maxLife);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 8;
+        ctx.globalAlpha = alpha;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+      });
+
+    } else {
+      // Confetti & Confetti+
+      particles.forEach(p => {
+        p.x += p.vx + Math.sin(elapsed / 180 + p.rot) * 1.5;
+        p.y += p.vy;
+        p.rot += p.vrot;
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate((p.rot * Math.PI) / 180);
+        ctx.fillStyle = p.color;
+        if (p.shape === 'rect') {
+          ctx.fillRect(-p.size / 2, -p.size, p.size, p.size * 1.8);
+        } else {
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      });
+    }
+
+    if (elapsed < maxDuration) {
+      animFrameId = requestAnimationFrame(frame);
+    } else {
+      cleanup();
+    }
+  }
+
+  function cleanup() {
+    if (animFrameId) cancelAnimationFrame(animFrameId);
+    window.removeEventListener('resize', onResize);
+    canvas.style.transition = 'opacity 0.35s ease-out';
+    canvas.style.opacity = '0';
+    setTimeout(() => {
+      canvas.remove();
+      if (onDone) onDone();
+    }, 380);
+  }
+
+  animFrameId = requestAnimationFrame(frame);
+}
+
+function playMeteorShowerEffect(onDone) {
+  playVictoryFinisherEffect('meteor', onDone);
 }
 
 /* ---------- General juice: a tactile ripple on presses across the app --- */
@@ -1199,12 +1419,11 @@ function renderProgressionExtras() {
    outright without RNG.
    ============================================================ */
 const SHOP_PACK_SIZES = [
-  { id: 'pack_mini',     name: 'Mini Pack',     count: 1,  cost: 12,  art: '🎴' },
-  { id: 'pack_small',    name: 'Small Pack',    count: 2,  cost: 20,  art: '🎁' },
-  { id: 'pack_standard', name: 'Standard Pack', count: 3,  cost: 32,  art: '📦' },
-  { id: 'pack_large',    name: 'Large Pack',    count: 5,  cost: 55,  art: '🧧' },
-  { id: 'pack_mega',     name: 'Mega Pack',     count: 8,  cost: 90,  art: '💼' },
-  { id: 'pack_ultra',    name: 'Ultra Pack',    count: 12, cost: 140, art: '🏆' },
+  { id: 'pack_small',    name: 'Small Pack',    count: 2,  cost: 20,  art: '🎁', tag: 'STARTER', badge: '2 Cards', desc: 'Unlocks 2 unique spells, chips, or units for your collection.' },
+  { id: 'pack_standard', name: 'Standard Pack', count: 3,  cost: 32,  art: '📦', tag: 'POPULAR', badge: '3 Cards', desc: 'Balanced 3-card drop with elevated higher-tier chances.' },
+  { id: 'pack_large',    name: 'Large Pack',    count: 5,  cost: 55,  art: '🧧', tag: 'BEST VALUE', badge: '5 Cards', desc: '5 unowned cards including guaranteed high-tier synergy.' },
+  { id: 'pack_mega',     name: 'Mega Pack',     count: 8,  cost: 90,  art: '💼', tag: 'ELITE HAUL', badge: '8 Cards', desc: 'Substantial 8-card unlock pack for rapid deckbuilding.' },
+  { id: 'pack_ultra',    name: 'Ultra Pack',    count: 12, cost: 140, art: '🏆', tag: 'MYTHIC VAULT', badge: '12 Cards', desc: 'Massive 12-card jackpot to complete your master vault.' },
 ];
 
 function individualCardPrice(kind, tier) {
@@ -1214,22 +1433,24 @@ function individualCardPrice(kind, tier) {
 
 function buildTodaysShopPicks() {
   const seed = dayIndexSeed();
-  const cosmeticIds = seededPick(COSMETIC_ITEMS.map(c => c.id), seed, 6);
+  // 8 rotating cosmetics daily:
+  const cosmeticIds = seededPick(COSMETIC_ITEMS.map(c => c.id), seed, 8);
 
   const cardPool = [];
   ALL_NONBLUE_UNIT_IDS.forEach(id => {
     const a = findArchetypeById(id);
-    if (a) cardPool.push({ id, kind: 'unit', tier: a.tier, name: a.name, cost: individualCardPrice('unit', a.tier) });
+    if (a) cardPool.push({ id, kind: 'unit', tier: a.tier, name: a.name, cost: individualCardPrice('unit', a.tier), power: a.power || (a.tier * 2 + 1) });
   });
   ALL_SPELL_IDS.forEach(id => {
     const d = SPELL_DEFS.find(s => s.id === id);
-    if (d) cardPool.push({ id, kind: 'spell', tier: null, name: d.name, cost: individualCardPrice('spell') });
+    if (d) cardPool.push({ id, kind: 'spell', tier: null, name: d.name, cost: individualCardPrice('spell'), desc: d.desc || 'Tactical spell card' });
   });
   ALL_CHIP_IDS.forEach(id => {
     const d = CHIP_DEFS.find(c => c.id === id);
-    if (d) cardPool.push({ id, kind: 'chip', tier: null, name: d.name, cost: individualCardPrice('chip') });
+    if (d) cardPool.push({ id, kind: 'chip', tier: null, name: d.name, cost: individualCardPrice('chip'), desc: d.desc || 'Passive modifier chip' });
   });
-  const cardIdxs = seededPick(cardPool.map((_, i) => i), seed + 777, 6);
+  // 8 rotating individual cards daily:
+  const cardIdxs = seededPick(cardPool.map((_, i) => i), seed + 777, 8);
   const cards = cardIdxs.map(i => cardPool[i]);
 
   return { cosmeticIds, cards };
@@ -1537,134 +1758,176 @@ function renderCosmeticsShop() {
   if (!list) return;
 
   const balance = loadBux();
-  const owned = loadOwnedCosmetics();
   const equippedSleeve = loadEquippedSleeve();
   const picks = buildTodaysShopPicks();
 
-  const cosmeticArt = { theme: '🎨', sleeve: '🃏', effect: '✨', victoryAnim: '☄️' };
   const cosmeticItems = picks.cosmeticIds.map(id => COSMETIC_ITEMS.find(c => c.id === id)).filter(Boolean);
 
+  const kindLabels = { theme: 'THEME', sleeve: 'SLEEVE', effect: 'VICTORY EFFECT', victoryAnim: 'FINISHER' };
+  const rarityClass = {
+    MYTHIC: 'fn-mythic',
+    LEGENDARY: 'fn-legendary',
+    EPIC: 'fn-epic',
+    RARE: 'fn-rare',
+    UNCOMMON: 'fn-uncommon'
+  };
+
+  // Clean Fortnite-style Cosmetic Tile
   const cosmeticCard = (item) => {
     const isOwned = ownsCosmetic(item.id);
     const isEquipped = item.kind === 'sleeve' && equippedSleeve === item.id;
-    const button = isOwned
-      ? (isEquipped ? 'EQUIPPED' : item.kind === 'sleeve' ? 'EQUIP' : 'OWNED')
-      : `${item.cost.toLocaleString()} BUX`;
+    const discount = item.original && item.original > item.cost
+      ? Math.round((1 - item.cost / item.original) * 100) : 0;
+    const rarity = item.rarity || 'RARE';
+    const rClass = rarityClass[rarity] || 'fn-rare';
+
     return `
-      <article class="modern-shop-card ${isOwned ? 'is-owned' : ''}">
-        <button class="modern-shop-art" data-shop-buy="cosmetic:${item.id}" data-kind="${item.kind}">
-          <span class="modern-shop-art-glow"></span>
-          <span class="modern-shop-art-symbol">${cosmeticArt[item.kind] || '★'}</span>
-        </button>
-        <div class="modern-shop-card-body">
-          <div class="modern-shop-card-name">${item.name}</div>
-          <div class="modern-shop-card-desc">${item.desc}</div>
-          <div class="modern-shop-card-bottom">
-            <div class="modern-shop-price">
-              ${isOwned ? '<span class="owned-label">OWNED</span>' : `<strong>◉ ${item.cost.toLocaleString()}</strong><small>BUX</small>`}
-            </div>
-            <button class="modern-shop-buy ${isOwned ? 'owned' : ''}" data-shop-buy="cosmetic:${item.id}">${button}</button>
+      <div class="fn-tile ${rClass} ${isOwned ? 'is-owned' : ''}" data-shop-buy="cosmetic:${item.id}">
+        <div class="fn-tile-bg"></div>
+        <div class="fn-tile-top">
+          ${discount ? `<span class="fn-tag fn-tag-sale">-${discount}%</span>` : `<span class="fn-tag">${rarity}</span>`}
+        </div>
+        <div class="fn-tile-art">
+          <span class="fn-tile-icon">${item.art || '★'}</span>
+        </div>
+        <div class="fn-tile-footer">
+          <div class="fn-tile-name">${item.name}</div>
+          <div class="fn-tile-sub">${kindLabels[item.kind] || 'COSMETIC'}</div>
+          <div class="fn-tile-price-row">
+            ${isOwned ? (isEquipped ? '<span class="fn-pill fn-pill-equipped">EQUIPPED</span>' : (item.kind === 'sleeve' ? '<span class="fn-pill fn-pill-owned">EQUIP</span>' : '<span class="fn-pill fn-pill-owned">OWNED</span>')) : `
+              <div class="fn-price">
+                <span class="fn-coin">◉</span>
+                <span class="fn-cost">${item.cost.toLocaleString()}</span>
+                ${discount ? `<del class="fn-del">${item.original.toLocaleString()}</del>` : ''}
+              </div>
+            `}
           </div>
         </div>
-      </article>`;
+      </div>`;
   };
 
-  const packCard = (p) => `
-    <article class="modern-shop-card">
-      <button class="modern-shop-art" data-shop-buy="pack:${p.id}" data-kind="pack">
-        <span class="modern-shop-art-glow"></span>
-        <span class="modern-shop-art-symbol">${p.art}</span>
-        <span class="modern-shop-ribbon">${p.count} CARD${p.count > 1 ? 'S' : ''}</span>
-      </button>
-      <div class="modern-shop-card-body">
-        <div class="modern-shop-card-name">${p.name}</div>
-        <div class="modern-shop-card-desc">Unlocks ${p.count} new spell, chip, or unit card${p.count > 1 ? 's' : ''} you don't already own.</div>
-        <div class="modern-shop-card-bottom">
-          <div class="modern-shop-price"><strong>◉ ${p.cost.toLocaleString()}</strong><small>BUX</small></div>
-          <button class="modern-shop-buy" data-shop-buy="pack:${p.id}">OPEN</button>
-        </div>
-      </div>
-    </article>`;
-
+  // Clean Fortnite-style Single Card Tile
   const cardEntryCard = (entry) => {
     const isOwned = isIndividualCardOwned(entry);
-    const tierLabel = entry.kind === 'unit' ? (TIERS[entry.tier] ? TIERS[entry.tier].name : '') : (entry.kind === 'spell' ? 'Spell' : 'Chip');
+    const tierName = entry.kind === 'unit' ? (TIERS[entry.tier] ? `Tier ${entry.tier} Unit` : 'Unit') : (entry.kind === 'spell' ? 'Spell Card' : 'Chip Card');
+    const rClass = entry.tier === 4 ? 'fn-mythic' : entry.tier === 3 ? 'fn-epic' : entry.kind === 'spell' ? 'fn-legendary' : 'fn-rare';
+    const glyph = entry.kind === 'unit' ? (TIER_GLYPHS && entry.tier ? TIER_GLYPHS[entry.tier] : '⚔️') : (entry.kind === 'spell' ? '🔮' : '💾');
+
     return `
-      <article class="modern-shop-card ${isOwned ? 'is-owned' : ''}">
-        <button class="modern-shop-art" data-shop-buy="card:${entry.kind}:${entry.id}" data-kind="card">
-          <span class="modern-shop-art-glow"></span>
-          <span class="modern-shop-art-symbol">${TIER_GLYPHS && entry.tier ? (TIER_GLYPHS[entry.tier] || '🃏') : '🃏'}</span>
-        </button>
-        <div class="modern-shop-card-body">
-          <div class="modern-shop-card-name">${entry.name}</div>
-          <div class="modern-shop-card-desc">${tierLabel} · buy it directly, no randomness.</div>
-          <div class="modern-shop-card-bottom">
-            <div class="modern-shop-price">
-              ${isOwned ? '<span class="owned-label">OWNED</span>' : `<strong>◉ ${entry.cost.toLocaleString()}</strong><small>BUX</small>`}
-            </div>
-            <button class="modern-shop-buy ${isOwned ? 'owned' : ''}" data-shop-buy="card:${entry.kind}:${entry.id}">${isOwned ? 'OWNED' : `${entry.cost.toLocaleString()} BUX`}</button>
+      <div class="fn-tile ${rClass} ${isOwned ? 'is-owned' : ''}" data-shop-buy="card:${entry.kind}:${entry.id}">
+        <div class="fn-tile-bg"></div>
+        <div class="fn-tile-top">
+          <span class="fn-tag">${entry.kind.toUpperCase()}</span>
+          ${entry.power ? `<span class="fn-power-tag">PWR ${entry.power}</span>` : ''}
+        </div>
+        <div class="fn-tile-art">
+          <span class="fn-tile-icon">${glyph}</span>
+        </div>
+        <div class="fn-tile-footer">
+          <div class="fn-tile-name">${entry.name}</div>
+          <div class="fn-tile-sub">${tierName.toUpperCase()}</div>
+          <div class="fn-tile-price-row">
+            ${isOwned ? '<span class="fn-pill fn-pill-owned">OWNED</span>' : `
+              <div class="fn-price">
+                <span class="fn-coin">◉</span>
+                <span class="fn-cost">${entry.cost.toLocaleString()}</span>
+              </div>
+            `}
           </div>
         </div>
-      </article>`;
+      </div>`;
   };
 
-  const section = (title, sub, html) => `
-    <section class="modern-shop-section">
-      <div class="modern-shop-section-head">
-        <div>
-          <span class="modern-shop-section-kicker">MEHRBOD SHOP</span>
-          <h3>${title}</h3>
-          <p>${sub}</p>
-        </div>
+  // Clean Fortnite-style Pack Tile
+  const packCard = (p) => `
+    <div class="fn-tile fn-epic" data-shop-buy="pack:${p.id}">
+      <div class="fn-tile-bg"></div>
+      <div class="fn-tile-top">
+        <span class="fn-tag">${p.tag || 'PACK'}</span>
+        <span class="fn-power-tag">${p.count} CARDS</span>
       </div>
-      <div class="modern-shop-grid">${html}</div>
-    </section>`;
-
-  list.innerHTML = `
-    <div class="modern-shop">
-      <header class="modern-shop-header">
-        <div>
-          <span class="modern-shop-kicker">TODAY'S SELECTION</span>
-          <h2>ITEM SHOP</h2>
-        </div>
-        <div class="modern-shop-wallet">
-          <span class="modern-shop-wallet-icon">◉</span>
-          <strong>${balance.toLocaleString()}</strong>
-          <span>BUX</span>
-        </div>
-      </header>
-
-      <div class="modern-shop-refresh">
-        <span>TODAY'S PICKS REFRESH IN</span>
-        <strong id="modern-shop-countdown">23:59:59</strong>
+      <div class="fn-tile-art">
+        <span class="fn-tile-icon">${p.art}</span>
       </div>
-
-      ${section('Cosmetics', "Today's rotating cosmetic picks - a new six every day.", cosmeticItems.map(cosmeticCard).join(''))}
-      ${section('Card Packs', 'Six fixed pack sizes, always available - pick how big a gamble you want.', SHOP_PACK_SIZES.map(packCard).join(''))}
-      ${section('Individual Cards', "Today's six specific cards, buyable outright with no randomness.", picks.cards.map(cardEntryCard).join(''))}
-
-      <section class="modern-shop-section">
-        <div class="modern-shop-section-head">
-          <div>
-            <span class="modern-shop-section-kicker">MEHRBOD SHOP</span>
-            <h3>Codes</h3>
-            <p>Got a code from an event, a friend, or somewhere else? Redeem it here.</p>
+      <div class="fn-tile-footer">
+        <div class="fn-tile-name">${p.name}</div>
+        <div class="fn-tile-sub">${p.badge || `${p.count} Cards Unbox`}</div>
+        <div class="fn-tile-price-row">
+          <div class="fn-price">
+            <span class="fn-coin">◉</span>
+            <span class="fn-cost">${p.cost.toLocaleString()}</span>
           </div>
         </div>
-        <div class="shop-code-row">
-          <input type="text" id="shop-code-input" placeholder="Enter code..." maxlength="40" autocapitalize="none" autocomplete="off">
-          <button type="button" class="primary-btn" id="shop-code-redeem-btn">Redeem</button>
-        </div>
-      </section>
-
-      <div class="modern-shop-footer-note">
-        <span>◉</span>
-        Your Bux balance: <strong>${balance.toLocaleString()}</strong>
-        <span>•</span>
-        Purchases are permanent.
       </div>
     </div>`;
 
+  list.innerHTML = `
+    <div class="fn-shop">
+      <!-- HEADER -->
+      <header class="fn-shop-header">
+        <div class="fn-header-left">
+          <h1 class="fn-shop-title">MEHRBOD SHOP</h1>
+          <div class="fn-countdown-pill">
+            <span class="fn-timer-icon">⏱️</span>
+            <span>REFRESHES IN</span>
+            <strong id="modern-shop-countdown">23:59:59</strong>
+          </div>
+        </div>
+        <div class="fn-wallet-pill">
+          <span class="fn-wallet-coin">◉</span>
+          <strong class="fn-wallet-amount">${balance.toLocaleString()}</strong>
+          <span class="fn-wallet-unit">BUX</span>
+        </div>
+      </header>
+
+      <!-- SECTION 1: 8 FEATURED COSMETICS -->
+      <section class="fn-section">
+        <div class="fn-section-bar">
+          <h2 class="fn-section-title">FEATURED COSMETICS</h2>
+          <span class="fn-section-badge">${cosmeticItems.length} ITEMS</span>
+        </div>
+        <div class="fn-grid">
+          ${cosmeticItems.map(cosmeticCard).join('')}
+        </div>
+      </section>
+
+      <!-- SECTION 2: 8 DAILY CARD SINGLES -->
+      <section class="fn-section">
+        <div class="fn-section-bar">
+          <h2 class="fn-section-title">DAILY CARDS</h2>
+          <span class="fn-section-badge">${picks.cards.length} ITEMS</span>
+        </div>
+        <div class="fn-grid">
+          ${picks.cards.map(cardEntryCard).join('')}
+        </div>
+      </section>
+
+      <!-- SECTION 3: 5 CARD PACKS -->
+      <section class="fn-section">
+        <div class="fn-section-bar">
+          <h2 class="fn-section-title">CARD PACKS</h2>
+          <span class="fn-section-badge">5 SIZES</span>
+        </div>
+        <div class="fn-grid fn-grid-packs">
+          ${SHOP_PACK_SIZES.map(packCard).join('')}
+        </div>
+      </section>
+
+      <!-- SECTION 4: REDEEM CODE -->
+      <section class="fn-section">
+        <div class="fn-section-bar">
+          <h2 class="fn-section-title">REDEEM CODE</h2>
+        </div>
+        <div class="fn-code-box">
+          <div class="fn-code-input-row">
+            <input type="text" id="shop-code-input" class="fn-code-input" placeholder="ENTER SECRET CODE..." maxlength="40" autocapitalize="none" autocomplete="off" spellcheck="false">
+            <button type="button" class="fn-code-btn" id="shop-code-redeem-btn">REDEEM</button>
+          </div>
+        </div>
+      </section>
+    </div>`;
+
+  // Countdown timer
   const refresh = () => {
     const now = new Date();
     const tomorrow = new Date(now);
@@ -1680,9 +1943,22 @@ function renderCosmeticsShop() {
   clearInterval(window.__mehrbodShopTimer);
   window.__mehrbodShopTimer = setInterval(refresh, 1000);
 
-  list.querySelectorAll('[data-shop-buy]').forEach(btn => {
+  // Quick code button clicks
+  list.querySelectorAll('[data-quick-code]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const [kind, a, b] = btn.dataset.shopBuy.split(':');
+      const code = btn.dataset.quickCode;
+      const input = document.getElementById('shop-code-input');
+      if (input) {
+        input.value = code;
+        redeemShopCode(code);
+      }
+    });
+  });
+
+  // Tile clicks (buy/equip)
+  list.querySelectorAll('[data-shop-buy]').forEach(tile => {
+    tile.addEventListener('click', () => {
+      const [kind, a, b] = tile.dataset.shopBuy.split(':');
       if (kind === 'cosmetic') {
         const item = COSMETIC_ITEMS.find(c => c.id === a);
         if (item) buyOrEquipCosmetic(item);
@@ -1696,6 +1972,7 @@ function renderCosmeticsShop() {
     });
   });
 
+  // Code input & button
   const codeInput = document.getElementById('shop-code-input');
   const codeBtn = document.getElementById('shop-code-redeem-btn');
   if (codeBtn && codeInput) {
@@ -1923,7 +2200,9 @@ function openProfilePanel() {
           <div class="profile-stat-pill"><b>${battle.streak}</b><span>Streak</span></div>
           <div class="profile-stat-pill"><b>${battle.bestStreak}</b><span>Best Streak</span></div>
           <div class="profile-stat-pill"><b>${battle.biggestWin}</b><span>Biggest Win</span></div>
+          <div class="profile-stat-pill"><b>${battle.wagerWon - battle.wagerLost >= 0 ? '+' : ''}${battle.wagerWon - battle.wagerLost} Bux</b><span>Net Wager</span></div>
         </div>
+        <button type="button" class="secondary-btn small" id="btn-profile-watch-replay" style="margin-top:10px; width:100%;">▶ Watch Last Match Replay</button>
 
         <div class="profile-section-heading">Progression</div>
         <div class="profile-cards-grid">
@@ -2233,6 +2512,11 @@ function openProfilePanel() {
   document.getElementById('profile-card-trial-tower')?.addEventListener('click', () => {
     overlay.remove();
     openTrialTowerScreen();
+  });
+
+  document.getElementById('btn-profile-watch-replay')?.addEventListener('click', () => {
+    overlay.remove();
+    if (typeof watchLastReplay === 'function') watchLastReplay();
   });
 }
 
@@ -3294,6 +3578,155 @@ function playSacrificeManReviveAnimation(owner, slot, left) {
   if (typeof Sound !== 'undefined' && Sound.buff) Sound.buff();
 }
 
+function playRemainsMaskAnimation(owner, slot) {
+  if (typeof shakeScreen === 'function') shakeScreen(12);
+  if (typeof Sound !== 'undefined' && Sound.epicDmg) Sound.epicDmg();
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    background: radial-gradient(circle at center, rgba(185, 28, 28, 0.5) 0%, rgba(15, 23, 42, 0.85) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: suddenDeathFade 1.1s ease-out forwards;
+  `;
+  overlay.innerHTML = `
+    <div style="text-align: center; color: #f87171; text-shadow: 0 0 24px #dc2626, 0 0 48px #991b1b; font-family: 'Playfair Display', serif; transform: scale(1.15);">
+      <div style="font-size: 3.5rem;">🎭💀</div>
+      <div style="font-size: 2.2rem; font-weight: 900; letter-spacing: 2px; text-transform: uppercase;">Remains Mask!</div>
+      <div style="font-size: 1.05rem; color: #fecaca; margin-top: 6px;">All Sacrifice Man cards regenerated to full uses!</div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  setTimeout(() => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 1100);
+
+  const slotEl = typeof getSlotEl === 'function' ? getSlotEl(owner, slot) : null;
+  if (slotEl && typeof spawnFloatingNumberOn === 'function') {
+    spawnFloatingNumberOn(slotEl, '💀 SACRIFICED RED CARD', 'damage');
+  }
+}
+
+function playSupremeShirtAnimation(targetOwner, targetSlot) {
+  const targetEl = typeof getSlotEl === 'function' ? getSlotEl(targetOwner, targetSlot) : null;
+  const targetRect = targetEl ? targetEl.getBoundingClientRect() : { left: window.innerWidth / 2, top: window.innerHeight / 2, width: 80, height: 100 };
+  const targetX = targetRect.left + targetRect.width / 2;
+  const targetY = targetRect.top + targetRect.height / 2;
+
+  const icon = document.createElement('div');
+  icon.style.cssText = `
+    position: fixed;
+    z-index: 9999;
+    font-size: 3.5rem;
+    pointer-events: none;
+    left: ${targetX}px;
+    top: ${targetY - 50}px;
+    transform: translate(-50%, -50%) scale(0.5);
+    transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    filter: drop-shadow(0 0 16px #f59e0b);
+  `;
+  icon.textContent = '🎽';
+  document.body.appendChild(icon);
+
+  requestAnimationFrame(() => {
+    icon.style.transform = 'translate(-50%, -50%) scale(1.4)';
+  });
+
+  setTimeout(() => {
+    if (icon.parentNode) icon.parentNode.removeChild(icon);
+    if (typeof Sound !== 'undefined' && Sound.buff) Sound.buff();
+    if (targetEl) {
+      targetEl.classList.add('yellow-zap-glow');
+      setTimeout(() => targetEl.classList.remove('yellow-zap-glow'), 700);
+      if (typeof spawnFloatingNumberOn === 'function') {
+        spawnFloatingNumberOn(targetEl, '🎽 +2 HP · +2 DMG · +2 SP!', 'heal');
+      }
+    }
+  }, 350);
+}
+
+function playReviveAnimation(owner, slot, cardName) {
+  const targetEl = typeof getSlotEl === 'function' ? getSlotEl(owner, slot) : null;
+  const targetRect = targetEl ? targetEl.getBoundingClientRect() : { left: window.innerWidth / 2, top: window.innerHeight / 2, width: 80, height: 100 };
+  const targetX = targetRect.left + targetRect.width / 2;
+  const targetY = targetRect.top + targetRect.height / 2;
+
+  const glyph = document.createElement('div');
+  glyph.style.cssText = `
+    position: fixed;
+    z-index: 9999;
+    font-size: 3.2rem;
+    pointer-events: none;
+    left: ${targetX}px;
+    top: ${targetY}px;
+    transform: translate(-50%, -50%) scale(0.2);
+    transition: all 0.4s ease-out;
+    filter: drop-shadow(0 0 20px #10b981);
+  `;
+  glyph.textContent = '✨⚰️✨';
+  document.body.appendChild(glyph);
+
+  requestAnimationFrame(() => {
+    glyph.style.transform = 'translate(-50%, -50%) scale(1.3)';
+  });
+
+  setTimeout(() => {
+    if (glyph.parentNode) glyph.parentNode.removeChild(glyph);
+    if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
+    if (targetEl) {
+      targetEl.classList.add('all-aura-glow');
+      setTimeout(() => targetEl.classList.remove('all-aura-glow'), 800);
+      if (typeof spawnFloatingNumberOn === 'function') {
+        spawnFloatingNumberOn(targetEl, `✨ REVIVED ${cardName || 'CARD'}!`, 'heal');
+      }
+    }
+  }, 400);
+}
+
+function playSkeletonStaffAnimation(targetOwner, targetSlot) {
+  const targetEl = typeof getSlotEl === 'function' ? getSlotEl(targetOwner, targetSlot) : null;
+  const targetRect = targetEl ? targetEl.getBoundingClientRect() : { left: window.innerWidth / 2, top: window.innerHeight / 2, width: 80, height: 100 };
+  const targetX = targetRect.left + targetRect.width / 2;
+  const targetY = targetRect.top + targetRect.height / 2;
+
+  const staff = document.createElement('div');
+  staff.style.cssText = `
+    position: fixed;
+    z-index: 9999;
+    font-size: 3.6rem;
+    pointer-events: none;
+    left: ${targetX}px;
+    top: ${targetY - 140}px;
+    transform: translate(-50%, -50%) rotate(-30deg) scale(0.7);
+    transition: all 0.28s cubic-bezier(0.5, 0, 0.75, 0);
+    filter: drop-shadow(0 0 16px #a855f7);
+  `;
+  staff.textContent = '🦴🪄';
+  document.body.appendChild(staff);
+
+  requestAnimationFrame(() => {
+    staff.style.top = targetY + 'px';
+    staff.style.transform = 'translate(-50%, -50%) rotate(15deg) scale(1.3)';
+  });
+
+  setTimeout(() => {
+    if (staff.parentNode) staff.parentNode.removeChild(staff);
+    if (typeof shakeScreen === 'function') shakeScreen(10);
+    if (typeof Sound !== 'undefined' && Sound.death) Sound.death();
+
+    if (targetEl) {
+      targetEl.classList.add('glitch-pulse');
+      setTimeout(() => targetEl.classList.remove('glitch-pulse'), 800);
+      if (typeof spawnFloatingNumberOn === 'function') {
+        spawnFloatingNumberOn(targetEl, '🦴 1 HP · 1 ATK · 1 SP (NO CHIPS)', 'damage');
+      }
+    }
+  }, 280);
+}
+
 window.playRocketBoomAnimation = playRocketBoomAnimation;
 window.playSuddenDeathAnimation = playSuddenDeathAnimation;
 window.playHackAnimation = playHackAnimation;
@@ -3302,6 +3735,10 @@ window.playSanctionedAnimation = playSanctionedAnimation;
 window.playZapAnimation = playZapAnimation;
 window.playAllAuraAnimation = playAllAuraAnimation;
 window.playSacrificeManReviveAnimation = playSacrificeManReviveAnimation;
+window.playRemainsMaskAnimation = playRemainsMaskAnimation;
+window.playSupremeShirtAnimation = playSupremeShirtAnimation;
+window.playReviveAnimation = playReviveAnimation;
+window.playSkeletonStaffAnimation = playSkeletonStaffAnimation;
 
 
 

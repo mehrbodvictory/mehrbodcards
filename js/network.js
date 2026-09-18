@@ -28,15 +28,17 @@
 // on port 443, which looks like ordinary HTTPS traffic to a firewall) so a
 // connection can still be established by relaying through them, and by
 // timing out with a clear, actionable message instead of hanging forever.
-const ICE_CONFIG = {
-  iceServers: [
+function getIceConfig() {
+  const defaultStun = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-  ],
-};
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun.cloudflare.com:3478' }
+  ];
+
+  return { iceServers: defaultStun };
+}
+
 const CONNECT_TIMEOUT_MS = 20000;
 const TIMEOUT_MESSAGE = "Connection timed out. This can happen on restrictive networks (school or work wifi). Try a mobile hotspot or a different network.";
 
@@ -66,10 +68,23 @@ class NetSession {
     this.seed = seed;
     this.wager = wager || 0;
     this.hostDeckConfig = hostDeckConfig || null;
-    const code = this._makeRoomCode();
-    this.peer = new Peer('cardbattler-' + code, { debug: 1, config: ICE_CONFIG });
+    const rawCode = this._makeRoomCode();
+    const code = rawCode.replace(/[^A-Za-z0-9]/g, '');
+    const peerId = 'cardbattler-' + code;
     this.onStatus('connecting');
     return new Promise((resolve, reject) => {
+      try {
+        const iceConfig = getIceConfig();
+        this.peer = new Peer(peerId, { debug: 1, config: iceConfig });
+      } catch (err) {
+        try {
+          this.peer = new Peer(peerId, { debug: 1 });
+        } catch (e2) {
+          this.onPeerError(e2);
+          return reject(e2);
+        }
+      }
+
       this.peer.on('open', () => { this.onStatus('waiting'); resolve(code); });
       this.peer.on('error', err => { this.onPeerError(err); reject(err); });
       this.peer.on('connection', conn => {
@@ -84,6 +99,9 @@ class NetSession {
           // (see _wireHostConn) so init can carry a fully-formed match.
           this.onStatus('connected');
         });
+        conn.on('error', err => {
+          this.onPeerError(err);
+        });
       });
     });
   }
@@ -97,21 +115,42 @@ class NetSession {
   joinGame(code, guestDeckConfig) {
     this.isHost = false;
     this.guestDeckConfig = guestDeckConfig || null;
-    this.peer = new Peer(undefined, { debug: 1, config: ICE_CONFIG });
+    const cleanCode = (code || '').toString().trim().toUpperCase().replace(/[^A-Za-z0-9]/g, '');
     this.onStatus('connecting');
     return new Promise((resolve, reject) => {
+      try {
+        const iceConfig = getIceConfig();
+        this.peer = new Peer({ debug: 1, config: iceConfig });
+      } catch (err) {
+        try {
+          this.peer = new Peer({ debug: 1 });
+        } catch (e2) {
+          this.onPeerError(e2);
+          return reject(e2);
+        }
+      }
+
       this.peer.on('open', () => {
-        this.conn = this.peer.connect('cardbattler-' + code.toUpperCase(), { reliable: true });
-        this._wireGuestConn();
-        const timeout = setTimeout(() => {
-          if (!this.conn.open) this.onPeerError({ type: 'connection-timeout', message: TIMEOUT_MESSAGE });
-        }, CONNECT_TIMEOUT_MS);
-        this.conn.on('open', () => {
-          clearTimeout(timeout);
-          this._send({ type: 'guestConfig', deckConfig: this.guestDeckConfig });
-          this.onStatus('connected');
-          resolve();
-        });
+        try {
+          this.conn = this.peer.connect('cardbattler-' + cleanCode, { reliable: true });
+          this._wireGuestConn();
+          const timeout = setTimeout(() => {
+            if (!this.conn || !this.conn.open) this.onPeerError({ type: 'connection-timeout', message: TIMEOUT_MESSAGE });
+          }, CONNECT_TIMEOUT_MS);
+          this.conn.on('open', () => {
+            clearTimeout(timeout);
+            this._send({ type: 'guestConfig', deckConfig: this.guestDeckConfig });
+            this.onStatus('connected');
+            resolve();
+          });
+          this.conn.on('error', err => {
+            this.onPeerError(err);
+            reject(err);
+          });
+        } catch (connErr) {
+          this.onPeerError(connErr);
+          reject(connErr);
+        }
       });
       this.peer.on('error', err => { this.onPeerError(err); reject(err); });
     });

@@ -151,6 +151,8 @@
   <div class="rain-streak r20"></div>
 </div>
 <div id="theme-cyberneon-bg" aria-hidden="true">
+  <div class="cyber-perspective-grid"></div>
+  <div class="cyber-horizon-glow"></div>
   <div class="neon-particle np1">01</div>
   <div class="neon-particle np2">▲</div>
   <div class="neon-particle np3">10</div>
@@ -340,6 +342,69 @@
   <div class="astral-comet ac1"></div>
   <div class="astral-comet ac2"></div>
 </div>
+<div id="theme-verdant-bg" aria-hidden="true">
+  <div class="verdant-canopy-glow"></div>
+  <div class="verdant-spore vs1"></div>
+  <div class="verdant-spore vs2"></div>
+  <div class="verdant-spore vs3"></div>
+  <div class="verdant-spore vs4"></div>
+  <div class="verdant-spore vs5"></div>
+  <div class="verdant-leaf-shape vl1"></div>
+  <div class="verdant-leaf-shape vl2"></div>
+  <div class="verdant-leaf-shape vl3"></div>
+</div>
+<div id="theme-collector-bg" aria-hidden="true">
+  <div class="collector-chroma-aura"></div>
+  <div class="collector-prism-flare pf1"></div>
+  <div class="collector-prism-flare pf2"></div>
+  <div class="collector-prism-flare pf3"></div>
+  <div class="collector-glint cg1"></div>
+  <div class="collector-glint cg2"></div>
+  <div class="collector-glint cg3"></div>
+</div>
+<div id="theme-valentine-bg" aria-hidden="true">
+  <div class="valentine-rose-haze"></div>
+  <div class="valentine-heart-shape vh1"></div>
+  <div class="valentine-heart-shape vh2"></div>
+  <div class="valentine-heart-shape vh3"></div>
+  <div class="valentine-petal-shape vp1"></div>
+  <div class="valentine-petal-shape vp2"></div>
+  <div class="valentine-petal-shape vp3"></div>
+</div>
+<div id="theme-sakura-bg" aria-hidden="true">
+  <div class="sakura-soft-glow"></div>
+  <div class="sakura-petal-vector sp1"></div>
+  <div class="sakura-petal-vector sp2"></div>
+  <div class="sakura-petal-vector sp3"></div>
+  <div class="sakura-petal-vector sp4"></div>
+  <div class="sakura-petal-vector sp5"></div>
+  <div class="sakura-petal-vector sp6"></div>
+</div>
+<div id="theme-solar-bg" aria-hidden="true">
+  <div class="solar-corona-core"></div>
+  <div class="solar-flare-ray sfr1"></div>
+  <div class="solar-flare-ray sfr2"></div>
+  <div class="solar-flare-ray sfr3"></div>
+  <div class="solar-prominence-arc pa1"></div>
+  <div class="solar-prominence-arc pa2"></div>
+</div>
+<div id="theme-steampunk-bg" aria-hidden="true">
+  <div class="steampunk-brass-haze"></div>
+  <div class="steampunk-gear-ring gr1"></div>
+  <div class="steampunk-gear-ring gr2"></div>
+  <div class="steampunk-gear-ring gr3"></div>
+  <div class="steampunk-steam-cloud sc1"></div>
+  <div class="steampunk-steam-cloud sc2"></div>
+</div>
+<div id="theme-galaxy-bg" aria-hidden="true">
+  <div class="galaxy-spiral-arm"></div>
+  <div class="galaxy-dust-cloud gd1"></div>
+  <div class="galaxy-dust-cloud gd2"></div>
+  <div class="galaxy-star-particle gs1"></div>
+  <div class="galaxy-star-particle gs2"></div>
+  <div class="galaxy-star-particle gs3"></div>
+  <div class="galaxy-star-particle gs4"></div>
+</div>
 <div id="app">
 
   <header id="top-bar">
@@ -359,7 +424,7 @@
       </button>
       <button class="menu-card" id="btn-shop">
         <span class="menu-card-title">🛒 Mehrbod Shop</span>
-        <span class="menu-card-sub">Wager Mehrbod Bux vs bots & players</span>
+        <span class="menu-card-sub">Daily cosmetics, card singles & packs</span>
       </button>
       <button class="menu-card" id="btn-multiplayer">
         <span class="menu-card-title">Multiplayer</span>
@@ -368,8 +433,6 @@
     </div>
 
     <div class="menu-footer">
-      <button class="link-btn" id="btn-player-stats">📊 Stats</button>
-      <span class="footer-dot">·</span>
       <button class="link-btn" id="btn-open-collection">📖 Collection</button>
       <span class="footer-dot">·</span>
       <button class="link-btn" id="btn-open-quests-menu">🏆 Quests</button>
@@ -638,17 +701,23 @@
   <section id="screen-collection" class="screen hidden locker-screen">
     <div class="locker-header">
       <div class="locker-title-wrap">
-        <h1 class="locker-title-box">CARD LOCKER</h1>
+        <h1 class="locker-title-box">LOCKER</h1>
+      </div>
+      <!-- Primary Locker Category Tabs -->
+      <div class="locker-main-tabs" id="locker-top-tabs">
+        <button type="button" class="locker-main-tab-btn active" data-top-tab="cards" id="locker-tab-cards">🎴 CARDS</button>
+        <button type="button" class="locker-main-tab-btn" data-top-tab="victory" id="locker-tab-victory">🎆 VICTORY EFFECTS</button>
+        <button type="button" class="locker-main-tab-btn" data-top-tab="themes" id="locker-tab-themes">🎨 THEMES</button>
+        <button type="button" class="locker-main-tab-btn" data-top-tab="sleeves" id="locker-tab-sleeves">🛡️ SLEEVES</button>
       </div>
       <div class="locker-header-actions">
-        <button type="button" class="locker-tab-btn" id="btn-collection-book-switch">🎨 Themes Locker</button>
         <button type="button" class="locker-back-btn back-btn">← Back to Menu</button>
       </div>
     </div>
 
-    <!-- Category Tabs -->
-    <div class="locker-category-nav">
-      <button type="button" class="locker-cat-btn active" data-cat="all">ALL ITEMS</button>
+    <!-- Sub-category Tabs (For Cards) -->
+    <div class="locker-category-nav" id="locker-cards-subnav">
+      <button type="button" class="locker-cat-btn active" data-cat="all">ALL CARDS</button>
       <button type="button" class="locker-cat-btn" data-cat="units">🛡️ UNITS</button>
       <button type="button" class="locker-cat-btn" data-cat="spells">⚡ SPELLS</button>
       <button type="button" class="locker-cat-btn" data-cat="chips">💎 CHIPS</button>
@@ -659,18 +728,19 @@
     <div class="locker-tools-bar">
       <div class="locker-search-box">
         <span class="search-icon">🔍</span>
-        <input id="collection-search" type="search" placeholder="Search locker cards..." aria-label="Search cards">
+        <input id="collection-search" type="search" placeholder="Search locker items..." aria-label="Search items">
       </div>
       <div class="locker-filter-box">
-        <select id="collection-filter" aria-label="Filter collection">
+        <select id="collection-filter" aria-label="Filter locker collection">
           <option value="all">Filter: All Items</option>
-          <option value="owned">Owned Items</option>
+          <option value="owned">Owned / Unlocked</option>
           <option value="missing">Locked / Missing</option>
+          <option value="equipped">Equipped</option>
           <option value="favorites">★ Favorites</option>
         </select>
       </div>
       <div class="locker-stats-badge" id="locker-total-badge">
-        <span>COLLECTED</span>
+        <span id="locker-badge-label">COLLECTED</span>
         <strong id="locker-collected-count">0/0</strong>
       </div>
     </div>
@@ -678,35 +748,62 @@
     <!-- Main Locker Layout Split (Grid + Showcase) -->
     <div class="locker-content-layout">
       <!-- Left Column: Item Grids -->
-      <div class="locker-grid-scroll">
-        <div id="collection-radar-summary" class="locker-section" data-section="radar"></div>
-        <div class="locker-section" data-section="blue">
-          <div class="locker-section-head"><span class="rarity-tag rare">RARE</span> <span>Blue Units</span></div>
-          <div id="collection-blue" class="locker-grid"></div>
+      <div class="locker-grid-scroll" id="locker-grid-scroll">
+        <!-- CARDS CONTAINER -->
+        <div id="locker-cards-container" class="locker-category-group">
+          <div id="collection-radar-summary" class="locker-section" data-section="radar"></div>
+          <div class="locker-section" data-section="blue">
+            <div class="locker-section-head"><span class="rarity-tag rare">RARE</span> <span>Blue Units</span></div>
+            <div id="collection-blue" class="locker-grid"></div>
+          </div>
+          <div class="locker-section" data-section="green">
+            <div class="locker-section-head"><span class="rarity-tag uncommon">UNCOMMON</span> <span>Green Units</span></div>
+            <div id="collection-green" class="locker-grid"></div>
+          </div>
+          <div class="locker-section" data-section="red">
+            <div class="locker-section-head"><span class="rarity-tag epic">EPIC</span> <span>Red Units</span></div>
+            <div id="collection-red" class="locker-grid"></div>
+          </div>
+          <div class="locker-section" data-section="orange">
+            <div class="locker-section-head"><span class="rarity-tag legendary">LEGENDARY</span> <span>Orange Units</span></div>
+            <div id="collection-orange" class="locker-grid"></div>
+          </div>
+          <div class="locker-section" data-section="spells">
+            <div class="locker-section-head"><span class="rarity-tag exotic">MAGIC</span> <span>Spells</span></div>
+            <div id="collection-spells" class="locker-grid"></div>
+          </div>
+          <div class="locker-section" data-section="chips">
+            <div class="locker-section-head"><span class="rarity-tag mythic">AUGMENT</span> <span>Chips</span></div>
+            <div id="collection-chips" class="locker-grid"></div>
+          </div>
         </div>
-        <div class="locker-section" data-section="green">
-          <div class="locker-section-head"><span class="rarity-tag uncommon">UNCOMMON</span> <span>Green Units</span></div>
-          <div id="collection-green" class="locker-grid"></div>
+
+        <!-- VICTORY EFFECTS CONTAINER -->
+        <div id="locker-victory-container" class="locker-category-group" style="display:none;">
+          <div class="locker-section" data-section="victory">
+            <div class="locker-section-head"><span class="rarity-tag exotic">FINISHER</span> <span>Victory Effects & Celebrations</span></div>
+            <div id="collection-victory" class="locker-grid"></div>
+          </div>
         </div>
-        <div class="locker-section" data-section="red">
-          <div class="locker-section-head"><span class="rarity-tag epic">EPIC</span> <span>Red Units</span></div>
-          <div id="collection-red" class="locker-grid"></div>
+
+        <!-- THEMES CONTAINER -->
+        <div id="locker-themes-container" class="locker-category-group" style="display:none;">
+          <div class="locker-section" data-section="themes">
+            <div class="locker-section-head"><span class="rarity-tag mythic">COSMETIC</span> <span>App & UI Themes</span></div>
+            <div id="collection-themes" class="locker-grid"></div>
+          </div>
         </div>
-        <div class="locker-section" data-section="orange">
-          <div class="locker-section-head"><span class="rarity-tag legendary">LEGENDARY</span> <span>Orange Units</span></div>
-          <div id="collection-orange" class="locker-grid"></div>
-        </div>
-        <div class="locker-section" data-section="spells">
-          <div class="locker-section-head"><span class="rarity-tag exotic">MAGIC</span> <span>Spells</span></div>
-          <div id="collection-spells" class="locker-grid"></div>
-        </div>
-        <div class="locker-section" data-section="chips">
-          <div class="locker-section-head"><span class="rarity-tag mythic">AUGMENT</span> <span>Chips</span></div>
-          <div id="collection-chips" class="locker-grid"></div>
+
+        <!-- SLEEVES CONTAINER -->
+        <div id="locker-sleeves-container" class="locker-category-group" style="display:none;">
+          <div class="locker-section" data-section="sleeves">
+            <div class="locker-section-head"><span class="rarity-tag epic">COSMETIC</span> <span>Card Sleeves & Borders</span></div>
+            <div id="collection-sleeves" class="locker-grid"></div>
+          </div>
         </div>
       </div>
 
-      <!-- Right Column: Fortnite-Style Character / Card Showcase Box -->
+      <!-- Right Column: Fortnite-Style Character / Card / Cosmetic Showcase Box -->
       <div class="locker-showcase-panel" id="locker-showcase-panel">
         <div class="showcase-bg-glow" id="showcase-glow"></div>
         <div class="showcase-content">
@@ -715,10 +812,10 @@
             <span class="showcase-category" id="showcase-category">UNIT CARD</span>
           </div>
           <h2 class="showcase-title" id="showcase-title">Select an item</h2>
-          <div class="showcase-card-stage">
+          <div class="showcase-card-stage" id="showcase-card-stage">
             <div class="showcase-card-wrapper" id="showcase-card-wrapper">
               <div class="showcase-placeholder-icon">🎴</div>
-              <div class="showcase-placeholder-text">Click any card in your locker to inspect details and set favorites</div>
+              <div class="showcase-placeholder-text">Click any item in your locker to inspect and equip</div>
             </div>
           </div>
           <div class="showcase-details">
@@ -727,14 +824,17 @@
               <div class="sc-stat-box"><span class="sc-label">DAMAGE</span><strong id="showcase-dmg">--</strong></div>
               <div class="sc-stat-box"><span class="sc-label">SLOTS</span><strong id="showcase-sp">--</strong></div>
             </div>
-            <div class="showcase-desc" id="showcase-desc">Select an item from the locker grid to view stats, abilities, and collection status.</div>
+            <div class="showcase-desc" id="showcase-desc">Select an item from the locker grid to view stats, abilities, or live cosmetics previews.</div>
           </div>
-          <div class="showcase-actions">
+          <div class="showcase-actions" id="showcase-actions">
+            <button type="button" class="locker-action-btn primary" id="showcase-equip-btn" style="display:none;">
+              EQUIP ITEM
+            </button>
+            <button type="button" class="locker-action-btn secondary" id="showcase-preview-anim-btn" style="display:none;">
+              ▶ TEST ANIMATION
+            </button>
             <button type="button" class="locker-action-btn primary" id="showcase-favorite-btn" style="display:none;">
               ★ <span id="showcase-fav-text">FAVORITE</span>
-            </button>
-            <button type="button" class="locker-action-btn secondary" id="showcase-shop-link-btn" style="display:none;">
-              🛒 SHOP PACKS
             </button>
           </div>
         </div>

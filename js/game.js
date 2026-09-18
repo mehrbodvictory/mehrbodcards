@@ -522,7 +522,7 @@ function mergeCards(state, playerKey, slots, blueprintIndex) {
     hp: survivorHp,
     maxHp: TIERS[newTier].hp,
     dmg: TIERS[newTier].dmg,
-    sp: TIERS[newTier].sp,
+    sp: blueprint.sp !== undefined ? blueprint.sp : TIERS[newTier].sp,
     ability: mergedAbility,
     defendChargesUsed: 0,
     chipsAttached: [],
@@ -578,8 +578,49 @@ function castSpell(state, playerKey, spellInstanceId, targetOwnerKey, targetSlot
   if (idx === -1) return { ok: false, error: 'spell not in hand' };
   const spell = p.spells[idx];
   const targetP = state.players[targetOwnerKey];
-  const targetCard = targetP.board[targetSlot];
-  if (!targetCard) return { ok: false, error: 'no target' };
+  const targetCard = targetP ? targetP.board[targetSlot] : null;
+
+  const isRevive = !!(spell.reviveSpell || spell.defId === 'revivespell');
+  const isRemainsMask = !!(spell.remainsMask || spell.defId === 'remainsmask');
+
+  if (!targetCard && !isRevive) return { ok: false, error: 'no target' };
+
+  if (isRevive) {
+    if (!p.graveyard || p.graveyard.length === 0) {
+      return { ok: false, error: 'No dead cards in graveyard to revive' };
+    }
+    if (targetOwnerKey !== playerKey) {
+      return { ok: false, error: 'Revive Spell can only target your own board' };
+    }
+    if (targetP.board[targetSlot]) {
+      return { ok: false, error: 'Target board slot is already occupied' };
+    }
+    const revivedCard = p.graveyard.pop();
+    revivedCard.hp = revivedCard.maxHp;
+    revivedCard.defendChargesUsed = 0;
+    revivedCard.disabledTurns = 0;
+    p.board[targetSlot] = revivedCard;
+    pushFx(state, { type: 'reviveCard', owner: playerKey, slot: targetSlot, cardName: revivedCard.name, tier: revivedCard.tier, source: { kind: 'spell', name: spell.name, owner: playerKey } });
+    pushLog(state, `${playerKey} casts Revive Spell, reviving ${revivedCard.name} to slot ${targetSlot + 1}!`);
+  }
+
+  if (isRemainsMask) {
+    if (targetOwnerKey !== playerKey || !targetCard || targetCard.tier !== 3) {
+      return { ok: false, error: 'Remains Mask requires targeting one of your Red cards (Tier 3) to sacrifice' };
+    }
+    killCard(state, playerKey, targetSlot, { kind: 'spell', name: 'Remains Mask', owner: playerKey });
+    const restoreSac = (c) => {
+      if (c && (c.name === 'Sacrifice Man' || c.ability === 'sacrificeman_ability' || c.sacrificesLeft !== undefined)) {
+        c.sacrificesLeft = 3;
+      }
+    };
+    p.board.forEach(restoreSac);
+    p.deck.forEach(restoreSac);
+    p.graveyard.forEach(restoreSac);
+    pushFx(state, { type: 'remainsMask', owner: playerKey, slot: targetSlot, source: { kind: 'spell', name: spell.name, owner: playerKey } });
+    pushLog(state, `💀 ${playerKey} casts Remains Mask, sacrificing a Red Card to restore all Sacrifice Man uses!`);
+  }
+
   const source = { kind: 'spell', name: spell.name, owner: playerKey, chainLightning: !!spell.chainLightning };
   if (spell.dmg) damageCard(state, targetOwnerKey, targetSlot, spell.dmg, source);
   if (spell.heal) {
@@ -613,6 +654,30 @@ function castSpell(state, playerKey, spellInstanceId, targetOwnerKey, targetSlot
     if (stillAlive) {
       stillAlive.dmg += spell.buffDmg;
       pushFx(state, { type: 'selfBuff', owner: targetOwnerKey, slot: targetSlot, stat: 'dmg', amount: spell.buffDmg, source });
+    }
+  }
+  if (spell.supremeShirt || spell.defId === 'supremeshirt') {
+    const stillAlive = state.players[targetOwnerKey].board[targetSlot];
+    if (stillAlive) {
+      stillAlive.maxHp += 2;
+      stillAlive.hp += 2;
+      stillAlive.dmg += 2;
+      stillAlive.sp = (stillAlive.sp !== undefined ? stillAlive.sp : (TIERS[stillAlive.tier]?.sp || 1)) + 2;
+      pushFx(state, { type: 'supremeShirt', targetOwner: targetOwnerKey, targetSlot, source });
+      pushFx(state, { type: 'selfBuff', owner: targetOwnerKey, slot: targetSlot, stat: 'hp', amount: 2, source });
+      pushFx(state, { type: 'selfBuff', owner: targetOwnerKey, slot: targetSlot, stat: 'dmg', amount: 2, source });
+    }
+  }
+  if (spell.skeletonStaff || spell.defId === 'skeletonstaff') {
+    const stillAlive = state.players[targetOwnerKey].board[targetSlot];
+    if (stillAlive) {
+      stillAlive.maxHp = 1;
+      stillAlive.hp = 1;
+      stillAlive.dmg = 1;
+      stillAlive.sp = 1;
+      stillAlive.cannotUseChips = true;
+      stillAlive.chipsAttached = [];
+      pushFx(state, { type: 'skeletonStaff', targetOwner: targetOwnerKey, targetSlot, source });
     }
   }
   if (spell.chainLightning) {
@@ -733,6 +798,7 @@ function attachChip(state, playerKey, chipInstanceId, targetOwnerKey, targetSlot
   const targetP = state.players[targetOwnerKey];
   const targetCard = targetP.board[targetSlot];
   if (!targetCard) return { ok: false, error: 'no target' };
+  if (targetCard.cannotUseChips) return { ok: false, error: 'This card cannot use chips (Skeleton Staff)' };
   if (chipSlotsFree(targetCard) <= 0) return { ok: false, error: 'no free chip slots' };
   targetCard.chipsAttached = targetCard.chipsAttached || [];
   targetCard.chipsAttached.push(chip.defId);
