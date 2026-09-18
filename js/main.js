@@ -1278,10 +1278,6 @@ document.getElementById('btn-bot-mode-wager').addEventListener('click', () => { 
 document.getElementById('btn-host-menu').addEventListener('click', () => showScreen('screen-host-mode'));
 
 document.getElementById('btn-matchmaking-menu').addEventListener('click', () => {
-  if (location.hostname.includes('github.io')) {
-    showToast('Multiplayer matchmaking is not available on GitHub Pages.');
-    return;
-  }
   openDeckBuilder((config) => beginMatchmaking(config));
 });
 
