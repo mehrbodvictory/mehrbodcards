@@ -176,16 +176,17 @@ const FirebaseMatchmaking = {
 
     try {
       const staleCutoff = Date.now() - 120000;
-      const snapshot = await db.collection('matchmaking_lobbies').get();
+      // Optimize read metrics by using a filtered query instead of fetching the entire collection
+      const snapshot = await db.collection('matchmaking_lobbies')
+        .where('createdAt', '<', staleCutoff)
+        .get();
+      
       const batch = db.batch();
       let deleteCount = 0;
 
       snapshot.forEach(doc => {
-        const data = doc.data();
-        if (data.createdAt && data.createdAt < staleCutoff) {
-          batch.delete(doc.ref);
-          deleteCount++;
-        }
+        batch.delete(doc.ref);
+        deleteCount++;
       });
 
       if (deleteCount > 0) {

@@ -272,3 +272,44 @@ function chipSlotsFree(card) {
 function cardHasChip(card, chipDefId) {
   return !!(card.chipsAttached && card.chipsAttached.includes(chipDefId));
 }
+
+// ---- Player Level & XP Foundation ----------------------------------------
+var PLAYER_XP_KEY = 'mehrbod_player_xp_v1';
+function loadPlayerXP() {
+  try { const n = Number(localStorage.getItem(PLAYER_XP_KEY)); return Number.isFinite(n) && n >= 0 ? n : 0; }
+  catch (e) { return 0; }
+}
+function savePlayerXP(n) { try { localStorage.setItem(PLAYER_XP_KEY, String(Math.max(0, Math.floor(n)))); } catch (e) {} }
+function xpNeededForLevel(level) { return 100 + (level - 1) * 40; }
+function playerLevelFromXP(xp) {
+  let level = 1, remaining = Number.isFinite(xp) ? xp : 0;
+  while (remaining >= xpNeededForLevel(level)) { remaining -= xpNeededForLevel(level); level++; }
+  return { level, into: remaining, need: xpNeededForLevel(level) };
+}
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
+const PLAYER_NAME_KEY = 'mehrbod-cards-player-name';
+function loadPlayerName() {
+  try { return (localStorage.getItem(PLAYER_NAME_KEY) || '').trim(); } catch (e) { return ''; }
+}
+function savePlayerName(name) {
+  const cleaned = String(name || '').trim().replace(/\s+/g, ' ').slice(0, 24);
+  if (!cleaned) return false;
+  try { localStorage.setItem(PLAYER_NAME_KEY, cleaned); } catch (e) { return false; }
+  return true;
+}
+
+if (typeof window !== 'undefined') {
+  window.PLAYER_XP_KEY = PLAYER_XP_KEY;
+  window.loadPlayerXP = loadPlayerXP;
+  window.savePlayerXP = savePlayerXP;
+  window.xpNeededForLevel = xpNeededForLevel;
+  window.playerLevelFromXP = playerLevelFromXP;
+  window.todayKey = todayKey;
+  window.PLAYER_NAME_KEY = PLAYER_NAME_KEY;
+  window.loadPlayerName = loadPlayerName;
+  window.savePlayerName = savePlayerName;
+}

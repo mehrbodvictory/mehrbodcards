@@ -1,4 +1,23 @@
 
+// Universal migration of legacy completion themes to Prism Core (the unique 100% completion theme)
+try {
+  if (typeof localStorage !== 'undefined') {
+    const savedTheme = localStorage.getItem('mehrbod-cards-theme');
+    if (savedTheme === 'collector' || savedTheme === 'darkmatter') {
+      localStorage.setItem('mehrbod-cards-theme', 'prism');
+    }
+    if (localStorage.getItem('theme_collector_unlocked') === 'true' || localStorage.getItem('theme_darkmatter_unlocked') === 'true' || localStorage.getItem('theme_collector') === 'true') {
+      localStorage.setItem('theme_prism_unlocked', 'true');
+    }
+    localStorage.removeItem('theme_collector_unlocked');
+    localStorage.removeItem('theme_collector');
+    localStorage.removeItem('theme_100_collector_unlocked');
+  }
+  if (typeof document !== 'undefined' && document.documentElement) {
+    document.documentElement.classList.remove('theme-collector', 'theme-darkmatter');
+  }
+} catch (e) {}
+
 // ---- Global state ------------------------------------------------------
 let state = null;
 let mode = null;           // 'bot' | 'mp'
@@ -39,6 +58,7 @@ const _lowHpWarned = new Set(); // card ids we've already played the low-hp warn
 const COMBAT_ANIM_MS = 900;
 const BOT_THINK_MS_MIN = 450, BOT_THINK_MS_MAX = 900;
 const THEME_UNLOCK_CHECK = {};
+const THEME_LOCK_MESSAGE = {};
 
 function setMatchInfo(desktopText, mobileText) {
   const topBarInfo = document.getElementById('top-bar-info');
@@ -308,6 +328,20 @@ function watchLastReplay() {
 // ---- Screen management ---------------------------------------------------
 function showScreen(id) {
   if (typeof Sound !== 'undefined' && Sound.screenTransition) Sound.screenTransition();
+  
+  // Cleanup background animation loops and intervals when leaving previous screens
+  if (id !== 'screen-collection' && typeof victoryPreviewAnimTimer !== 'undefined' && victoryPreviewAnimTimer) {
+    cancelAnimationFrame(victoryPreviewAnimTimer);
+    victoryPreviewAnimTimer = null;
+  }
+  if (id !== 'screen-shop' && window.__mehrbodShopTimer) {
+    clearInterval(window.__mehrbodShopTimer);
+    window.__mehrbodShopTimer = null;
+  }
+  if (id !== 'screen-game' && window._activeVictoryFinisher) {
+    try { window._activeVictoryFinisher.cancel(); } catch (e) {}
+  }
+
   if (id !== 'screen-game') {
     cancelReplay();
     mode = 'menu';
@@ -316,6 +350,9 @@ function showScreen(id) {
   }
   document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
   document.getElementById(id).classList.remove('hidden');
+  if (id === 'screen-bot-setup' && typeof renderAdaptiveTrendChart === 'function') {
+    setTimeout(renderAdaptiveTrendChart, 40);
+  }
   const buxCounter = document.getElementById('bux-counter');
   if (buxCounter) buxCounter.classList.toggle('hidden', id === 'screen-game');
   
@@ -326,6 +363,9 @@ function showScreen(id) {
     topBrand.style.visibility = isMenu ? 'hidden' : 'visible';
     topBrand.style.opacity = isMenu ? '0' : '1';
     topBrand.style.pointerEvents = isMenu ? 'none' : 'auto';
+  }
+  if (typeof updatePingBadgeVisibility === 'function') {
+    updatePingBadgeVisibility();
   }
 }
 
@@ -366,8 +406,104 @@ function addBux(delta) {
   const n = Math.max(0, loadBux() + delta);
   saveBux(n);
   updateBuxDisplay();
+  if (delta > 0) {
+    showBuxGainEffect(delta);
+  }
   return n;
 }
+
+function showBuxGainEffect(amount) {
+  if (!amount || amount <= 0 || !Number.isFinite(amount)) return;
+  
+  // Audio feedback
+  if (typeof Sound !== 'undefined' && typeof Sound.sparkle === 'function') {
+    Sound.sparkle();
+  }
+
+  // Header HUD counter pulse
+  const counter = document.getElementById('bux-counter');
+  if (counter) {
+    counter.classList.remove('bux-pulse-glow');
+    void counter.offsetWidth; // Force reflow
+    counter.classList.add('bux-pulse-glow');
+    setTimeout(() => {
+      counter.classList.remove('bux-pulse-glow');
+    }, 800);
+  }
+
+  // Floating toast container
+  let container = document.getElementById('bux-gain-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'bux-gain-container';
+    document.body.appendChild(container);
+  }
+
+  // Limit simultaneous active toasts to avoid screen clutter
+  if (container.children.length > 3) {
+    container.firstElementChild?.remove();
+  }
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'bux-gain-toast-wrapper';
+
+  const toast = document.createElement('div');
+  toast.className = 'bux-gain-toast';
+  toast.innerHTML = `
+    <span class="bux-gain-coin">💰</span>
+    <span class="bux-gain-amount">+${Math.floor(amount).toLocaleString()}</span>
+    <span class="bux-gain-label">BUX</span>
+  `;
+
+  // Shockwave expand ring
+  const ring = document.createElement('div');
+  ring.className = 'bux-sparkler-ring';
+  wrapper.appendChild(ring);
+
+  // Sparkler Particles (22 festive glittering particles)
+  const particleSymbols = ['✦', '★', '✨', '✦', '⭐', ''];
+  const colors = ['#facc15', '#ffffff', '#fbbf24', '#fde047', '#67e8f9', '#f59e0b'];
+  const particleCount = 22;
+
+  for (let i = 0; i < particleCount; i++) {
+    const p = document.createElement('div');
+    const symbol = particleSymbols[i % particleSymbols.length];
+    const isDot = symbol === '';
+    p.className = `bux-sparkler-particle ${isDot ? 'dot' : 'star'}`;
+    
+    const angle = (i / particleCount) * Math.PI * 2 + (Math.random() * 0.4 - 0.2);
+    const dist = 38 + Math.random() * 80;
+    const dx = Math.cos(angle) * dist;
+    const dy = Math.sin(angle) * dist * 0.85;
+    const rot = (Math.random() * 720 - 360) + 'deg';
+    const dur = (0.75 + Math.random() * 0.45).toFixed(2) + 's';
+    const delay = (Math.random() * 0.12).toFixed(2) + 's';
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const size = (11 + Math.random() * 10).toFixed(0) + 'px';
+
+    p.style.setProperty('--dx', `${dx.toFixed(1)}px`);
+    p.style.setProperty('--dy', `${dy.toFixed(1)}px`);
+    p.style.setProperty('--rot', rot);
+    p.style.setProperty('--dur', dur);
+    p.style.setProperty('--delay', delay);
+    p.style.setProperty('--pcolor', color);
+    p.style.setProperty('--psize', size);
+
+    if (!isDot) {
+      p.textContent = symbol;
+    }
+    wrapper.appendChild(p);
+  }
+
+  wrapper.appendChild(toast);
+  container.appendChild(wrapper);
+
+  // Automatic cleanup
+  setTimeout(() => {
+    wrapper.remove();
+  }, 2500);
+}
+window.showBuxGainEffect = showBuxGainEffect;
 // NOTE: the old 10-Bux "safety net" floor (spending could never take a
 // balance below 10) has been removed - it's no longer needed. Spending is
 // now only ever limited by the actual balance, for both normal purchases
@@ -390,7 +526,22 @@ function updateBuxDisplay() {
 // ---- Card collection & starter pack (v2.2) ---------------------------------
 const ALL_SPELL_IDS = (typeof SPELL_DEFS !== 'undefined') ? SPELL_DEFS.map(s => s.id) : [];
 const ALL_CHIP_IDS = (typeof CHIP_DEFS !== 'undefined') ? CHIP_DEFS.map(c => c.id) : [];
-const ALL_NONBLUE_UNIT_IDS = [2, 3, 4].flatMap(tier => UNIT_ARCHETYPES[tier].map(a => a.id));
+const ALL_NONBLUE_UNIT_IDS = [2, 3, 4].flatMap(tier => (typeof UNIT_ARCHETYPES !== 'undefined' && UNIT_ARCHETYPES[tier] ? UNIT_ARCHETYPES[tier].map(a => a.id) : []));
+
+function getAllSpellIds() {
+  if (typeof SPELL_DEFS !== 'undefined' && Array.isArray(SPELL_DEFS)) return SPELL_DEFS.map(s => s.id);
+  return ALL_SPELL_IDS;
+}
+function getAllChipIds() {
+  if (typeof CHIP_DEFS !== 'undefined' && Array.isArray(CHIP_DEFS)) return CHIP_DEFS.map(c => c.id);
+  return ALL_CHIP_IDS;
+}
+function getAllNonBlueUnitIds() {
+  if (typeof UNIT_ARCHETYPES !== 'undefined') {
+    return [2, 3, 4].flatMap(tier => (UNIT_ARCHETYPES[tier] || []).map(a => a.id));
+  }
+  return ALL_NONBLUE_UNIT_IDS;
+}
 
 function shuffleArray(arr) {
   const a = arr.slice();
@@ -400,14 +551,20 @@ function shuffleArray(arr) {
   }
   return a;
 }
+function enforceAntiCheatCollectionGuard(col) {
+  if (!col) return { units: [], spells: [], chips: [] };
+  return col;
+}
+
 function loadCollection() {
   try {
     const raw = JSON.parse(localStorage.getItem('mehrbod-cards-collection') || 'null');
     if (raw && Array.isArray(raw.spells) && Array.isArray(raw.chips)) {
-      return { units: Array.isArray(raw.units) ? raw.units : [], spells: raw.spells, chips: raw.chips };
+      const col = { units: Array.isArray(raw.units) ? raw.units : [], spells: raw.spells, chips: raw.chips };
+      return enforceAntiCheatCollectionGuard(col);
     }
   } catch (e) {}
-  return { units: [], spells: [], chips: [] };
+  return enforceAntiCheatCollectionGuard({ units: [], spells: [], chips: [] });
 }
 function saveCollection(col) {
   const normalized = normalizeInventory(col);
@@ -420,6 +577,12 @@ function grantCards(unitIds, spellIds, chipIds) {
   (spellIds || []).forEach(id => { if (!col.spells.includes(id)) col.spells.push(id); });
   (chipIds || []).forEach(id => { if (!col.chips.includes(id)) col.chips.push(id); });
   saveCollection(col);
+  if (typeof isCollectionComplete === 'function' && isCollectionComplete()) {
+    try {
+      localStorage.setItem('theme_prism_unlocked', 'true');
+      localStorage.setItem('theme_darkmatter_unlocked', 'true');
+    } catch (e) {}
+  }
   updateThemeButtons();
   return col;
 }
@@ -517,7 +680,7 @@ function buyCardPack() {
   });
   saveCollection(col);
   updateThemeButtons();
-  checkAchievements();
+  checkMilestones();
   if (typeof Sound !== 'undefined' && Sound.packCardFlip) Sound.packCardFlip();
   const names = granted.map(g => {
     if (g.kind === 'unit') return findArchetypeById(g.id).name;
@@ -906,7 +1069,8 @@ document.getElementById('deck-preset-name-input').addEventListener('keydown', (e
 
 // ---- Cosmetics (v2.0) -------------------------------------------------------
 const COSMETIC_ITEMS = [
-  // THEMES (11 total)
+  // THEMES (12 total)
+  { id: 'theme_prism', kind: 'theme',       name: '💎 Prism Core', desc: 'Living diamond crystal refractors with real-time chromatic spectrum dispersion, obsidian glass card framing, and celestial harmonic caustics.', cost: 0, rarity: 'MYTHIC', art: '💎', original: 0, tag: 'COMPLETION' },
   { id: 'theme_mrmoney',    kind: 'theme',       name: '🤑 Mr Money Theme', desc: 'Green money-rain theme for the whole app.', cost: 1000, rarity: 'MYTHIC', art: '💸', original: 1500, tag: 'FEATURED' },
   { id: 'theme_cyberneon',  kind: 'theme',       name: '🌆 Cyber Neon Theme', desc: 'Neon-lit cyberpunk grid with drifting glyph particles.', cost: 1200, rarity: 'EPIC', art: '🌆', original: 1600, tag: 'CYBER' },
   { id: 'theme_abyss',      kind: 'theme',       name: '🌊 Abyss Theme', desc: 'Bioluminescent deep-sea vault with drifting jellyfish glow.', cost: 1200, rarity: 'EPIC', art: '🌊', original: 1600, tag: 'DEEP SEA' },
@@ -923,7 +1087,7 @@ const COSMETIC_ITEMS = [
   { id: 'sleeve_holo',      kind: 'sleeve',      name: '🌈 Holographic Sleeves', desc: 'Shimmering rainbow card outlines with dynamic refraction.', cost: 400, rarity: 'RARE', art: '✦', original: 0, tag: 'SHIMMER' },
   { id: 'sleeve_gold',      kind: 'sleeve',      name: '✨ Gold Sleeves', desc: 'Gilded 24k card outlines with a warm pulsing royal glow.', cost: 600, rarity: 'EPIC', art: '✨', original: 800, tag: 'ROYAL' },
   { id: 'sleeve_prismatic', kind: 'sleeve',      name: '🌈 Prismatic Sleeves', desc: 'A shifting spectrum chromatic frame around every card.', cost: 800, rarity: 'LEGENDARY', art: '🌈', original: 1000, tag: 'CHROMATIC' },
-  { id: 'sleeve_void',      kind: 'sleeve',      name: '🕳️ Void Sleeves', desc: 'Deep-space dark matter frames with a pulsing violet singularity glow.', cost: 1200, rarity: 'MYTHIC', art: '◈', original: 1500, tag: 'DARK MATTER' },
+  { id: 'sleeve_void',      kind: 'sleeve',      name: '🕳️ Void Sleeves', desc: 'Deep-space cosmic void frames with a pulsing violet singularity glow.', cost: 1200, rarity: 'MYTHIC', art: '◈', original: 1500, tag: 'VOID' },
   { id: 'sleeve_crimson',   kind: 'sleeve',      name: '🩸 Crimson Core Sleeves', desc: 'High-intensity ruby red glowing combat edges for cards.', cost: 550, rarity: 'RARE', art: '🩸', original: 700, tag: 'COMBAT' },
   { id: 'sleeve_cyber',     kind: 'sleeve',      name: '⚡ Cyber Circuit Sleeves', desc: 'Glowing neon cyan circuit trace lines pulsing around card edges.', cost: 500, rarity: 'RARE', art: '⚡', original: 650, tag: 'CYBER' },
   { id: 'sleeve_frost',     kind: 'sleeve',      name: '❄️ Glacial Frost Sleeves', desc: 'Crystalline ice borders with floating frost particle shimmer.', cost: 650, rarity: 'EPIC', art: '❄️', original: 850, tag: 'FROST' },
@@ -962,7 +1126,26 @@ function saveOwnedCosmetics(list) {
   try { localStorage.setItem('mehrbod-cards-owned-cosmetics', JSON.stringify(normalized)); } catch (e) {}
   queueMicrotask(() => { try { saveInventoryBackup(); } catch (e) {} });
 }
-function ownsCosmetic(id) { return loadOwnedCosmetics().includes(id); }
+function ownsCosmetic(id) {
+  if (id === 'none') return true;
+  if (id === 'theme_prism' || id === 'prism' || id === 'theme_darkmatter' || id === 'darkmatter') {
+    if (localStorage.getItem('theme_prism_unlocked') === 'true' ||
+        localStorage.getItem('theme_darkmatter_unlocked') === 'true' ||
+        localStorage.getItem('theme_collector_unlocked') === 'true' ||
+        (typeof isAllThemesUnlocked === 'function' && isAllThemesUnlocked()) ||
+        (typeof isCollectionComplete === 'function' && isCollectionComplete())) {
+      return true;
+    }
+  }
+  if (id === 'theme_collector' || id === 'collector') {
+    return ownsCosmetic('theme_prism');
+  }
+  const owned = loadOwnedCosmetics();
+  if (owned.includes(id)) return true;
+  if (id.startsWith('theme_') && owned.includes(id.replace('theme_', ''))) return true;
+  if (!id.startsWith('theme_') && owned.includes('theme_' + id)) return true;
+  return false;
+}
 
 // ---- Inventory integrity guard ---------------------------------------------
 const INVENTORY_BACKUP_KEY = 'mehrbod-cards-inventory-backup-v1';
@@ -1205,7 +1388,7 @@ function renderCosmeticsShop() {
 
       ${section("Today's Best Sellers", "Fresh cosmetics. Pick your favorites before the shop rotates.", featured, 'featured')}
       ${section("Daily Picks", "A rotating selection of sleeves and victory effects.", daily, 'daily')}
-      ${section("Bundles", "Special value drops for collectors.", [
+      ${section("Bundles", "Special value drops and vault bundles.", [
         { id:'bundle-vault', kind:'pack', name:'Vault Starter Bundle', desc:'Card Pack + premium cosmetic value drop.', cost:500, tag:'SAVE 25%', art:'💎', original:675 }
       ], 'bundles')}
       ${section("Collection", "Everything currently available in the shop.", collection, 'collection')}
@@ -1627,8 +1810,11 @@ const DAILY_CHALLENGE_POOL = [
   { id: 'merge3',   type: 'merge',  target: 3,  desc: 'Merge cards together 3 times.' },
   { id: 'place10',  type: 'place',  target: 10, desc: 'Place 10 Blue cards onto a board.' },
   { id: 'defend3',  type: 'defend', target: 3,  desc: 'Successfully defend against 3 attacks.' },
+  { id: 'merge5',   type: 'merge',  target: 5,  desc: 'Perform 5 card merges in battle.' },
+  { id: 'defend5',  type: 'defend', target: 5,  desc: 'Successfully defend against 5 attacks.' },
 ];
 const DAILY_CHALLENGE_KEY = 'mehrbod_daily_challenge_v2';
+const DAILY_REROLL_COST = 10;
 
 function todayKey() {
   const d = new Date();
@@ -1686,7 +1872,47 @@ function completeDailyChallenge() {
   showToast(`⚡ Daily Challenge complete! +${reward} Bux (${s.streak}-day streak)`, 3200);
   if (typeof Sound !== 'undefined' && Sound.questClaim) Sound.questClaim();
   else if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
-  checkAchievements();
+  checkMilestones();
+}
+
+function rerollDailyChallenge() {
+  const s = loadDailyChallengeState();
+  if (s.claimed) {
+    showToast("Today's Daily Challenge is already completed and claimed!");
+    return;
+  }
+  const currentBux = loadBux();
+  if (currentBux < DAILY_REROLL_COST) {
+    showToast(`You need ${DAILY_REROLL_COST} Mehrbod Bux to reroll your Daily Challenge (You have ${currentBux.toLocaleString()}).`);
+    return;
+  }
+  const otherChallenges = DAILY_CHALLENGE_POOL.filter(c => c.id !== s.challenge);
+  if (otherChallenges.length === 0) {
+    showToast("No other daily challenges available to reroll.");
+    return;
+  }
+  if (!spendBux(DAILY_REROLL_COST)) {
+    showToast("Not enough Mehrbod Bux to reroll.");
+    return;
+  }
+
+  const newDef = otherChallenges[Math.floor(Math.random() * otherChallenges.length)];
+  s.challenge = newDef.id;
+  s.progress = 0;
+  saveDailyChallengeState(s);
+
+  recordEconomyChange(-DAILY_REROLL_COST, 'Daily Challenge rerolled');
+  recordRecentActivity(`Rerolled Daily Challenge to "${newDef.desc}" (-${DAILY_REROLL_COST} Bux)`);
+
+  if (typeof Sound !== 'undefined' && Sound.coinPurchase) {
+    Sound.coinPurchase();
+  } else if (typeof Sound !== 'undefined' && Sound.button) {
+    Sound.button();
+  }
+
+  showToast(`🎲 Daily Challenge replaced: "${newDef.desc}" (-${DAILY_REROLL_COST} Bux)`, 3000);
+  renderQuests();
+  updateBuxDisplay();
 }
 
 /* ============================================================
@@ -1702,6 +1928,200 @@ function completeDailyChallenge() {
    🏆 Quests panel instead of a dedicated menu button - see
    renderQuests() below.
    ============================================================ */
+/* ============================================================
+   FORGE MILESTONES & CAREER BADGES (Achievements & Milestones)
+   A comprehensive system of long-term milestones and achievements.
+   Completing any milestone displays an animated pop-up toast
+   with rotating aura, glowing badge medallion, reward pill,
+   and celebratory particle bursts.
+   ============================================================ */
+const CAREER_MILESTONES_KEY = 'mehrbod_career_milestones_v1';
+const CAREER_MILESTONES = [
+  { id: 'm1', title: 'Arena Novice', desc: 'Win 5 matches in the arena', icon: '⚔️', goal: 5, reward: '+50 Bux', rewardBux: 50, rewardXP: 40, getProgress: () => (getBattleStats().wins || 0) },
+  { id: 'm2', title: 'Arena Veteran', desc: 'Win 25 matches in the arena', icon: '🛡️', goal: 25, reward: '+200 Bux', rewardBux: 200, rewardXP: 100, getProgress: () => (getBattleStats().wins || 0) },
+  { id: 'm3', title: 'Arena Legend', desc: 'Win 100 matches in the arena', icon: '👑', goal: 100, reward: '+1,000 Bux', rewardBux: 1000, rewardXP: 300, getProgress: () => (getBattleStats().wins || 0) },
+  { id: 'm4', title: 'Tower Challenger', desc: 'Conquer Trial Tower Floor 10', icon: '🗼', goal: 10, reward: '+150 Bux', rewardBux: 150, rewardXP: 80, getProgress: () => ((typeof loadTrialTowerState === 'function' ? loadTrialTowerState() : { best: 0 }).best || 0) },
+  { id: 'm5', title: 'Tower Grandmaster', desc: 'Conquer Trial Tower Floor 30', icon: '🏰', goal: 30, reward: '+500 Bux', rewardBux: 500, rewardXP: 200, getProgress: () => ((typeof loadTrialTowerState === 'function' ? loadTrialTowerState() : { best: 0 }).best || 0) },
+  { id: 'm6', title: 'Set Master', desc: 'Complete 3 full card set bonuses', icon: '🧩', goal: 3, reward: '+250 Bux', rewardBux: 250, rewardXP: 120, getProgress: () => ((typeof loadSetBonusState === 'function' ? loadSetBonusState() : { claimed: [] }).claimed || []).length },
+  { id: 'm7', title: 'Streak Champion', desc: 'Achieve a 5-win streak', icon: '🔥', goal: 5, reward: '+300 Bux', rewardBux: 300, rewardXP: 150, getProgress: () => (getBattleStats().bestStreak || 0) },
+  { id: 'm8', title: 'Prestige Pioneer', desc: 'Perform a Prestige reset', icon: '✦', goal: 1, reward: '+500 Bux', rewardBux: 500, rewardXP: 250, getProgress: () => ((typeof loadPrestigeState === 'function' ? loadPrestigeState() : { count: 0 }).count || 0) }
+];
+
+function loadUnlockedCareerMilestones() {
+  try { const a = JSON.parse(localStorage.getItem(CAREER_MILESTONES_KEY) || '[]'); return Array.isArray(a) ? a : []; }
+  catch (e) { return []; }
+}
+function saveUnlockedCareerMilestones(list) {
+  try { localStorage.setItem(CAREER_MILESTONES_KEY, JSON.stringify([...new Set(list)])); } catch (e) {}
+}
+
+const _milestoneToastQueue = [];
+let _milestoneToastActive = false;
+
+function spawnMilestoneParticles(originEl) {
+  if (!originEl) return;
+  const rect = originEl.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const colors = ['#fbbf24', '#f59e0b', '#38bdf8', '#34d399', '#f43f5e', '#a855f7', '#ffffff'];
+  
+  for (let i = 0; i < 16; i++) {
+    const p = document.createElement('div');
+    p.className = 'milestone-particle-spark';
+    const angle = (i / 16) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+    const dist = 45 + Math.random() * 55;
+    const tx = Math.cos(angle) * dist;
+    const ty = Math.sin(angle) * dist;
+    const size = 5 + Math.random() * 5;
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    
+    p.style.width = `${size}px`;
+    p.style.height = `${size}px`;
+    p.style.background = color;
+    p.style.boxShadow = `0 0 8px ${color}`;
+    p.style.left = `${cx}px`;
+    p.style.top = `${cy}px`;
+    p.style.setProperty('--tx', `${tx}px`);
+    p.style.setProperty('--ty', `${ty}px`);
+    
+    document.body.appendChild(p);
+    setTimeout(() => { p.remove(); }, 850);
+  }
+}
+
+function showMilestoneToast(item) {
+  if (!item) return;
+  _milestoneToastQueue.push(item);
+  if (!_milestoneToastActive) {
+    _processNextMilestoneToast();
+  }
+}
+
+function _processNextMilestoneToast() {
+  if (_milestoneToastQueue.length === 0) {
+    _milestoneToastActive = false;
+    return;
+  }
+  _milestoneToastActive = true;
+  const item = _milestoneToastQueue.shift();
+
+  let container = document.getElementById('milestone-toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'milestone-toast-container';
+    document.body.appendChild(container);
+  }
+
+  const toast = document.createElement('div');
+  toast.className = 'milestone-toast-item';
+  toast.setAttribute('role', 'alert');
+  toast.setAttribute('aria-live', 'assertive');
+
+  const titleText = item.title || item.name || 'New Badge';
+  const descText = item.desc || '';
+  const iconText = item.icon || '🏆';
+  const rewardLabel = item.reward || (item.rewardBux ? `+${item.rewardBux} Bux` : '');
+
+  toast.innerHTML = `
+    <div class="milestone-toast-glow"></div>
+    <div class="milestone-toast-shine"></div>
+    <div class="milestone-badge-container">
+      <div class="milestone-badge-halo"></div>
+      <div class="milestone-sparkle s1">✨</div>
+      <div class="milestone-sparkle s2">⭐</div>
+      <div class="milestone-sparkle s3">✨</div>
+      <div class="milestone-badge-medallion">
+        <div class="milestone-badge-icon">${escapePresetText(iconText)}</div>
+      </div>
+    </div>
+    <div class="milestone-toast-content">
+      <div class="milestone-toast-eyebrow">
+        <span>🏆</span> MILESTONE UNLOCKED
+      </div>
+      <div class="milestone-toast-title">${escapePresetText(titleText)}</div>
+      <div class="milestone-toast-desc">${escapePresetText(descText)}</div>
+      <div class="milestone-toast-reward-row">
+        ${rewardLabel ? `<span class="milestone-reward-pill">⭐ ${escapePresetText(rewardLabel)}</span>` : ''}
+        <span class="milestone-badge-pill">NEW BADGE UNLOCKED</span>
+      </div>
+    </div>
+    <button class="milestone-toast-close" type="button" aria-label="Close notification">✕</button>
+  `;
+
+  // Sound effects
+  if (typeof Sound !== 'undefined') {
+    if (typeof Sound.milestoneUnlock === 'function') Sound.milestoneUnlock();
+    else if (typeof Sound.questClaim === 'function') Sound.questClaim();
+    if (typeof Sound.sparkle === 'function') setTimeout(() => Sound.sparkle(), 180);
+  }
+
+  // Click on toast to open Quests Milestones tab
+  toast.addEventListener('click', (e) => {
+    if (e.target.closest('.milestone-toast-close')) return;
+    if (typeof openQuestsModal === 'function') {
+      currentQuestTab = 'milestones';
+      openQuestsModal();
+      if (typeof renderQuests === 'function') renderQuests();
+    }
+    dismissToast();
+  });
+
+  const closeBtn = toast.querySelector('.milestone-toast-close');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dismissToast();
+    });
+  }
+
+  container.appendChild(toast);
+
+  // Trigger particle burst from the badge medallion
+  const medallion = toast.querySelector('.milestone-badge-medallion');
+  setTimeout(() => spawnMilestoneParticles(medallion), 120);
+
+  let dismissed = false;
+  let timer = setTimeout(dismissToast, 4600);
+
+  function dismissToast() {
+    if (dismissed) return;
+    dismissed = true;
+    clearTimeout(timer);
+    toast.classList.add('exiting');
+    setTimeout(() => {
+      toast.remove();
+      setTimeout(_processNextMilestoneToast, 220);
+    }, 360);
+  }
+}
+
+function unlockCareerMilestone(id) {
+  const unlocked = loadUnlockedCareerMilestones();
+  if (unlocked.includes(id)) return;
+  const def = CAREER_MILESTONES.find(m => m.id === id);
+  if (!def) return;
+  unlocked.push(id);
+  saveUnlockedCareerMilestones(unlocked);
+
+  if (def.rewardBux && def.rewardBux > 0) {
+    addBux(def.rewardBux);
+    recordEconomyChange(def.rewardBux, `Milestone: ${def.title}`);
+  }
+  if (def.rewardXP && typeof grantPlayerXP === 'function') {
+    grantPlayerXP(def.rewardXP);
+  }
+  recordRecentActivity(`Completed milestone "${def.title}"${def.reward ? ` — ${def.reward}` : ''}`);
+
+  showMilestoneToast({
+    id: def.id,
+    title: def.title,
+    desc: def.desc,
+    icon: def.icon,
+    reward: def.reward,
+    rewardBux: def.rewardBux
+  });
+}
+
 const ACHIEVEMENTS = [
   { id: 'first_merge',     name: 'First Fusion',       desc: 'Perform your first merge.', icon: '🔗', reward: 15 },
   { id: 'first_orange',    name: 'Peak Tier',          desc: 'Create your first Orange card.', icon: '🔶', reward: 30 },
@@ -1735,13 +2155,20 @@ function unlockAchievement(id) {
     addBux(def.reward);
     recordEconomyChange(def.reward, `Achievement: ${def.name}`);
   }
-  recordRecentActivity(`Unlocked achievement "${def.name}"${def.reward > 0 ? ` — +${def.reward} Bux` : ''}`);
-  showToast(`${def.icon} Achievement unlocked: ${def.name}!`, 3200);
-  Sound.sparkle();
+  recordRecentActivity(`Unlocked badge "${def.name}"${def.reward > 0 ? ` — +${def.reward} Bux` : ''}`);
+  
+  // Trigger rich animated pop-up toast
+  showMilestoneToast({
+    id: def.id,
+    title: def.name,
+    desc: def.desc,
+    icon: def.icon,
+    reward: def.reward > 0 ? `+${def.reward} Bux` : 'UNLOCKED',
+    isAchievement: true
+  });
 }
 // Broad, idempotent sweep - checks every threshold-style achievement
-// against current state. Never itself triggers game actions, so it's
-// safe to call from many different hook points without looping.
+// and career milestone against current state.
 function checkAchievements() {
   const stats = getBattleStats();
   const beaten = loadBeatenDifficulties();
@@ -1754,6 +2181,25 @@ function checkAchievements() {
   if (isCollectionComplete()) unlockAchievement('full_collection');
   if (loadBux() >= 500) unlockAchievement('bux_500');
   if ((daily.streak || 0) >= 3) unlockAchievement('daily_streak_3');
+}
+
+function checkMilestones() {
+  // Check career milestones
+  for (const m of CAREER_MILESTONES) {
+    const progress = typeof m.getProgress === 'function' ? m.getProgress() : 0;
+    if (progress >= m.goal) {
+      unlockCareerMilestone(m.id);
+    }
+  }
+  // Check achievements
+  checkAchievements();
+}
+
+if (typeof window !== 'undefined') {
+  window.CAREER_MILESTONES = CAREER_MILESTONES;
+  window.showMilestoneToast = showMilestoneToast;
+  window.checkMilestones = checkMilestones;
+  window.unlockCareerMilestone = unlockCareerMilestone;
 }
 
 // ---- Vs Bot --------------------------------------------------------------
@@ -1780,9 +2226,10 @@ function startVsBot(wagerAmount = 0, deckConfig = null) {
   botActedKey = null;
   resetSelections();
   showScreen('screen-game');
+  const eff = getEffectiveBotDifficulty(botDifficulty);
   setMatchInfo(
-    `Vs Bot · ${botDifficulty}` + (currentWager > 0 ? ` · 💰${currentWager.toLocaleString()}` : ''),
-    `${botDifficulty} vs Bot` + (currentWager > 0 ? ` · 💰${currentWager.toLocaleString()}` : '')
+    `Vs Bot · ${botDifficulty === 'Adaptive' ? `Adaptive (${eff})` : botDifficulty}` + (currentWager > 0 ? ` · 💰${currentWager.toLocaleString()}` : ''),
+    `${botDifficulty === 'Adaptive' ? `Adaptive (${eff})` : botDifficulty} vs Bot` + (currentWager > 0 ? ` · 💰${currentWager.toLocaleString()}` : '')
   );
   ensureBotActs(() => render());
   render();
@@ -2418,6 +2865,15 @@ function playFx(fxList) {
         const cardCount = evt.cardCount || 2;
         const big = cardCount > 2 || evt.resultTier === 4;
         spawnCastEffect(evt.owner, evt.toSlot, big ? 'bigmerge' : 'merge', null, evt.resultTier);
+        const slotEl = getSlotEl(evt.owner, evt.toSlot);
+        if (slotEl) {
+          const cardEl = slotEl.querySelector('.card');
+          if (cardEl) {
+            cardEl.classList.remove('card-just-merged');
+            void cardEl.offsetWidth;
+            cardEl.classList.add('card-just-merged');
+          }
+        }
         if (cardCount > 2) {
           showToast(`💥 ${cardCount}-card fusion → ${TIERS[evt.resultTier].name}!`, 2400);
           if (!tutorialActive) unlockAchievement('mega_fusion');
@@ -2591,31 +3047,55 @@ function applyActionAndRender(action, { afterBotCheck } = {}) {
       const placedCard = state.players[action.player]?.board[action.slot];
       const tier = placedCard ? placedCard.tier : 1;
       Sound.cardPlace(tier);
-      if (action.player === localKey) vibrate(20);
+      if (action.player === localKey) {
+        vibrate(20);
+        if (mode === 'bot' && placedCard && placedCard.tier >= 3) {
+          triggerBotReaction('player_high_tier_place', placedCard.tier);
+        }
+      }
     }
     else if (action.type === 'merge') {
       const mergedCard = state.players[action.player]?.board[res.mergedSlot];
       const tier = mergedCard ? mergedCard.tier : 2;
       Sound.merge(tier);
-      if (action.player === localKey) vibrate([20, 25, 20]);
+      if (action.player === localKey) {
+        vibrate([20, 25, 20]);
+        if (mode === 'bot' && mergedCard && mergedCard.tier >= 3) {
+          triggerBotReaction('player_high_tier_merge', mergedCard.tier);
+        }
+      }
     }
     else if (action.type === 'defend') Sound.defend();
-    else if ((action.type === 'readyPlacement' || action.type === 'readyAttack') && action.player === localKey) Sound.ready();
+    else if ((action.type === 'readyPlacement' || action.type === 'readyAttack') && action.player === localKey) {
+      Sound.ready();
+      if (action.type === 'readyPlacement' && mode === 'bot') {
+        triggerBotReaction('player_ready');
+      }
+    }
+    else if (action.type === 'spell' && action.player === localKey && mode === 'bot') {
+      triggerBotReaction('player_spell');
+    }
+    else if (action.type === 'chip' && action.player === localKey && mode === 'bot') {
+      triggerBotReaction('player_chip');
+    }
   }
-  // Daily Challenge / Forge Milestones progress - only for the local
+  // Daily Challenge / Forge Milestones / Daily Bounties progress - only for the local
   // player's own successful actions, in a real match (not the tutorial).
   if (res.ok && action.player === localKey) {
     if (action.type === 'place') {
       progressDailyChallenge('place', 1);
+      if (typeof progressDailyBounties === 'function') progressDailyBounties('play', 1);
     } else if (action.type === 'merge') {
       progressDailyChallenge('merge', 1);
+      if (typeof progressDailyBounties === 'function') progressDailyBounties('merge', 1);
       if (!tutorialActive) {
         unlockAchievement('first_merge');
         const mergedCard = state.players[action.player]?.board[res.mergedSlot];
         if (mergedCard && mergedCard.tier === 4) unlockAchievement('first_orange');
       }
-    } else if (action.type === 'defend') {
+    } else if (action.type === 'defend' || action.type === 'spell' || action.type === 'chip') {
       progressDailyChallenge('defend', 1);
+      if (typeof progressDailyBounties === 'function') progressDailyBounties('spell', 1);
     }
   }
   
@@ -2668,13 +3148,13 @@ function ensureBotActs(onDone) {
     if (!state || state.phase === 'gameover') { if (onDone) onDone(); return; }
     if (state.phase === 'placement') {
       state._fx = [];
-      runBotPlacement(state, 'bot', botDifficulty, botRng);
+      runBotPlacement(state, 'bot', getEffectiveBotDifficulty(botDifficulty), botRng);
       playFx(state._fx);
       if (onDone) onDone();
     } else if (state.phase === 'attack') {
       const snapshot = snapshotBoards(state);
       state._fx = [];
-      runBotAttack(state, 'bot', botDifficulty, botRng);
+      runBotAttack(state, 'bot', getEffectiveBotDifficulty(botDifficulty), botRng);
       const resolved = state.phase !== 'attack';
       if (resolved) {
         playCombatAnimation(snapshot, state._fx, () => {
@@ -2738,6 +3218,10 @@ async function beginHost(wagerAmount, hostDeckConfig) {
       if (currentWager > 0) { addBux(currentWager); currentWager = 0; }
     },
     onForfeit: () => handleOpponentForfeit(),
+    onPing: (latency) => updatePingUI(latency),
+    onRematchOffer: () => handleIncomingRematchOffer(),
+    onRematchAccept: () => handleIncomingRematchAccept(),
+    onRematchDecline: () => handleIncomingRematchDecline(),
   });
   try {
     const code = await net.hostGame(seed, currentWager, hostDeckConfig);
@@ -2751,6 +3235,8 @@ document.getElementById('btn-join-confirm').addEventListener('click', async () =
   mode = 'mp'; localKey = 'guest'; remoteKey = 'host';
   net = new NetSession({
     onInit: (data) => {
+      document.getElementById('gameover-overlay').classList.add('hidden');
+      document.getElementById('gameover-card').querySelectorAll('.confetti-piece').forEach(el => el.remove());
       gameOverAnnounced = false;
       meteorShowerDone = false;
       epicVictoryDone = false;
@@ -2783,6 +3269,10 @@ document.getElementById('btn-join-confirm').addEventListener('click', async () =
     },
     onPeerError: (err) => { document.getElementById('join-status').textContent = err.message || ('Error: ' + err.type); },
     onForfeit: () => handleOpponentForfeit(),
+    onPing: (latency) => updatePingUI(latency),
+    onRematchOffer: () => handleIncomingRematchOffer(),
+    onRematchAccept: () => handleIncomingRematchAccept(),
+    onRematchDecline: () => handleIncomingRematchDecline(),
   });
   try { await net.joinGame(code, pendingGuestDeckConfig); } catch (e) { /* status already shown */ }
 });
@@ -2847,6 +3337,8 @@ async function beginMatchmaking(deckConfig) {
       
       net = new NetSession({
         onInit: (data) => {
+          document.getElementById('gameover-overlay').classList.add('hidden');
+          document.getElementById('gameover-card').querySelectorAll('.confetti-piece').forEach(el => el.remove());
           gameOverAnnounced = false;
           meteorShowerDone = false;
           epicVictoryDone = false;
@@ -2876,6 +3368,10 @@ async function beginMatchmaking(deckConfig) {
           startHostingMatchmaking(deckConfig);
         },
         onForfeit: () => handleOpponentForfeit(),
+        onPing: (latency) => updatePingUI(latency),
+        onRematchOffer: () => handleIncomingRematchOffer(),
+        onRematchAccept: () => handleIncomingRematchAccept(),
+        onRematchDecline: () => handleIncomingRematchDecline(),
       });
       
       try {
@@ -2941,6 +3437,10 @@ async function startHostingMatchmaking(deckConfig) {
       }, 3000);
     },
     onForfeit: () => handleOpponentForfeit(),
+    onPing: (latency) => updatePingUI(latency),
+    onRematchOffer: () => handleIncomingRematchOffer(),
+    onRematchAccept: () => handleIncomingRematchAccept(),
+    onRematchDecline: () => handleIncomingRematchDecline(),
   });
   
   try {
@@ -3143,28 +3643,48 @@ function triggerEmote(owner, emoji) {
   const gameScreen = document.getElementById('screen-game');
   if (!targetBoard || !gameScreen) return;
   
-  const bubble = document.createElement('div');
-  bubble.className = 'emote-bubble';
-  bubble.textContent = emoji;
-  
-  if (emoji.length > 3) {
-    bubble.classList.add('text-bubble');
-    bubble.style.fontSize = '0.92rem';
-    bubble.style.fontWeight = '700';
-    bubble.style.borderRadius = '12px';
-    bubble.style.fontFamily = 'var(--font-display)';
+  // EXTRA SHINE: Trigger Avatar Popup & Pulsing Heartbeat
+  const avatarBadge = isLocal ? document.getElementById('you-ready-badge') : document.getElementById('opp-ready-badge');
+  if (avatarBadge) {
+    // Spawn brief popup directly centered over the match avatar
+    const avatarBubble = document.createElement('div');
+    avatarBubble.className = 'avatar-emote-bubble';
+    avatarBubble.textContent = emoji;
+    avatarBadge.appendChild(avatarBubble);
+    
+    // Heartbeat pulse glow on the match avatar circle
+    avatarBadge.classList.remove('avatar-pulse-active');
+    void avatarBadge.offsetWidth; // trigger reflow
+    avatarBadge.classList.add('avatar-pulse-active');
+    
+    setTimeout(() => {
+      avatarBubble.remove();
+      avatarBadge.classList.remove('avatar-pulse-active');
+    }, 1600);
+  }
+
+  // EXTRA SHINE: Ripple/bounce animation on the sending toggle button wrapper
+  if (isLocal) {
+    const pickerWrapper = document.getElementById('emote-picker-wrapper');
+    if (pickerWrapper) {
+      pickerWrapper.classList.remove('emote-sent-pulse');
+      void pickerWrapper.offsetWidth; // trigger reflow
+      pickerWrapper.classList.add('emote-sent-pulse');
+      setTimeout(() => pickerWrapper.classList.remove('emote-sent-pulse'), 800);
+    }
   }
   
-  const rect = targetBoard.getBoundingClientRect();
-  const gameRect = gameScreen.getBoundingClientRect();
-  
-  bubble.style.left = `${Math.max(20, Math.min(gameRect.width - 60, (rect.left + rect.width / 2 - gameRect.left) - 20))}px`;
-  bubble.style.top = `${Math.max(10, (rect.top - gameRect.top + (isLocal ? -20 : 10)))}px`;
-  
-  gameScreen.appendChild(bubble);
-  setTimeout(() => bubble.remove(), 1800);
-  
-  Sound.select();
+  // Play distinct procedural sound category based on emote type (combat vs. social)
+  const isCombat = ['⚔️', '🛡️', '🔥', '💀', '🤖'].some(sym => emoji.includes(sym));
+  if (typeof Sound !== 'undefined') {
+    if (isCombat && typeof Sound.emoteCombat === 'function') {
+      Sound.emoteCombat();
+    } else if (typeof Sound.emoteSocial === 'function') {
+      Sound.emoteSocial();
+    } else if (typeof Sound.select === 'function') {
+      Sound.select();
+    }
+  }
   vibrate(10);
   
   if (isLocal && mode === 'mp' && net) {
@@ -3191,7 +3711,76 @@ function triggerEmote(owner, emoji) {
     }
     setTimeout(() => {
       triggerEmote(remoteKey, botPick);
-    }, 600 + Math.random() * 800);
+    }, 1200 + Math.random() * 1600);
+  }
+}
+
+function triggerBotReaction(triggerType, meta) {
+  if (mode !== 'bot') return;
+  
+  let delay = 1500 + Math.random() * 1000;
+  let botPick = '';
+  
+  // Balance bot reaction frequency to feel natural (reacts ~25% of the time)
+  if (Math.random() > 0.25) return;
+  
+  if (triggerType === 'player_high_tier_place') {
+    const replies = [
+      '😮 Impressive card!',
+      '😱 Uh oh, that tier is scary!',
+      '🔥 A worthy opponent!',
+      '⚡ Big stats on board!',
+      '💀 That tier looks dangerous!'
+    ];
+    botPick = replies[Math.floor(Math.random() * replies.length)];
+    delay = 1400 + Math.random() * 1200;
+  } else if (triggerType === 'player_high_tier_merge') {
+    const replies = [
+      '👏 Brilliant fusion!',
+      '🔥 What a merge!',
+      '😱 Wow, tier ' + (meta || 3) + '!',
+      '🤖 Beep boop, strong reading!',
+      '😮 Magnificent merge!'
+    ];
+    botPick = replies[Math.floor(Math.random() * replies.length)];
+    delay = 1800 + Math.random() * 1000;
+  } else if (triggerType === 'player_spell') {
+    const replies = [
+      '🔮 A magical turn!',
+      '⚡ Spellcraft!',
+      '🛡️ Can I block that?',
+      '😅 Ouch! Clever spell!',
+      '🔥 Things are heating up!'
+    ];
+    botPick = replies[Math.floor(Math.random() * replies.length)];
+    delay = 1300 + Math.random() * 800;
+  } else if (triggerType === 'player_chip') {
+    const replies = [
+      '🛠️ Custom upgrades!',
+      '🛡️ Equipping modifications...',
+      '🤖 System parameters changed!',
+      '👍 Nice chip addition!'
+    ];
+    botPick = replies[Math.floor(Math.random() * replies.length)];
+    delay = 1200 + Math.random() * 1000;
+  } else if (triggerType === 'player_ready') {
+    const replies = [
+      '⚔️ Bring it on!',
+      '👍 Let\'s battle!',
+      '🤝 Ready when you are!',
+      '🔥 To combat!',
+      '🛡️ Let\'s see your defense!'
+    ];
+    botPick = replies[Math.floor(Math.random() * replies.length)];
+    delay = 1000 + Math.random() * 800;
+  }
+  
+  if (botPick) {
+    setTimeout(() => {
+      if (state && mode === 'bot' && state.phase !== 'gameover') {
+        triggerEmote('bot', botPick);
+      }
+    }, delay);
   }
 }
 
@@ -3199,10 +3788,44 @@ const emoteToggleBtn = document.getElementById('btn-emote-toggle');
 const emotesPopover = document.getElementById('emotes-popover');
 
 if (emoteToggleBtn && emotesPopover) {
+  const positionEmotePopover = () => {
+    if (emotesPopover.classList.contains('hidden')) return;
+    
+    const rect = emoteToggleBtn.getBoundingClientRect();
+    const popoverWidth = 220; 
+    const popoverHeight = emotesPopover.offsetHeight || 230;
+    
+    // Use viewport-fixed coordinates to bypass overflow-x auto clipping on mobile
+    emotesPopover.style.position = 'fixed';
+    emotesPopover.style.zIndex = '10000';
+    
+    let left = rect.left + rect.width / 2 - popoverWidth / 2;
+    left = Math.max(10, Math.min(window.innerWidth - popoverWidth - 10, left));
+    
+    const top = rect.top - popoverHeight - 12;
+    
+    emotesPopover.style.left = `${left}px`;
+    emotesPopover.style.top = `${top}px`;
+    emotesPopover.style.bottom = 'auto';
+    emotesPopover.style.transform = 'none';
+  };
+
   const togglePopover = (e) => {
     e.stopPropagation();
     e.preventDefault();
-    emotesPopover.classList.toggle('hidden');
+    
+    const isHidden = emotesPopover.classList.contains('hidden');
+    if (isHidden) {
+      // Reparent to #screen-game to avoid layout clipping inside the mobile action dock
+      const gameScreen = document.getElementById('screen-game');
+      if (gameScreen && emotesPopover.parentElement !== gameScreen) {
+        gameScreen.appendChild(emotesPopover);
+      }
+      emotesPopover.classList.remove('hidden');
+      positionEmotePopover();
+    } else {
+      emotesPopover.classList.add('hidden');
+    }
   };
 
   emoteToggleBtn.addEventListener('click', togglePopover);
@@ -3211,26 +3834,175 @@ if (emoteToggleBtn && emotesPopover) {
   document.addEventListener('pointerdown', (e) => {
     if (!emotesPopover.classList.contains('hidden')) {
       const wrapper = document.getElementById('emote-picker-wrapper');
-      if (wrapper && !wrapper.contains(e.target)) {
+      if (wrapper && !wrapper.contains(e.target) && !emotesPopover.contains(e.target) && e.target !== emoteToggleBtn) {
         emotesPopover.classList.add('hidden');
       }
     }
   });
+
+  window.addEventListener('resize', positionEmotePopover);
+  window.addEventListener('scroll', positionEmotePopover, { passive: true });
 }
+
+let emoteCooldownActive = false;
+let emoteCooldownTimer = null;
 
 const handleEmoteItem = (e) => {
   e.stopPropagation();
   e.preventDefault();
+  
+  if (emoteCooldownActive) {
+    if (typeof showToast === 'function') {
+      showToast('⚠️ Emote cooldown active!');
+    }
+    return;
+  }
+  
   const emote = e.currentTarget.dataset.emote;
   const phrase = e.currentTarget.dataset.phrase;
-  if (emote) triggerEmote(localKey, emote);
-  if (phrase) triggerEmote(localKey, phrase);
+  const triggered = emote || phrase;
+  
+  if (triggered) {
+    if (emote) triggerEmote(localKey, emote);
+    if (phrase) triggerEmote(localKey, phrase);
+    
+    // Activate 3-second cooldown
+    emoteCooldownActive = true;
+    
+    // Add cooldown visual state to buttons and wrapper
+    const wrapper = document.getElementById('emote-picker-wrapper');
+    if (wrapper) wrapper.classList.add('cooldown-active');
+    
+    const popover = document.getElementById('emotes-popover');
+    if (popover) popover.classList.add('cooldown-active');
+    
+    // Dynamic countdown timer on the main emote button
+    const toggleBtn = document.getElementById('btn-emote-toggle');
+    if (toggleBtn) {
+      toggleBtn.classList.add('cooldown-active');
+      toggleBtn.disabled = true;
+      let timeLeft = 3.0;
+      
+      if (emoteCooldownTimer) clearInterval(emoteCooldownTimer);
+      
+      emoteCooldownTimer = setInterval(() => {
+        timeLeft -= 0.1;
+        if (timeLeft <= 0) {
+          clearInterval(emoteCooldownTimer);
+          toggleBtn.innerHTML = '💬 <span class="emote-toggle-label">Emotes</span>';
+          toggleBtn.classList.remove('cooldown-active');
+          toggleBtn.disabled = false;
+        } else {
+          toggleBtn.innerHTML = `💬 <span>${timeLeft.toFixed(1)}s</span>`;
+        }
+      }, 100);
+    }
+    
+    setTimeout(() => {
+      emoteCooldownActive = false;
+      if (wrapper) wrapper.classList.remove('cooldown-active');
+      if (popover) popover.classList.remove('cooldown-active');
+    }, 3000);
+  }
+  
   if (emotesPopover) emotesPopover.classList.add('hidden');
 };
 
 document.querySelectorAll('.emote-btn, .quick-chat-btn').forEach(btn => {
   btn.addEventListener('click', handleEmoteItem);
   btn.addEventListener('touchend', handleEmoteItem, { passive: false });
+});
+
+let rematchState = 'idle'; // 'idle', 'offered', 'received', 'accepted'
+
+function resetRematchState() {
+  rematchState = 'idle';
+  const btn = document.getElementById('btn-mp-rematch');
+  if (btn) {
+    btn.textContent = 'Rematch';
+    btn.disabled = false;
+    btn.classList.remove('pulse-accent');
+  }
+}
+
+function handleIncomingRematchOffer() {
+  rematchState = 'received';
+  showToast('⚔️ Opponent requested a rematch!', 3000);
+  const btn = document.getElementById('btn-mp-rematch');
+  if (btn) {
+    btn.textContent = '🔥 Accept Rematch';
+    btn.disabled = false;
+    btn.classList.add('pulse-accent');
+  }
+}
+
+function handleIncomingRematchAccept() {
+  rematchState = 'accepted';
+  showToast('⚡ Rematch accepted! Preparing battlefield...', 2500);
+  if (localKey === 'host') {
+    initiateHostRematch();
+  }
+}
+
+function handleIncomingRematchDecline() {
+  rematchState = 'idle';
+  showToast('❌ Rematch declined by opponent.', 3000);
+  const btn = document.getElementById('btn-mp-rematch');
+  if (btn) {
+    btn.textContent = 'Rematch';
+    btn.disabled = true;
+    btn.classList.remove('pulse-accent');
+  }
+}
+
+function initiateHostRematch() {
+  if (localKey !== 'host' || !net) return;
+  const seed = makeSeed();
+  net.seed = seed;
+  
+  gameOverAnnounced = false;
+  meteorShowerDone = false;
+  epicVictoryDone = false;
+  matchStartTime = Date.now();
+  _lowHpWarned.clear();
+  resetMatchCardStats();
+  lastPlacement = null;
+  
+  const hostConfig = net.hostDeckConfig;
+  const guestConfig = net.guestDeckConfig;
+  matchVictoryAnims = { host: hostConfig?.victoryAnim || null, guest: guestConfig?.victoryAnim || null };
+  
+  state = createMatch(seed, 'host', 'guest', { host: hostConfig, guest: guestConfig });
+  initReplayLog(seed, 'host', 'guest', { host: hostConfig, guest: guestConfig });
+  resetSelections();
+  
+  document.getElementById('gameover-overlay').classList.add('hidden');
+  document.getElementById('gameover-card').querySelectorAll('.confetti-piece').forEach(el => el.remove());
+  
+  showScreen('screen-game');
+  setMatchInfo('Multiplayer · Host' + (currentWager > 0 ? ` · 💰${currentWager.toLocaleString()}` : ''), 'Host Match');
+  render();
+  
+  net.sendInit();
+  resetRematchState();
+  showToast('🏁 Rematch started! Good luck!', 2000);
+}
+
+document.getElementById('btn-mp-rematch').addEventListener('click', () => {
+  if (!net) return;
+  if (rematchState === 'received') {
+    net.sendRematchAccept();
+    handleIncomingRematchAccept();
+  } else if (rematchState === 'idle') {
+    rematchState = 'offered';
+    net.sendRematchOffer();
+    showToast('✉️ Rematch request sent!', 2000);
+    const btn = document.getElementById('btn-mp-rematch');
+    if (btn) {
+      btn.textContent = '⏳ Waiting...';
+      btn.disabled = true;
+    }
+  }
 });
 
 document.getElementById('btn-rematch').addEventListener('click', () => {
@@ -3251,36 +4023,124 @@ document.getElementById('btn-play-again').addEventListener('click', () => {
 });
 
 // ---- Options modal ----------------------------------------------------------
-function openOptions() {
+function switchSettingsTab(tabId) {
+  const tabBtns = document.querySelectorAll('.settings-tab-btn');
+  const panels = document.querySelectorAll('.settings-panel');
+  tabBtns.forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabId);
+  });
+  panels.forEach(panel => {
+    panel.classList.toggle('hidden', panel.id !== tabId);
+  });
+}
+
+function openOptions(defaultTab = null) {
   const inMatch = !!state && state.phase !== 'gameover';
   const isReplay = mode === 'replay';
   
-  const quitSection = document.getElementById('quit-match-section');
-  quitSection.classList.toggle('hidden', !inMatch && !isReplay);
-  
+  const kickerEl = document.getElementById('options-modal-kicker');
+  const titleEl = document.getElementById('options-modal-title');
+  const subEl = document.getElementById('options-modal-subtitle');
+  const pauseBanner = document.getElementById('match-pause-banner');
+  const dangerTabBtn = document.getElementById('tab-btn-danger');
+  const splashItem = document.getElementById('settings-splash-item');
+
   if (inMatch || isReplay) {
-    const quitP = quitSection.querySelector('p');
-    const quitBtn = document.getElementById('btn-quit-match');
-    if (isReplay) {
-      quitP.textContent = 'Leave the replay and return to the menu.';
-      quitBtn.textContent = 'Close Replay';
-      quitBtn.classList.remove('danger');
-    } else {
-      quitP.textContent = 'Leaving now forfeits the match.';
-      quitBtn.textContent = 'Quit Match';
-      quitBtn.classList.add('danger');
+    if (kickerEl) kickerEl.textContent = isReplay ? 'REPLAY CONTROLS' : 'MATCH PAUSED';
+    if (titleEl) titleEl.textContent = isReplay ? 'Replay Options' : 'Match Settings';
+    if (subEl) subEl.textContent = isReplay ? 'Adjust playback audio or return to menu' : 'Live match telemetry & in-game audio/display controls';
+    
+    if (pauseBanner) {
+      pauseBanner.classList.remove('hidden');
+      const modeTextEl = document.getElementById('match-pause-mode-text');
+      const roundTextEl = document.getElementById('match-pause-round-text');
+      const playerHpEl = document.getElementById('match-pause-player-hp');
+      const oppNameEl = document.getElementById('match-pause-opp-name');
+      const oppHpEl = document.getElementById('match-pause-opp-hp');
+      const quitNote = pauseBanner.querySelector('.quit-sub-note');
+      const quitBtn = document.getElementById('btn-quit-match');
+
+      if (modeTextEl) {
+        if (isReplay) {
+          modeTextEl.textContent = 'REPLAY PLAYBACK';
+        } else if (mode === 'mp') {
+          modeTextEl.textContent = 'MULTIPLAYER MATCH';
+        } else {
+          modeTextEl.textContent = `VS BOT (${(botDifficulty || 'MATCH').toUpperCase()})`;
+        }
+      }
+      if (roundTextEl) {
+        roundTextEl.textContent = state && state.round ? `Round ${state.round}` : 'In-Match';
+      }
+      if (playerHpEl) {
+        playerHpEl.textContent = `${state && state.player ? state.player.hp : 20} HP`;
+      }
+      if (oppNameEl) {
+        oppNameEl.textContent = state && state.opponent ? (state.opponent.name || 'Opponent') : 'Opponent';
+      }
+      if (oppHpEl) {
+        oppHpEl.textContent = `${state && state.opponent ? state.opponent.hp : 20} HP`;
+      }
+      if (quitBtn) {
+        if (isReplay) {
+          quitBtn.textContent = '🚪 Exit Replay';
+          quitBtn.classList.remove('danger');
+        } else {
+          quitBtn.textContent = '🏳️ Forfeit / Quit Match';
+          quitBtn.classList.add('danger');
+        }
+      }
+      if (quitNote) {
+        quitNote.textContent = isReplay ? 'Leave the replay and return to the main menu.' : 'Leaving now forfeits the match.';
+      }
     }
+
+    if (dangerTabBtn) dangerTabBtn.classList.add('hidden');
+    if (splashItem) splashItem.classList.add('hidden');
+  } else {
+    if (kickerEl) kickerEl.textContent = 'PREFERENCES';
+    if (titleEl) titleEl.textContent = 'Game Settings';
+    if (subEl) subEl.textContent = 'Audio, visuals, performance & game controls';
+    
+    if (pauseBanner) pauseBanner.classList.add('hidden');
+    if (dangerTabBtn) dangerTabBtn.classList.remove('hidden');
+    if (splashItem) splashItem.classList.remove('hidden');
   }
   
-  const resetSection = document.getElementById('reset-progress-section');
-  if (resetSection) resetSection.classList.toggle('hidden', inMatch || isReplay);
-  const splashToggle = document.getElementById('btn-splash-toggle');
-  if (splashToggle) splashToggle.classList.toggle('hidden', inMatch || isReplay);
+  // Set default tab (or keep current if valid)
+  const activeTabBtn = document.querySelector('.settings-tab-btn.active');
+  let targetTab = defaultTab || (activeTabBtn ? activeTabBtn.dataset.tab : 'tab-audio');
+  if ((inMatch || isReplay) && targetTab === 'tab-danger') {
+    targetTab = 'tab-audio';
+  }
+  switchSettingsTab(targetTab);
+
+  // Sync sound & system settings from localStorage on open
+  if (typeof updateVolumeUI === 'function') updateVolumeUI();
+  if (typeof updateAmbientUI === 'function') updateAmbientUI();
+  if (typeof updateMuteButton === 'function') updateMuteButton();
+  if (typeof updateSfxCheckbox === 'function') updateSfxCheckbox();
+  if (typeof updateHapticsButton === 'function') updateHapticsButton();
+  if (typeof updatePingButton === 'function') updatePingButton();
+
   document.getElementById('options-overlay').classList.remove('hidden');
   if (typeof Sound !== 'undefined' && Sound.modalOpen) Sound.modalOpen();
 }
-document.getElementById('btn-options').addEventListener('click', openOptions);
-document.getElementById('btn-open-settings-menu').addEventListener('click', openOptions);
+
+document.querySelectorAll('.settings-tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    switchSettingsTab(btn.dataset.tab);
+    if (typeof Sound !== 'undefined' && Sound.click) Sound.click();
+  });
+});
+
+document.getElementById('btn-resume-match')?.addEventListener('click', () => {
+  document.getElementById('options-overlay').classList.add('hidden');
+  if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
+});
+
+document.getElementById('btn-options').addEventListener('click', () => openOptions());
+document.getElementById('btn-open-settings-menu').addEventListener('click', () => openOptions());
 document.getElementById('btn-options-close').addEventListener('click', () => {
   document.getElementById('options-overlay').classList.add('hidden');
   if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
@@ -3436,6 +4296,16 @@ function promptQuitMatch() {
 document.getElementById('btn-quit-match').addEventListener('click', promptQuitMatch);
 
 function handleOpponentForfeit() {
+  if (state && state.phase === 'gameover') {
+    showToast('Opponent left the match.', 2500);
+    const btn = document.getElementById('btn-mp-rematch');
+    if (btn) {
+      btn.textContent = 'Opponent left';
+      btn.disabled = true;
+      btn.classList.remove('pulse-accent');
+    }
+    return;
+  }
   if (!state || state.phase === 'gameover') return;
   state.phase = 'gameover';
   state.winner = localKey;
@@ -3980,20 +4850,52 @@ function render() {
       }
     }
     document.getElementById('btn-play-again').classList.toggle('hidden', mode !== 'bot');
+    const mpRematchBtn = document.getElementById('btn-mp-rematch');
+    if (mpRematchBtn) {
+      mpRematchBtn.classList.toggle('hidden', mode !== 'mp');
+      resetRematchState();
+    }
     if (!gameOverAnnounced) {
       gameOverAnnounced = true;
       saveMatchReplay();
       if (!tutorialActive) {
+        let oldAdaptiveDiff = null;
+        if (botDifficulty === 'Adaptive') {
+          oldAdaptiveDiff = getAdaptiveDifficultyLevel();
+        }
+
         recordMatchHistory({
           mode: mode === 'bot' ? `Vs Bot (${botDifficulty})` : 'Multiplayer',
           result: state.winner === 'draw' ? 'Draw' : (state.winner === localKey ? 'Win' : 'Loss'),
           rounds: state.round,
           duration: matchStartTime ? Date.now() - matchStartTime : 0,
         });
+
+        if (botDifficulty === 'Adaptive') {
+          const newAdaptiveDiff = getAdaptiveDifficultyLevel();
+          if (oldAdaptiveDiff && oldAdaptiveDiff !== newAdaptiveDiff) {
+            const indexOld = ALL_DIFFICULTIES.indexOf(oldAdaptiveDiff);
+            const indexNew = ALL_DIFFICULTIES.indexOf(newAdaptiveDiff);
+            if (indexOld !== -1 && indexNew !== -1 && indexOld !== indexNew) {
+              const isHarder = indexNew > indexOld;
+              setTimeout(() => {
+                showToast(
+                  isHarder
+                    ? `⚙️ Adaptive Difficulty increased to ${newAdaptiveDiff}! Next match will be harder! 🔥`
+                    : `⚙️ Adaptive Difficulty decreased to ${newAdaptiveDiff}! Next match will be easier! 🌱`,
+                  4500
+                );
+              }, 1100);
+            }
+          }
+        }
       }
       if (state.winner === localKey) { launchConfetti(); Sound.win(); vibrate([40, 50, 40, 50, 60]); }
       if (state.winner === localKey || state.winner === remoteKey) recordResult(state.winner === localKey);
-      if (state.winner === localKey && mode === 'bot' && !tutorialActive) recordDifficultyBeaten(botDifficulty);
+      if (state.winner === localKey && mode === 'bot' && !tutorialActive) {
+        const effectiveDiff = botDifficulty === 'Adaptive' ? getEffectiveBotDifficulty(botDifficulty) : botDifficulty;
+        recordDifficultyBeaten(effectiveDiff);
+      }
       if (state.winner === localKey || state.winner === remoteKey) {
         const payoutForStats = currentWager > 0 && state.winner === localKey ? currentWager * 2 : 0;
         recordBattleResult(state.winner === localKey, currentWager, payoutForStats);
@@ -4002,7 +4904,7 @@ function render() {
         progressDailyChallenge('win', 1);
         if (currentWager > 0) unlockAchievement('wager_win');
       }
-      if (!tutorialActive) checkAchievements();
+      if (!tutorialActive) checkMilestones();
       if (currentWager > 0) {
         if (state.winner === localKey) {
           const payout = currentWager * 2;
@@ -4143,44 +5045,102 @@ function promptBlueprintChoice(candidates, candidateIndices, onChoose) {
   overlay.onclick = e => { if (e.target === overlay) finish(null); };
 }
 
-// ---- Drag-to-merge -----------------------------------------------------
-const DRAG_THRESHOLD = 10;
+// ---- Drag-to-merge & Drag-to-place with Touch Event Support ------------------
+const DRAG_THRESHOLD = 8;
+const TOUCH_DRAG_THRESHOLD = 6;
 let dragState = null;
 
-document.getElementById('player-board').addEventListener('pointerdown', (e) => {
-  if (!state || state.phase !== 'placement' || dragState) return;
-  if (selMode === 'merge') return; // Combine mode handles selection via tap, not drag
-  const cardElx = e.target.closest('.card');
-  if (!cardElx || cardElx.dataset.owner !== localKey) return;
-  const slot = Number(cardElx.dataset.slot);
-  if (!state.players[localKey].board[slot]) return;
-  dragState = {
-    kind: 'merge', sourceSlot: slot, sourceEl: cardElx,
-    startX: e.clientX, startY: e.clientY,
-    dragging: false, ghostEl: null, pointerId: e.pointerId,
-  };
-});
+// Smart slot detector with proximity forgiveness for mobile touch
+function findDropTargetSlot(clientX, clientY, kind, sourceSlot) {
+  if (!state || !state.players || !state.players[localKey]) return null;
+  const myBoard = document.getElementById('player-board');
+  if (!myBoard) return null;
 
-document.getElementById('hand-row').addEventListener('pointerdown', (e) => {
-  if (!state || state.phase !== 'placement' || dragState) return;
-  const cardElx = e.target.closest('[data-role="hand-card"]');
-  if (!cardElx) return;
-  const idx = Number(cardElx.dataset.handIdx);
-  if (!state.players[localKey].deck[idx]) return;
-  dragState = {
-    kind: 'place', sourceHandIdx: idx, sourceEl: cardElx,
-    startX: e.clientX, startY: e.clientY,
-    dragging: false, ghostEl: null, pointerId: e.pointerId,
-  };
-});
+  // 1. Direct element test under touch/pointer coordinates
+  const under = document.elementFromPoint(clientX, clientY);
+  const directSlotEl = under && under.closest && under.closest('.slot');
+  if (directSlotEl && directSlotEl.dataset.owner === localKey) {
+    const targetSlot = Number(directSlotEl.dataset.slot);
+    const hasCard = !!state.players[localKey].board[targetSlot];
+    const valid = kind === 'merge'
+      ? (targetSlot !== sourceSlot && hasCard)
+      : !hasCard;
+    if (valid) return { slotEl: directSlotEl, slotNum: targetSlot };
+  }
 
-document.addEventListener('pointermove', (e) => {
-  if (!dragState || e.pointerId !== dragState.pointerId) return;
-  const dx = e.clientX - dragState.startX, dy = e.clientY - dragState.startY;
+  // 2. Mobile Proximity matching: find nearest valid slot within tolerant radius
+  const slotElements = Array.from(myBoard.querySelectorAll('.slot'));
+  let bestSlot = null;
+  let minDistance = 58; // Max snap radius in pixels for touch
+
+  for (const slotEl of slotElements) {
+    if (slotEl.dataset.owner !== localKey) continue;
+    const targetSlot = Number(slotEl.dataset.slot);
+    const hasCard = !!state.players[localKey].board[targetSlot];
+    const valid = kind === 'merge'
+      ? (targetSlot !== sourceSlot && hasCard)
+      : !hasCard;
+    if (!valid) continue;
+
+    const rect = slotEl.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    // Check if coordinate is within an expanded bounding box
+    const inBox = (
+      clientX >= rect.left - 20 &&
+      clientX <= rect.right + 20 &&
+      clientY >= rect.top - 20 &&
+      clientY <= rect.bottom + 20
+    );
+
+    const dist = Math.hypot(clientX - centerX, clientY - centerY);
+    if ((inBox || dist < minDistance) && dist < minDistance) {
+      minDistance = dist;
+      bestSlot = { slotEl, slotNum: targetSlot };
+    }
+  }
+
+  return bestSlot;
+}
+
+function handleDragStartCommon(e, isTouch, touchId, clientX, clientY, sourceEl, kind, sourceSlot, sourceHandIdx) {
+  if (!state || state.phase !== 'placement' || dragState) return false;
+  if (selMode === 'merge') return false; // Combine mode handles multi-selection via tap
+
+  dragState = {
+    kind,
+    sourceSlot,
+    sourceHandIdx,
+    sourceEl,
+    startX: clientX,
+    startY: clientY,
+    currentX: clientX,
+    currentY: clientY,
+    dragging: false,
+    ghostEl: null,
+    pointerId: isTouch ? null : (e ? e.pointerId : null),
+    touchId: isTouch ? touchId : null,
+    isTouch: !!isTouch,
+  };
+  return true;
+}
+
+function handleDragMoveCommon(clientX, clientY) {
+  if (!dragState) return;
+  dragState.currentX = clientX;
+  dragState.currentY = clientY;
+
+  const dx = clientX - dragState.startX;
+  const dy = clientY - dragState.startY;
+  const threshold = dragState.isTouch ? TOUCH_DRAG_THRESHOLD : DRAG_THRESHOLD;
+
   if (!dragState.dragging) {
-    if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+    if (Math.hypot(dx, dy) < threshold) return;
     dragState.dragging = true;
-    if (dragState.kind === 'place') { selHandIdx = null; selMode = null; selSpellId = null; selChipId = null; }
+    if (dragState.kind === 'place') {
+      selHandIdx = null; selMode = null; selSpellId = null; selChipId = null;
+    }
     const rect = dragState.sourceEl.getBoundingClientRect();
     const ghost = dragState.sourceEl.cloneNode(true);
     ghost.className = dragState.sourceEl.className + ' drag-ghost';
@@ -4189,44 +5149,52 @@ document.addEventListener('pointermove', (e) => {
     document.body.appendChild(ghost);
     dragState.ghostEl = ghost;
     dragState.sourceEl.classList.add('dragging-source');
+    if (typeof vibrate === 'function') vibrate(10);
   }
-  const ghost = dragState.ghostEl;
-  ghost.style.left = (e.clientX - ghost.offsetWidth / 2) + 'px';
-  ghost.style.top = (e.clientY - ghost.offsetHeight / 2) + 'px';
+
+  if (dragState.ghostEl) {
+    const ghost = dragState.ghostEl;
+    const w = ghost.offsetWidth || 70;
+    const h = ghost.offsetHeight || 98;
+    // On touch devices, lift ghost slightly above the thumb/finger for clear sightline
+    const yOffset = dragState.isTouch ? (h * 0.72) : (h / 2);
+    ghost.style.left = (clientX - w / 2) + 'px';
+    ghost.style.top = (clientY - yOffset) + 'px';
+  }
 
   document.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
-  ghost.style.display = 'none';
-  const under = document.elementFromPoint(e.clientX, e.clientY);
-  ghost.style.display = '';
-  const slotEl = under && under.closest && under.closest('.slot');
-  if (slotEl && slotEl.dataset.owner === localKey) {
-    const targetSlot = Number(slotEl.dataset.slot);
-    const hasCard = !!state.players[localKey].board[targetSlot];
-    const validTarget = dragState.kind === 'merge'
-      ? (targetSlot !== dragState.sourceSlot && hasCard)
-      : !hasCard;
-    if (validTarget) slotEl.classList.add('drop-target');
-  }
-});
 
-document.addEventListener('pointerup', (e) => {
-  if (!dragState || e.pointerId !== dragState.pointerId) return;
+  const dropInfo = findDropTargetSlot(clientX, clientY, dragState.kind, dragState.sourceSlot);
+  if (dropInfo && dropInfo.slotEl) {
+    dropInfo.slotEl.classList.add('drop-target');
+  }
+}
+
+function handleDragEndCommon(clientX, clientY) {
+  if (!dragState) return;
   const wasDragging = dragState.dragging;
+
   if (wasDragging) {
-    const ghost = dragState.ghostEl;
-    ghost.style.display = 'none';
-    const under = document.elementFromPoint(e.clientX, e.clientY);
-    ghost.remove();
-    dragState.sourceEl.classList.remove('dragging-source');
+    if (dragState.ghostEl) {
+      dragState.ghostEl.remove();
+      dragState.ghostEl = null;
+    }
+    if (dragState.sourceEl) {
+      dragState.sourceEl.classList.remove('dragging-source');
+    }
     document.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
-    const slotEl = under && under.closest && under.closest('.slot');
-    if (slotEl && slotEl.dataset.owner === localKey) {
-      const targetSlot = Number(slotEl.dataset.slot);
+
+    const dropInfo = findDropTargetSlot(clientX, clientY, dragState.kind, dragState.sourceSlot);
+    if (dropInfo && dropInfo.slotNum !== undefined) {
+      const targetSlot = dropInfo.slotNum;
       const hasCard = !!state.players[localKey].board[targetSlot];
+
       if (dragState.kind === 'merge') {
         if (targetSlot !== dragState.sourceSlot && hasCard) {
-          const slotA = dragState.sourceSlot, slotB = targetSlot;
-          const a = state.players[localKey].board[slotA], b = state.players[localKey].board[slotB];
+          const slotA = dragState.sourceSlot;
+          const slotB = targetSlot;
+          const a = state.players[localKey].board[slotA];
+          const b = state.players[localKey].board[slotB];
           const newTier = a && b ? a.tier + b.tier : null;
           const deck = state.players[localKey].deck;
           const candidateIndices = newTier ? deck.map((c, i) => (c.tier === newTier ? i : -1)).filter(i => i >= 0) : [];
@@ -4239,38 +5207,180 @@ document.addEventListener('pointerup', (e) => {
           } else {
             dispatch({ type: 'merge', slots: [slotA, slotB] });
           }
+          if (typeof vibrate === 'function') vibrate(15);
         }
-      } else if (!hasCard) {
+      } else if (dragState.kind === 'place' && !hasCard) {
         dispatch({ type: 'place', handIndex: dragState.sourceHandIdx, slot: targetSlot });
+        if (typeof vibrate === 'function') vibrate(12);
       }
     }
+
     suppressNextClick = true;
     setTimeout(() => { suppressNextClick = false; }, 400);
     dragState = null;
     render();
   } else {
+    if (dragState.ghostEl) dragState.ghostEl.remove();
+    if (dragState.sourceEl) dragState.sourceEl.classList.remove('dragging-source');
+    document.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
     dragState = null;
   }
-});
+}
 
-document.addEventListener('pointercancel', (e) => {
-  if (!dragState || e.pointerId !== dragState.pointerId) return;
+function handleDragCancelCommon() {
+  if (!dragState) return;
   if (dragState.ghostEl) dragState.ghostEl.remove();
   if (dragState.sourceEl) dragState.sourceEl.classList.remove('dragging-source');
   document.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
   dragState = null;
+}
+
+// ---- Dedicated Touch Listeners on Player Board & Hand Row ----
+const playerBoardEl = document.getElementById('player-board');
+const handRowEl = document.getElementById('hand-row');
+
+if (playerBoardEl) {
+  playerBoardEl.addEventListener('touchstart', (e) => {
+    if (!state || state.phase !== 'placement' || dragState) return;
+    if (selMode === 'merge') return;
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+    const cardElx = e.target.closest('.card');
+    if (!cardElx || cardElx.dataset.owner !== localKey) return;
+    const slot = Number(cardElx.dataset.slot);
+    if (!state.players[localKey].board[slot]) return;
+    handleDragStartCommon(null, true, touch.identifier, touch.clientX, touch.clientY, cardElx, 'merge', slot, null);
+  }, { passive: true });
+}
+
+if (handRowEl) {
+  handRowEl.addEventListener('touchstart', (e) => {
+    if (!state || state.phase !== 'placement' || dragState) return;
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+    const cardElx = e.target.closest('[data-role="hand-card"]');
+    if (!cardElx) return;
+    const idx = Number(cardElx.dataset.handIdx);
+    const card = state.players[localKey]?.deck[idx];
+    if (!card || card.tier !== 1) return; // Only placeable tier 1 cards drag
+    handleDragStartCommon(null, true, touch.identifier, touch.clientX, touch.clientY, cardElx, 'place', null, idx);
+  }, { passive: true });
+}
+
+window.addEventListener('touchmove', (e) => {
+  if (!dragState || !dragState.isTouch) return;
+  for (let i = 0; i < e.touches.length; i++) {
+    const t = e.touches[i];
+    if (t.identifier === dragState.touchId) {
+      if (dragState.dragging && e.cancelable) {
+        e.preventDefault(); // Stop native scrolling while dragging card
+      }
+      handleDragMoveCommon(t.clientX, t.clientY);
+      break;
+    }
+  }
+}, { passive: false });
+
+window.addEventListener('touchend', (e) => {
+  if (!dragState || !dragState.isTouch) return;
+  for (let i = 0; i < e.changedTouches.length; i++) {
+    const t = e.changedTouches[i];
+    if (t.identifier === dragState.touchId) {
+      handleDragEndCommon(t.clientX, t.clientY);
+      break;
+    }
+  }
+}, { passive: true });
+
+window.addEventListener('touchcancel', (e) => {
+  if (!dragState || !dragState.isTouch) return;
+  for (let i = 0; i < e.changedTouches.length; i++) {
+    const t = e.changedTouches[i];
+    if (t.identifier === dragState.touchId) {
+      handleDragCancelCommon();
+      break;
+    }
+  }
+}, { passive: true });
+
+// ---- Unified Pointer Listeners (Mouse / Desktop / Stylus) ----
+if (playerBoardEl) {
+  playerBoardEl.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch') return; // Handled by touchstart
+    if (!state || state.phase !== 'placement' || dragState) return;
+    if (selMode === 'merge') return;
+    const cardElx = e.target.closest('.card');
+    if (!cardElx || cardElx.dataset.owner !== localKey) return;
+    const slot = Number(cardElx.dataset.slot);
+    if (!state.players[localKey].board[slot]) return;
+    handleDragStartCommon(e, false, null, e.clientX, e.clientY, cardElx, 'merge', slot, null);
+  });
+}
+
+if (handRowEl) {
+  handRowEl.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch') return; // Handled by touchstart
+    if (!state || state.phase !== 'placement' || dragState) return;
+    const cardElx = e.target.closest('[data-role="hand-card"]');
+    if (!cardElx) return;
+    const idx = Number(cardElx.dataset.handIdx);
+    const card = state.players[localKey]?.deck[idx];
+    if (!card || card.tier !== 1) return;
+    handleDragStartCommon(e, false, null, e.clientX, e.clientY, cardElx, 'place', null, idx);
+  });
+}
+
+document.addEventListener('pointermove', (e) => {
+  if (!dragState || dragState.isTouch || e.pointerId !== dragState.pointerId) return;
+  handleDragMoveCommon(e.clientX, e.clientY);
+});
+
+document.addEventListener('pointerup', (e) => {
+  if (!dragState || dragState.isTouch || e.pointerId !== dragState.pointerId) return;
+  handleDragEndCommon(e.clientX, e.clientY);
+});
+
+document.addEventListener('pointercancel', (e) => {
+  if (!dragState || dragState.isTouch || e.pointerId !== dragState.pointerId) return;
+  handleDragCancelCommon();
 });
 
 // ---- Mute toggle ------------------------------------------------------------
 function updateMuteButton() {
   const btn = document.getElementById('btn-mute-toggle');
-  if (btn) btn.textContent = Sound.isMuted() ? '🔇 Sound: Off' : '🔊 Sound: On';
+  if (btn) {
+    const isMuted = Sound.isMuted();
+    btn.textContent = isMuted ? '🔇 Sound: Off' : '🔊 Sound: On';
+    btn.setAttribute('data-state', isMuted ? 'off' : 'on');
+  }
 }
 document.getElementById('btn-mute-toggle').addEventListener('click', () => {
   Sound.setMuted(!Sound.isMuted());
   updateMuteButton();
 });
 updateMuteButton();
+
+// ---- Sound Effects (SFX) Toggle ---------------------------------------------
+function updateSfxCheckbox() {
+  const chk = document.getElementById('chk-sfx');
+  if (chk && typeof Sound !== 'undefined' && typeof Sound.isSfxEnabled === 'function') {
+    chk.checked = Sound.isSfxEnabled();
+  }
+}
+document.getElementById('chk-sfx')?.addEventListener('change', (e) => {
+  if (typeof Sound !== 'undefined' && typeof Sound.setSfxEnabled === 'function') {
+    Sound.setSfxEnabled(e.target.checked);
+  }
+});
+document.querySelector('.sfx-toggle-wrapper')?.addEventListener('click', (e) => {
+  if (e.target.id === 'chk-sfx' || e.target.closest('.switch-toggle')) return;
+  const chk = document.getElementById('chk-sfx');
+  if (chk) {
+    chk.checked = !chk.checked;
+    chk.dispatchEvent(new Event('change'));
+  }
+});
+updateSfxCheckbox();
 
 // ---- NEW SETTING: master volume slider -------------------------------------
 function updateVolumeUI() {
@@ -4290,7 +5400,9 @@ updateVolumeUI();
 function updateAmbientUI() {
   const btn = document.getElementById('btn-ambient-toggle');
   if (btn && typeof Sound !== 'undefined' && Sound.ambient) {
-    btn.textContent = Sound.ambient.isEnabled() ? '🎵 Ambience: On' : '🔇 Ambience: Off';
+    const on = Sound.ambient.isEnabled();
+    btn.textContent = on ? '🎵 Ambience: On' : '🔇 Ambience: Off';
+    btn.setAttribute('data-state', on ? 'on' : 'off');
   }
   const slider = document.getElementById('ambient-volume-slider');
   const label = document.getElementById('ambient-volume-value');
@@ -4334,7 +5446,10 @@ function vibrate(pattern) {
 }
 function updateHapticsButton() {
   const btn = document.getElementById('btn-haptics-toggle');
-  if (btn) btn.textContent = hapticsEnabled ? '📳 Vibration: On' : '📳 Vibration: Off';
+  if (btn) {
+    btn.textContent = hapticsEnabled ? '📳 Vibration: On' : '📳 Vibration: Off';
+    btn.setAttribute('data-state', hapticsEnabled ? 'on' : 'off');
+  }
 }
 document.getElementById('btn-haptics-toggle')?.addEventListener('click', () => {
   hapticsEnabled = !hapticsEnabled;
@@ -4343,6 +5458,62 @@ document.getElementById('btn-haptics-toggle')?.addEventListener('click', () => {
   if (hapticsEnabled) vibrate(20); // quick confirmation buzz so the toggle itself is felt
 });
 updateHapticsButton();
+
+// ---- NEW SETTING: ping (network latency) indicator toggle -------------------
+function loadPingSetting() {
+  try {
+    const v = localStorage.getItem('mehrbod-cards-show-ping');
+    return v === null ? false : v === '1'; // Default to false (automatically off)
+  } catch (e) { return false; }
+}
+function savePingSetting(v) {
+  try { localStorage.setItem('mehrbod-cards-show-ping', v ? '1' : '0'); } catch (e) {}
+}
+let pingIndicatorEnabled = loadPingSetting();
+function updatePingButton() {
+  const btn = document.getElementById('btn-ping-toggle');
+  if (btn) {
+    btn.textContent = pingIndicatorEnabled ? '📶 Ping Indicator: On' : '📶 Ping Indicator: Off';
+    btn.setAttribute('data-state', pingIndicatorEnabled ? 'on' : 'off');
+  }
+  updatePingBadgeVisibility();
+}
+function updatePingBadgeVisibility() {
+  const badge = document.getElementById('p2p-ping-badge');
+  if (!badge) return;
+  
+  // Show badge ONLY if multiplayer match is ACTIVE, network object exists, and setting is enabled!
+  const isMultiplayerGame = mode === 'mp' && typeof net !== 'undefined' && net && net.conn && net.conn.open;
+  if (isMultiplayerGame && pingIndicatorEnabled) {
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+function updatePingUI(latency) {
+  const badge = document.getElementById('p2p-ping-badge');
+  const valEl = document.getElementById('p2p-ping-value');
+  if (!badge || !valEl) return;
+  
+  valEl.textContent = latency;
+  
+  badge.classList.remove('ping-excellent', 'ping-good', 'ping-poor');
+  if (latency < 50) {
+    badge.classList.add('ping-excellent');
+  } else if (latency <= 150) {
+    badge.classList.add('ping-good');
+  } else {
+    badge.classList.add('ping-poor');
+  }
+  
+  updatePingBadgeVisibility();
+}
+document.getElementById('btn-ping-toggle')?.addEventListener('click', () => {
+  pingIndicatorEnabled = !pingIndicatorEnabled;
+  savePingSetting(pingIndicatorEnabled);
+  updatePingButton();
+});
+updatePingButton();
 
 // ---- NEW SETTING: Reset All Progress ---------------------------------------
 // A standard "danger zone" settings option - wipes every locally-saved
@@ -4397,11 +5568,141 @@ function applyReducedMotion(on) {
   reducedMotion = on;
   document.getElementById('app').classList.toggle('reduced-motion', on);
   const btn = document.getElementById('btn-motion-toggle');
-  if (btn) btn.textContent = on ? '🎬 Reduced motion: On' : '🎬 Reduced motion: Off';
+  if (btn) {
+    btn.textContent = on ? '🎬 Reduced motion: On' : '🎬 Reduced motion: Off';
+    btn.setAttribute('data-state', on ? 'on' : 'off');
+  }
   try { localStorage.setItem('mehrbod-cards-reduced-motion', on ? '1' : '0'); } catch (e) {}
 }
 document.getElementById('btn-motion-toggle').addEventListener('click', () => applyReducedMotion(!reducedMotion));
 applyReducedMotion(reducedMotion);
+
+// ---- Thermal & Battery Saver Mode (Mobile Passive Cooling & Energy Optimization) -
+let batterySaverMode = loadBatterySaverMode(); // 'auto' | 'on' | 'off'
+
+function isMobileHardware() {
+  try {
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isTouchScreen = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    const isSmallScreen = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+    return isMobileUA || (isTouchScreen && isSmallScreen);
+  } catch (e) {
+    return false;
+  }
+}
+
+function loadBatterySaverMode() {
+  try {
+    const saved = localStorage.getItem('mehrbod-cards-battery-saver');
+    if (saved === 'on' || saved === 'off' || saved === 'auto') return saved;
+  } catch (e) {}
+  return 'auto';
+}
+
+function isBatterySaverActive() {
+  if (batterySaverMode === 'on') return true;
+  if (batterySaverMode === 'off') return false;
+  return isMobileHardware();
+}
+window.isBatterySaverActive = isBatterySaverActive;
+
+function applyBatterySaver(mode) {
+  batterySaverMode = mode;
+  const active = isBatterySaverActive();
+  document.documentElement.classList.toggle('battery-saver', active);
+  document.body?.classList.toggle('battery-saver', active);
+  const appEl = document.getElementById('app');
+  if (appEl) appEl.classList.toggle('battery-saver', active);
+
+  const btn = document.getElementById('btn-battery-saver-toggle');
+  if (btn) {
+    if (mode === 'auto') {
+      btn.textContent = `❄️ Battery Saver: Auto (${active ? 'Active' : 'Off'})`;
+      btn.setAttribute('data-state', active ? 'on' : 'off');
+    } else if (mode === 'on') {
+      btn.textContent = '❄️ Battery Saver: On';
+      btn.setAttribute('data-state', 'on');
+    } else {
+      btn.textContent = '❄️ Battery Saver: Off';
+      btn.setAttribute('data-state', 'off');
+    }
+  }
+  try { localStorage.setItem('mehrbod-cards-battery-saver', mode); } catch (e) {}
+}
+
+const batterySaverBtn = document.getElementById('btn-battery-saver-toggle');
+if (batterySaverBtn) {
+  batterySaverBtn.addEventListener('click', () => {
+    const nextMode = batterySaverMode === 'auto' ? 'on' : (batterySaverMode === 'on' ? 'off' : 'auto');
+    applyBatterySaver(nextMode);
+    if (typeof Sound !== 'undefined' && Sound.click) Sound.click();
+    showToast(
+      nextMode === 'auto'
+        ? `❄️ Thermal & Battery Saver set to Auto (${isMobileHardware() ? 'Active on Mobile' : 'Off on Desktop'})`
+        : (nextMode === 'on' ? '❄️ Thermal & Battery Saver Enabled (Cooling active)' : '🔥 Full Fidelity Graphics Enabled'),
+      2200
+    );
+  });
+}
+applyBatterySaver(batterySaverMode);
+
+// Minecraft-style Splash Texts for MEHRBOD CARDS Logo
+const MINECRAFT_SPLASH_TEXTS = [
+  "Blue merges into Green!",
+  "Break every board!",
+  "100% Organic Bux!",
+  "Now with 3D Card Flips!",
+  "Don't let the bot win!",
+  "Try Story Mode!",
+  "Over 9000 Bux!",
+  "Better than Solitaire!",
+  "Powered by Mehrbod Bux!",
+  "Awesome card art!",
+  "Press M for a secret!",
+  "Master Tier Bot awaits!",
+  "Also try Trial Tower!",
+  "Climb the citadel!",
+  "So many themes to unlock!",
+  "Burn the other side to zero!",
+  "Draft 12, fuse smart!",
+  "Spells & Chips included!",
+  "GG WP!",
+  "Mythic rarity unlocked!",
+  "It's a secret to everybody!",
+  "Do a barrel roll!",
+  "Sovereign Gold approved!",
+  "Cyberneon aesthetic!",
+  "Glacier subzero freezing!",
+  "Magma heat surge active!",
+  "Lifesteal activated!",
+  "Check the Card Locker!",
+  "Daily challenges ready!",
+  "Also play in Multiplayer!",
+  "Made with love!",
+  "Subzero frostbolts!",
+  "Warcry buffed!",
+  "Unstoppable combo!",
+  "Victory is yours!",
+  "Press Start to Play!",
+  "Unlimited potential!",
+  "Top tier strategies!",
+  "No mock data here!",
+  "100% Pure Skill!"
+];
+
+function initMinecraftSplashText() {
+  const splashEl = document.getElementById('minecraft-splash');
+  if (!splashEl) return;
+
+  if (typeof splashTextEnabled !== 'undefined' && !splashTextEnabled) {
+    splashEl.classList.add('hidden');
+    return;
+  }
+  splashEl.classList.remove('hidden');
+
+  const splash = MINECRAFT_SPLASH_TEXTS[Math.floor(Math.random() * MINECRAFT_SPLASH_TEXTS.length)];
+  splashEl.textContent = splash;
+}
 
 // ---- Splash text setting ------------------------------------------------
 let splashTextEnabled = loadSplashTextSetting();
@@ -4422,7 +5723,10 @@ function applySplashTextSetting(on) {
     }
   }
   const btn = document.getElementById('btn-splash-toggle');
-  if (btn) btn.textContent = on ? '✨ Splash Text: On' : '✨ Splash Text: Off';
+  if (btn) {
+    btn.textContent = on ? '✨ Splash Text: On' : '✨ Splash Text: Off';
+    btn.setAttribute('data-state', on ? 'on' : 'off');
+  }
   try { localStorage.setItem('mehrbod-cards-splash-text-enabled', on ? '1' : '0'); } catch (e) {}
 }
 document.getElementById('btn-splash-toggle')?.addEventListener('click', () => applySplashTextSetting(!splashTextEnabled));
@@ -4430,6 +5734,168 @@ applySplashTextSetting(splashTextEnabled);
 
 // ---- Themes -----------------------------------------------------------------
 const ALL_DIFFICULTIES = ['Easy', 'Medium', 'Hard', 'Expert', 'Master'];
+
+function getAdaptiveDifficultyLevel() {
+  const history = getMatchHistory();
+  const last5 = history.slice(0, 5);
+  if (!last5.length) {
+    return 'Medium';
+  }
+  let wins = 0;
+  let losses = 0;
+  last5.forEach(m => {
+    if (m.result === 'Win') wins++;
+    else if (m.result === 'Loss') losses++;
+  });
+  const levelIdx = Math.max(0, Math.min(4, 1 + wins - losses));
+  return ALL_DIFFICULTIES[levelIdx];
+}
+
+function getEffectiveBotDifficulty(diff) {
+  if (diff === 'Adaptive') {
+    return getAdaptiveDifficultyLevel();
+  }
+  return diff;
+}
+
+function renderAdaptiveTrendChart() {
+  const container = document.getElementById('adaptive-d3-chart-container') || document.getElementById('adaptive-profile-chart-container');
+  const badge = document.getElementById('adaptive-current-level-badge') || document.getElementById('profile-adaptive-level-badge');
+  if (!container) return;
+
+  const currentDiff = getAdaptiveDifficultyLevel();
+  if (badge) badge.textContent = `Current: ${currentDiff}`;
+
+  const history = getMatchHistory();
+  const last10 = history.slice(0, 10).reverse();
+
+  if (!last10.length) {
+    container.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--muted); font-size: 0.68rem; text-align: center;">
+        📈 Play a match in Adaptive mode to record performance history!
+      </div>
+    `;
+    return;
+  }
+
+  const data = last10.map((d, i) => {
+    let score = 1;
+    if (d.result === 'Win') score = 2;
+    if (d.result === 'Loss') score = 0;
+    return {
+      index: i + 1,
+      result: d.result,
+      score: score,
+      rounds: d.rounds || 1,
+      mode: d.mode,
+      date: new Date(d.at || Date.now()).toLocaleDateString()
+    };
+  });
+
+  container.innerHTML = '';
+
+  const w = container.clientWidth || 340;
+  const h = 105;
+  const padding = { top: 15, right: 25, bottom: 20, left: 45 };
+
+  if (typeof d3 !== 'undefined') {
+    const svg = d3.create('svg')
+      .attr('width', '100%')
+      .attr('height', h)
+      .attr('viewBox', `0 0 ${w} ${h}`)
+      .style('overflow', 'visible');
+
+    const xScale = d3.scaleLinear()
+      .domain([0, Math.max(1, data.length - 1)])
+      .range([padding.left, w - padding.right]);
+
+    const yScale = d3.scaleLinear()
+      .domain([0, 2])
+      .range([h - padding.bottom, padding.top]);
+
+    [0, 1, 2].forEach(val => {
+      svg.append('line')
+        .attr('x1', padding.left)
+        .attr('y1', yScale(val))
+        .attr('x2', w - padding.right)
+        .attr('y2', yScale(val))
+        .attr('stroke', 'rgba(255,255,255,0.08)')
+        .attr('stroke-dasharray', '3,3');
+    });
+
+    svg.append('text').attr('x', 5).attr('y', yScale(2) + 3).attr('fill', '#10b981').attr('font-size', '8').attr('font-weight', 'bold').text('WIN');
+    svg.append('text').attr('x', 2).attr('y', yScale(1) + 3).attr('fill', '#f59e0b').attr('font-size', '8').attr('font-weight', 'bold').text('DRAW');
+    svg.append('text').attr('x', 2).attr('y', yScale(0) + 3).attr('fill', '#ef4444').attr('font-size', '8').attr('font-weight', 'bold').text('LOSS');
+
+    if (data.length > 1) {
+      const line = d3.line()
+        .x((d, i) => xScale(i))
+        .y(d => yScale(d.score))
+        .curve(d3.curveMonotoneX);
+
+      const path = svg.append('path')
+        .datum(data)
+        .attr('fill', 'none')
+        .attr('stroke', 'var(--accent)')
+        .attr('stroke-width', '2.5')
+        .attr('d', line);
+
+      const totalLen = path.node().getTotalLength();
+      path
+        .attr('stroke-dasharray', totalLen + ' ' + totalLen)
+        .attr('stroke-dashoffset', totalLen)
+        .transition()
+        .duration(1100)
+        .ease(d3.easeCubicOut)
+        .attr('stroke-dashoffset', 0);
+    }
+
+    const circles = svg.selectAll('circle')
+      .data(data)
+      .join('circle')
+      .attr('cx', (d, i) => xScale(i))
+      .attr('cy', d => yScale(d.score))
+      .attr('r', 0)
+      .attr('fill', d => d.result === 'Win' ? '#10b981' : (d.result === 'Loss' ? '#ef4444' : '#f59e0b'))
+      .attr('stroke', '#1e1e24')
+      .attr('stroke-width', '1.5');
+
+    circles.transition()
+      .delay((d, i) => i * 80 + 300)
+      .duration(400)
+      .attr('r', 5);
+
+    circles.append('title')
+      .text(d => `Match #${d.index}\nResult: ${d.result}\nMode: ${d.mode}\nRounds: ${d.rounds}`);
+
+    container.appendChild(svg.node());
+  } else {
+    const xStep = data.length > 1 ? (w - padding.left - padding.right) / (data.length - 1) : 0;
+    const yScaleVal = (s) => (s === 0 ? h - padding.bottom : (s === 1 ? h / 2 : padding.top));
+    let pts = '';
+    let circs = '';
+    data.forEach((d, i) => {
+      const cx = padding.left + i * xStep;
+      const cy = yScaleVal(d.score);
+      pts += `${cx},${cy} `;
+      const col = d.result === 'Win' ? '#10b981' : (d.result === 'Loss' ? '#ef4444' : '#f59e0b');
+      circs += `<circle cx="${cx}" cy="${cy}" r="5" fill="${col}" stroke="#1e1e24" stroke-width="1.5"><title>Match #${d.index}\nResult: ${d.result}</title></circle>`;
+    });
+
+    container.innerHTML = `
+      <svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" style="overflow: visible;">
+        <line x1="${padding.left}" y1="${yScaleVal(0)}" x2="${w - padding.right}" y2="${yScaleVal(0)}" stroke="rgba(255,255,255,0.08)" stroke-dasharray="3,3" />
+        <line x1="${padding.left}" y1="${yScaleVal(1)}" x2="${w - padding.right}" y2="${yScaleVal(1)}" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+        <line x1="${padding.left}" y1="${yScaleVal(2)}" x2="${w - padding.right}" y2="${yScaleVal(2)}" stroke="rgba(255,255,255,0.08)" stroke-dasharray="3,3" />
+        <text x="5" y="${yScaleVal(2) + 3}" fill="#10b981" font-size="8" font-weight="bold">WIN</text>
+        <text x="2" y="${yScaleVal(1) + 3}" fill="#f59e0b" font-size="8" font-weight="bold">DRAW</text>
+        <text x="2" y="${yScaleVal(0) + 3}" fill="#ef4444" font-size="8" font-weight="bold">LOSS</text>
+        ${data.length > 1 ? `<polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />` : ''}
+        ${circs}
+      </svg>
+    `;
+  }
+}
 
 // NOTE: Flame and Storm swapped which unlock condition they use - Flame is
 // now the single-difficulty reward (Hard) and Storm is now the "beat every
@@ -4556,14 +6022,22 @@ function themeDisplayName(t) {
     dark: 'Dark', light: 'Light', verdant: 'Verdant', pink: 'Pink', storm: 'Storm',
     aurora: 'Aurora', sovereign: 'Sovereign', flame: 'Flame', mrmoney: 'Mr Money',
     cyberneon: 'Cyber Neon', abyss: 'Abyss', magma: 'Magma', quantum: 'Quantum Flux',
-    glacier: 'Glacial Frost', astral: 'Astral Void', celestial: 'Celestial Divinity', collector: '100% Collector'
+    glacier: 'Glacial Frost', astral: 'Astral Void', celestial: 'Celestial Divinity',
+    prism: 'Prism Core', darkmatter: 'Prism Core'
   }[t] || t;
 }
 function isCollectionComplete() {
   const owned = loadCollection();
-  const allUnitsOwned = ALL_NONBLUE_UNIT_IDS.every(id => owned.units.includes(id));
-  const allSpellsOwned = ALL_SPELL_IDS.every(id => owned.spells.includes(id));
-  const allChipsOwned = ALL_CHIP_IDS.every(id => owned.chips.includes(id));
+  if (!owned) return false;
+  const units = getAllNonBlueUnitIds();
+  const spells = getAllSpellIds();
+  const chips = getAllChipIds();
+
+  if (units.length === 0 || spells.length === 0 || chips.length === 0) return false;
+
+  const allUnitsOwned = units.every(id => isUnitArchetypeOwned(id));
+  const allSpellsOwned = spells.every(id => isSpellOwned(id));
+  const allChipsOwned = chips.every(id => isChipOwned(id));
   return allUnitsOwned && allSpellsOwned && allChipsOwned;
 }
 Object.assign(THEME_UNLOCK_CHECK, {
@@ -4582,14 +6056,16 @@ Object.assign(THEME_UNLOCK_CHECK, {
   glacier: () => isGlacierThemeUnlocked(),
   astral: () => isAstralThemeUnlocked(),
   celestial: () => isCelestialThemeUnlocked(),
-  collector: () => isAllThemesUnlocked() || isCollectionComplete(),
+  prism: () => isAllThemesUnlocked() || isCollectionComplete() || localStorage.getItem('theme_prism_unlocked') === 'true' || localStorage.getItem('theme_darkmatter_unlocked') === 'true' || localStorage.getItem('theme_collector_unlocked') === 'true' || ownsCosmetic('prism') || ownsCosmetic('theme_prism') || ownsCosmetic('darkmatter') || ownsCosmetic('theme_darkmatter'),
+  darkmatter: () => THEME_UNLOCK_CHECK.prism(),
+  collector: () => THEME_UNLOCK_CHECK.prism(),
   valentine: () => isAllThemesUnlocked() || ownsCosmetic('theme_valentine') || localStorage.getItem('theme_valentine_unlocked') === 'true',
   sakura: () => isAllThemesUnlocked() || ownsCosmetic('theme_sakura') || localStorage.getItem('theme_sakura_unlocked') === 'true',
   solar: () => isAllThemesUnlocked() || ownsCosmetic('theme_solar') || localStorage.getItem('theme_solar_unlocked') === 'true',
   steampunk: () => isAllThemesUnlocked() || ownsCosmetic('theme_steampunk') || localStorage.getItem('theme_steampunk_unlocked') === 'true',
   galaxy: () => isAllThemesUnlocked() || ownsCosmetic('theme_galaxy') || localStorage.getItem('theme_galaxy_unlocked') === 'true',
 });
-const THEME_LOCK_MESSAGE = {
+Object.assign(THEME_LOCK_MESSAGE, {
   verdant: '🔒 Beat Easy difficulty to unlock the Verdant theme!',
   pink: '🔒 Beat Medium difficulty to unlock Pink Mode!',
   flame: '🔒 Beat Hard difficulty to unlock the Flame theme!',
@@ -4604,19 +6080,22 @@ const THEME_LOCK_MESSAGE = {
   glacier: '🔒 Reach Floor 15 of the Trial Tower to unlock the Glacial Frost theme!',
   astral: '🔒 Clear Floor 30 of the Trial Tower to unlock the Astral Void theme!',
   celestial: '🔒 Reach Floor 50 of the Trial Tower to unlock the Celestial Divinity theme!',
-  collector: '🔒 Collect every current card to unlock the 100% Collector theme!',
+  prism: '🔒 Collect 100% of all cards, spells, and chips to unlock the Prism Core theme!',
+  darkmatter: '🔒 Collect 100% of all cards, spells, and chips to unlock the Prism Core theme!',
+  collector: '🔒 Collect 100% of all cards, spells, and chips to unlock the Prism Core theme!',
   valentine: '🔒 Secret code required or available in Mehrbod Shop!',
   sakura: '🔒 Unlocked in Mehrbod Shop or special events!',
   solar: '🔒 Unlocked in Mehrbod Shop or Trial Tower!',
   steampunk: '🔒 Unlocked in Mehrbod Shop or Master Quests!',
   galaxy: '🔒 Unlocked in Mehrbod Shop or Cosmic Quests!',
-};
+});
 const ALL_THEME_NAMES = [
   'dark', 'light', 'verdant', 'pink', 'flame', 'aurora', 'sovereign', 'storm',
   'mrmoney', 'cyberneon', 'abyss', 'magma', 'quantum', 'glacier', 'astral',
-  'celestial', 'collector', 'valentine', 'sakura', 'solar', 'steampunk', 'galaxy'
+  'celestial', 'prism', 'darkmatter', 'valentine', 'sakura', 'solar', 'steampunk', 'galaxy'
 ];
 function isThemeUnlocked(theme) {
+  if (theme === 'collector' || theme === 'darkmatter') theme = 'prism';
   if (typeof isAllThemesUnlocked === 'function' && isAllThemesUnlocked()) return true;
   if (!theme || theme === 'dark' || theme === 'light') return true;
   if (THEME_UNLOCK_CHECK[theme]) return THEME_UNLOCK_CHECK[theme]();
@@ -4628,7 +6107,16 @@ function isThemeUnlocked(theme) {
 
 function loadTheme() {
   try {
-    const saved = localStorage.getItem('mehrbod-cards-theme');
+    let saved = localStorage.getItem('mehrbod-cards-theme');
+    if (saved === 'collector' || saved === 'darkmatter') {
+      try {
+        if (localStorage.getItem('theme_collector_unlocked') === 'true' || localStorage.getItem('theme_darkmatter_unlocked') === 'true') {
+          localStorage.setItem('theme_prism_unlocked', 'true');
+        }
+        localStorage.setItem('mehrbod-cards-theme', 'prism');
+      } catch (e) {}
+      saved = 'prism';
+    }
     if (saved && THEME_UNLOCK_CHECK[saved] && !THEME_UNLOCK_CHECK[saved]()) return 'dark';
     if (saved && THEME_UNLOCK_CHECK[saved]) return saved;
   } catch (e) {}
@@ -4636,18 +6124,32 @@ function loadTheme() {
 }
 let currentTheme = loadTheme();
 function applyTheme(theme) {
+  if (theme === 'collector' || theme === 'darkmatter') theme = 'prism';
   const check = THEME_UNLOCK_CHECK[theme];
   if (!check || !check()) {
     showToast(THEME_LOCK_MESSAGE[theme] || "This theme isn't unlocked yet.");
     return;
   }
   currentTheme = theme;
-  document.documentElement.classList.remove(...ALL_THEME_NAMES.filter(t => t !== 'dark').map(t => 'theme-' + t));
+  document.documentElement.classList.remove('theme-collector', ...ALL_THEME_NAMES.filter(t => t !== 'dark').map(t => 'theme-' + t));
   if (theme !== 'dark') document.documentElement.classList.add('theme-' + theme);
+  
+  // Lazy load theme background assets dynamically
+  const container = document.getElementById('theme-bg-container');
+  if (container) {
+    if (window.THEME_TEMPLATES && window.THEME_TEMPLATES[theme]) {
+      container.innerHTML = window.THEME_TEMPLATES[theme];
+    } else {
+      container.innerHTML = '';
+    }
+  }
+
   try { localStorage.setItem('mehrbod-cards-theme', theme); } catch (e) {}
   updateThemeButtons();
   const themesBtn = document.getElementById('btn-open-themes');
   if (themesBtn) themesBtn.textContent = `🎨 Themes: ${themeDisplayName(theme)}`;
+  const themeDesc = document.getElementById('settings-theme-desc');
+  if (themeDesc) themeDesc.textContent = `Active Theme: ${themeDisplayName(theme)}`;
   if (typeof Sound !== 'undefined') {
     if (Sound.themeChange) Sound.themeChange();
     if (Sound.ambient && Sound.ambient.setTheme) {
@@ -4774,7 +6276,7 @@ const THEME_DATA_REGISTRY = [
   { id: 'glacier', name: 'Glacier', emblem: '❄️', rarity: 'TRIAL TOWER', rarityClass: 'epic', desc: 'Crystalline sub-zero permafrost radiating pristine arctic frost.', unlockHint: 'Unlocked by clearing Floor 15 in the Trial Tower', primary: '#67e8f9', panel: '#0e4a66', bg: '#082736' },
   { id: 'astral', name: 'Astral', emblem: '🌌', rarity: 'TRIAL TOWER', rarityClass: 'exotic', desc: 'Interstellar nebulas and distant spiral galaxies drifting in silent space.', unlockHint: 'Unlocked by clearing Floor 30 in the Trial Tower', primary: '#a855f7', panel: '#1f0b40', bg: '#09041a' },
   { id: 'celestial', name: 'Celestial', emblem: '☀️', rarity: 'TRIAL TOWER', rarityClass: 'mythic', desc: 'Radiant golden divine solar flares from the throne of the stars.', unlockHint: 'Unlocked by conquering Floor 50 in the Trial Tower', primary: '#fde047', panel: '#593c06', bg: '#261a04' },
-  { id: 'collector', name: '100% Collector', emblem: '🏆', rarity: 'COMPLETION', rarityClass: 'mythic', desc: 'Exclusive prismatic aura awarded only to the master card collection archivist.', unlockHint: 'Unlocked when 100% of all cards, spells, and chips are collected', primary: '#f43f5e', panel: '#292524', bg: '#1c1917' },
+  { id: 'prism', name: 'Prism Core', emblem: '💎', rarity: 'COMPLETION', rarityClass: 'mythic', desc: 'Living diamond crystal refractors with real-time chromatic spectrum dispersion, multi-faceted obsidian glass card framing, and celestial harmonic caustics.', unlockHint: 'Unlocked when 100% of all cards, spells, and chips are collected', primary: '#00f0ff', panel: '#040d1a', bg: '#020610' },
   { id: 'valentine', name: 'Valentine', emblem: '💘', rarity: 'SECRET', rarityClass: 'exotic', desc: 'Sweetheart confectionery theme filled with romantic rose petals.', unlockHint: 'Unlocked with secret code: LOVE', primary: '#fb7185', panel: '#881337', bg: '#4c0519' },
 ];
 
@@ -4784,7 +6286,7 @@ const SLEEVE_DATA_REGISTRY = [
   { id: 'sleeve_gold', name: 'Gold Sleeves', rarity: 'EPIC', rarityClass: 'epic', desc: 'Gilded 24k gold card borders with a warm pulsing royal glow.', cost: 600, sleeveClass: 'sleeve-gold' },
   { id: 'sleeve_crimson', name: 'Crimson Core Sleeves', rarity: 'RARE', rarityClass: 'rare', desc: 'High-intensity ruby red glowing combat edges for cards.', cost: 550, sleeveClass: 'sleeve-crimson' },
   { id: 'sleeve_prismatic', name: 'Prismatic Sleeves', rarity: 'LEGENDARY', rarityClass: 'legendary', desc: 'A continuously shifting spectrum frame rotating through chromatic colors.', cost: 800, sleeveClass: 'sleeve-prismatic' },
-  { id: 'sleeve_void', name: 'Void Sleeves', rarity: 'MYTHIC', rarityClass: 'mythic', desc: 'Deep-space dark matter cosmic frames pulsing with violet singularity energy.', cost: 1200, sleeveClass: 'sleeve-void' },
+  { id: 'sleeve_void', name: 'Void Sleeves', rarity: 'MYTHIC', rarityClass: 'mythic', desc: 'Deep-space cosmic void frames pulsing with violet singularity energy.', cost: 1200, sleeveClass: 'sleeve-void' },
   { id: 'sleeve_cyber', name: 'Cyber Circuit Sleeves', rarity: 'RARE', rarityClass: 'rare', desc: 'Glowing neon cyan circuit trace lines pulsing around card edges.', cost: 500, sleeveClass: 'sleeve-cyber' },
   { id: 'sleeve_frost', name: 'Glacial Frost Sleeves', rarity: 'EPIC', rarityClass: 'epic', desc: 'Crystalline ice borders with floating frost particle shimmer.', cost: 650, sleeveClass: 'sleeve-frost' },
   { id: 'sleeve_phoenix', name: 'Phoenix Ember Sleeves', rarity: 'LEGENDARY', rarityClass: 'legendary', desc: 'Radiant fiery flame borders shedding glowing phoenix sparks.', cost: 850, sleeveClass: 'sleeve-phoenix' },
@@ -4793,21 +6295,21 @@ const SLEEVE_DATA_REGISTRY = [
 ];
 
 const VICTORY_DATA_REGISTRY = [
-  { id: 'default_confetti', name: 'Classic Victory Confetti', rarity: 'STANDARD', rarityClass: 'rare', desc: 'Festive multicolored confetti burst upon securing victory.', cost: 0, animType: 'confetti' },
-  { id: 'victoryanim_meteor', name: 'Meteor Shower Victory', rarity: 'MYTHIC', rarityClass: 'mythic', desc: 'A blazing storm of meteors streaks down and erupts in explosive shockwaves when you win!', cost: 500, animType: 'meteor' },
-  { id: 'effect_confetti', name: 'Confetti+ Celebration', rarity: 'RARE', rarityClass: 'rare', desc: 'Denser, longer-lasting celebration confetti with enhanced gravity physics.', cost: 250, animType: 'confetti_plus' },
-  { id: 'effect_victoryburst', name: 'Victory Starburst', rarity: 'EPIC', rarityClass: 'epic', desc: 'A blazing central starburst explosion with shimmering golden shockwave rings.', cost: 350, animType: 'burst' },
-  { id: 'victoryanim_supernova', name: 'Cosmic Supernova', rarity: 'LEGENDARY', rarityClass: 'legendary', desc: 'Blinding stellar explosion and cosmic shockwave across the screen.', cost: 650, animType: 'burst' },
-  { id: 'effect_fireworks', name: 'Fireworks Spectacular', rarity: 'EPIC', rarityClass: 'epic', desc: 'Multiple bursting colorful sky fireworks on match victory.', cost: 400, animType: 'burst' },
-  { id: 'effect_cashrain', name: 'Bux Cash Rain', rarity: 'EPIC', rarityClass: 'epic', desc: 'Cascading golden coins and dollar bills falling across the victory banner.', cost: 450, animType: 'confetti_plus' },
-  { id: 'effect_lightning', name: 'Thunder Shockwave', rarity: 'RARE', rarityClass: 'rare', desc: 'Crackling electric lightning bolts striking the victory podium.', cost: 380, animType: 'burst' },
-  { id: 'effect_starfountain', name: 'Golden Star Fountain', rarity: 'RARE', rarityClass: 'rare', desc: 'A erupting fountain of spinning golden stars and glitter particles.', cost: 300, animType: 'burst' },
-  { id: 'effect_dragonflame', name: 'Dragon Flame Aura', rarity: 'LEGENDARY', rarityClass: 'legendary', desc: 'A roaring dragon fire vortex swirling around your victory rank.', cost: 600, animType: 'meteor' },
-  { id: 'victoryanim_blackhole', name: 'Singularity Black Hole', rarity: 'MYTHIC', rarityClass: 'mythic', desc: 'A swirling black hole devours the battlefield upon your ultimate win.', cost: 750, animType: 'meteor' },
-  { id: 'victoryanim_orbital', name: 'Orbital Laser Strike', rarity: 'LEGENDARY', rarityClass: 'legendary', desc: 'A massive satellite laser beam blasts down with screen-shaking impact.', cost: 700, animType: 'meteor' },
-  { id: 'victoryanim_blizzard', name: 'Subzero Frost Shatter', rarity: 'EPIC', rarityClass: 'epic', desc: 'Flash-freezes the arena into solid ice before shattering into crystalline shards.', cost: 550, animType: 'burst' },
-  { id: 'victoryanim_nuke', name: 'Tactical Nuke Blast', rarity: 'MYTHIC', rarityClass: 'mythic', desc: 'A dramatic nuclear countdown mushroom cloud shockwave across the UI.', cost: 800, animType: 'meteor' },
-  { id: 'victoryanim_phoenix', name: 'Phoenix Rebirth Finisher', rarity: 'LEGENDARY', rarityClass: 'legendary', desc: 'A magnificent flaming phoenix spreads its wings in golden fire.', cost: 650, animType: 'burst' },
+  { id: 'default_confetti', name: 'Classic Victory Confetti', rarity: 'STANDARD', rarityClass: 'rare', glyph: '🎊', desc: 'Festive multicolored confetti burst upon securing victory.', cost: 0, animType: 'confetti' },
+  { id: 'victoryanim_meteor', name: 'Meteor Shower Victory', rarity: 'MYTHIC', rarityClass: 'mythic', glyph: '☄️', desc: 'A blazing storm of meteors streaks down and erupts in explosive shockwaves when you win!', cost: 500, animType: 'meteor' },
+  { id: 'effect_confetti', name: 'Confetti+ Celebration', rarity: 'RARE', rarityClass: 'rare', glyph: '🎉', desc: 'Denser, longer-lasting celebration confetti with enhanced gravity physics.', cost: 250, animType: 'confetti_plus' },
+  { id: 'effect_victoryburst', name: 'Victory Starburst', rarity: 'EPIC', rarityClass: 'epic', glyph: '🌟', desc: 'A blazing central starburst explosion with shimmering golden shockwave rings.', cost: 350, animType: 'burst' },
+  { id: 'victoryanim_supernova', name: 'Cosmic Supernova', rarity: 'LEGENDARY', rarityClass: 'legendary', glyph: '🌌', desc: 'Blinding stellar explosion and cosmic shockwave across the screen.', cost: 650, animType: 'burst' },
+  { id: 'effect_fireworks', name: 'Fireworks Spectacular', rarity: 'EPIC', rarityClass: 'epic', glyph: '🎆', desc: 'Multiple bursting colorful sky fireworks on match victory.', cost: 400, animType: 'burst' },
+  { id: 'effect_cashrain', name: 'Bux Cash Rain', rarity: 'EPIC', rarityClass: 'epic', glyph: '💵', desc: 'Cascading golden coins and dollar bills falling across the victory banner.', cost: 450, animType: 'confetti_plus' },
+  { id: 'effect_lightning', name: 'Thunder Shockwave', rarity: 'RARE', rarityClass: 'rare', glyph: '⚡', desc: 'Crackling electric lightning bolts striking the victory podium.', cost: 380, animType: 'burst' },
+  { id: 'effect_starfountain', name: 'Golden Star Fountain', rarity: 'RARE', rarityClass: 'rare', glyph: '⭐', desc: 'A erupting fountain of spinning golden stars and glitter particles.', cost: 300, animType: 'burst' },
+  { id: 'effect_dragonflame', name: 'Dragon Flame Aura', rarity: 'LEGENDARY', rarityClass: 'legendary', glyph: '🐉', desc: 'A roaring dragon fire vortex swirling around your victory rank.', cost: 600, animType: 'meteor' },
+  { id: 'victoryanim_blackhole', name: 'Singularity Black Hole', rarity: 'MYTHIC', rarityClass: 'mythic', glyph: '🕳️', desc: 'A swirling black hole devours the battlefield upon your ultimate win.', cost: 750, animType: 'meteor' },
+  { id: 'victoryanim_orbital', name: 'Orbital Laser Strike', rarity: 'LEGENDARY', rarityClass: 'legendary', glyph: '🛰️', desc: 'A massive satellite laser beam blasts down with screen-shaking impact.', cost: 700, animType: 'meteor' },
+  { id: 'victoryanim_blizzard', name: 'Subzero Frost Shatter', rarity: 'EPIC', rarityClass: 'epic', glyph: '❄️', desc: 'Flash-freezes the arena into solid ice before shattering into crystalline shards.', cost: 550, animType: 'burst' },
+  { id: 'victoryanim_nuke', name: 'Tactical Nuke Blast', rarity: 'MYTHIC', rarityClass: 'mythic', glyph: '☢️', desc: 'A dramatic nuclear countdown mushroom cloud shockwave across the UI.', cost: 800, animType: 'meteor' },
+  { id: 'victoryanim_phoenix', name: 'Phoenix Rebirth Finisher', rarity: 'LEGENDARY', rarityClass: 'legendary', glyph: '🦅', desc: 'A magnificent flaming phoenix spreads its wings in golden fire.', cost: 650, animType: 'burst' },
 ];
 
 function openCollectionBook(initialTab = 'cards') {
@@ -4866,7 +6368,7 @@ const CHIP_RARITIES = {
 };
 
 // Start or stop live particle canvas preview for victory effects
-function startVictoryPreviewCanvas(animType) {
+function startVictoryPreviewCanvas(effectIdOrType) {
   if (victoryPreviewAnimTimer) {
     cancelAnimationFrame(victoryPreviewAnimTimer);
     victoryPreviewAnimTimer = null;
@@ -4879,39 +6381,173 @@ function startVictoryPreviewCanvas(animType) {
   const w = (canvas.width = canvas.parentElement ? canvas.parentElement.clientWidth || 320 : 320);
   const h = (canvas.height = canvas.parentElement ? canvas.parentElement.clientHeight || 200 : 200);
 
-  const particles = [];
-  const meteors = [];
-  const shockwaves = [];
+  const raw = (effectIdOrType || '').toLowerCase();
+  let mode = 'confetti';
+  if (raw.includes('nuke')) mode = 'nuke';
+  else if (raw.includes('supernova')) mode = 'supernova';
+  else if (raw.includes('phoenix')) mode = 'phoenix';
+  else if (raw.includes('orbital') || raw.includes('laser')) mode = 'orbital';
+  else if (raw.includes('blackhole') || raw.includes('singularity') || raw.includes('hole')) mode = 'blackhole';
+  else if (raw.includes('blizzard') || raw.includes('frost')) mode = 'blizzard';
+  else if (raw.includes('dragon') || raw.includes('flame')) mode = 'dragon';
+  else if (raw.includes('lightning') || raw.includes('thunder')) mode = 'lightning';
+  else if (raw.includes('cash') || raw.includes('bux')) mode = 'cash';
+  else if (raw.includes('starfountain') || raw.includes('fountain')) mode = 'fountain';
+  else if (raw.includes('firework')) mode = 'fireworks';
+  else if (raw.includes('starburst') || (raw.includes('burst') && !raw.includes('plus'))) mode = 'starburst';
+  else if (raw.includes('meteor')) mode = 'meteor';
+  else if (raw.includes('plus') || raw.includes('effect_confetti')) mode = 'confetti_plus';
 
-  if (animType === 'meteor') {
-    for (let i = 0; i < 6; i++) {
-      meteors.push({
+  const particles = [];
+  const secondary = [];
+  const shockwaves = [];
+  let timer = 0;
+
+  if (mode === 'meteor') {
+    for (let i = 0; i < 5; i++) {
+      particles.push({
         x: Math.random() * w * 0.9 - w * 0.1,
-        y: -20 - Math.random() * 120,
+        y: -20 - Math.random() * 80,
         vx: 3.5 + Math.random() * 2.5,
         vy: 5.5 + Math.random() * 3.5,
         trail: [],
         color: Math.random() > 0.35 ? '#ff5500' : '#ffaa00',
-        radius: 3 + Math.random() * 2.5,
-        hasExploded: false
+        radius: 3 + Math.random() * 2.5
       });
     }
-  } else if (animType === 'burst') {
+  } else if (mode === 'cash') {
+    for (let i = 0; i < 22; i++) {
+      particles.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 1.5,
+        vy: 1.5 + Math.random() * 2.5,
+        rot: Math.random() * 360,
+        vrot: (Math.random() - 0.5) * 6,
+        isCoin: i % 2 === 0,
+        bounces: 0
+      });
+    }
+  } else if (mode === 'blackhole') {
+    for (let i = 0; i < 40; i++) {
+      particles.push({
+        angle: Math.random() * Math.PI * 2,
+        dist: 20 + Math.random() * 70,
+        speed: 0.8 + Math.random() * 1.5,
+        color: ['#a855f7', '#c084fc', '#38bdf8', '#ffffff'][i % 4],
+        size: 1.5 + Math.random() * 2
+      });
+    }
+  } else if (mode === 'blizzard') {
+    for (let i = 0; i < 50; i++) {
+      particles.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: -(2 + Math.random() * 3.5),
+        vy: 1.5 + Math.random() * 2.5,
+        radius: 1.5 + Math.random() * 2.5,
+        rot: Math.random() * 360,
+        vrot: (Math.random() - 0.5) * 8
+      });
+    }
+  } else if (mode === 'fountain') {
+    for (let i = 0; i < 35; i++) {
+      const angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.7;
+      const spd = 4.5 + Math.random() * 5.5;
+      particles.push({
+        x: w / 2,
+        y: h,
+        vx: Math.cos(angle) * spd,
+        vy: Math.sin(angle) * spd,
+        rot: Math.random() * 360,
+        vrot: (Math.random() - 0.5) * 12,
+        color: ['#facc15', '#fef08a', '#fbbf24', '#ffffff'][i % 4],
+        size: 3 + Math.random() * 3.5
+      });
+    }
+  } else if (mode === 'dragon') {
+    for (let i = 0; i < 45; i++) {
+      particles.push({
+        angle: (i / 45) * Math.PI * 4,
+        spiralArm: i % 2 === 0 ? 1 : -1,
+        life: Math.random() * 60,
+        maxLife: 60,
+        color: ['#ff4400', '#ff8800', '#ffcc00', '#ffffff'][i % 4],
+        size: 2.5 + Math.random() * 3
+      });
+    }
+  } else if (mode === 'nuke') {
+    for (let i = 0; i < 50; i++) {
+      particles.push({
+        x: w / 2 + (Math.random() - 0.5) * 16,
+        y: h * 0.85,
+        vx: (Math.random() - 0.5) * 2,
+        vy: -(1.5 + Math.random() * 3.5),
+        radius: 3 + Math.random() * 4,
+        maxRadius: 12 + Math.random() * 12,
+        life: 0,
+        maxLife: 50 + Math.random() * 30,
+        color: ['#ef4444', '#f97316', '#eab308', '#ffffff'][i % 4]
+      });
+    }
+  } else if (mode === 'phoenix') {
+    for (let i = 0; i < 45; i++) {
+      particles.push({
+        x: w / 2,
+        y: h * 0.65,
+        vx: (Math.random() - 0.5) * 3.5,
+        vy: -(1.5 + Math.random() * 3.5),
+        life: 0,
+        maxLife: 40 + Math.random() * 30,
+        color: ['#fbbf24', '#f97316', '#ef4444', '#fff7ed'][i % 4],
+        size: 2 + Math.random() * 3.5
+      });
+    }
+  } else if (mode === 'fireworks') {
+    for (let i = 0; i < 4; i++) {
+      secondary.push({
+        x: w * 0.2 + (i * w * 0.2),
+        y: h + 10,
+        targetY: h * 0.2 + (i % 2) * (h * 0.25),
+        vy: -(4 + Math.random() * 2),
+        color: ['#ef4444', '#3b82f6', '#10b981', '#facc15', '#a855f7'][i % 5],
+        exploded: false,
+        sparks: []
+      });
+    }
+  } else if (mode === 'confetti_plus') {
+    for (let i = 0; i < 55; i++) {
+      const isLeft = i % 2 === 0;
+      const angle = isLeft ? -Math.PI * 0.3 + (Math.random() - 0.5) * 0.4 : -Math.PI * 0.7 + (Math.random() - 0.5) * 0.4;
+      const spd = 3.5 + Math.random() * 5.5;
+      particles.push({
+        x: isLeft ? 10 : w - 10,
+        y: h - 10,
+        vx: Math.cos(angle) * spd,
+        vy: Math.sin(angle) * spd,
+        rot: Math.random() * 360,
+        vrot: (Math.random() - 0.5) * 10,
+        color: ['#f43f5e', '#3b82f6', '#10b981', '#facc15', '#a855f7', '#ec4899', '#ffffff', '#fb923c'][i % 8],
+        size: 3.5 + Math.random() * 4.5,
+        shape: Math.random() > 0.4 ? 'rect' : 'circle',
+        isLeft
+      });
+    }
+  } else if (mode === 'starburst' || mode === 'supernova') {
     for (let r = 0; r < 2; r++) {
       shockwaves.push({
         x: w / 2,
         y: h / 2,
         radius: 5,
         maxRadius: Math.min(w, h) * 0.45,
-        speed: 3 + r * 1.5,
+        speed: 2.5 + r * 1.5,
         alpha: 0.9,
-        color: r === 0 ? '#facc15' : '#38bdf8',
-        delay: r * 30
+        color: mode === 'supernova' ? '#c084fc' : '#facc15'
       });
     }
-    for (let i = 0; i < 45; i++) {
-      const angle = (Math.PI * 2 * i) / 45 + (Math.random() - 0.5) * 0.4;
-      const speed = 1.2 + Math.random() * 3.8;
+    for (let i = 0; i < 40; i++) {
+      const angle = (Math.PI * 2 * i) / 40;
+      const speed = 1.2 + Math.random() * 3.5;
       particles.push({
         x: w / 2,
         y: h / 2,
@@ -4919,14 +6555,13 @@ function startVictoryPreviewCanvas(animType) {
         vy: Math.sin(angle) * speed,
         life: 0,
         maxLife: 45 + Math.random() * 35,
-        color: ['#facc15', '#f59e0b', '#38bdf8', '#ec4899', '#ffffff', '#a855f7'][Math.floor(Math.random() * 6)],
-        size: 2 + Math.random() * 3,
-        decay: 0.97
+        color: mode === 'supernova' ? ['#c084fc', '#e879f9', '#38bdf8', '#ffffff'][i % 4] : ['#facc15', '#f59e0b', '#38bdf8', '#ffffff'][i % 4],
+        size: 2 + Math.random() * 3
       });
     }
   } else {
-    // Confetti or Confetti+
-    const count = animType === 'confetti_plus' ? 65 : 35;
+    // Classic Confetti
+    const count = 35;
     const colors = ['#f43f5e', '#3b82f6', '#10b981', '#facc15', '#a855f7', '#ec4899', '#ffffff', '#fb923c'];
     for (let i = 0; i < count; i++) {
       particles.push({
@@ -4936,7 +6571,7 @@ function startVictoryPreviewCanvas(animType) {
         vy: 1.4 + Math.random() * 2.5,
         rot: Math.random() * 360,
         vrot: (Math.random() - 0.5) * 6,
-        color: colors[Math.floor(Math.random() * colors.length)],
+        color: colors[i % colors.length],
         size: 3.5 + Math.random() * 4.5,
         shape: Math.random() > 0.4 ? 'rect' : 'circle'
       });
@@ -4944,13 +6579,322 @@ function startVictoryPreviewCanvas(animType) {
   }
 
   function loop() {
-    ctx.fillStyle = 'rgba(5, 7, 14, 0.22)';
+    timer++;
+    ctx.fillStyle = 'rgba(5, 7, 14, 0.25)';
     ctx.fillRect(0, 0, w, h);
 
-    if (animType === 'meteor') {
-      meteors.forEach(m => {
+    if (mode === 'nuke') {
+      // Periodic alert pulse
+      const phase = timer % 120;
+      if (phase < 18) {
+        ctx.fillStyle = `rgba(239, 68, 68, ${0.35 * (1 - phase / 18)})`;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      // Detonation shockwave
+      if (phase === 20) {
+        shockwaves.push({ x: w / 2, y: h * 0.8, radius: 4, maxRadius: w * 0.6, speed: 4, color: '#f59e0b' });
+      }
+
+      shockwaves.forEach((sw, idx) => {
+        sw.radius += sw.speed;
+        const alpha = Math.max(0, 1 - sw.radius / sw.maxRadius);
+        ctx.beginPath();
+        ctx.ellipse(sw.x, sw.y, sw.radius, sw.radius * 0.35, 0, 0, Math.PI * 2);
+        ctx.strokeStyle = sw.color;
+        ctx.lineWidth = 3 * alpha;
+        ctx.stroke();
+        if (sw.radius >= sw.maxRadius) shockwaves.splice(idx, 1);
+      });
+
+      // Rising nuclear cloud particles
+      particles.forEach(p => {
+        p.life++;
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.y < h * 0.4) {
+          p.vx *= 1.05;
+          p.radius = Math.min(p.maxRadius, p.radius + 0.3);
+        }
+        const alpha = Math.max(0, 1 - p.life / p.maxLife);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 8;
+        ctx.globalAlpha = alpha * 0.85;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+
+        if (p.life >= p.maxLife || phase === 0) {
+          p.x = w / 2 + (Math.random() - 0.5) * 16;
+          p.y = h * 0.82;
+          p.vx = (Math.random() - 0.5) * 2;
+          p.vy = -(1.5 + Math.random() * 3.5);
+          p.radius = 3 + Math.random() * 4;
+          p.life = 0;
+        }
+      });
+
+      // Hazard badge indicator
+      ctx.fillStyle = '#ef4444';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('☢️', w / 2, h * 0.92);
+
+    } else if (mode === 'phoenix') {
+      const wingY = h * 0.55 + Math.sin(timer * 0.1) * 6;
+      const wingSpan = 32 + Math.sin(timer * 0.15) * 12;
+
+      // Fiery wing curves
+      ctx.strokeStyle = '#f97316';
+      ctx.shadowColor = '#f97316';
+      ctx.shadowBlur = 14;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(w / 2, wingY + 10);
+      ctx.quadraticCurveTo(w / 2 - wingSpan, wingY - 20, w / 2 - wingSpan * 1.5, wingY + 6);
+      ctx.moveTo(w / 2, wingY + 10);
+      ctx.quadraticCurveTo(w / 2 + wingSpan, wingY - 20, w / 2 + wingSpan * 1.5, wingY + 6);
+      ctx.stroke();
+
+      ctx.fillStyle = '#fef08a';
+      ctx.shadowColor = '#fbbf24';
+      ctx.shadowBlur = 16;
+      ctx.beginPath();
+      ctx.arc(w / 2, wingY, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      particles.forEach(p => {
+        p.life++;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vx *= 0.98;
+        const alpha = Math.max(0, 1 - p.life / p.maxLife);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 8;
+        ctx.globalAlpha = alpha;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+
+        if (p.life >= p.maxLife) {
+          p.x = w / 2 + (Math.random() - 0.5) * wingSpan;
+          p.y = wingY;
+          p.vx = (Math.random() - 0.5) * 3.5;
+          p.vy = -(1.5 + Math.random() * 3.5);
+          p.life = 0;
+        }
+      });
+
+    } else if (mode === 'dragon') {
+      particles.forEach(p => {
+        p.life++;
+        p.angle += 0.05 * p.spiralArm;
+        const radius = (1 - p.life / p.maxLife) * (w * 0.38);
+        const px = w / 2 + Math.cos(p.angle) * radius;
+        const py = h * 0.85 - (p.life / p.maxLife) * (h * 0.7);
+
+        ctx.beginPath();
+        ctx.arc(px, py, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        if (p.life >= p.maxLife) {
+          p.life = 0;
+        }
+      });
+
+      // Central dragon core glow
+      ctx.fillStyle = '#ff8800';
+      ctx.shadowColor = '#ff4400';
+      ctx.shadowBlur = 16;
+      ctx.beginPath();
+      ctx.arc(w / 2, h * 0.5, 8 + Math.sin(timer * 0.2) * 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+    } else if (mode === 'fireworks') {
+      secondary.forEach(r => {
+        if (!r.exploded) {
+          r.y += r.vy;
+          ctx.beginPath();
+          ctx.arc(r.x, r.y, 3, 0, Math.PI * 2);
+          ctx.fillStyle = '#fff7ed';
+          ctx.shadowColor = r.color;
+          ctx.shadowBlur = 10;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+
+          if (r.y <= r.targetY) {
+            r.exploded = true;
+            for (let i = 0; i < 24; i++) {
+              const ang = (Math.PI * 2 * i) / 24;
+              const spd = 1.2 + Math.random() * 3;
+              r.sparks.push({
+                x: r.x,
+                y: r.y,
+                vx: Math.cos(ang) * spd,
+                vy: Math.sin(ang) * spd,
+                life: 0,
+                maxLife: 30 + Math.random() * 15,
+                color: r.color
+              });
+            }
+          }
+        } else {
+          let alive = 0;
+          r.sparks.forEach(s => {
+            s.life++;
+            s.x += s.vx;
+            s.y += s.vy;
+            s.vy += 0.05;
+            if (s.life < s.maxLife) {
+              alive++;
+              const alpha = 1 - s.life / s.maxLife;
+              ctx.beginPath();
+              ctx.arc(s.x, s.y, 2 * alpha, 0, Math.PI * 2);
+              ctx.fillStyle = s.color;
+              ctx.shadowColor = s.color;
+              ctx.shadowBlur = 6;
+              ctx.globalAlpha = alpha;
+              ctx.fill();
+              ctx.shadowBlur = 0;
+              ctx.globalAlpha = 1;
+            }
+          });
+          if (alive === 0) {
+            r.y = h + 10;
+            r.targetY = h * 0.15 + Math.random() * (h * 0.4);
+            r.exploded = false;
+            r.sparks = [];
+          }
+        }
+      });
+
+    } else if (mode === 'orbital') {
+      const reticleAngle = timer * 0.04;
+      const targetX = w / 2;
+      const targetY = h / 2;
+
+      // Holographic targeting circle
+      ctx.strokeStyle = '#38bdf8';
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 12;
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.arc(targetX, targetY, 24, reticleAngle, reticleAngle + Math.PI * 1.5);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(targetX, targetY, 14, -reticleAngle, -reticleAngle + Math.PI * 1.5);
+      ctx.stroke();
+
+      // Pulsing laser column
+      const laserWidth = 22 + Math.sin(timer * 0.15) * 8;
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.45)';
+      ctx.fillRect(targetX - laserWidth / 2, 0, laserWidth, h);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      ctx.fillRect(targetX - 3, 0, 6, h);
+
+      // Impact ground flare
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.ellipse(targetX, h * 0.9, laserWidth * 1.4, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+    } else if (mode === 'blackhole') {
+      // Gravitational singularity core
+      ctx.beginPath();
+      ctx.arc(w / 2, h / 2, 16, 0, Math.PI * 2);
+      ctx.fillStyle = '#05070f';
+      ctx.shadowColor = '#a855f7';
+      ctx.shadowBlur = 18;
+      ctx.fill();
+
+      // Accretion disk
+      ctx.beginPath();
+      ctx.ellipse(w / 2, h / 2, 38, 14, timer * 0.03, 0, Math.PI * 2);
+      ctx.strokeStyle = '#c084fc';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      particles.forEach(p => {
+        p.angle += 0.04;
+        p.dist -= p.speed;
+        if (p.dist <= 8) p.dist = 25 + Math.random() * 65;
+        const px = w / 2 + Math.cos(p.angle) * p.dist;
+        const py = h / 2 + Math.sin(p.angle) * (p.dist * 0.55);
+        ctx.beginPath();
+        ctx.arc(px, py, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
+      });
+
+    } else if (mode === 'blizzard') {
+      // Ice crystal border shimmer
+      ctx.strokeStyle = 'rgba(186, 230, 253, 0.6)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(4, 4, w - 8, h - 8);
+
+      particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rot += p.vrot;
+        if (p.x < 0) p.x = w + 10;
+        if (p.y > h) p.y = -5;
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate((p.rot * Math.PI) / 180);
+        ctx.fillStyle = '#e0f2fe';
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 4;
+        ctx.beginPath();
+        ctx.moveTo(0, -p.radius);
+        ctx.lineTo(p.radius * 0.7, p.radius);
+        ctx.lineTo(-p.radius * 0.7, p.radius);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      });
+
+    } else if (mode === 'lightning') {
+      if (timer % 24 < 9) {
+        ctx.strokeStyle = '#38bdf8';
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 16;
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        let curX = w * 0.4 + (Math.random() - 0.5) * 30;
+        let curY = 0;
+        ctx.moveTo(curX, curY);
+        while (curY < h) {
+          curX += (Math.random() - 0.5) * 28;
+          curY += 18 + Math.random() * 22;
+          ctx.lineTo(curX, curY);
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // Ground ripple
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.3)';
+        ctx.fillRect(0, 0, w, h);
+      }
+
+    } else if (mode === 'meteor') {
+      particles.forEach(m => {
         m.trail.push({ x: m.x, y: m.y });
-        if (m.trail.length > 10) m.trail.shift();
+        if (m.trail.length > 9) m.trail.shift();
         m.x += m.vx;
         m.y += m.vy;
 
@@ -4967,90 +6911,140 @@ function startVictoryPreviewCanvas(animType) {
         ctx.arc(m.x, m.y, m.radius, 0, Math.PI * 2);
         ctx.fillStyle = '#fff7ed';
         ctx.shadowColor = '#f97316';
-        ctx.shadowBlur = 12;
+        ctx.shadowBlur = 10;
         ctx.fill();
         ctx.shadowBlur = 0;
 
         if (m.y > h * 0.88 || m.x > w) {
-          if (!m.hasExploded) {
-            m.hasExploded = true;
-            shockwaves.push({
-              x: m.x,
-              y: Math.min(m.y, h - 10),
-              radius: 2,
-              maxRadius: 28,
-              speed: 2.5,
-              alpha: 1,
-              color: '#f97316'
-            });
-          }
-          if (m.y > h + 20 || m.x > w + 20) {
-            m.x = Math.random() * w * 0.7 - w * 0.1;
-            m.y = -20 - Math.random() * 60;
-            m.trail = [];
-            m.hasExploded = false;
-          }
+          m.x = Math.random() * w * 0.7 - w * 0.1;
+          m.y = -20 - Math.random() * 60;
+          m.trail = [];
         }
       });
 
-      shockwaves.forEach((sw, idx) => {
-        sw.radius += sw.speed;
-        sw.alpha = Math.max(0, 1 - sw.radius / sw.maxRadius);
-        ctx.beginPath();
-        ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
-        ctx.strokeStyle = sw.color;
-        ctx.lineWidth = 2 * sw.alpha;
-        ctx.globalAlpha = sw.alpha;
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-        if (sw.radius >= sw.maxRadius) shockwaves.splice(idx, 1);
+    } else if (mode === 'cash') {
+      particles.forEach(p => {
+        p.y += p.vy;
+        p.rot += p.vrot;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate((p.rot * Math.PI) / 180);
+        if (p.isCoin) {
+          ctx.beginPath();
+          ctx.arc(0, 0, 5, 0, Math.PI * 2);
+          ctx.fillStyle = '#facc15';
+          ctx.fill();
+          ctx.strokeStyle = '#ca8a04';
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = '#166534';
+          ctx.fillRect(-9, -5, 18, 10);
+          ctx.strokeStyle = '#86efac';
+          ctx.strokeRect(-8, -4, 16, 8);
+        }
+        ctx.restore();
+        if (p.y > h + 10) {
+          p.y = -10;
+          p.x = Math.random() * w;
+        }
       });
 
-    } else if (animType === 'burst') {
+    } else if (mode === 'fountain') {
+      particles.forEach(p => {
+        p.vy += 0.16;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rot += p.vrot;
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate((p.rot * Math.PI) / 180);
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        for (let i = 0; i < 5; i++) {
+          ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * p.size, -Math.sin((18 + i * 72) * Math.PI / 180) * p.size);
+          ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * (p.size * 0.45), -Math.sin((54 + i * 72) * Math.PI / 180) * (p.size * 0.45));
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        if (p.y > h) {
+          p.x = w / 2;
+          p.y = h;
+          const angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.7;
+          const spd = 4.5 + Math.random() * 5.5;
+          p.vx = Math.cos(angle) * spd;
+          p.vy = Math.sin(angle) * spd;
+        }
+      });
+
+    } else if (mode === 'confetti_plus') {
+      particles.forEach(p => {
+        p.vy += 0.12;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rot += p.vrot;
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate((p.rot * Math.PI) / 180);
+        ctx.fillStyle = p.color;
+        if (p.shape === 'rect') {
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 2);
+        } else {
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        if (p.y > h) {
+          p.x = p.isLeft ? 10 : w - 10;
+          p.y = h - 10;
+          const angle = p.isLeft ? -Math.PI * 0.3 + (Math.random() - 0.5) * 0.4 : -Math.PI * 0.7 + (Math.random() - 0.5) * 0.4;
+          const spd = 3.5 + Math.random() * 5.5;
+          p.vx = Math.cos(angle) * spd;
+          p.vy = Math.sin(angle) * spd;
+        }
+      });
+
+    } else if (mode === 'starburst' || mode === 'supernova') {
       shockwaves.forEach(sw => {
         sw.radius += sw.speed;
         sw.alpha = Math.max(0, 1 - sw.radius / sw.maxRadius);
         ctx.beginPath();
         ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
         ctx.strokeStyle = sw.color;
-        ctx.lineWidth = 3 * sw.alpha;
-        ctx.globalAlpha = sw.alpha;
+        ctx.lineWidth = 2.5 * sw.alpha;
         ctx.stroke();
-        ctx.globalAlpha = 1;
-        if (sw.radius >= sw.maxRadius) {
-          sw.radius = 2;
-        }
+        if (sw.radius >= sw.maxRadius) sw.radius = 2;
       });
 
       particles.forEach(p => {
         p.x += p.vx;
         p.y += p.vy;
-        p.vx *= p.decay;
-        p.vy *= p.decay;
         p.life++;
         const alpha = Math.max(0, 1 - p.life / p.maxLife);
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
         ctx.fillStyle = p.color;
-        ctx.shadowColor = p.color;
-        ctx.shadowBlur = 6;
-        ctx.globalAlpha = alpha;
         ctx.fill();
-        ctx.shadowBlur = 0;
-        ctx.globalAlpha = 1;
-
         if (p.life >= p.maxLife) {
           p.x = w / 2;
           p.y = h / 2;
           const angle = Math.random() * Math.PI * 2;
-          const speed = 1.2 + Math.random() * 3.8;
-          p.vx = Math.cos(angle) * speed;
-          p.vy = Math.sin(angle) * speed;
+          const spd = 1.2 + Math.random() * 3.5;
+          p.vx = Math.cos(angle) * spd;
+          p.vy = Math.sin(angle) * spd;
           p.life = 0;
         }
       });
 
     } else {
+      // Classic Confetti
       particles.forEach(p => {
         p.x += p.vx + Math.sin(p.y / 20) * 0.6;
         p.y += p.vy;
@@ -5205,9 +7199,10 @@ function inspectLockerItem(item, animate = false) {
     const isCurrent = currentTheme === item.id;
     const isUnlocked = isThemeUnlocked(item.id);
 
-    // Get live animated background effects for this theme if available in DOM
-    const themeBgDom = document.getElementById('theme-' + item.id + '-bg');
-    const bgEffectsHtml = themeBgDom ? themeBgDom.innerHTML : '';
+    // Get live animated background effects for this theme if available in templates or DOM
+    const bgEffectsHtml = (window.THEME_TEMPLATES && window.THEME_TEMPLATES[item.id])
+      ? window.THEME_TEMPLATES[item.id]
+      : (document.getElementById('theme-' + item.id + '-bg') ? document.getElementById('theme-' + item.id + '-bg').innerHTML : '');
 
     showcaseStage.innerHTML = `
       <div class="showcase-theme-canvas theme-${item.id}" style="background: ${item.bg}; border-color: ${item.primary}; box-shadow: 0 16px 40px ${item.primary}40;">
@@ -5315,7 +7310,7 @@ function inspectLockerItem(item, animate = false) {
         <canvas id="victory-preview-canvas" class="victory-preview-canvas"></canvas>
       </div>`;
 
-    startVictoryPreviewCanvas(item.animType || 'confetti');
+    startVictoryPreviewCanvas(item.id || item.animType || 'confetti');
 
     if (showcaseDesc) {
       showcaseDesc.innerHTML = `
@@ -5331,7 +7326,7 @@ function inspectLockerItem(item, animate = false) {
       testAnimBtn.style.display = 'inline-flex';
       testAnimBtn.onclick = () => {
         if (typeof playVictoryFinisherEffect === 'function') {
-          playVictoryFinisherEffect(item.animType || item.id);
+          playVictoryFinisherEffect(item.id || item.animType);
         } else if (typeof playMeteorShowerEffect !== 'undefined' && (item.animType === 'meteor' || item.id === 'victoryanim_meteor')) {
           playMeteorShowerEffect(() => {});
         } else if (typeof launchConfetti !== 'undefined') {
@@ -5413,6 +7408,96 @@ function setupLockerCategoryTabs() {
 function renderCollectionScreen(activeTopTab = 'cards') {
   currentLockerTopTab = activeTopTab;
   const col = loadCollection();
+  const sortVal = document.getElementById('collection-sort')?.value || 'tier';
+
+  function getSortedList(arr, type) {
+    const list = [...arr];
+    if (sortVal === 'name') {
+      list.sort((a, b) => {
+        const nameA = typeof a === 'string' ? a : (a.name || '');
+        const nameB = typeof b === 'string' ? b : (b.name || '');
+        let resolvedA = nameA;
+        let resolvedB = nameB;
+        if (type === 'spell' && typeof a === 'string') {
+          const sp = typeof SPELL_DEFS !== 'undefined' ? SPELL_DEFS.find(s => s.id === a) : null;
+          resolvedA = sp ? sp.name : a;
+        }
+        if (type === 'spell' && typeof b === 'string') {
+          const sp = typeof SPELL_DEFS !== 'undefined' ? SPELL_DEFS.find(s => s.id === b) : null;
+          resolvedB = sp ? sp.name : b;
+        }
+        if (type === 'chip' && typeof a === 'string') {
+          const ch = typeof CHIP_DEFS !== 'undefined' ? CHIP_DEFS.find(c => c.id === a) : null;
+          resolvedA = ch ? ch.name : a;
+        }
+        if (type === 'chip' && typeof b === 'string') {
+          const ch = typeof CHIP_DEFS !== 'undefined' ? CHIP_DEFS.find(c => c.id === b) : null;
+          resolvedB = ch ? ch.name : b;
+        }
+        return resolvedA.localeCompare(resolvedB);
+      });
+    } else if (sortVal === 'recent') {
+      list.sort((a, b) => {
+        let ownedA = false;
+        let ownedB = false;
+        let indexA = -1;
+        let indexB = -1;
+
+        if (type === 'unit') {
+          ownedA = isUnitArchetypeOwned(a.id);
+          ownedB = isUnitArchetypeOwned(b.id);
+          indexA = col.units.indexOf(a.id);
+          indexB = col.units.indexOf(b.id);
+          if (a.tier === 1 || a.id.startsWith('u1')) indexA = indexA === -1 ? 0 : indexA;
+          if (b.tier === 1 || b.id.startsWith('u1')) indexB = indexB === -1 ? 0 : indexB;
+        } else if (type === 'spell') {
+          ownedA = isSpellOwned(a);
+          ownedB = isSpellOwned(b);
+          indexA = col.spells.indexOf(a);
+          indexB = col.spells.indexOf(b);
+        } else if (type === 'chip') {
+          ownedA = isChipOwned(a);
+          ownedB = isChipOwned(b);
+          indexA = col.chips.indexOf(a);
+          indexB = col.chips.indexOf(b);
+        } else if (type === 'theme') {
+          ownedA = isThemeUnlocked(a.id);
+          ownedB = isThemeUnlocked(b.id);
+          const ownedCos = loadOwnedCosmetics();
+          indexA = ownedCos.indexOf('theme_' + a.id);
+          if (indexA === -1) indexA = ownedCos.indexOf(a.id);
+          indexB = ownedCos.indexOf('theme_' + b.id);
+          if (indexB === -1) indexB = ownedCos.indexOf(b.id);
+          if (a.id === 'dark' || a.id === 'light') indexA = 0;
+          if (b.id === 'dark' || b.id === 'light') indexB = 0;
+        } else if (type === 'sleeve') {
+          ownedA = a.id === 'none' || ownsCosmetic(a.id);
+          ownedB = b.id === 'none' || ownsCosmetic(b.id);
+          const ownedCos = loadOwnedCosmetics();
+          indexA = ownedCos.indexOf(a.id);
+          indexB = ownedCos.indexOf(b.id);
+          if (a.id === 'none') indexA = 0;
+          if (b.id === 'none') indexB = 0;
+        } else if (type === 'victory') {
+          ownedA = a.id === 'default_confetti' || ownsCosmetic(a.id);
+          ownedB = b.id === 'default_confetti' || ownsCosmetic(b.id);
+          const ownedCos = loadOwnedCosmetics();
+          indexA = ownedCos.indexOf(a.id);
+          indexB = ownedCos.indexOf(b.id);
+          if (a.id === 'default_confetti') indexA = 0;
+          if (b.id === 'default_confetti') indexB = 0;
+        }
+
+        if (ownedA && !ownedB) return -1;
+        if (!ownedA && ownedB) return 1;
+        if (ownedA && ownedB) {
+          return indexB - indexA;
+        }
+        return 0;
+      });
+    }
+    return list;
+  }
 
   // Update top tabs active state
   document.querySelectorAll('.locker-main-tab-btn').forEach(btn => {
@@ -5442,15 +7527,21 @@ function renderCollectionScreen(activeTopTab = 'cards') {
     let totalUnitsCount = 0, totalOwnedUnits = 0;
     [1, 2, 3, 4].forEach(t => {
       totalUnitsCount += UNIT_ARCHETYPES[t].length;
-      totalOwnedUnits += UNIT_ARCHETYPES[t].filter(a => col.units.includes(a.id)).length;
+      totalOwnedUnits += UNIT_ARCHETYPES[t].filter(a => isUnitArchetypeOwned(a.id)).length;
     });
     const totalSpellsCount = ALL_SPELL_IDS.length;
-    const totalOwnedSpells = col.spells.length;
+    const totalOwnedSpells = ALL_SPELL_IDS.filter(s => isSpellOwned(s)).length;
     const totalChipsCount = ALL_CHIP_IDS.length;
-    const totalOwnedChips = col.chips.length;
+    const totalOwnedChips = ALL_CHIP_IDS.filter(c => isChipOwned(c)).length;
     const grandTotal = totalUnitsCount + totalSpellsCount + totalChipsCount;
     const grandOwned = totalOwnedUnits + totalOwnedSpells + totalOwnedChips;
     const grandPct = Math.round((grandOwned / Math.max(1, grandTotal)) * 100);
+
+    if (grandPct >= 100 || isCollectionComplete()) {
+      try {
+        localStorage.setItem('theme_darkmatter_unlocked', 'true');
+      } catch (e) {}
+    }
 
     if (totalCountEl) totalCountEl.textContent = `${grandOwned}/${grandTotal} (${grandPct}%)`;
 
@@ -5484,7 +7575,8 @@ function renderCollectionScreen(activeTopTab = 'cards') {
       if (!container) return;
       const tierDef = TIERS[tier] || { hp: tier, dmg: tier, sp: Math.max(0, tier - 1) };
 
-      container.innerHTML = UNIT_ARCHETYPES[tier].map(a => {
+      const sortedUnits = getSortedList(UNIT_ARCHETYPES[tier], 'unit');
+      container.innerHTML = sortedUnits.map(a => {
         const owned = isUnitArchetypeOwned(a.id);
         const favorite = isFavoriteCard(a.id);
         const abilityText = a.pool[0] === 'none' ? 'No special ability' : (ABILITIES[a.pool[0]] ? ABILITIES[a.pool[0]].label : 'Unique ability');
@@ -5532,7 +7624,8 @@ function renderCollectionScreen(activeTopTab = 'cards') {
 
     const spellsContainer = document.getElementById('collection-spells');
     if (spellsContainer) {
-      spellsContainer.innerHTML = ALL_SPELL_IDS.map(id => {
+      const sortedSpells = getSortedList(ALL_SPELL_IDS, 'spell');
+      spellsContainer.innerHTML = sortedSpells.map(id => {
         const spell = typeof SPELL_DEFS !== 'undefined' ? SPELL_DEFS.find(s => s.id === id) : null;
         if (!spell) return '';
         const owned = isSpellOwned(id);
@@ -5576,7 +7669,8 @@ function renderCollectionScreen(activeTopTab = 'cards') {
 
     const chipsContainer = document.getElementById('collection-chips');
     if (chipsContainer) {
-      chipsContainer.innerHTML = ALL_CHIP_IDS.map(id => {
+      const sortedChips = getSortedList(ALL_CHIP_IDS, 'chip');
+      chipsContainer.innerHTML = sortedChips.map(id => {
         const chip = typeof CHIP_DEFS !== 'undefined' ? CHIP_DEFS.find(c => c.id === id) : null;
         if (!chip) return '';
         const owned = isChipOwned(id);
@@ -5626,7 +7720,8 @@ function renderCollectionScreen(activeTopTab = 'cards') {
       const unlockedThemes = THEME_DATA_REGISTRY.filter(t => isThemeUnlocked(t.id)).length;
       if (totalCountEl) totalCountEl.textContent = `${unlockedThemes}/${totalThemes} (${Math.round((unlockedThemes / totalThemes) * 100)}%)`;
 
-      themesGrid.innerHTML = THEME_DATA_REGISTRY.map(t => {
+      const sortedThemes = getSortedList(THEME_DATA_REGISTRY, 'theme');
+      themesGrid.innerHTML = sortedThemes.map(t => {
         const unlocked = isThemeUnlocked(t.id);
         const equipped = currentTheme === t.id;
         const themeObj = { ...t, kind: 'theme', owned: unlocked, equipped };
@@ -5634,13 +7729,13 @@ function renderCollectionScreen(activeTopTab = 'cards') {
 
         return `
         <button type="button"
-                class="locker-tile theme-preview-tile ${t.rarityClass} ${unlocked ? '' : 'locked'}"
+                class="locker-tile theme-preview-tile ${t.rarityClass} ${unlocked ? '' : 'locked'} ${(t.id === 'prism' || t.id === 'darkmatter') ? 'theme-tile-prism' : ''}"
                 data-locker-item-id="${t.id}"
                 data-collection-card="true"
                 data-card-id="${t.id}"
                 data-card-name="${t.name}"
                 data-owned="${unlocked}"
-                style="background: ${t.bg}; border-color: ${t.primary}; box-shadow: 0 8px 24px ${t.primary}25;">
+                ${(t.id === 'prism' || t.id === 'darkmatter') ? '' : `style="background: ${t.bg}; border-color: ${t.primary}; box-shadow: 0 8px 24px ${t.primary}25;"`}>
           ${equipped ? '<span class="tile-equipped-badge">✓ EQUIPPED</span>' : ''}
           <div class="tile-body">
             <span class="tile-glyph">${t.emblem}</span>
@@ -5668,7 +7763,8 @@ function renderCollectionScreen(activeTopTab = 'cards') {
       const totalSleeves = SLEEVE_DATA_REGISTRY.length;
       if (totalCountEl) totalCountEl.textContent = `${ownedSleeves}/${totalSleeves} (${Math.round((ownedSleeves / totalSleeves) * 100)}%)`;
 
-      sleevesGrid.innerHTML = SLEEVE_DATA_REGISTRY.map(s => {
+      const sortedSleeves = getSortedList(SLEEVE_DATA_REGISTRY, 'sleeve');
+      sleevesGrid.innerHTML = sortedSleeves.map(s => {
         const owned = s.id === 'none' || ownsCosmetic(s.id);
         const equipped = equippedSleeve === s.id;
         const sleeveObj = { ...s, kind: 'sleeve', owned, equipped };
@@ -5705,7 +7801,8 @@ function renderCollectionScreen(activeTopTab = 'cards') {
       const totalVic = VICTORY_DATA_REGISTRY.length;
       if (totalCountEl) totalCountEl.textContent = `${ownedVic}/${totalVic} (${Math.round((ownedVic / totalVic) * 100)}%)`;
 
-      victoryGrid.innerHTML = VICTORY_DATA_REGISTRY.map(v => {
+      const sortedVictory = getSortedList(VICTORY_DATA_REGISTRY, 'victory');
+      victoryGrid.innerHTML = sortedVictory.map(v => {
         const owned = v.id === 'default_confetti' || ownsCosmetic(v.id);
         const equipped = equippedVic === v.id;
         const vicObj = { ...v, kind: 'victoryAnim', owned, equipped };
@@ -5722,7 +7819,7 @@ function renderCollectionScreen(activeTopTab = 'cards') {
           <span class="tile-rarity-tag ${v.rarityClass}">${v.rarity}</span>
           ${equipped ? '<span class="tile-equipped-badge">✓ EQUIPPED</span>' : ''}
           <div class="tile-body">
-            <span class="tile-glyph">🎆</span>
+            <span class="tile-glyph">${v.glyph || '🎆'}</span>
             <span class="tile-name">${v.name}</span>
           </div>
           <div class="tile-tooltip">
@@ -5863,6 +7960,14 @@ function setupCollectionTools() {
     search.onkeyup = apply;
   }
   if (filter) filter.onchange = apply;
+
+  const sort = document.getElementById('collection-sort');
+  if (sort) {
+    sort.onchange = () => {
+      renderCollectionScreen(currentLockerTopTab);
+    };
+  }
+
   apply();
 }
 
@@ -5872,73 +7977,311 @@ function setupCollectionTools() {
 // two used to be separate popups reached from their own main-menu feature-
 // strip buttons; that strip is trimmed down to just Collection now, and
 // everything progression-related lives in this one panel instead.
+let currentQuestTab = 'bounties';
+
 function renderQuests() {
   const list = document.getElementById('quests-list');
   if (!list) return;
 
-  const daily = loadDailyChallengeState();
-  const def = getDailyChallengeDef();
-  const pct = Math.round(Math.min(100, (daily.progress / def.target) * 100));
-  const dailyHtml = `
-    <div class="deck-builder-heading"><span>⚡ Daily Challenge</span></div>
-    <div class="quest-row${daily.claimed ? ' complete' : ''}" style="flex-direction:column; align-items:stretch; gap:4px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
-        <div class="quest-body">
-          <div class="quest-title">${def.desc}</div>
-          <div class="quest-desc">${daily.progress}/${def.target}${daily.claimed ? ' · Claimed for today' : ` · Reward ${dailyChallengeReward((daily.streak || 0) + 1)} Bux`}</div>
-        </div>
-        <div class="quest-status">${daily.claimed ? '✅' : '⬜'}</div>
-      </div>
-      <div class="challenge-progress-track"><div class="challenge-progress-fill" style="width:${pct}%"></div></div>
-      <div class="challenge-streak-pill">🔥 ${daily.streak || 0}-day streak</div>
-    </div>
-  `;
+  // Update tab buttons UI
+  const tabBtns = document.querySelectorAll('.quests-2-tab-btn');
+  tabBtns.forEach(b => {
+    const active = b.dataset.qtab === currentQuestTab;
+    b.classList.toggle('active', active);
+  });
 
-  const unlocked = loadUnlockedAchievements();
-  const achievementsHtml = `
-    <div class="deck-builder-heading" style="margin-top:18px;"><span>🏆 Forge Milestones</span><span>${unlocked.length}/${ACHIEVEMENTS.length}</span></div>
-    ${ACHIEVEMENTS.map(a => {
-      const done = unlocked.includes(a.id);
-      return `<div class="quest-row achievement-row ${done ? 'complete' : 'locked'}">
-        <div class="quest-icon">${a.icon}</div>
-        <div class="quest-body">
-          <div class="quest-title">${a.name}</div>
-          <div class="quest-desc">${a.desc}</div>
-          ${a.reward > 0 ? `<div class="achievement-reward">Reward: ${a.reward} Bux</div>` : ''}
+  if (currentQuestTab === 'bounties') {
+    const quests = typeof loadDailyQuests === 'function' ? loadDailyQuests() : [];
+    const completedCount = quests.filter(q => q.current >= q.goal).length;
+    const claimedCount = quests.filter(q => q.claimed).length;
+
+    // Reset countdown calculation
+    const now = new Date();
+    const midnight = new Date(now);
+    midnight.setHours(24, 0, 0, 0);
+    const diffMs = Math.max(0, midnight - now);
+    const resetHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const resetMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+    list.innerHTML = `
+      <div class="bounty-summary-banner">
+        <div>
+          <div style="font-weight: 800; font-size: 0.86rem; color: #ffffff; display: flex; align-items: center; gap: 6px;">
+            <span>🎯 Daily Arena Bounties</span>
+            <span style="font-size: 0.7rem; font-weight: 700; color: #7dd3fc; background: rgba(125,211,252,0.15); padding: 2px 7px; border-radius: 9999px;">${completedCount}/${quests.length} Completed</span>
+          </div>
+          <div class="bounty-summary-text">Complete daily combat objectives to earn bonus Mehrbod Bux, Player XP, and Weekly Vault points. Multi-step progress updates live during battle.</div>
         </div>
-        <div class="quest-status">${done ? '✅' : '🔒'}</div>
+        <div class="bounty-reset-pill">⏳ Resets in ${resetHours}h ${resetMins}m</div>
+      </div>
+      <div class="quests-2-grid">
+        ${quests.map(q => {
+          const done = q.current >= q.goal;
+          const pct = Math.min(100, Math.round((q.current / q.goal) * 100));
+          const stepPips = q.goal <= 6 ? Array.from({ length: q.goal }, (_, i) => {
+            const isCompleted = i < q.current;
+            const isActive = i === q.current && !done;
+            return `<div class="bounty-step-pip ${isCompleted ? 'completed' : (isActive ? 'active' : '')}"></div>`;
+          }).join('') : '';
+
+          return `
+            <div class="bounty-card ${q.claimed ? 'claimed-card' : (done ? 'ready-to-claim' : '')}">
+              <div>
+                <div class="bounty-header">
+                  <div class="bounty-title-row">
+                    <span class="bounty-icon">${q.icon || '🎯'}</span>
+                    <div>
+                      <div class="bounty-title">${escapePresetText(q.title)}</div>
+                      <div class="bounty-desc">${escapePresetText(q.desc)}</div>
+                    </div>
+                  </div>
+                  ${q.claimed ? '<span class="bounty-status-badge claimed">✓ CLAIMED</span>' : 
+                    (done ? '<span class="bounty-status-badge ready">READY! 🎁</span>' : 
+                    `<span class="bounty-status-badge in-progress">${pct}% (${q.current}/${q.goal})</span>`)}
+                </div>
+              </div>
+              <div class="bounty-progress-section">
+                <div class="bounty-progress-meta">
+                  <span class="bounty-progress-steps">
+                    <span>Progress: <strong>${Math.min(q.current, q.goal)}</strong> / ${q.goal} steps</span>
+                  </span>
+                  <span class="bounty-reward-tags">+${q.rewardBux} Bux · +${q.rewardXP} XP</span>
+                </div>
+                ${stepPips ? `<div class="bounty-step-pips">${stepPips}</div>` : ''}
+                <div class="bounty-progress-track">
+                  <div class="bounty-progress-fill ${done ? 'completed' : ''}" style="width: ${pct}%;"></div>
+                </div>
+                ${!done && !q.claimed ? `
+                  <div style="font-size: 0.68rem; color: #94a3b8; margin-top: 1px;">
+                    ${q.goal - q.current} more ${q.type === 'win' ? 'match win' : (q.type === 'play' ? 'card' : (q.type === 'merge' ? 'fusion' : (q.type === 'spell' ? 'spell cast' : 'step')))}${q.goal - q.current > 1 ? 's' : ''} to complete
+                  </div>
+                ` : ''}
+                ${!q.claimed && done ? `
+                  <button type="button" class="primary-btn bounty-claim-btn claim-quest-btn-2" data-quest-id="${q.id}">🎁 Claim Bounty (+${q.rewardBux} Bux, +${q.rewardXP} XP)</button>
+                ` : ''}
+                ${q.claimed ? `
+                  <div style="font-size: 0.72rem; font-weight: 700; color: #10b981; text-align: center; padding: 5px 0; background: rgba(16,185,129,0.08); border-radius: 6px; border: 1px dashed rgba(16,185,129,0.25);">✓ Completed & Claimed</div>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  } else if (currentQuestTab === 'milestones') {
+    const unlockedCareer = loadUnlockedCareerMilestones();
+    const unlockedAchievements = loadUnlockedAchievements();
+
+    list.innerHTML = `
+      <div class="deck-builder-heading">
+        <span>🏆 Career Milestones</span>
+        <span style="font-size: 0.72rem; color: #fbbf24; font-weight: 700;">${unlockedCareer.length}/${CAREER_MILESTONES.length} Completed</span>
+      </div>
+      <div style="font-size: 0.72rem; color: var(--muted); margin-bottom: 8px;">Long-term player goals and permanent honor badges. Unlocking grants instant Bux and badges!</div>
+      <div class="quests-2-grid">
+        ${CAREER_MILESTONES.map(m => {
+          const current = typeof m.getProgress === 'function' ? m.getProgress() : 0;
+          const unlockedM = unlockedCareer.includes(m.id) || current >= m.goal;
+          const pct = Math.min(100, Math.round((current / m.goal) * 100));
+          return `
+            <div class="milestone-card-item" style="padding: 12px; background: ${unlockedM ? 'linear-gradient(135deg, rgba(250,204,21,0.08) 0%, rgba(16,185,129,0.06) 100%)' : 'rgba(255,255,255,0.03)'}; border: 1px solid ${unlockedM ? 'rgba(250,204,21,0.4)' : 'rgba(255,255,255,0.08)'}; border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: ${unlockedM ? '0 4px 12px rgba(250,204,21,0.1)' : 'none'};">
+              <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                  <span style="font-size: 1.35rem; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));">${m.icon}</span>
+                  <span style="font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 9999px; background: ${unlockedM ? 'rgba(250,204,21,0.22); color:#fde047; border: 1px solid rgba(250,204,21,0.4);' : 'rgba(255,255,255,0.08); color:var(--muted);'}">${unlockedM ? 'BADGE UNLOCKED 🎖️' : `${pct}%`}</span>
+                </div>
+                <div style="font-weight: 800; font-size: 0.85rem; color: #ffffff;">${escapePresetText(m.title)}</div>
+                <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px; line-height: 1.35;">${escapePresetText(m.desc)}</div>
+              </div>
+              <div style="margin-top: 10px;">
+                <div style="font-size: 0.65rem; color: #7dd3fc; display: flex; justify-content: space-between; margin-bottom: 4px; font-weight: 600;">
+                  <span>Progress: ${Math.min(current, m.goal)}/${m.goal}</span>
+                  <span style="color: #34d399;">${m.reward}</span>
+                </div>
+                <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 9999px; overflow: hidden;">
+                  <div style="width: ${pct}%; height: 100%; background: ${unlockedM ? 'linear-gradient(90deg, #f59e0b, #10b981)' : 'var(--accent)'}; transition: width 0.3s ease;"></div>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      <div class="deck-builder-heading" style="margin-top: 20px;">
+        <span>🎖️ Forge Achievements</span>
+        <span style="font-size: 0.72rem; color: #fbbf24; font-weight: 700;">${unlockedAchievements.length}/${ACHIEVEMENTS.length}</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">
+        ${ACHIEVEMENTS.map(a => {
+          const done = unlockedAchievements.includes(a.id);
+          return `<div class="quest-row achievement-row ${done ? 'complete' : 'locked'}" style="${done ? 'border-color: rgba(250,204,21,0.35); background: rgba(250,204,21,0.04);' : ''}">
+            <div class="quest-icon" style="font-size: 1.4rem;">${a.icon}</div>
+            <div class="quest-body">
+              <div class="quest-title" style="font-weight: 700;">${a.name}</div>
+              <div class="quest-desc" style="color: #94a3b8;">${a.desc}</div>
+              ${a.reward > 0 ? `<div class="achievement-reward" style="color: #34d399; font-weight: 600;">Reward: +${a.reward} Bux</div>` : ''}
+            </div>
+            <div class="quest-status">${done ? '🎖️' : '🔒'}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    `;
+  } else if (currentQuestTab === 'challenge') {
+    const daily = loadDailyChallengeState();
+    const def = getDailyChallengeDef();
+    const pct = Math.round(Math.min(100, (daily.progress / def.target) * 100));
+    list.innerHTML = `
+      <div class="deck-builder-heading"><span>⚡ Daily Challenge</span></div>
+      <div class="quest-row${daily.claimed ? ' complete' : ''}" style="flex-direction:column; align-items:stretch; gap:8px; padding: 16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+          <div class="quest-body">
+            <div class="quest-title" style="font-size: 1rem;">${def.desc}</div>
+            <div class="quest-desc" style="font-size: 0.8rem; margin-top: 4px;">${daily.progress}/${def.target}${daily.claimed ? ' · Claimed for today' : ` · Reward ${dailyChallengeReward((daily.streak || 0) + 1)} Bux`}</div>
+          </div>
+          <div class="quest-status" style="font-size: 1.4rem;">${daily.claimed ? '✅' : '⬜'}</div>
+        </div>
+        <div class="challenge-progress-track" style="height: 8px;"><div class="challenge-progress-fill" style="width:${pct}%"></div></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; gap:8px; flex-wrap:wrap;">
+          <div class="challenge-streak-pill" style="font-size: 0.8rem; padding: 4px 10px;">🔥 ${daily.streak || 0}-day streak</div>
+          ${!daily.claimed ? `
+            <button id="btn-reroll-daily" class="daily-reroll-btn" type="button" title="Reroll this Daily Challenge for 10 Mehrbod Bux" style="font-size: 0.78rem;">
+              <span>🎲 Reroll</span>
+              <span class="reroll-cost">10 Bux</span>
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+
+    const rerollBtn = document.getElementById('btn-reroll-daily');
+    if (rerollBtn) {
+      rerollBtn.onclick = (e) => {
+        e.stopPropagation();
+        rerollDailyChallenge();
+        renderQuests();
+      };
+    }
+  } else if (currentQuestTab === 'vault') {
+    const xp = typeof loadPlayerXP === 'function' ? loadPlayerXP() : 0;
+    const info = typeof playerLevelFromXP === 'function' ? playerLevelFromXP(xp) : { level: 1, into: 0, need: 100 };
+    const levelPct = Math.round((info.into / info.need) * 100);
+    const prestige = typeof loadPrestigeState === 'function' ? loadPrestigeState() : { count: 0 };
+    const prestigeBadge = prestige.count > 0 ? ` <span style="color:var(--accent)">✦ Prestige ${prestige.count}</span>` : '';
+
+    const rankState = typeof loadArenaRankState === 'function' ? loadArenaRankState() : { rp: 0 };
+    const rankIdx = typeof arenaRankIndexFromRP === 'function' ? arenaRankIndexFromRP(rankState.rp) : 0;
+    const nextThreshold = typeof ARENA_RANK_THRESHOLDS !== 'undefined' ? ARENA_RANK_THRESHOLDS[rankIdx + 1] : null;
+    const rankPct = nextThreshold ? Math.round(((rankState.rp - ARENA_RANK_THRESHOLDS[rankIdx]) / (nextThreshold - ARENA_RANK_THRESHOLDS[rankIdx])) * 100) : 100;
+
+    const vault = typeof loadWeeklyVaultState === 'function' ? loadWeeklyVaultState() : { points: 0, claimedTiers: [] };
+    const vaultRows = (typeof WEEKLY_VAULT_TIERS !== 'undefined' ? WEEKLY_VAULT_TIERS : []).map((need, i) => {
+      const claimed = vault.claimedTiers.includes(i);
+      const reached = vault.points >= need;
+      return `<div class="quest-row ${claimed ? 'complete' : ''}" style="margin-bottom: 6px;">
+        <div class="quest-icon">${claimed ? '✅' : (reached ? '🎁' : '🔒')}</div>
+        <div class="quest-body">
+          <div class="quest-title">Tier ${i + 1} — ${need} pts</div>
+          <div class="quest-desc">Reward: ${WEEKLY_VAULT_REWARDS[i]} Bux</div>
+        </div>
+        <div class="quest-status">${claimed ? '<span style="font-size:0.7rem; color:#10b981;">CLAIMED</span>' : (reached ? `<button type="button" class="primary-btn small" data-claim-vault="${i}">Claim</button>` : '')}</div>
       </div>`;
-    }).join('')}
-  `;
+    }).join('');
 
-  const beaten = loadBeatenDifficulties();
-  const themeRowsHtml = QUEST_DEFS.map(q => {
-    const done = beaten.includes(q.diff);
-    return `<div class="quest-row${done ? ' complete' : ''}">
-      <div class="quest-icon">${q.icon}</div>
-      <div class="quest-body">
-        <div class="quest-title">${q.name} — unlocks ${themeDisplayName(q.theme)}</div>
-        <div class="quest-desc">${q.desc}</div>
+    list.innerHTML = `
+      <div class="deck-builder-heading"><span>⭐ Player Level${prestigeBadge}</span><span>Lv ${info.level}</span></div>
+      <div class="quest-row" style="flex-direction:column; align-items:stretch; gap:4px; margin-bottom: 12px;">
+        <div class="quest-desc">${info.into}/${info.need} XP to Level ${info.level + 1}</div>
+        <div class="challenge-progress-track"><div class="challenge-progress-fill" style="width:${levelPct}%"></div></div>
       </div>
-      <div class="quest-status">${done ? '✅' : '⬜'}</div>
-    </div>`;
-  }).join('');
-  const allDiffsDone = isAllDiffsUnlocked(beaten);
-  const allDiffsRowHtml = `<div class="quest-row${allDiffsDone ? ' complete' : ''}">
-    <div class="quest-icon">${ALL_DIFFS_QUEST.icon}</div>
-    <div class="quest-body">
-      <div class="quest-title">${ALL_DIFFS_QUEST.name} — unlocks ${themeDisplayName(ALL_DIFFS_QUEST.theme)}</div>
-      <div class="quest-desc">${ALL_DIFFS_QUEST.desc} (${beaten.length}/5)</div>
-    </div>
-    <div class="quest-status">${allDiffsDone ? '✅' : '⬜'}</div>
-  </div>`;
 
-  list.innerHTML = dailyHtml + achievementsHtml +
-    `<div class="deck-builder-heading" style="margin-top:18px;"><span>🎨 Theme Quests</span></div>` +
-    themeRowsHtml + allDiffsRowHtml;
+      <div class="deck-builder-heading"><span>🏅 Arena Rank</span><span>${typeof ARENA_RANKS !== 'undefined' ? ARENA_RANKS[rankIdx] : 'Bronze'}</span></div>
+      <div class="quest-row" style="flex-direction:column; align-items:stretch; gap:4px; margin-bottom: 12px;">
+        <div class="quest-desc">${rankState.rp} RP${nextThreshold ? ` — ${nextThreshold - rankState.rp} RP to next rank` : ' — Top rank!'}</div>
+        <div class="challenge-progress-track"><div class="challenge-progress-fill" style="width:${rankPct}%"></div></div>
+      </div>
+
+      <div class="deck-builder-heading"><span>🗝️ Weekly Vault</span><span>${vault.points} pts</span></div>
+      <p class="sub small" style="margin:-4px 0 8px;">Earn points from wins, daily bounties, and daily challenges.</p>
+      ${vaultRows}
+    `;
+
+    list.querySelectorAll('[data-claim-vault]').forEach(btn => {
+      btn.onclick = () => {
+        const idx = Number(btn.dataset.claimVault);
+        if (typeof claimWeeklyVaultTier === 'function') {
+          const reward = claimWeeklyVaultTier(idx);
+          if (reward) {
+            showToast(`🗝️ Weekly Vault tier claimed! +${reward} Bux`, 2600);
+            if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
+            renderQuests();
+          }
+        }
+      };
+    });
+  } else if (currentQuestTab === 'themes') {
+    const beaten = loadBeatenDifficulties();
+    const themeRowsHtml = QUEST_DEFS.map(q => {
+      const done = beaten.includes(q.diff);
+      return `<div class="quest-row${done ? ' complete' : ''}" style="margin-bottom: 6px;">
+        <div class="quest-icon">${q.icon}</div>
+        <div class="quest-body">
+          <div class="quest-title">${q.name} — unlocks ${themeDisplayName(q.theme)}</div>
+          <div class="quest-desc">${q.desc}</div>
+        </div>
+        <div class="quest-status">${done ? '✅' : '⬜'}</div>
+      </div>`;
+    }).join('');
+    const allDiffsDone = isAllDiffsUnlocked(beaten);
+    const allDiffsRowHtml = `<div class="quest-row${allDiffsDone ? ' complete' : ''}">
+      <div class="quest-icon">${ALL_DIFFS_QUEST.icon}</div>
+      <div class="quest-body">
+        <div class="quest-title">${ALL_DIFFS_QUEST.name} — unlocks ${themeDisplayName(ALL_DIFFS_QUEST.theme)}</div>
+        <div class="quest-desc">${ALL_DIFFS_QUEST.desc} (${beaten.length}/5)</div>
+      </div>
+      <div class="quest-status">${allDiffsDone ? '✅' : '⬜'}</div>
+    </div>`;
+
+    list.innerHTML = `
+      <div class="deck-builder-heading"><span>🎨 Board Theme Quests</span></div>
+      <p class="sub small" style="margin:-4px 0 8px;">Beat bot difficulties in single player to unlock special visual themes.</p>
+      ${themeRowsHtml} ${allDiffsRowHtml}
+    `;
+  }
+
+  // Bind claim quest buttons
+  list.querySelectorAll('.claim-quest-btn-2').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const qId = btn.dataset.questId;
+      if (typeof claimDailyQuest === 'function') {
+        const res = claimDailyQuest(qId);
+        if (res) {
+          showToast(`🎯 Claimed quest "${res.title}"! +${res.rewardBux} Bux`, 2800);
+          if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
+          renderQuests();
+        }
+      }
+    };
+  });
 }
+
+// Setup tab switching listener for 2.0 Quests
+document.addEventListener('DOMContentLoaded', () => {
+  setupQuestTabs();
+});
+
+function setupQuestTabs() {
+  document.querySelectorAll('.quests-2-tab-btn').forEach(btn => {
+    btn.onclick = () => {
+      currentQuestTab = btn.dataset.qtab || 'bounties';
+      renderQuests();
+    };
+  });
+}
+
 function openQuests() {
   if (typeof Sound !== 'undefined' && Sound.modalOpen) Sound.modalOpen();
+  setupQuestTabs();
   renderQuests();
   document.getElementById('quests-overlay').classList.remove('hidden');
 }
@@ -5955,14 +8298,33 @@ document.getElementById('quests-overlay').addEventListener('click', (e) => {
   }
 });
 
+window.openQuests = openQuests;
+window.openQuestsModal = openQuests;
+window.renderQuests = renderQuests;
+
 // ---- Copy room code ------------------------------------------------------
 document.getElementById('btn-copy-code').addEventListener('click', async () => {
   const code = document.getElementById('room-code').textContent.trim();
   if (!code || code === '------') return;
+  const btn = document.getElementById('btn-copy-code');
+  const originalText = btn.innerHTML;
+  
+  const setSuccessState = () => {
+    btn.innerHTML = '<span style="color:#22c55e;">✓</span> Code Copied!';
+    btn.style.borderColor = '#22c55e';
+    btn.classList.add('copy-success-pulse');
+    setTimeout(() => {
+      btn.innerHTML = originalText;
+      btn.style.borderColor = '';
+      btn.classList.remove('copy-success-pulse');
+    }, 2000);
+  };
+
   try {
     await navigator.clipboard.writeText(code);
     if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
-    showToast('Room code copied!');
+    showToast('Room code copied! 📋');
+    setSuccessState();
   } catch (e) {
     try {
       const ta = document.createElement('textarea');
@@ -5977,7 +8339,8 @@ document.getElementById('btn-copy-code').addEventListener('click', async () => {
       ta.remove();
       if (success) {
         if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
-        showToast('Room code copied!');
+        showToast('Room code copied! 📋');
+        setSuccessState();
         return;
       }
     } catch (_) {}
@@ -5986,8 +8349,57 @@ document.getElementById('btn-copy-code').addEventListener('click', async () => {
 });
 
 // ---- Patch notes --------------------------------------------------------
-const CURRENT_VERSION = '4.0';
+const CURRENT_VERSION = '4.5';
 const PATCH_NOTES = [
+  {
+    version: '4.5',
+    notes: [
+      "NEW: Daily Bounties Multi-Step Progress Bars — added dedicated visual progress meters and multi-step segment pips to the Daily Bounties hub under 2.0 Quests to clearly track incremental progress across multi-step combat tasks (e.g. wins, card summons, fusions, spells, and Trial Tower floors).",
+      "FIX: Daily Bounties Visibility — resolved an issue where daily bounties were not rendering by implementing a deterministic daily rotation system and automatic fallback recovery for all active daily missions.",
+      "VISUAL: Dynamic Step Pips & Live Meters — multi-step objectives now display illuminated discrete step boxes and animated progress bars that advance in real-time with your in-game actions.",
+      "ENHANCED: Daily Countdown Timer — added a real-time daily reset countdown timer and daily completion summary banner to the bounties panel.",
+      "INSTANT REWARDS: Seamless Claim Flow — completed daily bounties highlight with glowing badges and vibrant one-tap claim buttons with instant Bux and Player XP payouts.",
+    ],
+  },
+  {
+    version: '4.4',
+    notes: [
+      "THERMAL & BATTERY: Mobile Cooling Optimization — engineered comprehensive thermal optimizations that prevent phones from warming up and significantly reduce battery consumption during long play sessions.",
+      "NEW: Thermal & Battery Saver Mode — added a dedicated power saver toggle in Settings (Auto / On / Off). On mobile devices, it automatically activates passive cooling by streamlining background particle loops and reducing heavy GPU shader overhead.",
+      "BACKGROUND SUSPENSION: Smart Sleep Lifecycle — procedural Web Audio oscillators, ambient noise generators, and canvas animation loops now instantly suspend whenever you switch tabs, minimize the browser, or lock your screen.",
+      "GPU OPTIMIZATION: Hardware Layer Compositing — eliminated costly real-time CSS Gaussian blur recalculations from animation keyframes and added strict layout containment to stop unnecessary full-screen repaints.",
+      "CPU WAKEUP REDUCTION: Event-Driven State Verification — eliminated continuous background polling timers across the inventory, locker previews, and store counters.",
+    ],
+  },
+  {
+    version: '4.3',
+    notes: [
+      "PERFORMANCE: Ultra-Smooth Victory Finishers — overhauled the victory animation rendering engine with GPU-accelerated canvas layers, strict DOM containment, and frame-rate independent physics loops for silky smooth 60–120 FPS celebration effects without stutter or lag.",
+      "OPTIMIZATION: Particle & Canvas Lifecycle — eliminated redundant overlapping animation canvases and confetti triggers with unified lifecycle management and instant memory cleanup.",
+      "NEW: Milestone Unlocked Pop-Up Toast Animation — completing career milestones and forge achievements now triggers an animated toast celebration featuring a glowing badge medallion with rotating halo, floating icon bounce, sparkling particle bursts, reward pills, and fanfare audio.",
+      "NEW: Milestone Badge Showcase — the Milestones section under Quests displays all unlocked career honor badges and achievements with live progress meters, claim states, and reward amounts.",
+      "INTERACTIVE: Toast Action — tapping or clicking any milestone unlock notification instantly opens your Milestones panel so you can inspect your newly unlocked badge.",
+      "STABILITY: Fixed XP progression calculations to guarantee accurate leveling across all game modes.",
+    ],
+  },
+  {
+    version: '4.2',
+    notes: [
+      "NEW: Milestone Unlocked Pop-Up Toast Animation — completing career milestones and forge achievements now triggers an animated toast celebration featuring a glowing badge medallion with rotating halo, floating icon bounce, sparkling particle bursts, reward pills, and fanfare audio.",
+      "NEW: Milestone Badge Showcase — the Milestones section under Quests displays all unlocked career honor badges and achievements with live progress meters, claim states, and reward amounts.",
+      "INTERACTIVE: Toast Action — tapping or clicking any milestone unlock notification instantly opens your Milestones panel so you can inspect your newly unlocked badge.",
+    ],
+  },
+  {
+    version: '4.1',
+    notes: [
+      "NEW: Connection Quality Indicator — see your connection speed live during multiplayer matches with a green, yellow, or red light in the top corner.",
+      "NEW: Settings Toggle — turn the connection indicator light on or off anytime in the Settings menu.",
+      "DE-CLUTTER: Simpler Interface — removed all 'Install App' popup windows and download prompts so you can play without interruptions.",
+      "POLISH: Faster Loading — optimized background file caching so images, cards, and music load instantly on subsequent visits.",
+      "FIX: Asset Loading — improved server-routing to ensure missing or slow assets never trigger file-parsing crashes.",
+    ],
+  },
   {
     version: '4.0',
     notes: [
@@ -6000,7 +8412,7 @@ const PATCH_NOTES = [
       "REWORKED: Void Sleeves now swirl with an animated corner portal and a pulsing void-energy glow.",
       "REWORKED: Cyber Neon theme gained a periodic full-screen scan beam and a subtle glitch-flicker on cards.",
       "REWORKED: Abyss theme gained a sweeping anglerfish lure light and a stronger jellyfish pulse.",
-      "REWORKED: 100% Collector (Diamond Vault) cards throw a little sparkle burst on hover.",
+      "REWORKED: Prism Core theme cards throw a diamond refractive spectral flare burst on hover.",
       "POLISH: buttons and cards across the whole app got a tactile ripple/press feel and slightly livelier hover motion.",
     ],
   },
@@ -6068,7 +8480,7 @@ const PATCH_NOTES = [
       "REWORKED: Void Sleeves now swirl with an animated corner portal and a pulsing void-energy glow instead of a static outline.",
       "REWORKED: Cyber Neon theme gained a periodic full-screen scan beam and a subtle glitch-flicker on cards.",
       "REWORKED: Abyss theme gained a sweeping anglerfish lure light and pulsing jellyfish glow.",
-      "REWORKED: 100% Collector (Diamond Vault) cards now throw a little sparkle burst on hover.",
+      "REWORKED: Prism Core theme cards throw a diamond refractive spectral flare burst on hover.",
       "POLISH: buttons and cards across the whole app got a tactile ripple/press feel and slightly livelier hover motion.",
     ],
   },
@@ -6077,7 +8489,7 @@ const PATCH_NOTES = [
     notes: [
       "SWAPPED: Flame and Storm now unlock the opposite way they used to - Flame is the single-difficulty reward (beat Hard), and Storm is the secret 6th theme for beating every difficulty.",
       "REDESIGNED: Storm theme - a real supercell now, with a violet storm-glow horizon, four independent lightning bolts, a full-sky flash that fires with each strike, wind-blown streaks, and nearly twice the rainfall.",
-      "REDESIGNED: 100% Collector theme, now a 'Diamond Vault' - an icy-white, rose-gold, and champagne palette with a sweeping spotlight and faceted diamond card edges, replacing the old gold/cyan/pink mix so it no longer overlaps visually with Sovereign or the old Collector look.",
+      "REDESIGNED: 100% completion theme redesigned as Prism Core — living diamond crystal refractors with chromatic spectrum dispersion, obsidian glass card framing, and celestial harmonic caustics.",
       "NEW: two purchasable themes in the Mehrbod Shop - Cyber Neon (1200 Bux: a neon cyberpunk grid with drifting glyph particles and CRT scanlines) and Abyss (1200 Bux: a bioluminescent deep-sea vault with drifting jellyfish glow, rising bubbles, and caustic light rays).",
       "NEW cosmetic category: Victory Animations. The first one, Meteor Shower (500 Bux), plays a full-screen meteor shower the instant its owner wins a match, visible to BOTH players right before the win/lose screen appears - equipped-victory-animation info is exchanged between host and guest at match start so it's never a surprise only the winner sees.",
     ],
@@ -6223,7 +8635,7 @@ const PATCH_NOTES = [
   {
     version: '2.1',
     notes: [
-      "NEW: the 100% Collector theme has been completely redesigned as a high-end cosmic collector vault.",
+      "REDESIGNED: The 100% completion theme is now Prism Core — living diamond crystal refractors with chromatic spectrum dispersion, obsidian glass card framing, and celestial harmonic caustics.",
     ],
   },
   {
@@ -6347,16 +8759,6 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ---- Player name -> first-run tutorial --------------------------------------
-const PLAYER_NAME_KEY = 'mehrbod-cards-player-name';
-function loadPlayerName() {
-  try { return (localStorage.getItem(PLAYER_NAME_KEY) || '').trim(); } catch (e) { return ''; }
-}
-function savePlayerName(name) {
-  const cleaned = String(name || '').trim().replace(/\s+/g, ' ').slice(0, 24);
-  if (!cleaned) return false;
-  try { localStorage.setItem(PLAYER_NAME_KEY, cleaned); } catch (e) { return false; }
-  return true;
-}
 function showPlayerNamePrompt(afterSave) {
   const overlay = document.getElementById('player-name-overlay');
   const input = document.getElementById('player-name-input');
@@ -6384,70 +8786,14 @@ function ensurePlayerNameThen(action) {
 }
 
 restoreInventoryBackupIfTampered();
-setInterval(restoreInventoryBackupIfTampered, 1500);
+window.addEventListener('focus', restoreInventoryBackupIfTampered);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) restoreInventoryBackupIfTampered();
+});
 
 if (!hasTutorialBeenSeen()) {
   ensurePlayerNameThen(() => startFullTutorial());
 }
-
-// Minecraft-style Splash Texts for MEHRBOD CARDS Logo
-const MINECRAFT_SPLASH_TEXTS = [
-  "Blue merges into Green!",
-  "Break every board!",
-  "100% Organic Bux!",
-  "Now with 3D Card Flips!",
-  "Don't let the bot win!",
-  "Try Story Mode!",
-  "Over 9000 Bux!",
-  "Better than Solitaire!",
-  "Powered by Mehrbod Bux!",
-  "Awesome card art!",
-  "Press M for a secret!",
-  "Master Tier Bot awaits!",
-  "Also try Trial Tower!",
-  "Climb the citadel!",
-  "So many themes to unlock!",
-  "Burn the other side to zero!",
-  "Draft 12, fuse smart!",
-  "Spells & Chips included!",
-  "GG WP!",
-  "Mythic rarity unlocked!",
-  "It's a secret to everybody!",
-  "Do a barrel roll!",
-  "Sovereign Gold approved!",
-  "Cyberneon aesthetic!",
-  "Glacier subzero freezing!",
-  "Magma heat surge active!",
-  "Lifesteal activated!",
-  "Check the Card Locker!",
-  "Daily challenges ready!",
-  "Also play in Multiplayer!",
-  "Made with love!",
-  "Subzero frostbolts!",
-  "Warcry buffed!",
-  "Unstoppable combo!",
-  "Victory is yours!",
-  "Press Start to Play!",
-  "Unlimited potential!",
-  "Top tier strategies!",
-  "No mock data here!",
-  "100% Pure Skill!"
-];
-
-function initMinecraftSplashText() {
-  const splashEl = document.getElementById('minecraft-splash');
-  if (!splashEl) return;
-
-  if (typeof splashTextEnabled !== 'undefined' && !splashTextEnabled) {
-    splashEl.classList.add('hidden');
-    return;
-  }
-  splashEl.classList.remove('hidden');
-
-  const splash = MINECRAFT_SPLASH_TEXTS[Math.floor(Math.random() * MINECRAFT_SPLASH_TEXTS.length)];
-  splashEl.textContent = splash;
-}
-initMinecraftSplashText();
 
 document.addEventListener('DOMContentLoaded', () => {
   initMinecraftSplashText();
@@ -6473,4 +8819,89 @@ document.addEventListener('DOMContentLoaded', () => {
 // guaranteed to already be declared - calling this any earlier as top-level
 // code risks a Temporal Dead Zone crash that silently aborts every listener
 // registered further down the file.
-checkAchievements();
+checkMilestones();
+
+// Global listeners to cleanly tear down matchmaking or forfeit active multiplayer matches
+// when the user closes their tab, refreshes, or navigates away. This completely prevents
+// "ghost lobbies" in matchmaking so other players don't experience slow timeouts.
+window.addEventListener('pagehide', () => {
+  if (mode === 'mp' && net) {
+    if (matchmakingRoomCode && state && state.phase !== 'gameover') {
+      try { net.sendForfeit(); } catch (e) {}
+    }
+    try { cancelMatchmaking(); } catch (e) {}
+  }
+});
+
+window.addEventListener('beforeunload', () => {
+  if (mode === 'mp' && net) {
+    if (matchmakingRoomCode && state && state.phase !== 'gameover') {
+      try { net.sendForfeit(); } catch (e) {}
+    }
+    try { cancelMatchmaking(); } catch (e) {}
+  }
+});
+
+// ==========================================================================
+// PROGRESSIVE WEB APP (PWA) REGISTRATION AND INTEGRATION
+// ==========================================================================
+
+let deferredInstallPrompt = null;
+
+// Register the Service Worker for offline support and faster loading
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then((registration) => {
+        console.log('[Service Worker] Registered successfully with scope:', registration.scope);
+      })
+      .catch((error) => {
+        console.error('[Service Worker] Registration failed:', error);
+      });
+  });
+}
+
+// Monitor online/offline state to notify players of connection changes
+function updateOnlineStatus() {
+  const offlineBanner = document.getElementById('offline-indicator');
+  if (!offlineBanner) return;
+
+  if (navigator.onLine) {
+    offlineBanner.classList.add('hidden');
+  } else {
+    offlineBanner.classList.remove('hidden');
+    showToast('Offline Mode: Using local cached assets.');
+  }
+}
+
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+
+// Initial status check and dynamic installation helper config
+document.addEventListener('DOMContentLoaded', () => {
+  updateOnlineStatus();
+  if (typeof updatePingButton === 'function') {
+    updatePingButton();
+  }
+
+  // Unlock audio engine on first user gesture (highly critical for iOS and strict autoplay browsers)
+  ['click', 'touchstart', 'keydown'].forEach(evt => {
+    document.addEventListener(evt, () => {
+      if (typeof Sound !== 'undefined' && typeof Sound.unlockAudio === 'function') {
+        Sound.unlockAudio();
+      }
+    }, { once: true, passive: true });
+  });
+
+});
+
+// Prevent automatic/unsolicited native browser installer prompts to avoid promoting installation
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+});
+
+// Simple console log upon successful app installation (silent, no toasts/UI promotion)
+window.addEventListener('appinstalled', () => {
+  console.log('[PWA] Application installed successfully!');
+});
+

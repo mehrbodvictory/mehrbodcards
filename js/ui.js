@@ -38,6 +38,7 @@ function cardEl(card, { owner, slot, selected, defending, attacking, forceGlow, 
   el.dataset.owner = owner;
   el.dataset.slot = slot;
   el.dataset.cardId = card.id;
+  el.dataset.tier = card.tier;
   const chips = card.chipsAttached ? card.chipsAttached.length : 0;
   const abilityText = card.ability && card.ability !== 'none' ? abilityLabel(card.ability) : '';
   const sanctionedBadge = (card.sanctioned || card.cannotDefend) ? `<div style="font-size:0.52rem;color:#facc15;font-weight:bold;">🔨 NO DEF</div>` : '';

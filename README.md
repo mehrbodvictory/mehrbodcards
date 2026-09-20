@@ -44,4 +44,4 @@ js/juice.js            Pack-opening flow, meteor shower rework, ripple polish, D
 js/sound.js            Procedural Web Audio sound engine
 ```
 
-`style-juice.css` and `js/juice.js` are additive layers loaded after the core files — they override a couple of functions/rules (card pack opening, the meteor shower victory animation, void sleeve styling, cyber neon/abyss/collector polish) and add the Daily Login Reward system, without needing to touch the core `main.js`/`style.css` files directly.
+`style-juice.css` and `js/juice.js` are additive layers loaded after the core files — they override a couple of functions/rules (card pack opening, the meteor shower victory animation, void sleeve styling, cyber neon/abyss/prism core polish) and add the Daily Login Reward system, without needing to touch the core `main.js`/`style.css` files directly.

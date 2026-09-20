@@ -36,14 +36,28 @@ function getIceConfig() {
     { urls: 'stun:stun.cloudflare.com:3478' }
   ];
 
-  return { iceServers: defaultStun };
+  // OpenRelay by Metered is a free public TURN server that provides TURN and STUN relay on ports 80 and 443.
+  // This bypasses firewall blockages and symmetric NATs on mobile/cellular data.
+  const freeTurn = {
+    urls: [
+      'turn:openrelay.metered.ca:80',
+      'turn:openrelay.metered.ca:443',
+      'turn:openrelay.metered.ca:443?transport=tcp',
+      'stun:openrelay.metered.ca:80',
+      'stun:openrelay.metered.ca:443'
+    ],
+    username: 'openrelayproject',
+    credential: 'openrelayproject'
+  };
+
+  return { iceServers: [...defaultStun, freeTurn] };
 }
 
 const CONNECT_TIMEOUT_MS = 20000;
 const TIMEOUT_MESSAGE = "Connection timed out. This can happen on restrictive networks (school or work wifi). Try a mobile hotspot or a different network.";
 
 class NetSession {
-  constructor({ onInit, onApplied, onStatus, onPeerError, onGuestConfig, onForfeit, onEmote }) {
+  constructor({ onInit, onApplied, onStatus, onPeerError, onGuestConfig, onForfeit, onEmote, onPing, onRematchOffer, onRematchAccept, onRematchDecline }) {
     this.peer = null;
     this.conn = null;
     this.isHost = false;
@@ -54,6 +68,20 @@ class NetSession {
     this.onGuestConfig = onGuestConfig || (() => {}); // host-only: (deckConfig) => void
     this.onForfeit = onForfeit || (() => {}); // fires when the other side quits or disconnects mid-match
     this.onEmote = onEmote || (() => {});
+    this.onPing = onPing || (() => {});
+    this.onRematchOffer = onRematchOffer || (() => {});
+    this.onRematchAccept = onRematchAccept || (() => {});
+    this.onRematchDecline = onRematchDecline || (() => {});
+
+    // Disconnect-resilience & action queuing synchronization properties
+    this.isReconnecting = false;
+    this.reconnectTimeout = null;
+    this.actionInFlight = false;
+    this.actionInFlightTime = null;
+    this.roomCode = '';
+
+    // Real-time ping heartbeat state
+    this.pingInterval = null;
   }
 
   _makeRoomCode() {
@@ -70,6 +98,7 @@ class NetSession {
     this.hostDeckConfig = hostDeckConfig || null;
     const rawCode = this._makeRoomCode();
     const code = rawCode.replace(/[^A-Za-z0-9]/g, '');
+    this.roomCode = code;
     const peerId = 'cardbattler-' + code;
     this.onStatus('connecting');
     return new Promise((resolve, reject) => {
@@ -87,7 +116,28 @@ class NetSession {
 
       this.peer.on('open', () => { this.onStatus('waiting'); resolve(code); });
       this.peer.on('error', err => { this.onPeerError(err); reject(err); });
+      this.peer.on('disconnected', () => {
+        console.warn('[PeerJS] Disconnected from signaling server, attempting reconnect...');
+        this.peer.reconnect();
+      });
       this.peer.on('connection', conn => {
+        // If we are currently reconnecting, or we had an open connection that died, replace it!
+        if (this.isReconnecting || (this.conn && !this.conn.open)) {
+          if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+            this.reconnectTimeout = null;
+          }
+          this.conn = conn;
+          this._wireHostConn();
+          conn.on('open', () => {
+            this.isReconnecting = false;
+            this.onStatus('connected');
+            this.startPingHeartbeat();
+            this._send({ type: 'reconnect_sync' });
+          });
+          return;
+        }
+
         this.conn = conn;
         this._wireHostConn();
         const timeout = setTimeout(() => {
@@ -98,6 +148,7 @@ class NetSession {
           // Don't send init yet - wait for the guest's deck config first
           // (see _wireHostConn) so init can carry a fully-formed match.
           this.onStatus('connected');
+          this.startPingHeartbeat();
         });
         conn.on('error', err => {
           this.onPeerError(err);
@@ -116,6 +167,7 @@ class NetSession {
     this.isHost = false;
     this.guestDeckConfig = guestDeckConfig || null;
     const cleanCode = (code || '').toString().trim().toUpperCase().replace(/[^A-Za-z0-9]/g, '');
+    this.roomCode = cleanCode;
     this.onStatus('connecting');
     return new Promise((resolve, reject) => {
       try {
@@ -141,6 +193,7 @@ class NetSession {
             clearTimeout(timeout);
             this._send({ type: 'guestConfig', deckConfig: this.guestDeckConfig });
             this.onStatus('connected');
+            this.startPingHeartbeat();
             resolve();
           });
           this.conn.on('error', err => {
@@ -153,12 +206,21 @@ class NetSession {
         }
       });
       this.peer.on('error', err => { this.onPeerError(err); reject(err); });
+      this.peer.on('disconnected', () => {
+        console.warn('[PeerJS] Disconnected from signaling server, attempting reconnect...');
+        this.peer.reconnect();
+      });
     });
   }
 
   _wireHostConn() {
     this.conn.on('data', data => {
-      if (data.type === 'intent') {
+      if (data.type === 'ping') {
+        this._send({ type: 'pong', sentAt: data.sentAt });
+      } else if (data.type === 'pong') {
+        const latency = Date.now() - data.sentAt;
+        if (this.onPing) this.onPing(latency);
+      } else if (data.type === 'intent') {
         if (!data.action || data.action.player !== 'guest') return;
         this.onApplied(data.action);
         this._send({ type: 'applied', action: data.action });
@@ -168,12 +230,30 @@ class NetSession {
         this.onGuestConfig(data.deckConfig);
       } else if (data.type === 'forfeit') {
         this.onForfeit();
+      } else if (data.type === 'reconnect_sync') {
+        // Guest reconnected successfully!
+        this.isReconnecting = false;
+        if (this.reconnectTimeout) {
+          clearTimeout(this.reconnectTimeout);
+          this.reconnectTimeout = null;
+        }
+        this.onStatus('connected');
+        if (typeof showToast === 'function') {
+          showToast('✅ Opponent reconnected! Resuming match...', 2000);
+        }
+        this._send({ type: 'reconnect_sync_ack' });
       } else if (data.type === 'emote') {
         if (this.onEmote && this.onEmote !== (() => {})) {
           this.onEmote(data.emoji);
         } else if (typeof triggerEmote === 'function') {
           triggerEmote(typeof remoteKey !== 'undefined' ? remoteKey : 'guest', data.emoji);
         }
+      } else if (data.type === 'rematch_offer') {
+        this.onRematchOffer();
+      } else if (data.type === 'rematch_accept') {
+        this.onRematchAccept();
+      } else if (data.type === 'rematch_decline') {
+        this.onRematchDecline();
       }
     });
     // BUGFIX: destroy() below closes this same `conn`, which fires this
@@ -186,28 +266,106 @@ class NetSession {
     // etc.) should ever reach onForfeit() here.
     this.conn.on('close', () => {
       if (this.manualDisconnect) return;
-      this.onStatus('disconnected');
-      this.onForfeit();
+
+      this.isReconnecting = true;
+      this.onStatus('reconnecting');
+      if (typeof showToast === 'function') {
+        showToast('⚠️ Opponent disconnected! Waiting up to 10 seconds for them to reconnect...', 10000);
+      }
+
+      this.reconnectTimeout = setTimeout(() => {
+        if (this.isReconnecting) {
+          this.isReconnecting = false;
+          this.onStatus('disconnected');
+          this.onForfeit();
+        }
+      }, 10000);
     });
   }
 
   _wireGuestConn() {
     this.conn.on('data', data => {
-      if (data.type === 'init') this.onInit(data);
-      else if (data.type === 'applied') this.onApplied(data.action);
-      else if (data.type === 'forfeit') this.onForfeit();
-      else if (data.type === 'emote') {
+      if (data.type === 'ping') {
+        this._send({ type: 'pong', sentAt: data.sentAt });
+      } else if (data.type === 'pong') {
+        const latency = Date.now() - data.sentAt;
+        if (this.onPing) this.onPing(latency);
+      } else if (data.type === 'init') {
+        this.actionInFlight = false;
+        this.actionInFlightTime = null;
+        this.onInit(data);
+      } else if (data.type === 'applied') {
+        this.actionInFlight = false; // Reset lock on authority applied action response
+        this.actionInFlightTime = null;
+        this.onApplied(data.action);
+      } else if (data.type === 'forfeit') {
+        this.onForfeit();
+      } else if (data.type === 'reconnect_sync_ack') {
+        this.isReconnecting = false;
+        this.onStatus('connected');
+        if (typeof showToast === 'function') {
+          showToast('✅ Host reconnected! Resuming match...', 2000);
+        }
+      } else if (data.type === 'emote') {
         if (this.onEmote && this.onEmote !== (() => {})) {
           this.onEmote(data.emoji);
         } else if (typeof triggerEmote === 'function') {
           triggerEmote(typeof remoteKey !== 'undefined' ? remoteKey : 'host', data.emoji);
         }
+      } else if (data.type === 'rematch_offer') {
+        this.onRematchOffer();
+      } else if (data.type === 'rematch_accept') {
+        this.onRematchAccept();
+      } else if (data.type === 'rematch_decline') {
+        this.onRematchDecline();
       }
     });
     this.conn.on('close', () => {
       if (this.manualDisconnect) return;
-      this.onStatus('disconnected');
-      this.onForfeit();
+
+      this.isReconnecting = true;
+      this.onStatus('reconnecting');
+      if (typeof showToast === 'function') {
+        showToast('⚠️ Disconnected from match! Attempting to reconnect...', 10000);
+      }
+
+      // Reconnect loop
+      let attempts = 0;
+      const maxAttempts = 4;
+      const interval = setInterval(() => {
+        if (!this.isReconnecting || this.manualDisconnect) {
+          clearInterval(interval);
+          return;
+        }
+        attempts++;
+        if (attempts > maxAttempts) {
+          clearInterval(interval);
+          this.isReconnecting = false;
+          this.onStatus('disconnected');
+          this.onForfeit();
+          return;
+        }
+
+        try {
+          if (this.conn) {
+            try { this.conn.close(); } catch (e) {}
+          }
+          this.conn = this.peer.connect('cardbattler-' + this.roomCode, { reliable: true });
+          this._wireGuestConn();
+          this.conn.on('open', () => {
+            clearInterval(interval);
+            this.isReconnecting = false;
+            this.onStatus('connected');
+            this.startPingHeartbeat();
+            this._send({ type: 'reconnect_sync' });
+            if (typeof showToast === 'function') {
+              showToast('✅ Reconnected successfully!', 2000);
+            }
+          });
+        } catch (err) {
+          console.warn('[P2P Reconnect] Attempt failed:', err);
+        }
+      }, 2500);
     });
   }
 
@@ -217,6 +375,9 @@ class NetSession {
   sendForfeit() { this._send({ type: 'forfeit' }); }
 
   sendEmote(emoji) { this._send({ type: 'emote', emoji }); }
+  sendRematchOffer() { this._send({ type: 'rematch_offer' }); }
+  sendRematchAccept() { this._send({ type: 'rematch_accept' }); }
+  sendRematchDecline() { this._send({ type: 'rematch_decline' }); }
 
   // Called by the local UI when the local human wants to perform an action.
   submitAction(action) {
@@ -224,7 +385,38 @@ class NetSession {
       this.onApplied(action);                  // apply immediately, authoritative
       this._send({ type: 'applied', action });  // tell the guest
     } else {
+      if (this.actionInFlight) {
+        // If the action has been stuck in flight for more than 1500ms, clear the lock safely
+        if (this.actionInFlightTime && Date.now() - this.actionInFlightTime > 1500) {
+          console.warn('[P2P Network] Action flight timed out. Resettling lock to prevent permanent freeze.');
+          this.actionInFlight = false;
+        } else {
+          console.warn('[P2P Network] Action already in flight, ignoring input to prevent desync.');
+          return;
+        }
+      }
+      this.actionInFlight = true;
+      this.actionInFlightTime = Date.now();
       this._send({ type: 'intent', action });   // ask the host to apply it
+    }
+  }
+
+  startPingHeartbeat() {
+    this.stopPingHeartbeat();
+    // Host starts a recurring heartbeat to measure latency to client
+    this.pingInterval = setInterval(() => {
+      if (this.conn && this.conn.open) {
+        this._send({ type: 'ping', sentAt: Date.now() });
+      } else {
+        this.stopPingHeartbeat();
+      }
+    }, 2500);
+  }
+
+  stopPingHeartbeat() {
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = null;
     }
   }
 
@@ -235,6 +427,8 @@ class NetSession {
   // see the 'close' handlers above for why that distinction matters.
   destroy() {
     this.manualDisconnect = true;
+    this.stopPingHeartbeat();
+    if (this.reconnectTimeout) { clearTimeout(this.reconnectTimeout); this.reconnectTimeout = null; }
     if (this.conn) this.conn.close();
     if (this.peer) this.peer.destroy();
   }

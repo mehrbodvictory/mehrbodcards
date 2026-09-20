@@ -1,8 +1,13 @@
 // Context-aware procedural sound engine & ambient sound manager via Web Audio API.
 // Features procedural SFX and gentle, looping background tracks tailored to each theme.
-// Re-engineered Pink, Celestial Divinity, and 100% Collector to have calm, peaceful,
+// Re-engineered Pink, Celestial Divinity, and Prism Core to have calm, peaceful,
 // musical progressions and melodies instead of harsh sustained drone tones.
 // Persists mute, volume, and ambient settings across sessions.
+
+if (typeof window !== 'undefined') {
+  if (typeof window.ctx === 'undefined') window.ctx = null;
+}
+var ctx = typeof window !== 'undefined' ? window.ctx : null;
 
 const Sound = (function () {
   let ctx = null;
@@ -19,6 +24,12 @@ const Sound = (function () {
   try {
     const raw = localStorage.getItem('mehrbod-cards-ambient-enabled');
     if (raw !== null) ambientEnabled = raw === '1';
+  } catch (e) { /* ignore */ }
+
+  let sfxEnabled = true;
+  try {
+    const raw = localStorage.getItem('mehrbod-cards-sfx-enabled');
+    if (raw !== null) sfxEnabled = raw === '1';
   } catch (e) { /* ignore */ }
 
   let ambientVolume = 0.65;
@@ -41,6 +52,7 @@ const Sound = (function () {
     if (!ctx) {
       try {
         ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (typeof window !== 'undefined') window.ctx = ctx;
       } catch (e) {
         ctx = null;
       }
@@ -106,7 +118,7 @@ const Sound = (function () {
 
   // ---- Basic SFX Synthesis --------------------------------------------------
   function tone(freq, dur, type, vol, delay) {
-    if (muted || volume <= 0) return;
+    if (muted || !sfxEnabled || volume <= 0) return;
     const c = ensureCtx();
     if (!c) return;
     const t0 = c.currentTime + (delay || 0);
@@ -122,7 +134,7 @@ const Sound = (function () {
   }
 
   function sweep(f0, f1, dur, type, vol, delay) {
-    if (muted || volume <= 0) return;
+    if (muted || !sfxEnabled || volume <= 0) return;
     const c = ensureCtx();
     if (!c) return;
     const t0 = c.currentTime + (delay || 0);
@@ -1347,36 +1359,35 @@ const Sound = (function () {
       };
     },
 
-    // 17. 100% COLLECTOR: Calm, elegant golden acoustic chamber music & music box lullaby
-    // Replaced the harsh sustained buzzer drone with a graceful, peaceful piece
-    collector(c, dest) {
+    // 17. PRISM CORE: Pristine glass harmonica, celestial crystal bells & shimmering harmonic caustics
+    prism(c, dest) {
       const t0 = c.currentTime;
       const trackGain = c.createGain();
       trackGain.gain.setValueAtTime(0.0001, t0);
       trackGain.gain.linearRampToValueAtTime(1.0, t0 + 1.4);
       trackGain.connect(dest);
 
-      // Noble Acoustic Chamber Progression: D -> G -> Bm -> A
+      // Crystalline prismatic progression in Lydian/Major sparkling tonality
       const progression = [
-        { bass: 73.42, notes: [146.83, 220.00, 293.66, 369.99, 440.00] },
-        { bass: 98.00, notes: [196.00, 246.94, 293.66, 392.00, 493.88] },
-        { bass: 61.74, notes: [123.47, 185.00, 246.94, 293.66, 369.99] },
-        { bass: 55.00, notes: [110.00, 164.81, 220.00, 277.18, 329.63] }
+        { bass: 65.41, notes: [261.63, 329.63, 392.00, 523.25, 659.25] }, // C Maj9
+        { bass: 73.42, notes: [293.66, 369.99, 440.00, 587.33, 739.99] }, // D Maj9
+        { bass: 82.41, notes: [329.63, 392.00, 493.88, 659.25, 783.99] }, // E min9
+        { bass: 87.31, notes: [261.63, 349.23, 440.00, 523.25, 659.25] }  // F Maj7#11
       ];
 
       let currentPadOscs = [];
-      const chamberFilter = c.createBiquadFilter();
-      chamberFilter.type = 'lowpass';
-      chamberFilter.frequency.setValueAtTime(220, t0);
+      const crystalFilter = c.createBiquadFilter();
+      crystalFilter.type = 'lowpass';
+      crystalFilter.frequency.setValueAtTime(1200, t0);
       const chamberGain = c.createGain();
       chamberGain.gain.setValueAtTime(0.045, t0);
-      chamberFilter.connect(chamberGain).connect(trackGain);
+      crystalFilter.connect(chamberGain).connect(trackGain);
 
       let step = 0;
       let active = true;
-      let collectorTimer = null;
+      let prismTimer = null;
 
-      function playChamberChord(idx) {
+      function playPrismChord(idx) {
         if (!active || !ctx) return;
         const now = ctx.currentTime;
         const chord = progression[idx % progression.length];
@@ -1395,73 +1406,78 @@ const Sound = (function () {
           });
         }
 
-        // Cello acoustic bass note
-        const celloOsc = ctx.createOscillator();
-        const celloGain = ctx.createGain();
-        celloOsc.type = 'triangle';
-        celloOsc.frequency.setValueAtTime(chord.bass, now);
-        celloGain.gain.setValueAtTime(0.001, now);
-        celloGain.gain.linearRampToValueAtTime(0.04, now + 1.0);
-        celloOsc.connect(celloGain).connect(chamberFilter);
-        celloOsc.start(now);
-        currentPadOscs.push({ osc: celloOsc, gain: celloGain });
+        // Deep warm crystal foundation
+        const baseOsc = ctx.createOscillator();
+        const baseGain = ctx.createGain();
+        baseOsc.type = 'sine';
+        baseOsc.frequency.setValueAtTime(chord.bass, now);
+        baseGain.gain.setValueAtTime(0.001, now);
+        baseGain.gain.linearRampToValueAtTime(0.035, now + 1.2);
+        baseOsc.connect(baseGain).connect(crystalFilter);
+        baseOsc.start(now);
+        currentPadOscs.push({ osc: baseOsc, gain: baseGain });
 
-        // Warm chamber harmony pad
-        chord.notes.slice(0, 2).forEach((freq) => {
+        // Glass-harmonica shimmer harmony pad
+        chord.notes.slice(0, 3).forEach((freq) => {
           const osc = ctx.createOscillator();
           const g = ctx.createGain();
           osc.type = 'sine';
           osc.frequency.setValueAtTime(freq, now);
           g.gain.setValueAtTime(0.0001, now);
-          g.gain.linearRampToValueAtTime(0.02, now + 1.2);
-          osc.connect(g).connect(chamberFilter);
+          g.gain.linearRampToValueAtTime(0.022, now + 1.4);
+          osc.connect(g).connect(crystalFilter);
           osc.start(now);
           currentPadOscs.push({ osc, gain: g });
         });
 
-        // Delicate golden music box / celesta arpeggiated melody
+        // Sparkling crystal bell refractor arpeggio
         chord.notes.forEach((noteFreq, i) => {
-          const noteTime = now + 0.3 + i * 0.8;
+          const noteTime = now + 0.2 + i * 0.75;
           try {
-            const mbOsc = ctx.createOscillator();
-            const mbGain = ctx.createGain();
-            const mbFilter = ctx.createBiquadFilter();
-            mbFilter.type = 'lowpass';
-            mbFilter.frequency.setValueAtTime(800, noteTime);
+            const bellOsc = ctx.createOscillator();
+            const bellGain = ctx.createGain();
+            const bellFilter = ctx.createBiquadFilter();
+            bellFilter.type = 'bandpass';
+            bellFilter.frequency.setValueAtTime(noteFreq * 2, noteTime);
+            bellFilter.Q.setValueAtTime(4.0, noteTime);
 
-            mbOsc.type = 'triangle';
-            mbOsc.frequency.setValueAtTime(noteFreq, noteTime);
+            bellOsc.type = 'triangle';
+            bellOsc.frequency.setValueAtTime(noteFreq * 2, noteTime);
 
-            mbGain.gain.setValueAtTime(0.0001, noteTime);
-            mbGain.gain.linearRampToValueAtTime(0.038, noteTime + 0.03);
-            mbGain.gain.exponentialRampToValueAtTime(0.0001, noteTime + 1.5);
+            bellGain.gain.setValueAtTime(0.0001, noteTime);
+            bellGain.gain.linearRampToValueAtTime(0.032, noteTime + 0.02);
+            bellGain.gain.exponentialRampToValueAtTime(0.0001, noteTime + 1.8);
 
-            mbOsc.connect(mbFilter).connect(mbGain).connect(trackGain);
-            mbOsc.start(noteTime);
-            mbOsc.stop(noteTime + 1.6);
+            bellOsc.connect(bellFilter).connect(bellGain).connect(trackGain);
+            bellOsc.start(noteTime);
+            bellOsc.stop(noteTime + 1.9);
           } catch (e) {}
         });
       }
 
-      playChamberChord(0);
+      playPrismChord(0);
 
-      function loopCollector() {
+      function loopPrism() {
         if (!active) return;
         step++;
-        playChamberChord(step);
-        collectorTimer = setTimeout(loopCollector, 4400); // 4.4s spacing
+        playPrismChord(step);
+        prismTimer = setTimeout(loopPrism, 4400); // 4.4s spacing
       }
-      collectorTimer = setTimeout(loopCollector, 4400);
+      prismTimer = setTimeout(loopPrism, 4400);
 
       return {
-        theme: 'collector',
+        theme: 'prism',
         gainNode: trackGain,
         stop() {
           active = false;
-          if (collectorTimer) clearTimeout(collectorTimer);
+          if (prismTimer) clearTimeout(prismTimer);
           currentPadOscs.forEach(({ osc }) => { try { osc.stop(); } catch (e) {} });
         }
       };
+    },
+
+    darkmatter(c, dest) {
+      return this.prism(c, dest);
     },
 
     // 18. VALENTINE: Heartbeat pulse & warm music box harmony
@@ -1798,8 +1814,8 @@ const Sound = (function () {
     let pool = [];
     if (['verdant', 'light', 'pink', 'valentine'].includes(theme)) {
       pool = ['birds', 'birds', 'birds', 'wind', 'wind', 'crystal', 'clicks', 'hum'];
-    } else if (['cyberneon', 'quantum', 'collector', 'sovereign'].includes(theme)) {
-      pool = ['clicks', 'clicks', 'clicks', 'hum', 'hum', 'wind', 'crystal', 'birds'];
+    } else if (['cyberneon', 'quantum', 'prism', 'darkmatter', 'sovereign'].includes(theme)) {
+      pool = ['crystal', 'crystal', 'clicks', 'clicks', 'hum', 'hum', 'wind', 'birds'];
     } else if (['dark', 'abyss', 'magma', 'flame', 'storm'].includes(theme)) {
       pool = ['hum', 'hum', 'drop', 'drop', 'wind', 'wind', 'clicks', 'crystal'];
     } else if (['celestial', 'astral', 'aurora', 'glacier', 'mrmoney'].includes(theme)) {
@@ -2001,9 +2017,22 @@ const Sound = (function () {
   // Card hover throttle
   let lastHoverTime = 0;
 
-  return {
+  const soundObj = {
     ensureCtx,
     getCtx: ensureCtx,
+    unlockAudio() {
+      const c = ensureCtx();
+      if (c && c.state === 'suspended') {
+        c.resume().then(() => {
+          audioUnlocked = true;
+          console.log('[Web Audio Engine] Context successfully unlocked via user gesture.');
+        }).catch(err => {
+          console.warn('[Web Audio Engine] Failed to resume on gesture:', err);
+        });
+      } else if (c) {
+        audioUnlocked = true;
+      }
+    },
     ambient: ambientManager,
     setTheme(t) { ambientManager.setTheme(t); },
     getTheme() { return ambientManager.getTheme(); },
@@ -2011,6 +2040,12 @@ const Sound = (function () {
     isAmbientEnabled() { return ambientManager.isEnabled(); },
     setAmbientVolume(v) { ambientManager.setVolume(v); },
     getAmbientVolume() { return ambientManager.getVolume(); },
+
+    setSfxEnabled(b) {
+      sfxEnabled = !!b;
+      try { localStorage.setItem('mehrbod-cards-sfx-enabled', sfxEnabled ? '1' : '0'); } catch (e) {}
+    },
+    isSfxEnabled() { return sfxEnabled; },
 
     setMuted(m) {
       muted = m;
@@ -2184,6 +2219,15 @@ const Sound = (function () {
         tone(f, 0.22, 'sine', 0.06, 0.28 + i * 0.05);
       });
     },
+    milestoneUnlock() {
+      // Celebratory ascending fanfare chord + crystal sparkle
+      [392.00, 523.25, 659.25, 783.99, 1046.50, 1318.51].forEach((f, i) => {
+        tone(f, 0.28, 'triangle', 0.10, i * 0.055);
+      });
+      [1567.98, 2093.00, 2637.02].forEach((f, i) => {
+        tone(f, 0.35, 'sine', 0.08, 0.35 + i * 0.06);
+      });
+    },
     themeChange() {
       [440, 659.25, 880].forEach((f, i) => tone(f, 0.12, 'sine', 0.07, i * 0.04));
     },
@@ -2213,8 +2257,181 @@ const Sound = (function () {
       [659.25, 880, 1174.66].forEach((f, i) => {
         tone(f, 0.12, 'sine', 0.06, i * 0.04);
       });
+    },
+
+    // ---- Dedicated Victory Finisher Audio Synthesizers ---------------------
+    confettiPlus() {
+      duckAmbient(2800, 0.2);
+      [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => tone(f, 0.3, 'triangle', 0.11, i * 0.09));
+      [0.05, 0.25, 0.5, 0.75].forEach(d => {
+        sweep(900, 240, 0.1, 'sine', 0.08, d);
+        tone(1600 + Math.random() * 800, 0.06, 'triangle', 0.07, d + 0.02);
+      });
+    },
+    starburst() {
+      duckAmbient(2600, 0.2);
+      [440, 554.37, 659.25, 880, 1108.73, 1318.51, 1760].forEach((f, i) => {
+        tone(f, 0.4, 'sine', 0.09, i * 0.05);
+      });
+      sweep(300, 1800, 0.45, 'triangle', 0.12, 0.05);
+      sweep(180, 60, 0.5, 'sine', 0.14, 0.15);
+    },
+    supernova() {
+      duckAmbient(3800, 0.1);
+      // Gravitational compression whoosh -> massive cosmic sub-bass blast -> shimmering celestial tail
+      sweep(800, 90, 0.6, 'sawtooth', 0.14, 0);
+      sweep(60, 25, 1.2, 'square', 0.18, 0.6);
+      sweep(120, 40, 1.0, 'sawtooth', 0.16, 0.65);
+      [1046.5, 1318.5, 1567.98, 2093, 2637, 3135.96].forEach((f, i) => {
+        tone(f, 0.6, 'sine', 0.08, 0.8 + i * 0.08);
+      });
+    },
+    fireworks() {
+      duckAmbient(3200, 0.15);
+      // 3 aerial rocket launches with whistle + booms + crackles
+      [0, 0.65, 1.3].forEach((delay, idx) => {
+        sweep(300, 1400, 0.45, 'sine', 0.10, delay);
+        sweep(180, 40, 0.5, 'sawtooth', 0.16, delay + 0.45);
+        tone(65, 0.35, 'square', 0.13, delay + 0.47);
+        [0.6, 0.72, 0.84, 0.95].forEach((d, i) => {
+          tone(2400 + (idx * 300) + (i * 200), 0.04, 'triangle', 0.06, delay + d);
+        });
+      });
+    },
+    cashRain() {
+      duckAmbient(3000, 0.2);
+      // Continuous coin clinks + register KA-CHING + jackpot fanfare
+      [0, 0.12, 0.25, 0.38, 0.52, 0.68, 0.85, 1.05, 1.25, 1.5, 1.8].forEach((d, i) => {
+        tone(2400 + (i % 4) * 400, 0.06, 'sine', 0.09, d);
+        tone(3600 + (i % 3) * 500, 0.05, 'triangle', 0.07, d + 0.015);
+      });
+      // Register Ka-ching
+      setTimeout(() => {
+        sweep(900, 1800, 0.08, 'triangle', 0.14);
+        tone(3520, 0.3, 'sine', 0.16, 0.06);
+        tone(4186, 0.35, 'sine', 0.14, 0.09);
+      }, 400);
+      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, 0.22, 'triangle', 0.09, 0.8 + i * 0.08));
+    },
+    thunderStorm() {
+      duckAmbient(3200, 0.15);
+      // High-voltage lightning discharge + rolling sub-bass thunder
+      sweep(3200, 120, 0.28, 'sawtooth', 0.20, 0);
+      tone(4800, 0.06, 'square', 0.18, 0.01);
+      tone(3600, 0.08, 'triangle', 0.15, 0.04);
+      sweep(140, 30, 1.1, 'sawtooth', 0.19, 0.15);
+      sweep(90, 25, 1.4, 'square', 0.17, 0.22);
+      // Second rolling strike
+      sweep(2600, 160, 0.22, 'sawtooth', 0.16, 0.9);
+      sweep(110, 35, 0.9, 'sawtooth', 0.15, 1.05);
+    },
+    starFountain() {
+      duckAmbient(3000, 0.2);
+      // Rushing fountain hiss + rapid ascending crystal bell arpeggios
+      sweep(300, 1600, 0.7, 'triangle', 0.11, 0);
+      const scale = [523.25, 659.25, 783.99, 987.77, 1046.50, 1318.51, 1567.98, 1975.53, 2093.00];
+      scale.forEach((f, i) => tone(f, 0.25, 'sine', 0.08, i * 0.07));
+      [0.6, 0.8, 1.0, 1.2, 1.4, 1.6].forEach((d, i) => {
+        tone(1760 + (i % 3) * 440, 0.15, 'triangle', 0.06, d);
+      });
+    },
+    dragonFlame() {
+      duckAmbient(3500, 0.15);
+      // Low guttural dragon roar + raging furnace fire whoosh + flame crackles
+      sweep(90, 45, 0.9, 'sawtooth', 0.18, 0);
+      tone(55, 1.1, 'square', 0.16, 0.05);
+      sweep(220, 680, 0.8, 'sawtooth', 0.14, 0.3);
+      sweep(580, 140, 0.9, 'sawtooth', 0.15, 0.7);
+      [0.4, 0.65, 0.9, 1.2, 1.5, 1.8].forEach(d => {
+        sweep(400, 150, 0.15, 'sawtooth', 0.09, d);
+      });
+    },
+    blackHole() {
+      duckAmbient(4000, 0.1);
+      // Deep gravitational drone suction + event horizon spacetime warp
+      sweep(240, 40, 1.5, 'sine', 0.18, 0);
+      tone(48, 2.2, 'triangle', 0.16, 0.2);
+      sweep(80, 320, 1.2, 'sawtooth', 0.12, 0.8);
+      [880, 659.25, 523.25, 392, 261.63].forEach((f, i) => {
+        tone(f, 0.5, 'sine', 0.07, 1.2 + i * 0.15);
+      });
+    },
+    orbitalLaser() {
+      duckAmbient(3500, 0.12);
+      // Target lock beeps -> capacitor charge whine -> thunderous ion beam blast -> plasma detonation
+      [0, 0.18, 0.36].forEach(d => tone(1760, 0.05, 'square', 0.08, d));
+      sweep(400, 3200, 0.5, 'sine', 0.12, 0.5);
+      // Massive beam blast
+      sweep(2200, 80, 0.4, 'sawtooth', 0.22, 1.0);
+      tone(70, 0.9, 'square', 0.18, 1.05);
+      sweep(140, 35, 1.1, 'sawtooth', 0.16, 1.1);
+      [1568, 2093, 2637].forEach((f, i) => tone(f, 0.35, 'triangle', 0.08, 1.3 + i * 0.08));
+    },
+    blizzardShatter() {
+      duckAmbient(3500, 0.15);
+      // Freezing wind sweep -> ice tension creak -> massive crystalline glass shatter -> sparkling frost chimes
+      sweep(600, 1200, 0.7, 'sine', 0.10, 0);
+      sweep(1400, 500, 0.5, 'triangle', 0.08, 0.4);
+      // Shatter explosion at 1.0s
+      sweep(3600, 180, 0.2, 'sawtooth', 0.20, 0.95);
+      tone(4200, 0.08, 'square', 0.16, 0.96);
+      tone(2800, 0.12, 'triangle', 0.14, 0.98);
+      sweep(220, 50, 0.4, 'sawtooth', 0.13, 1.0);
+      [2093, 2637, 3135.96, 4186, 3520].forEach((f, i) => {
+        tone(f, 0.4, 'sine', 0.09, 1.15 + i * 0.09);
+      });
+    },
+    nuclearBlast() {
+      duckAmbient(4200, 0.08);
+      // Klaxon siren -> blinding detonation sub-bass drop -> rolling earth-shaking shockwave
+      [0, 0.25].forEach(d => { sweep(600, 950, 0.18, 'sawtooth', 0.11, d); });
+      // Detonation
+      sweep(180, 20, 1.8, 'sawtooth', 0.24, 0.55);
+      tone(40, 2.4, 'square', 0.22, 0.6);
+      sweep(90, 25, 2.0, 'sawtooth', 0.18, 0.8);
+      sweep(300, 60, 1.4, 'sine', 0.15, 1.2);
+    },
+    phoenixRebirth() {
+      duckAmbient(3800, 0.15);
+      // Celestial angelic choir chord -> majestic avian chime cry -> warm radiant fire surge
+      const choir = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50];
+      choir.forEach((f, i) => {
+        tone(f, 0.8, 'sine', 0.09, i * 0.08);
+      });
+      // Avian chime cry
+      sweep(880, 2637, 0.5, 'triangle', 0.14, 0.6);
+      sweep(2637, 1318.5, 0.6, 'sine', 0.12, 1.05);
+      sweep(180, 520, 0.7, 'sawtooth', 0.12, 1.2);
+      [1567.98, 2093, 2637, 3135.96].forEach((f, i) => {
+        tone(f, 0.5, 'sine', 0.08, 1.4 + i * 0.09);
+      });
+    },
+    emoteCombat() {
+      sweep(580, 180, 0.15, 'sawtooth', 0.11);
+      tone(240, 0.08, 'square', 0.08);
+    },
+    emoteSocial() {
+      tone(659.25, 0.06, 'sine', 0.08);
+      tone(880, 0.08, 'sine', 0.08, 0.06);
     }
   };
+
+  // Thermal & Battery Saver: Suspend Web Audio processing when app is hidden/minimized
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        if (ctx && ctx.state === 'running') {
+          try { ctx.suspend().catch(() => {}); } catch (e) {}
+        }
+      } else {
+        if (ctx && ctx.state === 'suspended' && !muted && (sfxEnabled || ambientEnabled)) {
+          try { ctx.resume().catch(() => {}); } catch (e) {}
+        }
+      }
+    });
+  }
+
+  return soundObj;
 })();
 
 // Global alias for compatibility
