@@ -135,7 +135,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
           </div>
         </button>
-        <button class="menu-card hidden" id="btn-enter-vr">
+        <button class="menu-card" id="btn-enter-vr">
           <div class="menu-icon-pod">
             <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path></svg>
           </div>
@@ -474,28 +474,8 @@
   <section id="screen-shop-cosmetics" class="screen hidden">
     <div class="shop-top-nav" style="display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 1200px; margin: 0 auto; padding: 12px 16px; box-sizing: border-box; flex-wrap: wrap; gap: 10px;">
       <button class="link-btn back-btn shop-exit-btn" id="shop-exit-btn" title="Exit to Main Menu (Esc)" style="margin: 0;">← Exit Shop <span class="shop-esc-hint">ESC</span></button>
-      <button class="primary-btn glass-pill-btn" id="btn-shop-3d-enter" style="padding: 10px 20px; font-size: 0.9rem; margin: 0; min-width: unset; width: auto; background: linear-gradient(135deg, #00f3ff, #ff00cc); color: #fff; font-weight: 800; border: none; box-shadow: 0 4px 12px rgba(0, 243, 255, 0.3);">🛍️ Enter 3D Walkthrough Shop</button>
     </div>
     <div id="shop-cosmetics-list"></div>
-  </section>
-
-  <!-- ===== WEBGL 3D PHYSICAL WALKTHROUGH SHOP ===== -->
-  <section id="screen-shop-3d" class="screen hidden" style="flex-direction: column; align-items: stretch; justify-content: stretch; padding: 12px; height: 100vh; max-height: 100vh; box-sizing: border-box; background: #04050d;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 10px; width: 100%; max-width: 1200px; margin: 0 auto 8px;">
-      <h2 style="margin: 0; font-size: 1.25rem; display: flex; align-items: center; gap: 8px; font-family: 'Playfair Display', serif;">
-        <span style="color: #fff;">3D Cyber Showroom 🛍️</span>
-        <span style="font-size: 0.72rem; background: rgba(0, 243, 255, 0.15); color: #00f3ff; padding: 3px 10px; border-radius: 9999px; font-weight: 800; letter-spacing: 0.5px;">PHYSICAL WALKTHROUGH</span>
-      </h2>
-      <div>
-        <button class="link-btn back-btn" id="btn-shop-3d-exit" style="padding: 8px 16px; font-size: 0.85rem; margin: 0; border: 1.5px solid rgba(255, 255, 255, 0.15); border-radius: 8px;">↩ Return to 2D Shop</button>
-      </div>
-    </div>
-    <div id="shop-3d-canvas-container" style="flex: 1; border-radius: 16px; overflow: hidden; border: 1.5px solid rgba(255, 255, 255, 0.12); position: relative; background: #000; width: 100%; max-width: 1200px; margin: 0 auto;"></div>
-    <div style="font-size: 0.75rem; color: #94a3b8; text-align: center; margin-top: 10px; line-height: 1.5; background: rgba(15, 23, 42, 0.4); padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); width: 100%; max-width: 1200px; margin: 10px auto 0;">
-      ⌨️ <strong>Walk:</strong> Use <strong>W, A, S, D</strong> or <strong>Arrow Keys</strong> to move through the showroom. &nbsp;·&nbsp; 
-      🖱️ <strong>Look:</strong> Left-click and drag to look around. &nbsp;·&nbsp; 
-      🎯 <strong>Interact:</strong> Click on any pedestal's floating price plate to purchase or equip items instantly!
-    </div>
   </section>
 
   <!-- ===== SHOP: WAGER VS BOT ===== -->

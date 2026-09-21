@@ -15,6 +15,19 @@ let lastXRSyncTime = 0;
 const xrRaycaster = new THREE.Raycaster();
 const xrMouse = new THREE.Vector2();
 
+function getXRContainerDimensions() {
+  const container = document.getElementById('webxr-canvas-container');
+  let width = container ? container.clientWidth : 0;
+  let height = container ? container.clientHeight : 0;
+  if (!width || width < 100) {
+    width = window.innerWidth || 1200;
+  }
+  if (!height || height < 100) {
+    height = window.innerHeight || 800;
+  }
+  return { width, height };
+}
+
 function showXRArenaScreen() {
   // Hide all screens and open XR screen
   if (typeof showScreen === 'function') {
@@ -26,6 +39,7 @@ function showXRArenaScreen() {
   
   // Initialize Three.js scene
   initThreeJS();
+  onXRWindowResize();
 }
 
 function initThreeJS() {
@@ -36,6 +50,8 @@ function initThreeJS() {
     onXRWindowResize();
     return;
   }
+
+  const dim = getXRContainerDimensions();
 
   // Create scene
   xrScene = new THREE.Scene();
@@ -48,14 +64,19 @@ function initThreeJS() {
   xrScene.add(xrInteractiveGroup);
 
   // Create camera
-  xrCamera = new THREE.PerspectiveCamera(65, container.clientWidth / container.clientHeight, 0.1, 100);
+  xrCamera = new THREE.PerspectiveCamera(65, dim.width / dim.height, 0.1, 100);
   xrCamera.position.set(0, 3, 4.5); // Stood at the edge of the virtual table looking down
 
   // Create renderer
-  xrRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-  xrRenderer.setPixelRatio(window.devicePixelRatio);
-  xrRenderer.setSize(container.clientWidth, container.clientHeight);
+  xrRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+  xrRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  xrRenderer.setSize(dim.width, dim.height);
   xrRenderer.xr.enabled = true; // Enable WebXR!
+  if (typeof xrRenderer.xr.setReferenceSpaceType === 'function') {
+    try {
+      xrRenderer.xr.setReferenceSpaceType('local-floor');
+    } catch (_) {}
+  }
   container.innerHTML = ''; // Clear container
   container.appendChild(xrRenderer.domElement);
 
@@ -100,9 +121,10 @@ function initThreeJS() {
 function onXRWindowResize() {
   const container = document.getElementById('webxr-canvas-container');
   if (!container || !xrCamera || !xrRenderer) return;
-  xrCamera.aspect = container.clientWidth / container.clientHeight;
+  const dim = getXRContainerDimensions();
+  xrCamera.aspect = dim.width / dim.height;
   xrCamera.updateProjectionMatrix();
-  xrRenderer.setSize(container.clientWidth, container.clientHeight);
+  xrRenderer.setSize(dim.width, dim.height);
 }
 
 // ---- Sci-Fi Cyber Stadium Environment Builder -----------------------------
@@ -804,6 +826,21 @@ function onXRPointerDown(event) {
   handleXRIntersection(intersections);
 }
 
+function triggerHapticPulse(controller, intensity = 0.5, duration = 150) {
+  try {
+    const session = xrRenderer?.xr?.getSession();
+    if (!session || !session.inputSources) return;
+    for (const source of session.inputSources) {
+      if (source.gamepad && source.gamepad.hapticActuators && source.gamepad.hapticActuators.length > 0) {
+        const actuator = source.gamepad.hapticActuators[0];
+        if (typeof actuator.pulse === 'function') {
+          actuator.pulse(intensity, duration);
+        }
+      }
+    }
+  } catch (e) {}
+}
+
 function onXRSelectStart(event) {
   const controller = event.target;
   const tempMatrix = new THREE.Matrix4();
@@ -820,6 +857,7 @@ function onXRSelectStart(event) {
       const artIdx = parseInt(hitObj.name.replace('artifact_', ''));
       xrGrabbedArtifact = xrInteractiveArtifacts[artIdx];
       xrGrabbedController = controller;
+      triggerHapticPulse(controller, 0.7, 200);
       if (typeof showToast === 'function') {
         showToast(`Grabbed Relic: ${xrGrabbedArtifact.data.title} ✊🔮`);
       }
@@ -833,6 +871,7 @@ function onXRSelectStart(event) {
 function onXRSelectEnd(event) {
   const controller = event.target;
   if (xrGrabbedController === controller) {
+    triggerHapticPulse(controller, 0.3, 100);
     if (xrGrabbedArtifact && typeof showToast === 'function') {
       showToast(`Released Relic: ${xrGrabbedArtifact.data.title} ✨`);
     }
@@ -902,55 +941,45 @@ window.initThreeJS = initThreeJS;
 window.enterVRDirectly = enterVRDirectly;
 
 function enterVRDirectly() {
-  initThreeJS();
+  showXRArenaScreen();
 
-  if (navigator.xr && typeof navigator.xr.isSessionSupported === 'function') {
-    navigator.xr.isSessionSupported('immersive-vr')
-      .then((supported) => {
-        if (supported) {
-          const sessionInit = { optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking', 'layers'] };
-          navigator.xr.requestSession('immersive-vr', sessionInit)
-            .then((session) => {
-              if (xrRenderer && xrRenderer.xr) {
-                xrRenderer.xr.setSession(session);
-              }
-            })
-            .catch((err) => {
-              console.warn('WebXR session request failed:', err);
-              showXRArenaScreen();
-            });
-        } else {
-          showXRArenaScreen();
-        }
-      })
-      .catch(() => {
-        showXRArenaScreen();
-      });
-  } else {
-    showXRArenaScreen();
+  if (!xrRenderer) {
+    initThreeJS();
+  }
+  onXRWindowResize();
+
+  const subBtn = document.querySelector('#webxr-button-container button');
+  if (subBtn) {
+    try {
+      subBtn.click();
+      return;
+    } catch (_) {}
+  }
+
+  if (navigator.xr && typeof navigator.xr.requestSession === 'function') {
+    try {
+      const sessionInit = { optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking'] };
+      navigator.xr.requestSession('immersive-vr', sessionInit)
+        .then(async (session) => {
+          if (xrRenderer && xrRenderer.xr) {
+            await xrRenderer.xr.setSession(session);
+          }
+        })
+        .catch((err) => {
+          console.warn('Direct WebXR requestSession error:', err);
+        });
+    } catch (err) {
+      console.warn('Synchronous WebXR request failed:', err);
+    }
   }
 }
 
 // ---- VR Device Detection & Button Visibility -----------------------------
 function detectVRDeviceAndShowButton() {
-  const isQuest = /OculusBrowser|Quest|Oculus/i.test(navigator.userAgent);
   const vrBtn = document.getElementById('btn-enter-vr');
   if (!vrBtn) return;
-
-  if (isQuest) {
-    vrBtn.classList.remove('hidden');
-    return;
-  }
-
-  if (navigator.xr && typeof navigator.xr.isSessionSupported === 'function') {
-    navigator.xr.isSessionSupported('immersive-vr')
-      .then((supported) => {
-        if (supported) {
-          vrBtn.classList.remove('hidden');
-        }
-      })
-      .catch(() => {});
-  }
+  // Always keep ENTER VR button visible for headsets and all devices
+  vrBtn.classList.remove('hidden');
 }
 
 if (document.readyState === 'loading') {

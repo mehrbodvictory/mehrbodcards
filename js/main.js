@@ -1543,24 +1543,6 @@ function openModernShop() {
 document.getElementById('btn-shop').addEventListener('click', openModernShop);
 document.getElementById('bux-counter').addEventListener('click', openModernShop);
 
-document.getElementById('btn-shop-3d-enter').addEventListener('click', () => {
-  if (typeof show3DShopScreen === 'function') {
-    show3DShopScreen();
-    if (typeof shop3dRenderer !== 'undefined' && shop3dRenderer && typeof animate3DShop === 'function') {
-      shop3dRenderer.setAnimationLoop(animate3DShop);
-    }
-  } else {
-    showToast('3D Shop module is loading...');
-  }
-});
-
-document.getElementById('btn-shop-3d-exit').addEventListener('click', () => {
-  showScreen('screen-shop-cosmetics');
-  if (typeof shop3dRenderer !== 'undefined' && shop3dRenderer) {
-    shop3dRenderer.setAnimationLoop(null);
-  }
-});
-
 document.getElementById('btn-story-mode').addEventListener('click', () => {
   showToast('📖 Story Mode is coming soon!', 2400);
 });
@@ -8700,6 +8682,8 @@ const PATCH_NOTES = [
       "NAVIGATION & USABILITY: Replaced the old XR Arena menu card with a prominent ENTER VR button directly underneath the Mehrbod shop, removed the startup VR prompt overlay, and added comprehensive VR interactability across the entire game match engine.",
       "DIRECT WEBXR LAUNCH: Instant VR Entry — Clicking the ENTER VR button now directly requests an immersive WebXR session and takes you straight into the virtual arena without any intermediary screen.",
       "VR GRAB & INSPECT RELICS: Interactive Holographic Artifacts — Added an array of floating interactive VR holographic relic cards surrounding the Cyber Arena. Use your XR controller triggers to grab, hold, and inspect them up close in 3D space with smooth physics and toast feedback!",
+      "HAPTIC FEEDBACK: Controller Vibrations — Experience immersive haptic vibration pulses on your XR controllers whenever you successfully grab or release interactive VR objects in the WebXR scene.",
+      "HEADSET ACCESSIBILITY: Permanent ENTER VR Button & Loading Screen Fix — Made the ENTER VR button permanently visible on the main menu directly underneath the Mehrbod shop, fixed zero-dimension WebGL canvas sizing issues that caused headset loading screen hangs, and enabled direct reference space initialization for Meta Quest and WebXR devices.",
     ],
   },
   {
