@@ -134,6 +134,18 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </div>
       </button>
+      <button class="menu-card" id="btn-enter-vr">
+        <div class="menu-icon-pod">
+          <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path></svg>
+        </div>
+        <div class="menu-card-body">
+          <span class="menu-card-title">ENTER VR 🥽</span>
+          <span class="menu-card-sub">Immersive VR Mode &amp; 3D Shop Showroom</span>
+        </div>
+        <div class="menu-card-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+      </button>
       <button class="menu-card" id="btn-multiplayer">
         <div class="menu-icon-pod">
           <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
@@ -141,18 +153,6 @@
         <div class="menu-card-body">
           <span class="menu-card-title">Multiplayer</span>
           <span class="menu-card-sub">Online matchmaking &amp; custom rooms</span>
-        </div>
-        <div class="menu-card-arrow" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-        </div>
-      </button>
-      <button class="menu-card hidden" id="btn-xr-arena">
-        <div class="menu-icon-pod">
-          <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path></svg>
-        </div>
-        <div class="menu-card-body">
-          <span class="menu-card-title">XR Arena 🥽</span>
-          <span class="menu-card-sub">Immersive 3D VR Cyber Stadium</span>
         </div>
         <div class="menu-card-arrow" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -1171,22 +1171,6 @@
     </div>
   </div>
 
-  <!-- ===== VR PROMPT MODAL OVERLAY ===== -->
-  <div id="vr-prompt-overlay" class="hidden" role="dialog" aria-modal="true" aria-labelledby="vr-prompt-title">
-    <div id="vr-prompt-card">
-      <button id="btn-vr-prompt-close" class="modal-close" aria-label="Close">✕</button>
-      <span class="modal-kicker">QUEST 3 DETECTED</span>
-      <h2 id="vr-prompt-title">Play in Immersive VR?</h2>
-      <p id="vr-prompt-message" class="sub" style="margin-top: 8px; margin-bottom: 20px; line-height: 1.5; font-size: 0.9rem;">
-        Would you like to step onto the holographic battle grid in our WebXR virtual reality Cyber Arena?
-      </p>
-      <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-        <button type="button" class="primary-btn" id="btn-vr-prompt-yes" style="margin: 0; padding: 10px 20px; min-width: 120px;">Yes, Enter VR! ⚔️</button>
-        <button type="button" class="link-btn" id="btn-vr-prompt-no" style="margin: 0; padding: 10px 20px; min-width: 120px;">No, stay in 2D</button>
-      </div>
-    </div>
-  </div>
-
   <!-- ===== SACRIFICE SPELL SELECTOR OVERLAY ===== -->
   <div id="sacrifice-spell-overlay" class="hidden" role="dialog" aria-modal="true" aria-labelledby="sac-spell-title" style="position: fixed; inset: 0; z-index: 10000; background: rgba(2, 6, 23, 0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center;">
     <div id="sacrifice-spell-card" style="background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 16px; padding: 24px; max-width: 440px; width: 90%; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.8); position: relative;">
@@ -1637,6 +1621,5 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/VRButton.js"></script>
 <script src="js/webxr.js?v=12.1.0"></script>
-<script src="js/webxr-shop.js?v=12.1.0"></script>
 </body>
 </html>

@@ -186,6 +186,121 @@ function buildCyberArena() {
 
   // 5. Build 3D floating info screens
   buildFloatingUI();
+
+  // 6. Build 3D Mehrbod Shop Showroom Pedestals around the Arena
+  buildShopPedestalsInArena();
+}
+
+let xrShopPedestals = [];
+
+function buildPedestalPlateTexture(item) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(0, 0, 256, 128);
+
+  ctx.strokeStyle = item.rarity === 'MYTHIC' ? '#f59e0b' : '#00f3ff';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(2, 2, 252, 124);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 16px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText(item.name || 'Cosmetic', 128, 36);
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '10px Arial';
+  let descLine1 = item.desc || '';
+  if (descLine1.length > 40) descLine1 = descLine1.substring(0, 38) + '...';
+  ctx.fillText(descLine1, 128, 62);
+
+  const isOwned = typeof ownsCosmetic === 'function' && ownsCosmetic(item.id);
+  ctx.fillStyle = isOwned ? '#10b981' : '#f59e0b';
+  ctx.font = 'bold 14px Arial';
+  const statusText = isOwned ? (item.kind === 'sleeve' ? '✓ OWNED' : '✓ UNLOCKED') : `🛒 ${item.cost.toLocaleString()} BUX`;
+  ctx.fillText(statusText, 128, 100);
+
+  return new THREE.CanvasTexture(canvas);
+}
+
+function buildShopPedestalsInArena() {
+  xrShopPedestals = [];
+  const items = (typeof COSMETIC_ITEMS !== 'undefined' ? COSMETIC_ITEMS : []).slice(0, 8);
+  const radius = 6.5;
+
+  items.forEach((item, idx) => {
+    const theta = (idx / items.length) * Math.PI * 2;
+    const px = Math.cos(theta) * radius;
+    const pz = Math.sin(theta) * radius;
+
+    const pedGroup = new THREE.Group();
+    pedGroup.position.set(px, -0.5, pz);
+    xrScene.add(pedGroup);
+
+    const baseGeom = new THREE.CylinderGeometry(0.35, 0.45, 0.8, 16);
+    const baseMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.2 });
+    const base = new THREE.Mesh(baseGeom, baseMat);
+    base.position.y = 0.4;
+    pedGroup.add(base);
+
+    const rimGeom = new THREE.TorusGeometry(0.36, 0.02, 8, 24);
+    const rimMat = new THREE.MeshBasicMaterial({ color: item.rarity === 'MYTHIC' ? 0xf59e0b : 0x00f3ff });
+    const rim = new THREE.Mesh(rimGeom, rimMat);
+    rim.rotation.x = Math.PI / 2;
+    rim.position.y = 0.81;
+    pedGroup.add(rim);
+
+    const texture = buildPedestalPlateTexture(item);
+    const plateGeom = new THREE.PlaneGeometry(0.55, 0.28);
+    const plateMat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+    const plate = new THREE.Mesh(plateGeom, plateMat);
+    plate.position.set(0, 0.55, 0.42);
+    plate.rotation.set(-0.25, 0, 0);
+    plate.name = `shop_plate_${item.id}`;
+    xrInteractiveGroup.add(plate);
+
+    const geom = new THREE.OctahedronGeometry(0.2, 0);
+    const mat = new THREE.MeshStandardMaterial({ color: 0xff00cc, emissive: 0x701a75, roughness: 0.1 });
+    const previewMesh = new THREE.Mesh(geom, mat);
+    previewMesh.position.set(0, 1.1, 0);
+    previewMesh.name = `shop_preview_${item.id}`;
+    xrInteractiveGroup.add(previewMesh);
+
+    xrShopPedestals.push({ group: pedGroup, item, panelMesh: plate, previewMesh });
+  });
+}
+
+function triggerXRShopPurchase(itemId) {
+  const item = COSMETIC_ITEMS.find(x => x.id === itemId);
+  if (!item) return;
+
+  if (typeof buyOrEquipCosmetic === 'function') {
+    buyOrEquipCosmetic(item);
+  } else {
+    const isOwned = typeof ownsCosmetic === 'function' && ownsCosmetic(item.id);
+    if (!isOwned) {
+      const bal = typeof loadBux === 'function' ? loadBux() : 1000;
+      if (bal >= item.cost) {
+        if (typeof saveBux === 'function') saveBux(bal - item.cost);
+        if (typeof unlockCosmetic === 'function') unlockCosmetic(item.id);
+        if (typeof showToast === 'function') showToast(`Purchased ${item.name} in VR! 🛍️`);
+      } else {
+        if (typeof showToast === 'function') showToast(`Not enough Bux! Needs ${item.cost} ◉`);
+      }
+    } else {
+      if (typeof showToast === 'function') showToast(`Already own ${item.name}! ✓`);
+    }
+  }
+
+  xrShopPedestals.forEach(p => {
+    if (p.item.id === itemId) {
+      p.panelMesh.material.map = buildPedestalPlateTexture(p.item);
+      p.panelMesh.material.needsUpdate = true;
+    }
+  });
 }
 
 function buildFloatingUI() {
@@ -577,6 +692,18 @@ function handleXRIntersection(intersections) {
     }
     return;
   }
+
+  // 6. Shop Pedestal Interactivity in VR / 3D Mode
+  if (obj.name && obj.name.startsWith('shop_plate_')) {
+    const itemId = obj.name.replace('shop_plate_', '');
+    triggerXRShopPurchase(itemId);
+    return;
+  }
+  if (obj.name && obj.name.startsWith('shop_preview_')) {
+    const itemId = obj.name.replace('shop_preview_', '');
+    triggerXRShopPurchase(itemId);
+    return;
+  }
 }
 
 function onXRPointerDown(event) {
@@ -654,79 +781,4 @@ function animateXR() {
 window.showXRArenaScreen = showXRArenaScreen;
 window.initThreeJS = initThreeJS;
 
-// ---- VR Device Detection & Popup Prompt Logic -----------------------------
-function detectVRDeviceAndPrompt() {
-  const isQuest = /OculusBrowser|Quest|Oculus/i.test(navigator.userAgent);
-  
-  const showVRUI = () => {
-    // 1. Unhide the XR Arena card on the main lobby screen
-    const xrBtn = document.getElementById('btn-xr-arena');
-    if (xrBtn) {
-      xrBtn.classList.remove('hidden');
-    }
-    
-    // 2. Display the interactive VR prompt overlay
-    const overlay = document.getElementById('vr-prompt-overlay');
-    if (overlay) {
-      overlay.classList.remove('hidden');
-    }
-  };
-
-  // Check user agent first for instant response on Quest headsets
-  if (isQuest) {
-    showVRUI();
-    return;
-  }
-
-  // Fallback check using immersive WebXR capability APIs
-  if (navigator.xr && typeof navigator.xr.isSessionSupported === 'function') {
-    navigator.xr.isSessionSupported('immersive-vr')
-      .then((supported) => {
-        if (supported) {
-          showVRUI();
-        }
-      })
-      .catch(() => {});
-  }
-}
-
-// Wire up the VR Prompt overlay Yes/No/Close buttons
-function initVRPromptHandlers() {
-  const closeBtn = document.getElementById('btn-vr-prompt-close');
-  const yesBtn = document.getElementById('btn-vr-prompt-yes');
-  const noBtn = document.getElementById('btn-vr-prompt-no');
-  const overlay = document.getElementById('vr-prompt-overlay');
-
-  if (closeBtn) {
-    closeBtn.addEventListener('click', () => {
-      overlay?.classList.add('hidden');
-    });
-  }
-
-  if (noBtn) {
-    noBtn.addEventListener('click', () => {
-      overlay?.classList.add('hidden');
-    });
-  }
-
-  if (yesBtn) {
-    yesBtn.addEventListener('click', () => {
-      overlay?.classList.add('hidden');
-      if (typeof showXRArenaScreen === 'function') {
-        showXRArenaScreen();
-      }
-    });
-  }
-}
-
-// Initialize on page load
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    initVRPromptHandlers();
-    setTimeout(detectVRDeviceAndPrompt, 1500);
-  });
-} else {
-  initVRPromptHandlers();
-  setTimeout(detectVRDeviceAndPrompt, 1500);
-}
 

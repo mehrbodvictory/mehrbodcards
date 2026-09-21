@@ -1588,8 +1588,8 @@ document.getElementById('btn-join-menu').addEventListener('click', () => {
   openDeckBuilder((config) => { pendingGuestDeckConfig = config; showScreen('screen-join'); });
 });
 
-// XR Arena triggers
-document.getElementById('btn-xr-arena').addEventListener('click', () => {
+// ENTER VR triggers
+document.getElementById('btn-enter-vr').addEventListener('click', () => {
   if (typeof showXRArenaScreen === 'function') {
     showXRArenaScreen();
   }
@@ -8689,8 +8689,15 @@ document.getElementById('btn-copy-code').addEventListener('click', async () => {
 });
 
 // ---- Patch notes --------------------------------------------------------
-const CURRENT_VERSION = '6.9';
+const CURRENT_VERSION = '6.10';
 const PATCH_NOTES = [
+  {
+    version: '6.10',
+    notes: [
+      "VR SHOP SHOWROOM: Immersive 3D Mehrbod Shop in VR — The legendary Mehrbod Shop is now fully integrated as a 3D interactable showroom inside VR and 3D mode! Surrounding the Cyber Arena are high-tech neon pedestals displaying floating animated holographic cosmetic items, themes, and sleeves. Tap interactive 3D pricing labels with VR controllers or mouse raycasting to purchase or equip items instantly.",
+      "NAVIGATION & USABILITY: Replaced the old XR Arena menu card with a prominent ENTER VR button directly underneath the Mehrbod shop, removed the startup VR prompt overlay, and added comprehensive VR interactability across the entire game match engine.",
+    ],
+  },
   {
     version: '6.9',
     notes: [
