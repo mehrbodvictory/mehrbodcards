@@ -74,7 +74,6 @@ const ABILITIES = {
   green_onplay_ward1:      { id: 'green_onplay_ward1', label: 'On placement: gains a Ward that completely blocks the next instance of damage it would take.' },
   green_onplay_stealcard:  { id: 'green_onplay_stealcard', label: "On placement: steals the enemy's weakest Blue card onto your board, if you have room." },
   green_onplay_chipslot1:  { id: 'green_onplay_chipslot1', label: 'On placement: permanently gains +1 chip slot.' },
-  sacrificeman_ability:    { id: 'sacrificeman_ability', label: 'When sacrificed or destroyed, revives instantly (up to 3 times total).' },
   red_onplay_burn2:        { id: 'red_onplay_burn2', label: 'On placement: burns a random enemy card, dealing 1 dmg at the start of each of the next 2 rounds.' },
   red_onplay_purge_weak:   { id: 'red_onplay_purge_weak', label: 'On placement: destroys every enemy card with 2 or less max HP.' },
   red_onattack_doublestrike:{ id: 'red_onattack_doublestrike', label: "This card's attacks strike twice." },
@@ -109,7 +108,6 @@ const UNIT_ARCHETYPES = {
     { id: 'green_warden_ii',    name: 'Sentinel',      sp: 4, pool: ['green_onplay_ward1'] },
     { id: 'green_footpad',      name: 'Footpad',       sp: 3, pool: ['green_onplay_stealcard'] },
     { id: 'green_tinkerer',     name: 'Tinkerer',      sp: 4, pool: ['green_onplay_chipslot1'] },
-    { id: 'green_sacrificeman', name: 'Sacrifice Man', sp: 3, pool: ['sacrificeman_ability'] },
   ],
   3: [ // Red (Scaling 4 - 6 SP)
     { id: 'red_wraith',      name: 'Wraith',      sp: 5, pool: ['onattack_pierce'] },
@@ -154,9 +152,6 @@ function makeUnitCardFromArchetype(tier, archetype, rng, forcedAbility) {
     canAttackAgain: false,  // set when a queued attack must resolve next cycle
     pendingAttackTargetId: null,
   };
-  if (archetype.name === 'Sacrifice Man' || ability === 'sacrificeman_ability') {
-    card.sacrificesLeft = 3;
-  }
   return card;
 }
 
@@ -200,7 +195,8 @@ const SPELL_DEFS = [
   { id: 'sanctioned', kind: 'spell', name: 'Sanctioned', text: 'Target card cannot defend for entire match. (Infinite use) (sacrifice 1 Spell card)', sanctioned: true },
   { id: 'zap', kind: 'spell', name: 'Zap!', text: 'Deal 5 damage to an enemy card.', zap: true, dmg: 5 },
   { id: 'allaura', kind: 'spell', name: 'All Aura', text: 'Enemy card cannot attack or defend for 3 turns. (Can be used twice)', allAura: true },
-  { id: 'remainsmask', kind: 'spell', name: 'Remains Mask', text: 'All Sacrifice man cards regenerate their uses. (1x Use) (Sacrifice 1 Red Card)', remainsMask: true, usesLeft: 1 },
+  { id: 'remainsmask', kind: 'spell', name: 'Remains Mask', text: 'Sacrifice 1 Red Card on board to fill hand with Sacrifice Man spells. (1x Use)', remainsMask: true, usesLeft: 1 },
+  { id: 'sacrificeman', kind: 'spell', name: 'Sacrifice Man', text: 'Does nothing on its own. Exists to be sacrificed by other spells.', sacrificeMan: true },
   { id: 'supremeshirt', kind: 'spell', name: 'Supreme Shirt', text: '+2 HP, DMG and SP to Chosen Card.', supremeShirt: true },
   { id: 'revivespell', kind: 'spell', name: 'Revive Spell', text: 'Revives 1 dead card from your graveyard onto your board.', reviveSpell: true },
   { id: 'skeletonstaff', kind: 'spell', name: 'Skeleton Staff', text: 'Selected card has 1 HP, 1 ATK, 1 SP and cannot use chips.', skeletonStaff: true },

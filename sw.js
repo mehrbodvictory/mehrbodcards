@@ -3,26 +3,26 @@ const CDN_CACHE_NAME = 'mehrbod-cards-cdn-cache-v10.0';
 
 // Core application assets to precache immediately on install
 const PRECACHE_ASSETS = [
-  '/',
-  '/index.html',
-  '/style.css',
-  '/style-juice.css',
-  '/js/bot.js',
-  '/js/cards.js',
-  '/js/firebase-matchmaking.js',
-  '/js/game.js',
-  '/js/juice.js',
-  '/js/main.js',
-  '/js/network.js',
-  '/js/rng.js',
-  '/js/sound.js',
-  '/js/ui.js',
-  '/pwa-192x192.png',
-  '/pwa-512x512.png',
-  '/pwa-maskable-512x512.png',
-  '/apple-touch-icon.png',
-  '/favicon.ico',
-  '/manifest.json'
+  './',
+  'index.html',
+  'style.css',
+  'style-juice.css',
+  'js/bot.js',
+  'js/cards.js',
+  'js/firebase-matchmaking.js',
+  'js/game.js',
+  'js/juice.js',
+  'js/main.js',
+  'js/network.js',
+  'js/rng.js',
+  'js/sound.js',
+  'js/ui.js',
+  'pwa-192x192.png',
+  'pwa-512x512.png',
+  'pwa-maskable-512x512.png',
+  'apple-touch-icon.png',
+  'favicon.ico',
+  'manifest.json'
 ];
 
 // Helper to determine if a request is for an external asset that we want to cache-first
@@ -124,7 +124,7 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => {
           return caches.match(event.request).then((cached) => {
-            return cached || caches.match('/index.html');
+            return cached || caches.match('index.html');
           });
         })
     );

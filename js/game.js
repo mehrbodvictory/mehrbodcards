@@ -313,14 +313,6 @@ function killCard(state, ownerKey, slot, deathSource) {
   const p = state.players[ownerKey];
   const card = p.board[slot];
   if (!card) return;
-
-  if ((card.ability === 'sacrificeman_ability' || card.name === 'Sacrifice Man') && (card.sacrificesLeft || 0) > 0) {
-    card.sacrificesLeft--;
-    card.hp = card.maxHp;
-    pushFx(state, { type: 'sacrificeManRevive', owner: ownerKey, slot, left: card.sacrificesLeft });
-    pushLog(state, `🛡️ ${card.name} was sacrificed/destroyed and returned instantly! (${card.sacrificesLeft} uses left)`);
-    return;
-  }
   // BUGFIX: this used to also require p.everMergedUp (i.e. the player must
   // have already completed at least one merge before Blue would ever come
   // back from a death) - that meant a fresh player who owns blueprints but
@@ -609,16 +601,19 @@ function castSpell(state, playerKey, spellInstanceId, targetOwnerKey, targetSlot
       return { ok: false, error: 'Remains Mask requires targeting one of your Red cards (Tier 3) to sacrifice' };
     }
     killCard(state, playerKey, targetSlot, { kind: 'spell', name: 'Remains Mask', owner: playerKey });
-    const restoreSac = (c) => {
-      if (c && (c.name === 'Sacrifice Man' || c.ability === 'sacrificeman_ability' || c.sacrificesLeft !== undefined)) {
-        c.sacrificesLeft = 3;
-      }
-    };
-    p.board.forEach(restoreSac);
-    p.deck.forEach(restoreSac);
-    p.graveyard.forEach(restoreSac);
+    let addedCount = 0;
+    while (p.spells.length < 5 && addedCount < 3) {
+      const sacDef = (typeof SPELL_DEFS !== 'undefined')
+        ? SPELL_DEFS.find(s => s.id === 'sacrificeman')
+        : null;
+      const newSpell = sacDef
+        ? { ...sacDef, id: 's_sac_' + Math.random().toString(36).substring(2, 7) }
+        : { id: 's_sac_' + Math.random().toString(36).substring(2, 7), defId: 'sacrificeman', kind: 'spell', name: 'Sacrifice Man', text: 'Does nothing on its own. Exists to be sacrificed by other spells.', sacrificeMan: true };
+      p.spells.push(newSpell);
+      addedCount++;
+    }
     pushFx(state, { type: 'remainsMask', owner: playerKey, slot: targetSlot, source: { kind: 'spell', name: spell.name, owner: playerKey } });
-    pushLog(state, `💀 ${playerKey} casts Remains Mask, sacrificing a Red Card to restore all Sacrifice Man uses!`);
+    pushLog(state, `💀 ${playerKey} casts Remains Mask, sacrificing a Red Card to grant ${addedCount} Sacrifice Man spells!`);
   }
 
   const source = { kind: 'spell', name: spell.name, owner: playerKey, chainLightning: !!spell.chainLightning };
@@ -716,7 +711,8 @@ function castSpell(state, playerKey, spellInstanceId, targetOwnerKey, targetSlot
       stillAlive.hp = stillAlive.maxHp;
       pushFx(state, { type: 'orangeHeal', targetOwner: targetOwnerKey, targetSlot, source });
     }
-    const otherSpellIdx = p.spells.findIndex((s, i) => i !== idx);
+    let otherSpellIdx = p.spells.findIndex((s, i) => i !== idx && (s.sacrificeMan || s.defId === 'sacrificeman' || s.name === 'Sacrifice Man'));
+    if (otherSpellIdx === -1) otherSpellIdx = p.spells.findIndex((s, i) => i !== idx);
     if (otherSpellIdx !== -1) {
       const sac = p.spells[otherSpellIdx];
       p.spells.splice(otherSpellIdx, 1);
@@ -732,7 +728,8 @@ function castSpell(state, playerKey, spellInstanceId, targetOwnerKey, targetSlot
   }
 
   if (spell.sanctioned || spell.defId === 'sanctioned') {
-    const otherSpellIdx = p.spells.findIndex((s, i) => i !== idx);
+    let otherSpellIdx = p.spells.findIndex((s, i) => i !== idx && (s.sacrificeMan || s.defId === 'sacrificeman' || s.name === 'Sacrifice Man'));
+    if (otherSpellIdx === -1) otherSpellIdx = p.spells.findIndex((s, i) => i !== idx);
     if (otherSpellIdx === -1) {
       return { ok: false, error: 'Sanctioned requires 1 other spell in hand to sacrifice' };
     }
@@ -756,6 +753,10 @@ function castSpell(state, playerKey, spellInstanceId, targetOwnerKey, targetSlot
       targetCard.disabledTurns = 3;
       pushFx(state, { type: 'allAura', targetOwner: targetOwnerKey, targetSlot, source });
     }
+  }
+  if (spell.sacrificeMan || spell.defId === 'sacrificeman') {
+    pushFx(state, { type: 'sacrificeMan', owner: playerKey, source });
+    pushLog(state, `💀 ${playerKey} cast Sacrifice Man... Nothing happened! (Exists to be sacrificed)`);
   }
 
   let removeSpell = true;
@@ -1134,7 +1135,7 @@ function applyAction(state, action) {
       result = mergeCards(state, action.player, slots, action.blueprintIndex);
       break;
     }
-    case 'spell': result = castSpell(state, action.player, action.spellId, action.targetOwner, action.targetSlot); break;
+    case 'spell': result = castSpell(state, action.player, action.spellId, action.targetOwner, action.targetSlot, action.sacSpellId); break;
     case 'chip': result = attachChip(state, action.player, action.chipId, action.targetOwner, action.targetSlot); break;
     case 'defend': result = setDefend(state, action.player, action.slot); break;
     case 'cancelDefend': result = cancelDefend(state, action.player, action.slot); break;

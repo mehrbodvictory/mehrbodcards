@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node server.js",
     "build": "echo 'Build complete'",
-    "lint": "node -c server.js js/bot.js js/cards.js js/firebase-matchmaking.js js/game.js js/juice.js js/main.js js/network.js js/rng.js js/sound.js js/theme-templates.js js/sound.js js/ui.js",
+    "lint": "node -c server.js js/bot.js js/cards.js js/firebase-matchmaking.js js/game.js js/juice.js js/main.js js/network.js js/rng.js js/sound.js js/theme-templates.js js/ui.js",
     "start": "node server.js"
   },
   "dependencies": {

@@ -640,7 +640,7 @@ function findArchetypeById(archetypeId) {
 (function grantChainLightningToEveryone() {
   try {
     const col = loadCollection();
-    const spellsToAdd = ['chainlightning', 'remainsmask', 'supremeshirt', 'revivespell', 'skeletonstaff'];
+    const spellsToAdd = ['chainlightning', 'remainsmask', 'supremeshirt', 'revivespell', 'skeletonstaff', 'sacrificeman'];
     let changed = false;
     spellsToAdd.forEach(sid => {
       if (!col.spells.includes(sid)) {
@@ -801,7 +801,42 @@ function dbToggleChip(id) {
   renderDeckBuilder();
 }
 
+let dbTabsWired = false;
+function initDeckBuilderTabs() {
+  if (dbTabsWired) return;
+  dbTabsWired = true;
+  const tabs = document.querySelectorAll('.pool-tab-btn');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const target = tab.dataset.dbTab; // 'units', 'spells', 'chips'
+      
+      const uGrid = document.getElementById('deck-builder-units');
+      const sGrid = document.getElementById('deck-builder-spells');
+      const cGrid = document.getElementById('deck-builder-chips');
+      const tfWrap = document.getElementById('tier-filter-wrapper');
+      
+      uGrid?.classList.toggle('hidden', target !== 'units');
+      sGrid?.classList.toggle('hidden', target !== 'spells');
+      cGrid?.classList.toggle('hidden', target !== 'chips');
+      
+      if (tfWrap) {
+        tfWrap.style.display = target === 'units' ? 'block' : 'none';
+      }
+      
+      // Reset search input on tab change to clear previous filters
+      const searchInput = document.getElementById('deck-builder-search');
+      if (searchInput) {
+        searchInput.value = '';
+        applyDeckBuilderFilter();
+      }
+    });
+  });
+}
+
 function renderDeckBuilder() {
+  initDeckBuilderTabs();
   const col = loadCollection();
   const unitsContainer = document.getElementById('deck-builder-units');
   const spellsContainer = document.getElementById('deck-builder-spells');
@@ -811,37 +846,58 @@ function renderDeckBuilder() {
   const totalUnits = dbTotalUnits();
   const atUnitCap = totalUnits >= REQUIRED_UNIT_COUNT;
 
+  // 1. Render Units Pool with Tier Separator Dividers
   unitsContainer.innerHTML = '';
   [1, 2, 3, 4].forEach(tier => {
+    // Append a beautiful divider header for each tier
+    const dividerEl = document.createElement('div');
+    dividerEl.className = 'tier-separator';
+    dividerEl.dataset.tierDivider = String(tier);
+    dividerEl.innerHTML = `
+      <div class="tier-separator-line"></div>
+      <div class="tier-separator-text tier${tier}">${TIERS[tier].name} Cards (Tier ${tier})</div>
+      <div class="tier-separator-line"></div>
+    `;
+    unitsContainer.appendChild(dividerEl);
+
     UNIT_ARCHETYPES[tier].forEach(a => {
       const owned = isUnitArchetypeOwned(a.id);
       const count = dbUnitCounts[a.id] || 0;
       const el = document.createElement('div');
-      el.className = `dcard unit-dcard tier${tier} ${owned ? '' : 'locked'}`;
+      el.className = `dcard unit-dcard tier${tier} ${owned ? '' : 'locked'} ${count > 0 ? 'selected' : ''}`;
       el.dataset.unitName = a.name;
       el.dataset.unitTier = String(tier);
       const abilityText = a.pool[0] === 'none' ? 'No special ability' : (ABILITIES[a.pool[0]] ? ABILITIES[a.pool[0]].label : 'Unique ability');
       el.innerHTML = `
         <div class="dcard-name">${a.name}</div>
         <div class="dcard-text">${TIERS[tier].name} · ${abilityText}</div>
+        ${count > 0 ? `<span class="dcard-count-badge">x${count}</span>` : ''}
         ${owned
-          ? `<div class="dcard-stepper">
+          ? `<div class="dcard-stepper" onclick="event.stopPropagation()">
                <button type="button" class="stepper-btn" data-unit-dec="${a.id}" ${count <= 0 ? 'disabled' : ''}>−</button>
                <span class="stepper-count">${count}</span>
                <button type="button" class="stepper-btn" data-unit-inc="${a.id}" ${atUnitCap ? 'disabled' : ''}>+</button>
              </div>`
           : `<div class="dcard-lock">🔒 Unlock via Card Packs in the Shop</div>`}
       `;
+      if (owned) {
+        el.addEventListener('click', () => {
+          if (!atUnitCap) dbAdjustUnit(a.id, 1);
+          else showToast("Unit slots are full! Use the minus (−) button on card steppers to remove.", 1500);
+        });
+      }
       unitsContainer.appendChild(el);
     });
   });
+
   unitsContainer.querySelectorAll('[data-unit-inc]').forEach(btn => {
-    btn.addEventListener('click', () => dbAdjustUnit(btn.dataset.unitInc, 1));
+    btn.addEventListener('click', (e) => { e.stopPropagation(); dbAdjustUnit(btn.dataset.unitInc, 1); });
   });
   unitsContainer.querySelectorAll('[data-unit-dec]').forEach(btn => {
-    btn.addEventListener('click', () => dbAdjustUnit(btn.dataset.unitDec, -1));
+    btn.addEventListener('click', (e) => { e.stopPropagation(); dbAdjustUnit(btn.dataset.unitDec, -1); });
   });
 
+  // 2. Render Spells Pool
   const atSpellCap = dbSelectedSpells.length >= REQUIRED_SPELL_COUNT;
   spellsContainer.innerHTML = '';
   SPELL_DEFS.forEach(s => {
@@ -850,11 +906,13 @@ function renderDeckBuilder() {
     const selected = count > 0;
     const el = document.createElement('div');
     el.className = `dcard ${owned ? '' : 'locked'} ${selected ? 'selected' : ''}`;
+    el.dataset.spellName = s.name;
     el.innerHTML = `
       <div class="dcard-name">${s.name}</div>
       <div class="dcard-text">${s.text}</div>
+      ${count > 0 ? `<span class="dcard-count-badge spell">x${count}</span>` : ''}
       ${owned
-        ? `<div class="dcard-stepper" style="margin-top: 8px;">
+        ? `<div class="dcard-stepper" style="margin-top: 8px;" onclick="event.stopPropagation()">
              <button type="button" class="stepper-btn" data-spell-dec="${s.id}" ${count <= 0 ? 'disabled' : ''}>−</button>
              <span class="stepper-count">${count}</span>
              <button type="button" class="stepper-btn" data-spell-inc="${s.id}" ${atSpellCap ? 'disabled' : ''}>+</button>
@@ -865,7 +923,6 @@ function renderDeckBuilder() {
       el.querySelector('[data-spell-inc]')?.addEventListener('click', (e) => { e.stopPropagation(); dbAdjustSpell(s.id, 1); });
       el.querySelector('[data-spell-dec]')?.addEventListener('click', (e) => { e.stopPropagation(); dbAdjustSpell(s.id, -1); });
       el.addEventListener('click', (e) => {
-        if (e.target.closest('button')) return;
         if (!atSpellCap || count === 0) dbAdjustSpell(s.id, 1);
         else dbAdjustSpell(s.id, -1);
       });
@@ -873,25 +930,45 @@ function renderDeckBuilder() {
     spellsContainer.appendChild(el);
   });
 
+  // 3. Render Chips Pool
   chipsContainer.innerHTML = '';
   CHIP_DEFS.forEach(c => {
     const owned = col.chips.includes(c.id);
     const selected = dbSelectedChips.includes(c.id);
     const el = document.createElement('div');
     el.className = `dcard ${owned ? '' : 'locked'} ${selected ? 'selected' : ''}`;
-    el.innerHTML = `<div class="dcard-name">${c.name}</div><div class="dcard-text">${c.text}</div>${owned ? '' : '<div class="dcard-lock">🔒 Locked</div>'}`;
-    if (owned) el.addEventListener('click', () => dbToggleChip(c.id));
+    el.dataset.chipName = c.name;
+    el.innerHTML = `
+      <div class="dcard-name">${c.name}</div>
+      <div class="dcard-text">${c.text}</div>
+      ${owned ? '' : '<div class="dcard-lock">🔒 Locked</div>'}
+    `;
+    if (owned) {
+      el.addEventListener('click', () => dbToggleChip(c.id));
+    }
     chipsContainer.appendChild(el);
   });
 
-  document.getElementById('deck-builder-unit-count').textContent = `${totalUnits}/${REQUIRED_UNIT_COUNT}`;
-  document.getElementById('deck-builder-spell-count').textContent = `${dbSelectedSpells.length}/${REQUIRED_SPELL_COUNT}`;
-  document.getElementById('deck-builder-chip-count').textContent = `${dbSelectedChips.length}/${REQUIRED_CHIP_COUNT}`;
+  // 5. Update Labels and completeness
+  const uCountEl = document.getElementById('deck-builder-unit-count') || document.getElementById('active-units-count');
+  if (uCountEl) uCountEl.textContent = `${totalUnits}/${REQUIRED_UNIT_COUNT}`;
+  const sCountEl = document.getElementById('deck-builder-spell-count') || document.getElementById('active-spells-count');
+  if (sCountEl) sCountEl.textContent = `${dbSelectedSpells.length}/${REQUIRED_SPELL_COUNT}`;
+  const cCountEl = document.getElementById('deck-builder-chip-count') || document.getElementById('active-chips-count');
+  if (cCountEl) cCountEl.textContent = `${dbSelectedChips.length}/${REQUIRED_CHIP_COUNT}`;
+
+  // Update badge counter inside categories tabs
+  const tabUnitsCount = document.getElementById('pool-tab-units-count');
+  const tabSpellsCount = document.getElementById('pool-tab-spells-count');
+  const tabChipsCount = document.getElementById('pool-tab-chips-count');
+  if (tabUnitsCount) tabUnitsCount.textContent = `${totalUnits}/12`;
+  if (tabSpellsCount) tabSpellsCount.textContent = `${dbSelectedSpells.length}/4`;
+  if (tabChipsCount) tabChipsCount.textContent = `${dbSelectedChips.length}/2`;
 
   const complete = totalUnits === REQUIRED_UNIT_COUNT && dbSelectedSpells.length === REQUIRED_SPELL_COUNT && dbSelectedChips.length === REQUIRED_CHIP_COUNT;
   const hint = document.getElementById('deck-completeness-hint');
   if (hint) {
-    hint.textContent = complete ? 'DECK READY' : `${totalUnits}/${REQUIRED_UNIT_COUNT} UNITS`;
+    hint.textContent = complete ? 'DECK READY' : `${totalUnits}/${REQUIRED_UNIT_COUNT} CARDS`;
     hint.classList.toggle('complete', complete);
   }
   const confirmBtn = document.getElementById('btn-deck-builder-confirm');
@@ -899,24 +976,40 @@ function renderDeckBuilder() {
   applyDeckBuilderFilter();
 }
 
-// ---- NEW FEATURE: Deck Builder search & filter -----------------------------
-// The Collection screen has had search/filter since v2.6, but the Deck
-// Builder itself never did - with 20 unit archetypes plus spells/chips to
-// scroll through every time a deck is built, that's a real gap now that the
-// card pool has grown. Filters purely by hiding/showing existing DOM nodes
-// (same lightweight approach as setupCollectionTools), so it composes with
-// re-renders from stepper clicks without any extra bookkeeping.
 function applyDeckBuilderFilter() {
   const search = document.getElementById('deck-builder-search');
   const tierSel = document.getElementById('deck-builder-tier-filter');
-  if (!search && !tierSel) return;
-  const q = (search?.value || '').trim().toLowerCase();
+  if (!search) return;
+  const q = search.value.trim().toLowerCase();
   const tier = tierSel?.value || 'all';
+
+  // 1. Filter Units
   document.querySelectorAll('#deck-builder-units [data-unit-name]').forEach(el => {
     const name = (el.dataset.unitName || '').toLowerCase();
     const matchesQuery = !q || name.includes(q);
     const matchesTier = tier === 'all' || el.dataset.unitTier === tier;
     el.hidden = !(matchesQuery && matchesTier);
+  });
+
+  // Toggle tier separator visibility dynamically based on filtered card results
+  for (let t = 1; t <= 4; t++) {
+    const divider = document.querySelector(`.tier-separator[data-tier-divider="${t}"]`);
+    if (divider) {
+      const visibleCards = document.querySelectorAll(`#deck-builder-units [data-unit-name][data-unit-tier="${t}"]:not([hidden])`);
+      divider.hidden = (visibleCards.length === 0);
+    }
+  }
+
+  // 2. Filter Spells
+  document.querySelectorAll('#deck-builder-spells [data-spell-name]').forEach(el => {
+    const name = (el.dataset.spellName || '').toLowerCase();
+    el.hidden = q && !name.includes(q);
+  });
+
+  // 3. Filter Chips
+  document.querySelectorAll('#deck-builder-chips [data-chip-name]').forEach(el => {
+    const name = (el.dataset.chipName || '').toLowerCase();
+    el.hidden = q && !name.includes(q);
   });
 }
 document.getElementById('deck-builder-search')?.addEventListener('input', applyDeckBuilderFilter);
@@ -1450,6 +1543,24 @@ function openModernShop() {
 document.getElementById('btn-shop').addEventListener('click', openModernShop);
 document.getElementById('bux-counter').addEventListener('click', openModernShop);
 
+document.getElementById('btn-shop-3d-enter').addEventListener('click', () => {
+  if (typeof show3DShopScreen === 'function') {
+    show3DShopScreen();
+    if (typeof shop3dRenderer !== 'undefined' && shop3dRenderer && typeof animate3DShop === 'function') {
+      shop3dRenderer.setAnimationLoop(animate3DShop);
+    }
+  } else {
+    showToast('3D Shop module is loading...');
+  }
+});
+
+document.getElementById('btn-shop-3d-exit').addEventListener('click', () => {
+  showScreen('screen-shop-cosmetics');
+  if (typeof shop3dRenderer !== 'undefined' && shop3dRenderer) {
+    shop3dRenderer.setAnimationLoop(null);
+  }
+});
+
 document.getElementById('btn-story-mode').addEventListener('click', () => {
   showToast('📖 Story Mode is coming soon!', 2400);
 });
@@ -1475,6 +1586,17 @@ document.getElementById('btn-host-mode-wager').addEventListener('click', () => {
 
 document.getElementById('btn-join-menu').addEventListener('click', () => {
   openDeckBuilder((config) => { pendingGuestDeckConfig = config; showScreen('screen-join'); });
+});
+
+// XR Arena triggers
+document.getElementById('btn-xr-arena').addEventListener('click', () => {
+  if (typeof showXRArenaScreen === 'function') {
+    showXRArenaScreen();
+  }
+});
+
+document.getElementById('btn-xr-back').addEventListener('click', () => {
+  showScreen('screen-menu');
 });
 
 document.querySelectorAll('.menu-card').forEach(wirePressFeedback);
@@ -1558,8 +1680,40 @@ function recordBattleResult(win, wager = 0, payout = 0) {
     s.bestStreak = Math.max(s.bestStreak, s.streak);
     s.wagerWon += Math.max(0, payout - wager);
     s.biggestWin = Math.max(s.biggestWin, Math.max(0, payout - wager));
+
+    // Win Streak Milestone notification and rewards system
+    const streakMilestones = {
+      5: { title: "🔥 ON FIRE! (5x Streak)", desc: "A fiery 5-game winning streak has set your player board ablaze!", icon: "🔥", bonus: 50, pill: "HOT STREAK REACHED" },
+      10: { title: "⚡ UNSTOPPABLE! (10x Streak)", desc: "Phenomenal performance! You are dominating the arena with a 10-game streak!", icon: "⚡", bonus: 150, pill: "SUPER STREAK REACHED" },
+      20: { title: "👑 GODLIKE! (20x Streak)", desc: "Unbelievable mastery! A legendary 20-game win streak has been achieved!", icon: "👑", bonus: 500, pill: "GODLIKE STREAK REACHED" }
+    };
+    if (streakMilestones[s.streak]) {
+      const ms = streakMilestones[s.streak];
+      // Trigger the spectacular player-board milestone explosion animation immediately!
+      if (typeof window.playPlayerBoardMilestoneAnimation === 'function') {
+        window.playPlayerBoardMilestoneAnimation(s.streak);
+      }
+      setTimeout(() => {
+        addBux(ms.bonus);
+        if (typeof recordRecentActivity === 'function') {
+          recordRecentActivity(`Reached ${s.streak}-win streak milestone! Bonus +${ms.bonus} Bux.`);
+        }
+        showMilestoneToast({
+          title: ms.title,
+          desc: ms.desc,
+          icon: ms.icon,
+          reward: `+${ms.bonus} Bux`,
+          eyebrow: "STREAK MILESTONE REACHED",
+          eyebrowIcon: ms.icon,
+          badgePill: ms.pill
+        });
+      }, 1800);
+    }
   } else {
     s.losses++;
+    if (s.streak >= 2 && state) {
+      state.shatteredStreak = s.streak;
+    }
     s.streak = 0;
     s.wagerLost += Math.max(0, wager);
   }
@@ -2036,13 +2190,13 @@ function _processNextMilestoneToast() {
     </div>
     <div class="milestone-toast-content">
       <div class="milestone-toast-eyebrow">
-        <span>🏆</span> MILESTONE UNLOCKED
+        <span>${item.eyebrowIcon || '🏆'}</span> ${escapePresetText(item.eyebrow || 'MILESTONE UNLOCKED')}
       </div>
       <div class="milestone-toast-title">${escapePresetText(titleText)}</div>
       <div class="milestone-toast-desc">${escapePresetText(descText)}</div>
       <div class="milestone-toast-reward-row">
         ${rewardLabel ? `<span class="milestone-reward-pill">⭐ ${escapePresetText(rewardLabel)}</span>` : ''}
-        <span class="milestone-badge-pill">NEW BADGE UNLOCKED</span>
+        <span class="milestone-badge-pill">${escapePresetText(item.badgePill || 'NEW BADGE UNLOCKED')}</span>
       </div>
     </div>
     <button class="milestone-toast-close" type="button" aria-label="Close notification">✕</button>
@@ -3003,14 +3157,14 @@ function playFx(fxList) {
         showToast('✨ ALL AURA! Target cannot attack or defend for 3 turns!', 2500);
         break;
       }
-      case 'sacrificeManRevive': {
-        if (typeof playSacrificeManReviveAnimation === 'function') playSacrificeManReviveAnimation(evt.owner, evt.slot, evt.left);
-        showToast(`🛡️ SACRIFICE MAN REVIVED! (${evt.left} uses left)`, 2200);
+      case 'sacrificeMan': {
+        if (typeof playSacrificeManSpellAnimation === 'function') playSacrificeManSpellAnimation(evt.owner);
+        showToast(`💀 SACRIFICE MAN! (Does nothing on its own - exists to be sacrificed)`, 2500);
         break;
       }
       case 'remainsMask': {
         if (typeof playRemainsMaskAnimation === 'function') playRemainsMaskAnimation(evt.owner, evt.slot);
-        showToast(`💀 REMAINS MASK! All Sacrifice Man cards fully recharged to 3 uses!`, 2500);
+        showToast(`💀 REMAINS MASK! Sacrificed Red Card & filled hand with Sacrifice Man spells!`, 2500);
         break;
       }
       case 'supremeShirt': {
@@ -3084,10 +3238,16 @@ function applyActionAndRender(action, { afterBotCheck } = {}) {
   if (res.ok && action.player === localKey) {
     if (action.type === 'place') {
       progressDailyChallenge('place', 1);
-      if (typeof progressDailyBounties === 'function') progressDailyBounties('play', 1);
+      if (typeof progressDailyBounties === 'function') {
+        const placedCard = state.players[action.player]?.board[action.slot];
+        progressDailyBounties('play', 1, placedCard);
+      }
     } else if (action.type === 'merge') {
       progressDailyChallenge('merge', 1);
-      if (typeof progressDailyBounties === 'function') progressDailyBounties('merge', 1);
+      if (typeof progressDailyBounties === 'function') {
+        const mergedCard = state.players[action.player]?.board[res.mergedSlot];
+        progressDailyBounties('merge', 1, mergedCard);
+      }
       if (!tutorialActive) {
         unlockAchievement('first_merge');
         const mergedCard = state.players[action.player]?.board[res.mergedSlot];
@@ -4386,6 +4546,76 @@ document.getElementById('screen-game').addEventListener('click', (e) => {
       return;
     }
 
+function openSacrificeSpellModal({ spellName, availableSpells, onSelect }) {
+  const overlay = document.getElementById('sacrifice-spell-overlay');
+  const titleEl = document.getElementById('sac-spell-title');
+  const subtitleEl = document.getElementById('sac-spell-subtitle');
+  const listEl = document.getElementById('sac-spell-list');
+  const closeBtn = document.getElementById('btn-sac-spell-close');
+  const cancelBtn = document.getElementById('btn-sac-spell-cancel');
+
+  if (!overlay || !listEl) return;
+
+  if (titleEl) titleEl.textContent = `Sacrifice a Spell for ${spellName}`;
+  if (subtitleEl) subtitleEl.textContent = `Choose which spell in your hand to sacrifice:`;
+
+  listEl.innerHTML = '';
+  availableSpells.forEach(s => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 10px 14px;
+      background: rgba(30, 41, 59, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      color: #f8fafc;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      width: 100%;
+    `;
+    btn.onmouseenter = () => {
+      btn.style.borderColor = '#ef4444';
+      btn.style.background = 'rgba(239, 68, 68, 0.18)';
+    };
+    btn.onmouseleave = () => {
+      btn.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+      btn.style.background = 'rgba(30, 41, 59, 0.85)';
+    };
+
+    const isSacMan = s.sacrificeMan || s.defId === 'sacrificeman' || s.name === 'Sacrifice Man';
+    const tagText = isSacMan ? ' 💀 [SACRIFICE FODDER]' : '';
+
+    btn.innerHTML = `
+      <div style="font-weight: 700; font-size: 0.95rem; color: ${isSacMan ? '#f87171' : '#60a5fa'}; flex: 1;">
+        ${s.name}${tagText}
+      </div>
+      <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 2px;">${s.text || 'Spell card'}</div>
+    `;
+
+    btn.onclick = () => {
+      overlay.classList.add('hidden');
+      if (typeof Sound !== 'undefined' && Sound.select) Sound.select();
+      onSelect(s.id);
+    };
+
+    listEl.appendChild(btn);
+  });
+
+  const closeFn = () => {
+    overlay.classList.add('hidden');
+    if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
+  };
+
+  if (closeBtn) closeBtn.onclick = closeFn;
+  if (cancelBtn) cancelBtn.onclick = closeFn;
+
+  overlay.classList.remove('hidden');
+  if (typeof Sound !== 'undefined' && Sound.modalOpen) Sound.modalOpen();
+}
+
     if (selSpellId) {
       const activeSpell = state.players[localKey]?.spells.find(s => s.id === selSpellId);
       const isRevive = activeSpell && (activeSpell.reviveSpell || activeSpell.defId === 'revivespell');
@@ -4395,6 +4625,26 @@ document.getElementById('screen-game').addEventListener('click', (e) => {
       } else {
         if (!card) return;
       }
+
+      const requiresSpellSacrifice = activeSpell && (activeSpell.orange || activeSpell.defId === 'orange' || activeSpell.sanctioned || activeSpell.defId === 'sanctioned');
+      if (requiresSpellSacrifice) {
+        const otherSpells = (state.players[localKey]?.spells || []).filter(s => s.id !== selSpellId);
+        if (otherSpells.length === 0) {
+          showToast(`${activeSpell.name} requires another spell in hand to sacrifice.`);
+          return;
+        }
+        openSacrificeSpellModal({
+          spellName: activeSpell.name,
+          availableSpells: otherSpells,
+          onSelect: (chosenSacSpellId) => {
+            dispatch({ type: 'spell', spellId: selSpellId, targetOwner: owner, targetSlot: slot, sacSpellId: chosenSacSpellId });
+            resetSelections();
+            render();
+          }
+        });
+        return;
+      }
+
       dispatch({ type: 'spell', spellId: selSpellId, targetOwner: owner, targetSlot: slot });
       resetSelections(); render(); return;
     }
@@ -4592,6 +4842,19 @@ function render() {
 
   document.getElementById('phase-label').textContent = state.phase === 'placement' ? 'Placement' : state.phase === 'attack' ? 'Attack' : 'Game Over';
   document.getElementById('round-label').textContent = `Round ${state.round}`;
+
+  // Update Win Streak Badge in combat screen player-board area
+  const streakBadgeEl = document.getElementById('player-streak-badge');
+  const streakCountEl = document.getElementById('player-streak-count');
+  if (streakBadgeEl && streakCountEl) {
+    const currentStreak = (typeof getBattleStats === 'function' ? getBattleStats().streak : 0) || 0;
+    if (currentStreak > 0) {
+      streakCountEl.textContent = currentStreak;
+      streakBadgeEl.classList.remove('hidden');
+    } else {
+      streakBadgeEl.classList.add('hidden');
+    }
+  }
 
   const readyField = state.phase === 'attack' ? 'readyAttack' : 'readyPlacement';
   const youBadge = document.getElementById('you-ready-badge');
@@ -4822,6 +5085,47 @@ function render() {
         ? `⭐ MVP: ${mvpEntries[0][0]} — ${mvpEntries[0][1].dmg} dmg, ${mvpEntries[0][1].kills} kill${mvpEntries[0][1].kills === 1 ? '' : 's'}`
         : '';
     }
+
+    const streakShatteredEl = document.getElementById('gameover-streak-shattered');
+    if (streakShatteredEl) {
+      if (state.shatteredStreak && state.shatteredStreak >= 2) {
+        streakShatteredEl.innerHTML = `
+          <div class="streak-shattered-banner">
+            <div class="streak-shattered-shards"></div>
+            <span class="shattered-icon">⚡</span>
+            <span class="shattered-title">STREAK SHATTERED</span>
+            <span class="shattered-desc">Your consecutive win streak of <strong class="glow-num">${state.shatteredStreak}</strong> games was broken!</span>
+          </div>
+        `;
+        streakShatteredEl.classList.remove('hidden');
+
+        const shardContainer = streakShatteredEl.querySelector('.streak-shattered-shards');
+        if (shardContainer) {
+          for (let i = 0; i < 24; i++) {
+            const shard = document.createElement('div');
+            shard.className = 'shattered-glass-shard';
+            shard.style.left = `${20 + Math.random() * 60}%`;
+            shard.style.top = `${20 + Math.random() * 60}%`;
+            shard.style.setProperty('--tx', `${-150 + Math.random() * 300}px`);
+            shard.style.setProperty('--ty', `${-150 + Math.random() * 300}px`);
+            shard.style.setProperty('--rot', `${Math.random() * 360}deg`);
+            shard.style.animationDelay = `${Math.random() * 0.15}s`;
+            shardContainer.appendChild(shard);
+          }
+        }
+
+        // Clear it so it won't persist across future re-renders unless a new streak is lost
+        state.shatteredStreak = null;
+
+        if (typeof vibrate === 'function') {
+          vibrate([100, 50, 100, 50, 150]);
+        }
+      } else {
+        streakShatteredEl.classList.add('hidden');
+        streakShatteredEl.innerHTML = '';
+      }
+    }
+
     overlay.classList.remove('hidden');
     const isWin = state.winner === localKey;
     const isDraw = state.winner === 'draw';
@@ -8024,6 +8328,25 @@ function renderQuests() {
             return `<div class="bounty-step-pip ${isCompleted ? 'completed' : (isActive ? 'active' : '')}"></div>`;
           }).join('') : '';
 
+          const qProgressLabel = (() => {
+            const qTypeNames = {
+              'win': 'match wins',
+              'play': 'cards played',
+              'play_green': 'Green cards played',
+              'play_red': 'Red cards played',
+              'play_orange': 'Orange cards played',
+              'play_archetype_defender': 'defensive cards played',
+              'play_archetype_striker': 'offensive cards played',
+              'play_archetype_rogue': 'utility cards played',
+              'merge': 'fusions completed',
+              'spell': 'spells cast',
+              'match': 'matches completed',
+              'tower': 'floors cleared'
+            };
+            const label = qTypeNames[q.type] || 'steps';
+            return `<strong>${Math.min(q.current, q.goal)}</strong> / ${q.goal} ${label}`;
+          })();
+
           return `
             <div class="bounty-card ${q.claimed ? 'claimed-card' : (done ? 'ready-to-claim' : '')}">
               <div>
@@ -8043,7 +8366,7 @@ function renderQuests() {
               <div class="bounty-progress-section">
                 <div class="bounty-progress-meta">
                   <span class="bounty-progress-steps">
-                    <span>Progress: <strong>${Math.min(q.current, q.goal)}</strong> / ${q.goal} steps</span>
+                    <span>Progress: ${qProgressLabel}</span>
                   </span>
                   <span class="bounty-reward-tags">+${q.rewardBux} Bux · +${q.rewardXP} XP</span>
                 </div>
@@ -8053,7 +8376,24 @@ function renderQuests() {
                 </div>
                 ${!done && !q.claimed ? `
                   <div style="font-size: 0.68rem; color: #94a3b8; margin-top: 1px;">
-                    ${q.goal - q.current} more ${q.type === 'win' ? 'match win' : (q.type === 'play' ? 'card' : (q.type === 'merge' ? 'fusion' : (q.type === 'spell' ? 'spell cast' : 'step')))}${q.goal - q.current > 1 ? 's' : ''} to complete
+                    ${(() => {
+                      const qTypeNames = {
+                        'win': 'match win',
+                        'play': 'card play',
+                        'play_green': 'Green card play',
+                        'play_red': 'Red card play',
+                        'play_orange': 'Orange card play',
+                        'play_archetype_defender': 'defensive card play',
+                        'play_archetype_striker': 'offensive card play',
+                        'play_archetype_rogue': 'utility card play',
+                        'merge': 'fusion',
+                        'spell': 'spell cast',
+                        'tower': 'tower floor clear'
+                      };
+                      const typeLabel = qTypeNames[q.type] || 'step';
+                      const suffix = q.goal - q.current > 1 ? (typeLabel.endsWith('play') || typeLabel.endsWith('cast') || typeLabel.endsWith('clear') || typeLabel.endsWith('win') ? 's' : 's') : '';
+                      return `${q.goal - q.current} more ${typeLabel}${suffix}`;
+                    })()} to complete
                   </div>
                 ` : ''}
                 ${!q.claimed && done ? `
@@ -8084,7 +8424,7 @@ function renderQuests() {
           const unlockedM = unlockedCareer.includes(m.id) || current >= m.goal;
           const pct = Math.min(100, Math.round((current / m.goal) * 100));
           return `
-            <div class="milestone-card-item" style="padding: 12px; background: ${unlockedM ? 'linear-gradient(135deg, rgba(250,204,21,0.08) 0%, rgba(16,185,129,0.06) 100%)' : 'rgba(255,255,255,0.03)'}; border: 1px solid ${unlockedM ? 'rgba(250,204,21,0.4)' : 'rgba(255,255,255,0.08)'}; border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: ${unlockedM ? '0 4px 12px rgba(250,204,21,0.1)' : 'none'};">
+            <div class="milestone-card-item${unlockedM ? ' unlocked' : ''}" style="padding: 14px; display: flex; flex-direction: column; justify-content: space-between;">
               <div>
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
                   <span style="font-size: 1.35rem; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));">${m.icon}</span>
@@ -8349,8 +8689,172 @@ document.getElementById('btn-copy-code').addEventListener('click', async () => {
 });
 
 // ---- Patch notes --------------------------------------------------------
-const CURRENT_VERSION = '4.5';
+const CURRENT_VERSION = '6.9';
 const PATCH_NOTES = [
+  {
+    version: '6.9',
+    notes: [
+      "SHOWROOM: Physical 3D walkthrough Shop — Introducing an immersive, full 3D interactive Cyber Showroom! Experience the legendary Mehrbod Shop in a spacious virtual space. Walk directly between glowing pillars using W/A/S/D or Arrow keys, admire floating animated holographic previews of premium themes & sleeves on high-tech pedestals, and tap interactive 3D pricing labels to purchase or equip them instantly!",
+    ],
+  },
+  {
+    version: '6.8',
+    notes: [
+      "WEBXR: Intelligent VR Detection & Prompts — The interactive 3D VR Cyber Arena option is now neatly hidden on standard non-VR devices by default to keep the interface highly focused. When visiting on VR-enabled systems like the Meta Quest 3, a gorgeous holographic prompt modal automatically welcomes you to launch directly into the fully immersive virtual arena!",
+    ],
+  },
+  {
+    version: '6.7',
+    notes: [
+      "WEBXR: Quest 3 Immersive Cyber Arena — Introduced immersive WebXR (VR) support! Players on Meta Quest 3 can stand right inside a futuristic virtual card-game stadium with holographic boards, full spatial surround light rigs, a massive curved curved spectators screen, and interactive hand controllers with laser-guided aiming.",
+      "HYBRID: Desktop/Mobile 3D Hologram Simulator — Players on standard flat screens can inspect the Cyber Arena in full real-time 3D, allowing them to orbit, pan, and zoom, and interactively play cards using intuitive mouse/pointer raycasting synced live with the match engine!",
+    ],
+  },
+  {
+    version: '6.6',
+    notes: [
+      "REWARDS: Post-Match Quest Completion Toasts — Completing any Daily Bounty during standard play, Vs Bot, or multiplayer matches now aggregates the completed quests and triggers a gorgeous series of staggered toast notifications immediately after the match ends, showing your exact earned Bux and XP reward sizes!",
+      "VISUALS: Dynamic Progress Bars & Meters — Upgraded the visual progress bar beneath every active Daily Quest inside the quests-overlay. Instead of generic metrics, cards now explicitly state action-oriented progress based on the objective (e.g. '3/5 matches completed' or '1/2 Green cards played') for immaculate visual scanning.",
+    ],
+  },
+  {
+    version: '6.5',
+    notes: [
+      "QUESTS: Archetype & Color Daily Bounties — Introduced a fully dynamic set of archetype-based daily quests into the Quests overlay! Players can now rotate into objectives rewarding them for deploying Green, Red, or legendary Orange card tiers, or playing defensive (Chaplain, Bulwark), offensive (Firestarter, Cannoneer, Duelist), or trickster/rogue archetypes.",
+    ],
+  },
+  {
+    version: '6.4',
+    notes: [
+      "BUGFIX: Offline PWA Stability — Converted hardcoded absolute paths in the Service Worker and main application script to robust, relative directory lookups. The game can now be flawlessly installed, cached, and played offline even when loaded under nested reverse proxies or subpaths! Optimized the development lint commands to eliminate redundant checks.",
+    ],
+  },
+  {
+    version: '6.3',
+    notes: [
+      "BUGFIX: Technical Code Cleanup — Resolved an inline styling rule violation on the combat board container by fully moving layout declarations into style.css, ensuring strict adherence to clean stylesheet standards and visual rendering safety.",
+    ],
+  },
+  {
+    version: '6.2',
+    notes: [
+      "VISUALS: Streak Shattered & Milestone Celebrations — Losing an active win streak of 2 or more games now triggers a highly dramatic 'Streak Shattered' red glitched-glass shattering card animation on the results screen. Conversely, hitting 5x, 10x, or 20x milestones now fires an instantaneous golden solar-flashing shockwave and particle burst directly outward from your player board!",
+    ],
+  },
+  {
+    version: '6.1',
+    notes: [
+      "REWARDS: Streak Milestone Achievements — Achieving consecutive win streaks of 5, 10, or 20 games now triggers glorious, full-screen animated milestone toasts and awards significant bonus Mehrbod Bux rewards (+50, +150, and +500 Bux respectively) directly to your career bank!",
+    ],
+  },
+  {
+    version: '6.0',
+    notes: [
+      "NEW: Combat Win Streak Badge — Added a gorgeous, pulsing cyber-glowing fire badge directly onto your player board in active matches that proudly counts and flashes your consecutive victories against bots or real players!",
+    ],
+  },
+  {
+    version: '5.9',
+    notes: [
+      "REDESIGN: Paused & Options Layout — Cleaned up the in-match pause menu by removing redundant subtitle descriptions, while modernizing both the 'Resume Match' and 'Quit / Forfeit' actions with beautiful, sharp, 100% square borders.",
+    ],
+  },
+  {
+    version: '5.8',
+    notes: [
+      "VISUALS: Responsive Hover Scales — Hovering over any main menu card or Player Locker grid tile now applies an elegant, hardware-accelerated slight scale-up and float animation, making navigating around the interface feel significantly more responsive.",
+    ],
+  },
+  {
+    version: '5.7',
+    notes: [
+      "ANIMATIONS: Buttery-Smooth Locker Transitions — Switching between Player Locker tabs now triggers an ultra-smooth, responsive fade-in and subtle slide-up animation for the entire content view, making browsing your unlocked items feel incredibly responsive.",
+    ],
+  },
+  {
+    version: '5.6',
+    notes: [
+      "VISUALS: Locker Tab Neon Hover Auras — Added a subtle, high-energy neon glowing hover outline and ambient cyan aura to the Player Locker category buttons when your cursor glides over them, matching the game's premium cyber aesthetic.",
+    ],
+  },
+  {
+    version: '5.5',
+    notes: [
+      "REDESIGN: Complete Tab Overhaul — Expanded the sharp, cyber-glowing rectangular tab styling game-wide! Now, all major interfaces—including Settings overlays, the Player Locker, and the Deck Builder's Card Picker—use beautiful, flat rectangular buttons that light up with electric cyan outlines and specular backlights upon selection or physical click.",
+    ],
+  },
+  {
+    version: '5.4',
+    notes: [
+      "REDESIGN: Rectangular Neon Quests Tabs — Transformed the Quests sub-tabs into clean, sharp rectangular panels. Pressing any tab or selecting it triggers a stunning cyan neon outline glow and deep specular backlights!",
+    ],
+  },
+  {
+    version: '5.3',
+    notes: [
+      "REDESIGN: Game-Wide Modernized Tabs — Unified the design of all tab menus across the game! Settings, Player Locker, Quests, and Card Picker menus now feature the same sleek borderless tab items with beautiful glowing outline highlights and neon neon-cyan glows when selected.",
+    ],
+  },
+  {
+    version: '5.2',
+    notes: [
+      "REDESIGN: Minimalist Card Picker & Dividers — Cleaned up the Deck Builder layout by removing the active slots panel, giving you a wider and more focused view of the available library. Added beautiful tier divider headings with glowing rarity borders to group cards clearly.",
+      "UX: 'Cards' Category Tab — Renamed the first browsing tab from 'Units' to 'Cards' to better represent your primary fighter blueprints.",
+      "STYLING: Physical Back Button — Upgraded the 'Back' shortcut from a text-based link into a sleek, tactile physical glass button matching the style of your main action keys.",
+    ],
+  },
+  {
+    version: '5.1',
+    notes: [
+      "REDESIGN: Interactive Deck Workspace — Added a tactile, real-time visual grid at the top of the screen showing your active 12 Units, 4 Spells, and 2 Chips. Tap any card directly in your active deck to prune or remove it instantly!",
+      "UX: Categorized Card Browser — Cleaned up clutter by grouping the card pool into separate quick-select tabs: Units 👾, Spells ⚡, and Chips ⚙️. No more scrolling through endless vertical lists!",
+      "VISUAL: Floating Selection Badges — Added smart glowing count badges in the corner of your owned card pool items, making it instantly clear which cards are in your active deck and how many copies are equipped.",
+      "CLUTTER-FREE: Collapsible Rules Guide — Compacted the long deck-building strategy description into a neat collapsible folder, giving you more screen space for active deck building.",
+    ],
+  },
+  {
+    version: '5.0',
+    notes: [
+      "REDESIGN: 3D Liquid Glass Player Profile — Your profile panel, stats counters, level badges, avatar preview, and progression cards now feature the sleek frosted liquid glass aesthetic with crisp white glass framing and zero-shadow clarity.",
+      "REDESIGN: Modern Deck Builder & Card Picker — Pre-match deck preparation received a full liquid glass overhaul! Unit cards, spells, chips, saved deck chips, tier filters, and steppers now feature frosted glass panels with glowing rarity borders.",
+      "REDESIGN: Liquid Glass Themes Picker — Choosing your favorite visual theme is now more vibrant and tactile with frosted glass selector cards, unique neon highlight outlines matching each theme's personality, and sleek glass lock badges.",
+      "POLISH: Theme-Reactive Win-Streak Tracker — The victory streak banner and pre-match deck completeness badges are now upgraded to seamless 3D Liquid Glass across both desktop and mobile.",
+    ],
+  },
+  {
+    version: '4.9',
+    notes: [
+      "NEW: Animated Liquid Gradient Atmosphere — Added an organic, slow-moving liquid gradient ambient background with dynamic luminous orbs that drift and shift smoothly beneath the frosted glass interface.",
+      "REDESIGN: Quests & Trial Tower Overhaul — The Quests Hub, Bounties, and Trial Tower Citadel have been completely modernized with the 3D Liquid Glass aesthetic, featuring frosted refraction, vibrant color glows, and crisp white glass borders.",
+      "POLISH: Crystalline Tower Bricks & Jagged Chambers — Upgraded the Trial Tower chamber bricks, command console, and Daily Challenge progress bars with faceted asymmetric silhouettes, rich neon accents, and zero drop-shadow clutter.",
+    ],
+  },
+  {
+    version: '4.8',
+    notes: [
+      "VISUAL: Subtle 10px Frost & Pure Glass Borders — Refined all menu cards and popup windows with 10px frosted glass and semi-transparent white borders with zero drop-shadow clutter.",
+      "VIBRANT: Bold Colors & Neon Identity — Infused each game mode with energetic neon color washes, radiant highlights, and rich custom gradients (Electric Cyan, Solar Gold, Cyber Magenta, and more).",
+      "EDGY: Jagged Cuts & Crystalline Shards — Upgraded cards, icon pods, arrows, and badges with aggressive jagged corners, faceted polygon silhouettes, and tactile glass refraction slashes.",
+      "LAYOUT: Centered Bottom Action Dock — Perfectly centered the floating bottom navigation dock across all screens and screen sizes.",
+    ],
+  },
+  {
+    version: '4.7',
+    notes: [
+      "NEW: 3D Liquid Glass Interface — All menus and screens now feature a modern 3D liquid glass design with smooth frosted glass layers, crisp lighting effects, and reactive tactile buttons.",
+      "CLEAN: Modern SVG Icons — Replaced heavy emojis with clean, minimalist vector icons across all menus, game modes, difficulty selectors, and navigation tabs.",
+      "STREAMLINED: Minimalist Menu Redesign — Reorganized the Main Menu, Single Player, Multiplayer, Bot Setup, Locker, and Quests screens with clean typography and plenty of breathing room.",
+      "ENHANCED: Floating Glass Action Pills — Upgraded footer shortcuts and utilities into sleek floating glass capsule buttons with interactive hover highlights.",
+    ],
+  },
+  {
+    version: '4.6',
+    notes: [
+      "NEW: Interactive Sacrifice Picker — When using Orange or Sanctioned, a modal now lets you pick exactly which spell from your hand to sacrifice!",
+      "NEW: Sacrifice Man Spell Card — Sacrifice Man is now a passive spell card that sits in your hand as fodder to be sacrificed by other spells.",
+      "ENHANCED: Remains Mask Synergy — Sacrificing a Red card with Remains Mask fills empty spell hand slots with Sacrifice Man cards.",
+    ],
+  },
   {
     version: '4.5',
     notes: [
@@ -8666,7 +9170,10 @@ function renderPatchNotes() {
   `).join('');
 }
 
-document.getElementById('btn-version').textContent = `v${CURRENT_VERSION}`;
+document.getElementById('btn-version').innerHTML = `
+  <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+  <span>v${CURRENT_VERSION}</span>
+`;
 updateVersionBadge();
 document.getElementById('btn-version').addEventListener('click', () => {
   renderPatchNotes();
@@ -8718,6 +9225,17 @@ document.addEventListener('keydown', (e) => {
     const contBtn = packOverlay.querySelector('.packopen-continue:not(.hidden)');
     if (contBtn) { contBtn.click(); return; }
     packOverlay.remove();
+    return;
+  }
+
+  // Pressing Escape in the 3D shop returns you to the 2D shop
+  const shop3dEl = document.getElementById('screen-shop-3d');
+  if (shop3dEl && !shop3dEl.classList.contains('hidden')) {
+    e.preventDefault();
+    showScreen('screen-shop-cosmetics');
+    if (typeof shop3dRenderer !== 'undefined' && shop3dRenderer) {
+      shop3dRenderer.setAnimationLoop(null);
+    }
     return;
   }
 
@@ -8851,7 +9369,7 @@ let deferredInstallPrompt = null;
 // Register the Service Worker for offline support and faster loading
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
+    navigator.serviceWorker.register('sw.js')
       .then((registration) => {
         console.log('[Service Worker] Registered successfully with scope:', registration.scope);
       })

@@ -1777,7 +1777,13 @@ const DAILY_BOUNTY_POOL = [
   { id: 'b_spell_3', type: 'spell', title: 'Arcane Mastery', desc: 'Cast 3 tactical spells or battle chips', goal: 3, rewardBux: 130, rewardXP: 40, icon: '✨' },
   { id: 'b_streak_2', type: 'streak', title: 'Winning Momentum', desc: 'Achieve a 2-game winning streak', goal: 2, rewardBux: 250, rewardXP: 75, icon: '🔥' },
   { id: 'b_win_3', type: 'win', title: 'Gladiator Supreme', desc: 'Win 3 arena matches across any mode', goal: 3, rewardBux: 220, rewardXP: 70, icon: '👑' },
-  { id: 'b_matches_3', type: 'match', title: 'Battle Veteran', desc: 'Complete 3 full matches in any arena mode', goal: 3, rewardBux: 110, rewardXP: 30, icon: '🛡️' }
+  { id: 'b_matches_3', type: 'match', title: 'Battle Veteran', desc: 'Complete 3 full matches in any arena mode', goal: 3, rewardBux: 110, rewardXP: 30, icon: '🛡️' },
+  { id: 'b_play_green_3', type: 'play_green', title: 'Emerald Tactics', desc: 'Play 3 Green (Tier 2) cards onto the board', goal: 3, rewardBux: 150, rewardXP: 45, icon: '🟢' },
+  { id: 'b_play_red_2', type: 'play_red', title: 'Ruby Destruction', desc: 'Play 2 Red (Tier 3) cards onto the board', goal: 2, rewardBux: 180, rewardXP: 55, icon: '🔴' },
+  { id: 'b_play_orange_1', type: 'play_orange', title: 'Solar Sovereign', desc: 'Play 1 legendary Orange (Tier 4) card', goal: 1, rewardBux: 250, rewardXP: 80, icon: '🟠' },
+  { id: 'b_arch_def', type: 'play_archetype_defender', title: 'Iron Guard', desc: 'Play 2 defensive cards (Chaplain, Warden, Bulwark, or Sentinel)', goal: 2, rewardBux: 160, rewardXP: 50, icon: '🛡️' },
+  { id: 'b_arch_str', type: 'play_archetype_striker', title: 'War Offensive', desc: 'Play 2 offensive cards (Firestarter, Cannoneer, Duelist, or Devastator)', goal: 2, rewardBux: 160, rewardXP: 50, icon: '🔥' },
+  { id: 'b_arch_rog', type: 'play_archetype_rogue', title: 'Shadow Agents', desc: 'Play 2 utility cards (Saboteur, Pathfinder, Footpad, or Reaper)', goal: 2, rewardBux: 160, rewardXP: 50, icon: '👥' }
 ];
 
 function getDailyBountiesForDate(dateStr) {
@@ -1855,19 +1861,47 @@ function saveDailyQuests(quests) {
 }
 window.saveDailyQuests = saveDailyQuests;
 
-function progressDailyBounties(type, amount = 1) {
+function progressDailyBounties(type, amount = 1, extra = null) {
   if (typeof tutorialActive !== 'undefined' && tutorialActive) return;
   const quests = loadDailyQuests();
   let changed = false;
   let newlyFinished = null;
-  quests.forEach(q => {
+
+  function tickQuest(q, qType, qAmt) {
     if (q.claimed) return;
-    if (q.type === type) {
+    if (q.type === qType) {
       const prev = q.current;
-      q.current = Math.min(q.goal, q.current + amount);
+      q.current = Math.min(q.goal, q.current + qAmt);
       if (q.current !== prev) changed = true;
       if (prev < q.goal && q.current >= q.goal) {
         newlyFinished = q;
+      }
+    }
+  }
+
+  quests.forEach(q => {
+    // Process core event type
+    tickQuest(q, type, amount);
+
+    // If type is card play, process sub-types based on card properties (tier, name)
+    if (type === 'play' && extra) {
+      if (extra.tier === 2) {
+        tickQuest(q, 'play_green', amount);
+      }
+      if (extra.tier === 3) {
+        tickQuest(q, 'play_red', amount);
+      }
+      if (extra.tier === 4) {
+        tickQuest(q, 'play_orange', amount);
+      }
+      if (extra.name && ['Chaplain', 'Warden', 'Bulwark', 'Sentinel'].includes(extra.name)) {
+        tickQuest(q, 'play_archetype_defender', amount);
+      }
+      if (extra.name && ['Firestarter', 'Cannoneer', 'Duelist', 'Devastator'].includes(extra.name)) {
+        tickQuest(q, 'play_archetype_striker', amount);
+      }
+      if (extra.name && ['Saboteur', 'Pathfinder', 'Footpad', 'Reaper'].includes(extra.name)) {
+        tickQuest(q, 'play_archetype_rogue', amount);
       }
     } else if (type === 'streak_check' && q.type === 'streak') {
       const prev = q.current;
@@ -1878,11 +1912,22 @@ function progressDailyBounties(type, amount = 1) {
       }
     }
   });
+
   if (changed) {
     saveDailyQuests(quests);
     if (newlyFinished) {
-      showToast(`🎯 Bounty Complete: "${newlyFinished.title}"! Open Quests to claim reward!`, 3500);
-      if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
+      if (!window.completedQuestsInCurrentMatch) {
+        window.completedQuestsInCurrentMatch = [];
+      }
+      if (!window.completedQuestsInCurrentMatch.some(ex => ex.id === newlyFinished.id)) {
+        window.completedQuestsInCurrentMatch.push(newlyFinished);
+      }
+
+      const inMatch = (typeof state !== 'undefined' && state && !state.winner);
+      if (!inMatch) {
+        showToast(`🎯 Bounty Complete: "${newlyFinished.title}"! Open Quests to claim reward!`, 3500);
+        if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
+      }
     }
     const overlay = document.getElementById('quests-overlay');
     if (typeof renderQuests === 'function' && overlay && !overlay.classList.contains('hidden')) {
@@ -2433,6 +2478,14 @@ ensureTrialTowerMenuCard();
    accrue from real play, without touching the core rules engine in
    game.js. ---------- */
 (function wireProgressionHooks() {
+  const _origCreateMatch = window.createMatch;
+  if (typeof _origCreateMatch === 'function') {
+    window.createMatch = function (...args) {
+      window.completedQuestsInCurrentMatch = [];
+      return _origCreateMatch(...args);
+    };
+  }
+
   const _origRecordResult = window.recordResult;
   if (typeof _origRecordResult === 'function') {
     window.recordResult = function (won) {
@@ -2450,6 +2503,17 @@ ensureTrialTowerMenuCard();
       if (trialTowerActive) {
         resolveTrialTowerMatch(won);
         if (won) progressDailyBounties('tower', 1);
+      }
+
+      // Show end-of-match quest completion toast rewards!
+      if (window.completedQuestsInCurrentMatch && window.completedQuestsInCurrentMatch.length > 0) {
+        window.completedQuestsInCurrentMatch.forEach((q, idx) => {
+          setTimeout(() => {
+            showToast(`🎯 Quest Complete: "${q.title}" (+${q.rewardBux} Bux, +${q.rewardXP} XP) 🎁`, 4200);
+            if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
+          }, 1100 + idx * 1600);
+        });
+        window.completedQuestsInCurrentMatch = [];
       }
     };
   }
@@ -4564,6 +4628,74 @@ function spawnParticleExplosion(container) {
   }
 }
 
+function playPlayerBoardMilestoneAnimation(streakCount) {
+  const board = document.getElementById('player-board');
+  if (!board) return;
+
+  // Add highly visual glow state & shake
+  board.classList.add('milestone-celebrate');
+
+  const glow = document.createElement('div');
+  glow.className = 'player-board-milestone-glow';
+  board.appendChild(glow);
+
+  if (typeof Sound !== 'undefined') {
+    if (Sound.sparkle) Sound.sparkle();
+    if (Sound.whoosh) Sound.whoosh('in', 0.15);
+  }
+
+  // Calculate coordinates relative to the board's bounding rect
+  const rect = board.getBoundingClientRect();
+  const centerX = rect.width / 2;
+  const centerY = rect.height / 2;
+
+  const count = 75;
+  const colors = ['#fbbf24', '#fcd34d', '#f59e0b', '#ef4444', '#ec4899', '#ffffff'];
+
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement('div');
+    p.className = 'milestone-burst-particle';
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    p.style.backgroundColor = color;
+
+    // Center starting offsets
+    p.style.left = `${centerX}px`;
+    p.style.top = `${centerY}px`;
+
+    const angle = Math.random() * 2 * Math.PI;
+    const speed = 120 + Math.random() * 280;
+    const x = Math.cos(angle) * speed;
+    const y = Math.sin(angle) * speed;
+
+    p.style.setProperty('--tx', `${x}px`);
+    p.style.setProperty('--ty', `${y}px`);
+
+    const size = 6 + Math.random() * 14;
+    p.style.width = `${size}px`;
+    p.style.height = `${size}px`;
+    p.style.animationDelay = `${Math.random() * 0.12}s`;
+
+    const shapeType = Math.random();
+    if (shapeType < 0.45) {
+      p.style.borderRadius = '50%';
+    } else if (shapeType < 0.75) {
+      p.style.borderRadius = '0';
+    } else {
+      p.style.clipPath = 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)';
+    }
+
+    board.appendChild(p);
+
+    setTimeout(() => { p.remove(); }, 1600);
+  }
+
+  setTimeout(() => {
+    glow.remove();
+    board.classList.remove('milestone-celebrate');
+  }, 2400);
+}
+window.playPlayerBoardMilestoneAnimation = playPlayerBoardMilestoneAnimation;
+
 function showSingleCardReveal(card, onDone) {
   const overlay = document.createElement('div');
   overlay.className = 'single-reveal-overlay';
@@ -5188,15 +5320,7 @@ function playAllAuraAnimation(targetOwner, targetSlot) {
   if (typeof Sound !== 'undefined' && Sound.buff) Sound.buff();
 }
 
-function playSacrificeManReviveAnimation(owner, slot, left) {
-  const targetEl = typeof getSlotEl === 'function' ? getSlotEl(owner, slot) : null;
-  if (targetEl) {
-    targetEl.classList.add('yellow-zap-glow');
-    setTimeout(() => targetEl.classList.remove('yellow-zap-glow'), 800);
-    if (typeof spawnFloatingNumberOn === 'function') {
-      spawnFloatingNumberOn(targetEl, `🛡️ REVIVED! (${left} LEFT)`, 'heal');
-    }
-  }
+function playSacrificeManSpellAnimation(owner) {
   if (typeof Sound !== 'undefined' && Sound.buff) Sound.buff();
 }
 
@@ -5220,7 +5344,7 @@ function playRemainsMaskAnimation(owner, slot) {
     <div style="text-align: center; color: #f87171; text-shadow: 0 0 24px #dc2626, 0 0 48px #991b1b; font-family: 'Playfair Display', serif; transform: scale(1.15);">
       <div style="font-size: 3.5rem;">🎭💀</div>
       <div style="font-size: 2.2rem; font-weight: 900; letter-spacing: 2px; text-transform: uppercase;">Remains Mask!</div>
-      <div style="font-size: 1.05rem; color: #fecaca; margin-top: 6px;">All Sacrifice Man cards regenerated to full uses!</div>
+      <div style="font-size: 1.05rem; color: #fecaca; margin-top: 6px;">Sacrificed Red Card & Granted Sacrifice Man Spells!</div>
     </div>
   `;
   document.body.appendChild(overlay);
@@ -5356,7 +5480,7 @@ window.playOrangeHealAnimation = playOrangeHealAnimation;
 window.playSanctionedAnimation = playSanctionedAnimation;
 window.playZapAnimation = playZapAnimation;
 window.playAllAuraAnimation = playAllAuraAnimation;
-window.playSacrificeManReviveAnimation = playSacrificeManReviveAnimation;
+window.playSacrificeManSpellAnimation = playSacrificeManSpellAnimation;
 window.playRemainsMaskAnimation = playRemainsMaskAnimation;
 window.playSupremeShirtAnimation = playSupremeShirtAnimation;
 window.playReviveAnimation = playReviveAnimation;

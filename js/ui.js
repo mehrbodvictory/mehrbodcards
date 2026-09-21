@@ -97,7 +97,6 @@ const ABILITY_SHORT = {
   orange_onplay_soulharvest: "Play: +1 dmg per death this match",
   orange_ondeath_rebirth2: 'Death: reborn as 2 Blue cards',
   orange_onplay_alphastrike: 'Play: instantly strikes a random foe',
-  sacrificeman_ability: 'When sacrificed/killed, returns up to 3x',
 };
 function abilityLabel(id) { return ABILITY_SHORT[id] || ''; }
 
