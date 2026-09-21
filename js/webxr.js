@@ -780,5 +780,66 @@ function animateXR() {
 // ---- Global exports -------------------------------------------------------
 window.showXRArenaScreen = showXRArenaScreen;
 window.initThreeJS = initThreeJS;
+window.enterVRDirectly = enterVRDirectly;
+
+function enterVRDirectly() {
+  initThreeJS();
+
+  if (navigator.xr && typeof navigator.xr.isSessionSupported === 'function') {
+    navigator.xr.isSessionSupported('immersive-vr')
+      .then((supported) => {
+        if (supported) {
+          const sessionInit = { optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking', 'layers'] };
+          navigator.xr.requestSession('immersive-vr', sessionInit)
+            .then((session) => {
+              if (xrRenderer && xrRenderer.xr) {
+                xrRenderer.xr.setSession(session);
+              }
+            })
+            .catch((err) => {
+              console.warn('WebXR session request failed:', err);
+              showXRArenaScreen();
+            });
+        } else {
+          showXRArenaScreen();
+        }
+      })
+      .catch(() => {
+        showXRArenaScreen();
+      });
+  } else {
+    showXRArenaScreen();
+  }
+}
+
+// ---- VR Device Detection & Button Visibility -----------------------------
+function detectVRDeviceAndShowButton() {
+  const isQuest = /OculusBrowser|Quest|Oculus/i.test(navigator.userAgent);
+  const vrBtn = document.getElementById('btn-enter-vr');
+  if (!vrBtn) return;
+
+  if (isQuest) {
+    vrBtn.classList.remove('hidden');
+    return;
+  }
+
+  if (navigator.xr && typeof navigator.xr.isSessionSupported === 'function') {
+    navigator.xr.isSessionSupported('immersive-vr')
+      .then((supported) => {
+        if (supported) {
+          vrBtn.classList.remove('hidden');
+        }
+      })
+      .catch(() => {});
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(detectVRDeviceAndShowButton, 500);
+  });
+} else {
+  setTimeout(detectVRDeviceAndShowButton, 500);
+}
 
 
