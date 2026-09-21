@@ -189,9 +189,83 @@ function buildCyberArena() {
 
   // 6. Build 3D Mehrbod Shop Showroom Pedestals around the Arena
   buildShopPedestalsInArena();
+
+  // 7. Build Interactive VR Artifact Relics Array for Grab & Inspect
+  buildInteractiveArtifacts();
 }
 
 let xrShopPedestals = [];
+let xrInteractiveArtifacts = [];
+let xrGrabbedArtifact = null;
+let xrGrabbedController = null;
+
+function buildArtifactTexture(title, subtitle) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 384;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#090d16';
+  ctx.fillRect(0, 0, 256, 384);
+
+  ctx.strokeStyle = '#00f3ff';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(4, 4, 248, 376);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 20px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText(title, 128, 50);
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '14px Arial';
+  ctx.fillText(subtitle, 128, 80);
+
+  ctx.fillStyle = 'rgba(0, 243, 255, 0.15)';
+  ctx.fillRect(20, 110, 216, 200);
+
+  ctx.fillStyle = '#00f3ff';
+  ctx.font = 'bold 18px Arial';
+  ctx.fillText('🔮 VR RELIC', 128, 210);
+
+  ctx.fillStyle = '#f59e0b';
+  ctx.font = '14px Arial';
+  ctx.fillText('Trigger-Grab to Inspect', 128, 335);
+
+  return new THREE.CanvasTexture(canvas);
+}
+
+function buildInteractiveArtifacts() {
+  xrInteractiveArtifacts = [];
+  const artifactData = [
+    { title: "Chrono Knight", sub: "Legendary Unit", color: 0x3b82f6 },
+    { title: "Void Sorcerer", sub: "Mythic Spellcaster", color: 0x8b5cf6 },
+    { title: "Quantum Sentinel", sub: "Heavy Defender", color: 0x10b981 },
+    { title: "Apex Overlord", sub: "Supreme Commander", color: 0xf59e0b }
+  ];
+
+  artifactData.forEach((data, idx) => {
+    const angle = (idx / artifactData.length) * Math.PI * 2 + Math.PI / 4;
+    const dist = 3.2;
+    const px = Math.cos(angle) * dist;
+    const pz = Math.sin(angle) * dist;
+
+    const texture = buildArtifactTexture(data.title, data.sub);
+    const geom = new THREE.BoxGeometry(0.5, 0.75, 0.05);
+    const mat = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.2, metalness: 0.5 });
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.position.set(px, 1.4, pz);
+    mesh.name = `artifact_${idx}`;
+    xrInteractiveGroup.add(mesh);
+
+    xrInteractiveArtifacts.push({
+      mesh,
+      initialPos: mesh.position.clone(),
+      data,
+      floatOffset: idx * 1.5
+    });
+  });
+}
 
 function buildPedestalPlateTexture(item) {
   const canvas = document.createElement('canvas');
@@ -704,6 +778,16 @@ function handleXRIntersection(intersections) {
     triggerXRShopPurchase(itemId);
     return;
   }
+
+  // 7. Interactive Artifact Inspection
+  if (obj.name && obj.name.startsWith('artifact_')) {
+    const artIdx = parseInt(obj.name.replace('artifact_', ''));
+    const art = xrInteractiveArtifacts[artIdx];
+    if (art && typeof showToast === 'function') {
+      showToast(`Inspected Relic: ${art.data.title} 🔮`);
+    }
+    return;
+  }
 }
 
 function onXRPointerDown(event) {
@@ -730,11 +814,31 @@ function onXRSelectStart(event) {
   raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
 
   const intersections = raycaster.intersectObjects(xrInteractiveGroup.children, true);
+  if (intersections.length > 0) {
+    const hitObj = intersections[0].object;
+    if (hitObj.name && hitObj.name.startsWith('artifact_')) {
+      const artIdx = parseInt(hitObj.name.replace('artifact_', ''));
+      xrGrabbedArtifact = xrInteractiveArtifacts[artIdx];
+      xrGrabbedController = controller;
+      if (typeof showToast === 'function') {
+        showToast(`Grabbed Relic: ${xrGrabbedArtifact.data.title} ✊🔮`);
+      }
+      return;
+    }
+  }
+
   handleXRIntersection(intersections);
 }
 
 function onXRSelectEnd(event) {
-  // Select ended (Trigger released)
+  const controller = event.target;
+  if (xrGrabbedController === controller) {
+    if (xrGrabbedArtifact && typeof showToast === 'function') {
+      showToast(`Released Relic: ${xrGrabbedArtifact.data.title} ✨`);
+    }
+    xrGrabbedArtifact = null;
+    xrGrabbedController = null;
+  }
 }
 
 // ---- Main Render Frame Loop ----------------------------------------------
@@ -746,6 +850,21 @@ function animateXR() {
     syncLiveGameStateTo3D();
     lastXRSyncTime = time;
   }
+
+  // Update floating artifacts or grabbed inspection artifact
+  const t = time * 0.002;
+  xrInteractiveArtifacts.forEach((art, i) => {
+    if (art === xrGrabbedArtifact && xrGrabbedController) {
+      const targetPos = new THREE.Vector3();
+      xrGrabbedController.getWorldPosition(targetPos);
+      const dir = new THREE.Vector3(0, 0, -0.35).applyMatrix4(xrGrabbedController.matrixWorld);
+      art.mesh.position.copy(targetPos).add(dir);
+      art.mesh.quaternion.copy(xrGrabbedController.quaternion);
+    } else {
+      art.mesh.position.y = art.initialPos.y + Math.sin(t + art.floatOffset) * 0.1;
+      art.mesh.rotation.y += 0.005;
+    }
+  });
 
   // Update Orbit controls damping
   if (xrControls) {

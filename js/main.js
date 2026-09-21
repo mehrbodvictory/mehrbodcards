@@ -8699,6 +8699,7 @@ const PATCH_NOTES = [
       "VR SHOP SHOWROOM: Immersive 3D Mehrbod Shop in VR — The legendary Mehrbod Shop is now fully integrated as a 3D interactable showroom inside VR and 3D mode! Surrounding the Cyber Arena are high-tech neon pedestals displaying floating animated holographic cosmetic items, themes, and sleeves. Tap interactive 3D pricing labels with VR controllers or mouse raycasting to purchase or equip items instantly.",
       "NAVIGATION & USABILITY: Replaced the old XR Arena menu card with a prominent ENTER VR button directly underneath the Mehrbod shop, removed the startup VR prompt overlay, and added comprehensive VR interactability across the entire game match engine.",
       "DIRECT WEBXR LAUNCH: Instant VR Entry — Clicking the ENTER VR button now directly requests an immersive WebXR session and takes you straight into the virtual arena without any intermediary screen.",
+      "VR GRAB & INSPECT RELICS: Interactive Holographic Artifacts — Added an array of floating interactive VR holographic relic cards surrounding the Cyber Arena. Use your XR controller triggers to grab, hold, and inspect them up close in 3D space with smooth physics and toast feedback!",
     ],
   },
   {
