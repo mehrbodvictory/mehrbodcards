@@ -2,28 +2,6 @@
 <html lang="en">
 <head>
 <script>
-  // Migrate legacy themes to Prism Core (the unique 100% completion theme)
-  try {
-    if (localStorage.getItem('theme_collector_unlocked') === 'true' || localStorage.getItem('theme_darkmatter_unlocked') === 'true' || localStorage.getItem('theme_collector') === 'true') {
-      localStorage.setItem('theme_prism_unlocked', 'true');
-    }
-    if (localStorage.getItem('mehrbod-cards-theme') === 'collector' || localStorage.getItem('mehrbod-cards-theme') === 'darkmatter') {
-      localStorage.setItem('mehrbod-cards-theme', 'prism');
-    }
-    localStorage.removeItem('theme_collector_unlocked');
-    localStorage.removeItem('theme_collector');
-    localStorage.removeItem('theme_100_collector_unlocked');
-  } catch (e) {}
-
-  // Unregister all service workers to ensure fresh code is loaded immediately
-  if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(function(registrations) {
-      for (var i = 0; i < registrations.length; i++) {
-        registrations[i].unregister();
-      }
-    }).catch(function() {});
-  }
-
   // Clear CacheStorage to remove any stale bundled scripts
   if (typeof window !== 'undefined' && 'caches' in window) {
     caches.keys().then(function(keys) {
@@ -52,13 +30,15 @@
 <meta name="apple-mobile-web-app-title" content="MehrbodCards">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=12.1.0">
-<link rel="stylesheet" href="style-juice.css?v=12.1.0">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=14.6.0">
+<link rel="stylesheet" href="style-juice.css?v=14.0.0">
 </head>
 <body>
 <div id="top-left-hud">
   <button id="profile-avatar-btn" type="button" aria-label="Open your profile">
+    <canvas id="hud-profile-particle-canvas" class="hud-avatar-particle-canvas" width="80" height="80"></canvas>
     <span id="profile-avatar-letter">P</span>
     <span id="profile-prestige-badge" class="profile-exclaim hidden">!</span>
   </button>
@@ -105,7 +85,7 @@
   </header>
 
   <!-- ===== MENU ===== -->
-  <section id="screen-menu" class="screen">
+  <section id="screen-menu" class="screen active-screen">
     <div class="hero hero-centered">
       <h1 class="game-title"><span class="title-word"><span class="title-letter" id="secret-m-trigger">M</span><span class="title-letter">E</span><span class="title-letter">H</span><span class="title-letter">R</span><span class="title-letter">B</span><span class="title-letter">O</span><span class="title-letter">D</span></span><br><span class="title-word"><span class="title-letter">C</span><span class="title-letter">A</span><span class="title-letter">R</span><span class="title-letter">D</span><span class="title-letter">S</span></span><div class="minecraft-splash-text" id="minecraft-splash"></div></h1>
     </div>
@@ -135,7 +115,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
           </div>
         </button>
-        <button class="menu-card" id="btn-enter-vr">
+        <button class="menu-card hidden" id="btn-enter-vr">
           <div class="menu-icon-pod">
             <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path></svg>
           </div>
@@ -163,28 +143,35 @@
     </div>
 
     <div class="menu-footer">
-      <button class="link-btn glass-pill-btn" id="btn-open-collection">
+      <div class="footer-btn-wrapper" style="position: relative; display: inline-flex; align-items: center; justify-content: center;">
+        <button class="link-btn glass-pill-btn footer-squircle-btn battlepass-glow-btn" id="btn-open-battlepass">
+          <span style="font-size: 1.1rem; filter: drop-shadow(0 0 6px #f59e0b);">⚡</span>
+          <span style="background: linear-gradient(135deg, #f59e0b, #ef4444); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800;">PASS S1</span>
+        </button>
+        <span id="bp-claim-indicator" class="bp-unclaimed-badge hidden">!</span>
+      </div>
+      <button class="link-btn glass-pill-btn footer-squircle-btn" id="btn-open-collection">
         <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
         <span>Collection</span>
       </button>
-      <span class="footer-dot">·</span>
-      <button class="link-btn glass-pill-btn" id="btn-open-quests-menu">
+      <button class="link-btn glass-pill-btn footer-squircle-btn" id="btn-open-quests-menu">
         <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.45 1-1 1H8c-.55 0-1 .45-1 1v1c0 .55.45 1 1 1h8c.55 0 1-.45 1-1v-1c0-.55-.45-1-1-1h-1c-.55 0-1-.45-1-1v-2.34"></path><path d="M18 4H6v7a6 6 0 0 0 12 0V4z"></path></svg>
         <span>Quests</span>
       </button>
-      <span class="footer-dot">·</span>
-      <button class="link-btn glass-pill-btn" id="btn-open-settings-menu">
+      <button class="link-btn glass-pill-btn footer-squircle-btn" id="btn-open-settings-menu">
         <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
         <span>Settings</span>
       </button>
-      <span class="footer-dot">·</span>
-      <button class="link-btn glass-pill-btn" id="btn-version"></button><span id="version-badge" class="new-badge hidden">NEW</span>
+      <div class="footer-btn-wrapper" style="position: relative; display: inline-flex; align-items: center; justify-content: center;">
+        <button class="link-btn glass-pill-btn footer-squircle-btn" id="btn-version"></button>
+        <span id="version-badge" class="new-badge hidden">NEW</span>
+      </div>
     </div>
     <div id="record-display" class="sub small"></div>
   </section>
 
   <!-- ===== WEBXR CYBER ARENA ===== -->
-  <section id="screen-webxr-arena" class="screen hidden" style="flex-direction: column; align-items: stretch; justify-content: stretch; padding: 12px; height: 100vh; max-height: 100vh; box-sizing: border-box;">
+  <section id="screen-webxr-arena" class="screen hidden" style="display: flex; flex-direction: column; align-items: stretch; justify-content: stretch; padding: 12px; height: 100vh; max-height: 100vh; box-sizing: border-box;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 10px;">
       <h2 style="margin: 0; font-size: 1.25rem; display: flex; align-items: center; gap: 6px;"><span>XR Cyber Arena</span> <span style="font-size: 0.75rem; background: rgba(0, 243, 255, 0.15); color: #00f3ff; padding: 2px 8px; border-radius: 9999px; font-weight: 700;">Quest 3 Native</span></h2>
       <div id="webxr-button-container" style="display: flex; gap: 8px; align-items: center;"></div>
@@ -247,6 +234,37 @@
         <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
         <span>Back</span>
       </button>
+    </div>
+  </section>
+
+  <!-- ===== 2.5D STORY MODE CAMPAIGN SCREEN ===== -->
+  <section id="screen-story-mode" class="screen hidden">
+    <div class="story-mode-layout">
+      <div class="story-mode-header">
+        <button class="link-btn back-btn glass-pill-btn" id="btn-story-mode-back">
+          <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+          <span>Back to Single Player</span>
+        </button>
+        <div class="story-title-cluster">
+          <h2 class="story-main-heading">Chronicles of Mehrbod</h2>
+          <span class="story-sub-heading">2.5D Isometric Odyssey</span>
+        </div>
+      </div>
+
+      <div class="story-chapter-tabs-bar" id="story-chapter-tabs"></div>
+
+      <div class="story-viewport-grid">
+        <div class="story-canvas-container">
+          <canvas id="story-2d5-canvas" width="700" height="480"></canvas>
+          <div class="story-canvas-hint">
+            <span>🖱️ Drag to pan camera · Click any node to inspect & deploy</span>
+          </div>
+        </div>
+
+        <div class="story-inspector-panel" id="story-node-inspector">
+          <!-- Populated dynamically by StoryMode engine -->
+        </div>
+      </div>
     </div>
   </section>
 
@@ -415,20 +433,96 @@
 
   <!-- ===== PUBLIC MATCHMAKING SCREEN ===== -->
   <section id="screen-matchmaking" class="screen hidden">
-    <h2>Finding Opponent</h2>
-    <div class="search-pulse-container">
-      <div class="search-pulse-ring"></div>
-      <div class="search-pulse-ring"></div>
-      <div class="search-pulse-ring"></div>
-      <div class="search-pulse-icon">
-        <svg class="glass-icon-large" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+    <!-- Header telemetry bar -->
+    <div class="matchmaking-header-hud">
+      <div class="mm-hud-badge ping-stat" id="mm-ping-badge">
+        <span class="mm-ping-val" id="mm-ping-val">PING: 28ms</span>
       </div>
     </div>
-    <p class="sub">Searching for an active player...</p>
-    <p class="sub small" id="matchmaking-status">Initializing connection...</p>
-    <button class="link-btn glass-pill-btn" id="btn-matchmaking-cancel">
+
+    <!-- Central Versus Stage & Holographic Scanning Radar -->
+    <div class="mm-versus-stage">
+      <!-- Player Card (Left - You) -->
+      <div class="mm-player-card mm-card-local">
+        <div class="mm-card-glow"></div>
+        <div class="mm-card-avatar-frame">
+          <canvas id="mm-local-particle-canvas" class="mm-avatar-particle-canvas" width="160" height="160"></canvas>
+          <div class="mm-card-avatar" id="mm-local-avatar">M</div>
+          <div class="mm-card-badge" id="mm-local-level">LVL 1</div>
+        </div>
+        <div class="mm-card-info">
+          <div class="mm-card-name" id="mm-local-name">PLAYER</div>
+        </div>
+      </div>
+
+      <!-- Center Orbital Radar & VS Emblem -->
+      <div class="mm-center-radar">
+        <div class="mm-radar-ring outer"></div>
+        <div class="mm-radar-ring middle"></div>
+        <div class="mm-radar-ring inner"></div>
+        <div class="mm-radar-sweep"></div>
+        <div class="mm-radar-beam"></div>
+        
+        <!-- Rotating Target Reticle -->
+        <div class="mm-target-reticle"></div>
+
+        <!-- Center VS Emblem -->
+        <div class="mm-vs-badge">
+          <span class="mm-vs-text">VS</span>
+          <span class="mm-vs-lightning">⚡</span>
+        </div>
+
+        <!-- Orbiting Satellite Blips -->
+        <div class="mm-orbit-blip b1">⚔️</div>
+        <div class="mm-orbit-blip b2">🛡️</div>
+        <div class="mm-orbit-blip b3">🔮</div>
+      </div>
+
+      <!-- Opponent Card (Right - Searching...) -->
+      <div class="mm-player-card mm-card-remote searching" id="mm-remote-card">
+        <div class="mm-card-glow remote"></div>
+        <div class="mm-card-avatar-frame searching-frame">
+          <div class="mm-card-avatar pulse-avatar" id="mm-remote-avatar">🔮</div>
+        </div>
+        <div class="mm-card-info">
+          <div class="mm-card-name searching-text" id="mm-remote-name">SEARCHING FOR OPPONENT</div>
+          <div class="mm-card-deck searching-sub" id="mm-remote-deck">Scanning Arena Lobbies...</div>
+        </div>
+        <div class="mm-card-status searching" id="mm-remote-status">
+          <span class="status-radar-dot"></span> SEARCHING
+        </div>
+      </div>
+    </div>
+
+    <!-- Status & Live Queue HUD -->
+    <div class="mm-status-container">
+      <div class="mm-status-label" id="matchmaking-status">Initializing connection...</div>
+      <div class="mm-timer-badge">
+        <span class="mm-timer-icon">⏱️</span>
+        <span id="mm-search-timer">00:00</span>
+      </div>
+      <div class="mm-progress-track">
+        <div class="mm-progress-bar"></div>
+      </div>
+
+      <!-- Tactical Tip Carousel Card -->
+      <div class="mm-tip-card" id="mm-tip-card">
+        <div class="mm-tip-header">
+          <span class="mm-tip-badge">💡 TACTICAL TIP</span>
+          <button type="button" class="mm-tip-next-btn" id="btn-mm-next-tip" title="Next Tip">
+            <span>Next Tip</span> ➔
+          </button>
+        </div>
+        <div class="mm-tip-body" id="mm-tip-body">
+          Combining Freeze Spells with Shatter Strikes deals 2x critical damage!
+        </div>
+      </div>
+    </div>
+
+    <!-- Cancel Button -->
+    <button class="link-btn glass-pill-btn mm-cancel-btn" id="btn-matchmaking-cancel">
       <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-      <span>Cancel</span>
+      <span>Cancel Search</span>
     </button>
   </section>
 
@@ -529,6 +623,9 @@
       <h2>Build Your Deck</h2>
       <span id="deck-completeness-hint" class="deck-completeness-hint">0/12 UNITS</span>
     </div>
+
+    <!-- Interactive Deck Synergy & Curve Analytics Widget -->
+    <div id="deck-synergy-analytics" class="deck-synergy-widget"></div>
 
     <details class="db-guide-details">
       <summary class="db-guide-summary">📋 Deck Building Guide & Rules</summary>
@@ -1007,6 +1104,9 @@
   <section id="screen-game" class="screen hidden">
     <svg id="attack-lines-overlay"></svg>
     
+    <!-- Top Right Corner Round Indicator -->
+    <div id="match-top-right-round" class="match-top-right-round">Round 1</div>
+
     <!-- Real-time P2P Network latency indicator -->
     <div id="p2p-ping-badge" class="hidden">
       <span class="ping-dot"></span> <span id="p2p-ping-value">--</span> ms
@@ -1014,15 +1114,24 @@
 
     <div id="phase-bar">
       <span id="phase-label">Placement</span>
-      <span id="round-label">Round 1</span>
-      <span id="ready-indicators">
-        <div id="you-ready-badge" class="match-avatar-badge" title="You">
-          <span id="you-avatar-inner" class="match-avatar-circle"></span>
+      <span id="round-label" class="hidden"></span>
+      <div id="ready-indicators">
+        <div id="match-hud-you-chip" class="match-player-chip" title="You">
+          <div id="you-ready-badge" class="match-avatar-badge" title="You">
+            <canvas id="you-particle-avatar-canvas" class="match-avatar-particle-canvas" width="64" height="64"></canvas>
+            <span id="you-avatar-inner" class="match-avatar-circle"></span>
+          </div>
+          <span id="match-hud-you-name" class="match-player-name">Player</span>
         </div>
-        <div id="opp-ready-badge" class="match-avatar-badge" title="Opponent">
-          <span id="opp-avatar-inner" class="match-avatar-circle"></span>
+        <span class="match-hud-vs-tag">VS</span>
+        <div id="match-hud-opp-chip" class="match-player-chip" title="Opponent">
+          <span id="match-hud-opp-name" class="match-player-name">Bot</span>
+          <div id="opp-ready-badge" class="match-avatar-badge" title="Opponent">
+            <canvas id="opp-particle-avatar-canvas" class="match-avatar-particle-canvas" width="64" height="64"></canvas>
+            <span id="opp-avatar-inner" class="match-avatar-circle"></span>
+          </div>
         </div>
-      </span>
+      </div>
       <button id="btn-options" class="icon-btn" title="Options">⚙</button>
       <button id="btn-ready" class="primary-btn small" title="Ready up (R)">Ready <span class="hotkey-hint">(R)</span></button>
     </div>
@@ -1033,7 +1142,7 @@
       <div id="power-bar-opp"></div>
     </div>
 
-    <div id="enemy-count-label">🎴 Enemy has <span id="enemy-count">--</span> cards left</div>
+    <div id="enemy-count-label">Enemy has <span id="enemy-count">--</span> cards left</div>
     <div id="opponent-board" class="board"></div>
     <div id="bot-thinking-indicator" class="hidden">🤔 Bot is thinking…</div>
 
@@ -1078,6 +1187,12 @@
     </div>
 
     <div id="hand-label">Your Cards <span id="hand-count"></span></div>
+    
+    <!-- Emergency Blueprint Conversion Button -->
+    <div id="emergency-conversion-container" class="hidden">
+      <button type="button" class="primary-btn emergency-btn" id="btn-emergency-convert">⚠️ Desperation Salvage: Convert 1 Blueprint to 2 Blue Units</button>
+    </div>
+
     <div id="hand-row"></div>
     <div id="spells-chips-row"></div>
 
@@ -1130,8 +1245,19 @@
       <h2 id="gameover-title"></h2>
       <p id="gameover-duration" class="sub small"></p>
       <p id="gameover-mvp" class="sub small"></p>
+      
+      <!-- Tactical Match Analytics Dashboard -->
+      <div id="gameover-analytics" class="gameover-analytics-panel">
+        <div class="analytics-row"><span>Rounds Played:</span> <strong id="analytics-rounds">1</strong></div>
+        <div class="analytics-row"><span>Total Damage Dealt:</span> <strong id="analytics-damage-dealt">0</strong></div>
+        <div class="analytics-row"><span>Total Damage Blocked:</span> <strong id="analytics-damage-blocked">0</strong></div>
+        <div class="analytics-row"><span>Spells Cast:</span> <strong id="analytics-spells-cast">0</strong></div>
+        <div class="analytics-row"><span>Merges Executed:</span> <strong id="analytics-merges">0</strong></div>
+      </div>
+
       <div id="gameover-streak-shattered" class="hidden"></div>
       <div id="gameover-buttons">
+      <button class="primary-btn" id="btn-quick-rematch">⚡ Quick Rematch</button>
       <button class="primary-btn" id="btn-play-again">Play Again</button>
       <button class="primary-btn hidden" id="btn-mp-rematch">Rematch</button>
       <button class="link-btn" id="btn-rematch">Back to menu</button>
@@ -1338,6 +1464,19 @@
                 <button type="button" class="settings-pill-toggle mode-btn" id="btn-motion-toggle">🎬 Reduced motion: Off</button>
               </div>
             </div>
+
+            <!-- Console Performance Mode -->
+            <div class="settings-card-item">
+              <div class="settings-item-main">
+                <div class="settings-item-info">
+                  <div class="settings-item-title">
+                    <span class="item-icon">⚡</span> Console / Performance Mode
+                  </div>
+                  <div class="settings-item-desc">Disables heavy background blurring and complex animations to optimize gameplay for consoles (PS4) and older devices</div>
+                </div>
+                <button type="button" class="settings-pill-toggle mode-btn" id="btn-perf-mode-toggle">⚡ Performance: Off</button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1413,7 +1552,10 @@
                   <div class="danger-desc">Permanently erases all Bux, cards, decks, cosmetics, and stats on this device.</div>
                 </div>
               </div>
-              <button type="button" class="primary-btn danger" id="btn-reset-progress">🗑 Reset All Progress</button>
+              <button type="button" class="primary-btn danger" id="btn-reset-progress">
+                <span class="btn-reset-fill"></span>
+                <span class="btn-reset-text">🗑 Hold to Reset All Progress</span>
+              </button>
             </div>
           </div>
         </div>
@@ -1472,6 +1614,15 @@
             <div class="cmd-info">
               <span class="cmd-title">⚡ Unlock All Cards, Spells &amp; Chips</span>
               <span class="cmd-subtitle">Instantly unlock every unit archetype, spell, and chip in the game (100% Collection)</span>
+            </div>
+            <div class="cmd-arrow">➔</div>
+          </button>
+
+          <button type="button" id="btn-secret-launch-3d-hub" class="secret-cmd-card">
+            <div class="cmd-icon-box">🕶️</div>
+            <div class="cmd-info">
+              <span class="cmd-title">🌐 Launch 3D VR Hub Simulation (Non-VR Joystick)</span>
+              <span class="cmd-subtitle">Explore the 3D VR Central Hub directly on standard screens with on-screen touch joystick movement</span>
             </div>
             <div class="cmd-arrow">➔</div>
           </button>
@@ -1556,6 +1707,54 @@
     </div>
   </div>
 
+  <!-- ===== BATTLE PASS (SEASON 1: NEON OBLIVION) MODAL ===== -->
+  <div id="battlepass-overlay" class="hidden" role="dialog" aria-modal="true" aria-labelledby="bp-modal-title">
+    <div id="battlepass-card" class="bp-modal-card">
+      <button id="btn-battlepass-close" class="modal-close" aria-label="Close Battle Pass">✕</button>
+
+      <!-- Banner Header -->
+      <div class="bp-header-banner">
+        <div class="bp-season-badge">SEASON 1</div>
+        <h2 id="bp-modal-title" class="bp-main-title">MEHRBOD PASS: NEON OBLIVION</h2>
+        <div class="bp-sub-title">20 Epic Tiers of Exclusive Themes, Apex Cards, Custom Sleeves &amp; Finishers</div>
+        
+        <div class="bp-status-row">
+          <div class="bp-status-pill-box">
+            <span id="bp-pass-status-badge" class="bp-status-pill standard">STANDARD PASS (FREE)</span>
+            <span id="bp-level-val" class="bp-level-badge">TIER 1</span>
+          </div>
+
+          <div class="bp-action-btns">
+            <button type="button" id="btn-bp-buy-premium" class="primary-btn bp-buy-btn">
+              ⚡ UNLOCK PREMIUM (10,000 BUX)
+            </button>
+            <button type="button" id="btn-bp-claim-all" class="primary-btn bp-claim-all-btn">
+              🎁 Claim All Rewards
+            </button>
+          </div>
+        </div>
+
+        <!-- Progress Tracker Bar -->
+        <div class="bp-progress-container">
+          <div class="bp-progress-info">
+            <span id="bp-xp-val" class="bp-xp-text">0 / 500 XP to Tier 2</span>
+            <span class="bp-xp-hint">Earn XP from matches, bounties, story mode &amp; tower floor clears!</span>
+          </div>
+          <div class="bp-progress-bar-bg">
+            <div id="bp-progress-bar-fill" class="bp-progress-bar-fill" style="width: 0%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scrollable Track Grid -->
+      <div class="bp-track-scroll-area">
+        <div id="bp-track-grid" class="bp-track-grid">
+          <!-- Populated dynamically by BattlePass module -->
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Offline Network Status Indicator Banner -->
   <div id="offline-indicator" class="hidden">
     <span class="offline-pulse"></span> Offline Mode — Running on local cached assets.
@@ -1589,6 +1788,7 @@
 </script>
 <script src="js/firebase-matchmaking.js?v=12.1.0"></script>
 <script src="js/rng.js?v=12.1.0"></script>
+<script src="js/anti-cheat.js?v=12.1.0"></script>
 <script src="js/cards.js?v=12.1.0"></script>
 <script src="js/game.js?v=12.1.0"></script>
 <script src="js/bot.js?v=12.1.0"></script>
@@ -1596,8 +1796,10 @@
 <script src="js/ui.js?v=12.1.0"></script>
 <script src="js/sound.js?v=12.1.0"></script>
 <script src="js/theme-templates.js?v=12.1.0"></script>
+<script src="js/story-mode.js?v=12.1.0"></script>
 <script src="js/main.js?v=12.1.0"></script>
 <script src="js/juice.js?v=12.1.0"></script>
+<script src="js/battlepass.js?v=12.1.0"></script>
 <!-- Three.js for Immersive 3D WebXR Support on Meta Quest 3 & Desktop -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>

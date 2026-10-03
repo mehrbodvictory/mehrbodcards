@@ -1049,11 +1049,40 @@ html.theme-valentine .brand-mark {
 }
 
 /* ---------- Profile HUD (top-left avatar) & Bux HUD (top-right) + Stats 2.0 panel ---------- */
-#top-left-hud { position: fixed; top: 14px; left: 14px; z-index: 500; display: flex; align-items: center; }
+#top-left-hud {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  background: rgba(10, 15, 30, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+  padding: 3px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+}
 #top-left-hud.hidden { display: none !important; }
 @media (max-width: 480px) { #top-left-hud { top: 8px; left: 8px; } }
 
-#top-right-hud { position: fixed; top: 14px; right: 14px; z-index: 500; display: flex; align-items: center; gap: 8px; }
+#top-right-hud {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(10, 15, 30, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+  padding: 3px 5px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+}
 #top-right-hud.hidden { display: none !important; }
 #top-right-hud #bux-counter { position: static !important; top: auto !important; right: auto !important; }
 @media (max-width: 480px) { #top-right-hud { top: 8px; right: 8px; gap: 6px; } }
@@ -1593,7 +1622,7 @@ html.theme-valentine .brand-mark {
   pointer-events: none;
   z-index: 200;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6), 0 0 10px rgba(250, 204, 21, 0.3);
-  animation: avatarEmotePop 1.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  animation: avatarEmotePop 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 .avatar-emote-bubble::after {
@@ -1612,13 +1641,16 @@ html.theme-valentine .brand-mark {
 @keyframes avatarEmotePop {
   0% {
     opacity: 0;
-    transform: translateX(-50%) scale(0.3) translateY(12px);
+    transform: translateX(-50%) scale(0) translateY(15px);
   }
-  15% {
+  12% {
     opacity: 1;
-    transform: translateX(-50%) scale(1.25) translateY(-4px);
+    transform: translateX(-50%) scale(1.15) translateY(-4px);
   }
-  30% {
+  20% {
+    transform: translateX(-50%) scale(0.98) translateY(1px);
+  }
+  25% {
     transform: translateX(-50%) scale(1) translateY(0);
   }
   75% {
@@ -1627,20 +1659,23 @@ html.theme-valentine .brand-mark {
   }
   100% {
     opacity: 0;
-    transform: translateX(-50%) scale(0.7) translateY(-24px);
+    transform: translateX(-50%) scale(0.8) translateY(-20px);
   }
 }
 
 @keyframes avatarEmotePopUnder {
   0% {
     opacity: 0;
-    transform: translateX(-50%) scale(0.3) translateY(-12px);
+    transform: translateX(-50%) scale(0) translateY(-15px);
   }
-  15% {
+  12% {
     opacity: 1;
-    transform: translateX(-50%) scale(1.25) translateY(4px);
+    transform: translateX(-50%) scale(1.15) translateY(4px);
   }
-  30% {
+  20% {
+    transform: translateX(-50%) scale(0.98) translateY(-1px);
+  }
+  25% {
     transform: translateX(-50%) scale(1) translateY(0);
   }
   75% {
@@ -1649,7 +1684,7 @@ html.theme-valentine .brand-mark {
   }
   100% {
     opacity: 0;
-    transform: translateX(-50%) scale(0.7) translateY(24px);
+    transform: translateX(-50%) scale(0.8) translateY(20px);
   }
 }
 
@@ -1657,7 +1692,7 @@ html.theme-valentine .brand-mark {
   .avatar-emote-bubble {
     bottom: auto !important;
     top: 125% !important;
-    animation: avatarEmotePopUnder 1.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+    animation: avatarEmotePopUnder 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
   }
   .avatar-emote-bubble::after {
     bottom: auto !important;
@@ -1725,8 +1760,9 @@ html.theme-valentine .brand-mark {
    compact top bar, responsive board slots, and hidden hotkey reminders.
    ============================================================ */
 @media (max-width: 768px) {
-  /* Hide keyboard hotkey reminders on mobile touch screens */
-  .hotkey-hint {
+  /* Hide keyboard hotkey reminders and Log button on mobile touch screens */
+  .hotkey-hint,
+  #btn-log-toggle {
     display: none !important;
   }
 
@@ -1781,14 +1817,18 @@ html.theme-valentine .brand-mark {
     padding: 2px 7px;
   }
   #btn-ready {
-    font-size: 0.88rem;
-    padding: 6px 12px;
-    min-height: 34px;
-    min-width: 38px;
-    border-radius: 14px;
-    font-weight: 800;
-    box-shadow: 0 3px 12px rgba(224, 138, 44, 0.4);
-    text-align: center;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    line-height: 1 !important;
+    font-size: 0.88rem !important;
+    padding: 6px 14px !important;
+    min-height: 36px !important;
+    min-width: 72px !important;
+    border-radius: 10px !important;
+    font-weight: 800 !important;
+    box-shadow: 0 3px 12px rgba(224, 138, 44, 0.4) !important;
   }
   #btn-options {
     width: 32px;
@@ -1820,29 +1860,66 @@ html.theme-valentine .brand-mark {
 
   /* Board & Cards Layout */
   .board {
-    grid-template-columns: repeat(6, 1fr);
-    gap: 3px;
-    padding: 4px 1px;
-    min-height: 82px;
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    gap: 3px !important;
+    padding: 3px 0 !important;
+    min-height: 86px !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
   .slot {
-    min-height: 80px;
-    border-radius: 8px;
+    min-height: 86px !important;
+    min-width: 0 !important;
+    border-radius: 8px !important;
   }
   .board .card {
-    border-radius: 8px;
-    padding: 3px 3px 4px;
+    min-width: 0 !important;
+    border-radius: 8px !important;
+    padding: 3px 2px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    box-sizing: border-box !important;
   }
   .board .card-name {
-    font-size: 0.56rem;
-    letter-spacing: -0.01em;
+    font-size: 0.55rem !important;
+    letter-spacing: -0.01em !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    text-align: center !important;
+    margin-bottom: 2px !important;
   }
   .board .card-ability {
-    display: none;
+    display: none !important;
   }
   .board .card-stats {
-    font-size: 0.68rem;
-    font-weight: 800;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    gap: 2px !important;
+    margin-top: auto !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+  }
+  .board .card-stats .hp,
+  .board .card-stats .dmg,
+  .board .card-stats .sp {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: 100% !important;
+    padding: 1.5px 2px !important;
+    font-size: 0.62rem !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    border-radius: 4px !important;
+    gap: 2px !important;
+    letter-spacing: 0 !important;
+    white-space: nowrap !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+    box-sizing: border-box !important;
   }
 
   /* Mobile Mode & Action Dock */
@@ -3277,4 +3354,981 @@ html.theme-valentine .brand-mark {
   .milestone-toast-desc {
     font-size: 0.68rem;
   }
+}
+
+/* ===== DANGER ZONE HOLD-TO-CONFIRM PROGRESS STYLES ===== */
+#btn-reset-progress {
+  position: relative !important;
+  overflow: hidden !important;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s ease !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  cursor: pointer !important;
+}
+
+#btn-reset-progress .btn-reset-fill {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  bottom: 0 !important;
+  width: 0%;
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.65) 0%, rgba(220, 38, 38, 0.85) 100%) !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+  transition: width 0.05s linear !important;
+}
+
+#btn-reset-progress .btn-reset-text {
+  position: relative !important;
+  z-index: 2 !important;
+  pointer-events: none !important;
+}
+
+/* Rumble/Shake animation when holding */
+#btn-reset-progress.holding {
+  animation: dangerRumble 0.1s infinite alternate !important;
+  transform: scale(0.98) !important;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.45) !important;
+}
+
+@keyframes dangerRumble {
+  0% { transform: translate(1px, 1px) rotate(0.5deg) scale(0.98); }
+  25% { transform: translate(-1px, -1px) rotate(-0.5deg) scale(0.98); }
+  50% { transform: translate(-1.5px, 1px) rotate(1deg) scale(0.98); }
+  75% { transform: translate(1.5px, -1px) rotate(-1deg) scale(0.98); }
+  100% { transform: translate(1px, 1px) rotate(0deg) scale(0.98); }
+}
+
+/* ===== STAGGERED MENU CARD ENTRANCE TRANSITIONS ===== */
+#screen-menu .menu-card {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s ease !important;
+}
+
+#screen-menu.active-screen .menu-card {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Hover override to cancel transition delay for fast reaction */
+#screen-menu.active-screen .menu-card:hover {
+  opacity: 1 !important;
+  transform: translateY(-4px) scale(1.015) !important;
+  transition-delay: 0s !important;
+}
+
+/* Stagger load delays */
+#screen-menu.active-screen #btn-single-player {
+  transition-delay: 0.04s, 0.04s, 0s, 0s !important;
+}
+#screen-menu.active-screen #btn-shop {
+  transition-delay: 0.12s, 0.12s, 0s, 0s !important;
+}
+#screen-menu.active-screen #btn-enter-vr {
+  transition-delay: 0.18s, 0.18s, 0s, 0s !important;
+}
+#screen-menu.active-screen #btn-multiplayer {
+  transition-delay: 0.18s, 0.18s, 0s, 0s !important;
+}
+
+/* ===== STAGGERED ANALYTICS ROW ENTRANCE TRANSITIONS ===== */
+#gameover-overlay .analytics-row {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+#gameover-overlay:not(.hidden) .analytics-row {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Stagger each of the 5 rows with incremental delays */
+#gameover-overlay:not(.hidden) .analytics-row:nth-child(1) { transition-delay: 0.18s !important; }
+#gameover-overlay:not(.hidden) .analytics-row:nth-child(2) { transition-delay: 0.28s !important; }
+#gameover-overlay:not(.hidden) .analytics-row:nth-child(3) { transition-delay: 0.38s !important; }
+#gameover-overlay:not(.hidden) .analytics-row:nth-child(4) { transition-delay: 0.48s !important; }
+#gameover-overlay:not(.hidden) .analytics-row:nth-child(5) { transition-delay: 0.58s !important; }
+
+/* ===== FLYING COIN PARTICLES & BOUNCING HUD DISPLAY STYLES ===== */
+.flying-coin-particle {
+  position: fixed !important;
+  width: 20px !important;
+  height: 20px !important;
+  background: radial-gradient(circle, #ffe066 0%, #f59e0b 80%, #d97706 100%) !important;
+  border: 1.5px solid #ffffff !important;
+  border-radius: 50% !important;
+  box-shadow: 0 4px 10px rgba(217, 119, 6, 0.6), 0 0 6px rgba(251, 191, 36, 0.8) !important;
+  pointer-events: none !important;
+  z-index: 999999 !important;
+  will-change: transform, opacity, left, top !important;
+  transition: transform 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.18s ease-out;
+}
+
+.bux-counter-pulse {
+  animation: buxCounterPulse 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+/* ===== PLAYABLE CARDS & SPELLS ACTIVE GLOW STYLES ===== */
+@keyframes playableUnitPulse {
+  0% {
+    box-shadow: 0 0 4px rgba(34, 197, 94, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.25) !important;
+    border-color: rgba(34, 197, 94, 0.5) !important;
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.9), 0 0 2px rgba(34, 197, 94, 0.45), inset 0 1px 2px rgba(255, 255, 255, 0.35) !important;
+    border-color: rgba(74, 222, 128, 0.95) !important;
+  }
+  100% {
+    box-shadow: 0 0 4px rgba(34, 197, 94, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.25) !important;
+    border-color: rgba(34, 197, 94, 0.5) !important;
+  }
+}
+
+@keyframes playableSpellPulse {
+  0% {
+    box-shadow: 0 0 4px rgba(168, 85, 247, 0.45) !important;
+    border-color: rgba(168, 85, 247, 0.5) !important;
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.85), 0 0 2px rgba(168, 85, 247, 0.45) !important;
+    border-color: rgba(192, 132, 252, 0.95) !important;
+  }
+  100% {
+    box-shadow: 0 0 4px rgba(168, 85, 247, 0.45) !important;
+    border-color: rgba(168, 85, 247, 0.5) !important;
+  }
+}
+
+.playable-glow {
+  animation: playableUnitPulse 1.8s infinite ease-in-out !important;
+}
+
+.playable-spell-glow {
+  animation: playableSpellPulse 1.8s infinite ease-in-out !important;
+}
+
+/* ===== FLOATING FUSION TEXT INDICATOR STYLES ===== */
+.float-merge {
+  color: #38bdf8 !important;
+  font-size: 1.05rem !important;
+  font-weight: 800 !important;
+  animation: floatUp 0.95s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+  text-shadow: 0 0 10px rgba(56, 189, 248, 0.8), 0 2px 5px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* ===== TWEAK 1: CARD STAT HOVER LIGHTS & SCALE EFFECTS ===== */
+.card .card-stats .hp,
+.card .card-stats .dmg,
+.card .card-stats .sp {
+  display: inline-block !important;
+  will-change: transform, color !important;
+  transition: transform 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.22s ease !important;
+}
+
+.card:hover .card-stats .hp {
+  color: #ff6b6b !important;
+  transform: scale(1.15) !important;
+  text-shadow: 0 0 6px rgba(239, 68, 68, 0.5) !important;
+}
+
+.card:hover .card-stats .dmg {
+  color: #fbbf24 !important;
+  transform: scale(1.15) !important;
+  text-shadow: 0 0 6px rgba(245, 158, 11, 0.5) !important;
+}
+
+.card:hover .card-stats .sp {
+  color: #60a5fa !important;
+  transform: scale(1.15) !important;
+  text-shadow: 0 0 6px rgba(59, 130, 246, 0.5) !important;
+}
+
+/* ===== TWEAK 2: INTERACTIVE MODE BAR ACTION BUTTONS ===== */
+.mode-btn {
+  will-change: transform, background, border-color, box-shadow !important;
+  transition: transform 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+              background 0.22s ease,
+              border-color 0.22s ease,
+              box-shadow 0.22s ease !important;
+}
+
+.mode-btn:hover {
+  transform: translateY(-3px) scale(1.05) !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(56, 189, 248, 0.5) !important;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45), 0 0 10px rgba(56, 189, 248, 0.3) !important;
+}
+
+.mode-btn:active {
+  transform: translateY(1px) scale(0.95) !important;
+}
+
+/* ===== HAND ROW CARD VERTICAL STATS STACK ===== */
+#hand-row .card {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  padding: 4px 5px !important;
+  box-sizing: border-box !important;
+}
+
+#hand-row .card-stats {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  width: 100% !important;
+  gap: 2px !important;
+  margin-top: auto !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+
+#hand-row .card-stats .hp,
+#hand-row .card-stats .dmg,
+#hand-row .card-stats .sp {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: 100% !important;
+  padding: 1px 1px !important;
+  font-size: 0.58rem !important;
+  font-weight: 800 !important;
+  border-radius: 3px !important;
+  line-height: 1 !important;
+}
+
+#hand-row .card-stats .hp {
+  background: rgba(239, 68, 68, 0.15) !important;
+}
+#hand-row .card-stats .dmg {
+  background: rgba(245, 158, 11, 0.15) !important;
+}
+#hand-row .card-stats .sp {
+  background: rgba(59, 130, 246, 0.15) !important;
+}
+
+#hand-row .card:hover .card-stats .hp {
+  background: rgba(239, 68, 68, 0.3) !important;
+}
+#hand-row .card:hover .card-stats .dmg {
+  background: rgba(245, 158, 11, 0.3) !important;
+}
+#hand-row .card:hover .card-stats .sp {
+  background: rgba(59, 130, 246, 0.3) !important;
+}
+
+/* ===== TWEAK: KINETIC SCREEN SHAKE / RUMBLE EFFECTS ===== */
+.rumble-light {
+  animation: shakeLight 0.22s ease-in-out !important;
+}
+
+.rumble-medium {
+  animation: shakeMedium 0.24s ease-in-out !important;
+}
+
+.rumble-heavy {
+  animation: shakeHeavy 0.26s ease-in-out !important;
+}
+
+/* ===== ENLARGED CARD HOLD-TO-INSPECT SYSTEM (ABSOLUTE MORPH CLONE) ===== */
+.card-morph-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  pointer-events: none;
+  background: rgba(3, 7, 18, 0);
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
+  transition: background 0.28s ease, backdrop-filter 0.28s ease;
+}
+
+.card-morph-overlay.blurred-backdrop {
+  background: rgba(3, 7, 18, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.morph-clone {
+  transition: all 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+  pointer-events: none !important;
+  transform: scale(1) translate3d(0, 0, 0) !important;
+  will-change: transform, top, left, width, height, box-shadow, border-color !important;
+}
+
+.morph-clone.is-enlarging {
+  top: 12% !important; /* Raised high up to prevent mobile thumb occlusion */
+  left: calc(50% - 120px) !important; /* Centered horizontally with the new physical 240px width */
+  width: 240px !important;
+  height: 310px !important;
+  box-shadow: 0 35px 70px rgba(0, 0, 0, 0.95), 0 0 50px rgba(56, 189, 248, 0.9) !important;
+  border-color: #38bdf8 !important;
+  filter: brightness(1.1) !important;
+}
+
+/* Physically scaled overrides for card children during enlargement */
+.morph-clone.is-enlarging .card-name {
+  font-size: 1.15rem !important;
+  padding: 8px !important;
+}
+
+.morph-clone.is-enlarging .card-art {
+  height: 120px !important;
+  font-size: 3rem !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+.morph-clone.is-enlarging .card-stats {
+  font-size: 0.95rem !important;
+  padding: 6px !important;
+}
+
+/* Hide description text on small/standard cards globally to ensure pristine card faces */
+.card-ability {
+  display: none !important;
+}
+
+/* Force expand, position and un-clip card-ability container inside enlarged cards */
+.morph-clone.is-enlarging .card-ability {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  position: absolute !important;
+  /* Centered perfectly relative to card name (top) and card stats (bottom) with zero overlay */
+  top: 52px !important;
+  bottom: 52px !important;
+  left: 10px !important;
+  right: 10px !important;
+  height: auto !important;
+  border-radius: 12px !important;
+  padding: 12px !important;
+  color: #fff !important;
+  font-size: 0.8rem !important;
+  line-height: 1.4 !important;
+  text-align: center !important;
+  z-index: 10 !important;
+  overflow-y: auto !important;
+  max-height: none !important;
+  box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Dynamically match description container colors to the card's specific tier palette */
+/* Tier 1 (Blue / Common) */
+.morph-clone.is-enlarging.tier1 .card-ability {
+  background: rgba(15, 32, 66, 0.97) !important;
+  border: 1.5px solid rgba(59, 130, 246, 0.65) !important;
+  box-shadow: inset 0 0 16px rgba(59, 130, 246, 0.25) !important;
+}
+/* Tier 2 (Green / Rare) */
+.morph-clone.is-enlarging.tier2 .card-ability {
+  background: rgba(6, 68, 51, 0.97) !important;
+  border: 1.5px solid rgba(16, 185, 129, 0.65) !important;
+  box-shadow: inset 0 0 16px rgba(16, 185, 129, 0.25) !important;
+}
+/* Tier 3 (Red / Epic) */
+.morph-clone.is-enlarging.tier3 .card-ability {
+  background: rgba(99, 18, 18, 0.97) !important;
+  border: 1.5px solid rgba(239, 68, 68, 0.65) !important;
+  box-shadow: inset 0 0 16px rgba(239, 68, 68, 0.25) !important;
+}
+/* Tier 4 (Orange / Legendary) */
+.morph-clone.is-enlarging.tier4 .card-ability {
+  background: rgba(124, 45, 18, 0.97) !important;
+  border: 1.5px solid rgba(249, 115, 22, 0.65) !important;
+  box-shadow: inset 0 0 16px rgba(249, 115, 22, 0.25) !important;
+}
+
+.morph-clone.is-enlarging .card-ability .enlarged-ability-text {
+  font-weight: 700 !important;
+  color: #f3f4f6 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Handle smaller viewports with adaptive offsets to ensure zero overflow or layout clipping */
+@media (max-height: 600px) {
+  .morph-clone.is-enlarging {
+    top: 8% !important;
+    left: calc(50% - 100px) !important;
+    width: 200px !important;
+    height: 260px !important;
+  }
+  .morph-clone.is-enlarging .card-name {
+    font-size: 0.95rem !important;
+    padding: 6px !important;
+  }
+  .morph-clone.is-enlarging .card-art {
+    height: 90px !important;
+    font-size: 2.2rem !important;
+  }
+  .morph-clone.is-enlarging .card-ability {
+    top: 42px !important;
+    bottom: 42px !important;
+    left: 8px !important;
+    right: 8px !important;
+    font-size: 0.68rem !important;
+    padding: 8px !important;
+  }
+}
+
+/* Touch Action Lock to optimize mobile hold interactions */
+.card, .locker-tile {
+  touch-action: none !important;
+}
+
+/* Breathing level up pulse for Profile Avatar in Top HUD */
+#profile-avatar-btn.avatar-level-up-pulse {
+  animation: avatarLevelUpBreathingPulse 1.45s cubic-bezier(0.25, 1, 0.5, 1) forwards !important;
+}
+
+@keyframes avatarLevelUpBreathingPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.4), var(--shadow-sm);
+  }
+  25% {
+    transform: scale(1.25);
+    border-color: #a855f7 !important;
+    box-shadow: 0 0 22px 8px rgba(168, 85, 247, 0.65), 0 0 0 12px rgba(168, 85, 247, 0);
+  }
+  50% {
+    transform: scale(1.15);
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 18px 4px rgba(59, 130, 246, 0.55), 0 0 0 8px rgba(59, 130, 246, 0);
+  }
+  75% {
+    transform: scale(1.2);
+    border-color: #10b981 !important;
+    box-shadow: 0 0 20px 6px rgba(16, 185, 129, 0.55), 0 0 0 10px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0), var(--shadow-sm);
+  }
+}
+
+/* ============================================================
+   PLAYSTATION 4 & LOW-PERFORMANCE CONSOLE DEVICE OPTIMIZER
+   Eliminates backdrop-filter blur rendering overhead, simplifies 
+   heavy box-shadows, and optimizes browser compositing to ensure 
+   a steady, fluid 60 FPS on console browsers.
+   ============================================================ */
+.low-perf-device *,
+.low-perf-device *::before,
+.low-perf-device *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  transition-duration: 0.08s !important; /* snap-fast transitions */
+}
+
+/* Fallback to simple high-opacity backgrounds for glassmorphic elements to preserve readability */
+.low-perf-device .screen,
+.low-perf-device .modal-card,
+.low-perf-device .popup-card,
+.low-perf-device .profile-panel,
+.low-perf-device .menu-card,
+.low-perf-device .glass-panel,
+.low-perf-device .settings-modal-card,
+.low-perf-device .blurred-backdrop {
+  background: rgba(11, 15, 25, 0.98) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Simplify complex animated themes (Prism, Magma, Cyberneon, Abyss) in low-perf mode */
+.low-perf-device #theme-prism-bg,
+.low-perf-device #theme-magma-bg,
+.low-perf-device #theme-cyberneon-bg,
+.low-perf-device #theme-abyss-bg,
+.low-perf-device .prism-refraction-caustic-primary,
+.low-perf-device .prism-refraction-caustic-secondary,
+.low-perf-device .prism-laser-pillar,
+.low-perf-device .prism-cosmic-dust,
+.low-perf-device .prism-light-beam,
+.low-perf-device .prism-crystal-lattice,
+.low-perf-device .prism-light-sweep {
+  animation: none !important;
+  opacity: 0.1 !important;
+  display: none !important; /* hides complex heavy DOM elements */
+}
+
+/* Also ensure a static, clean background for low-performance consoles */
+.low-perf-device body {
+  background-color: #0b0f19 !important;
+  background-image: none !important;
+}
+
+/* ============================================================
+   BATTLE PASS (SEASON 1: NEON OBLIVION) MODAL & TRACK STYLES
+   ============================================================ */
+#battlepass-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(4, 8, 16, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+#battlepass-overlay.hidden { display: none !important; }
+
+.bp-modal-card {
+  position: relative;
+  width: min(1180px, 98vw);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(160deg, rgba(20, 24, 40, 0.95) 0%, rgba(10, 14, 26, 0.98) 100%);
+  border: 1.5px solid rgba(245, 158, 11, 0.4);
+  border-radius: 22px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.8), 0 0 30px rgba(245, 158, 11, 0.25);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Banner Header */
+.bp-header-banner {
+  padding: 22px 28px 18px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(239, 68, 68, 0.08) 50%, rgba(139, 92, 246, 0.12) 100%);
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bp-season-badge {
+  align-self: flex-start;
+  padding: 3px 12px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+
+.bp-main-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 4vw, 2.2rem);
+  font-weight: 900;
+  background: linear-gradient(135deg, #ffffff 0%, #fef08a 40%, #f59e0b 70%, #ef4444 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+}
+
+.bp-sub-title {
+  font-size: 0.88rem;
+  color: #cbd5e1;
+  line-height: 1.3;
+}
+
+/* Status & Actions Row */
+.bp-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.bp-status-pill-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bp-status-pill {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.bp-status-pill.standard {
+  background: rgba(148, 163, 184, 0.15);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  color: #cbd5e1;
+}
+.bp-status-pill.premium {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(168, 85, 247, 0.25));
+  border: 1px solid #f59e0b;
+  color: #fef08a;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+}
+
+.bp-level-badge {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 900;
+  background: rgba(56, 189, 248, 0.2);
+  border: 1px solid #38bdf8;
+  color: #38bdf8;
+}
+
+.bp-action-btns {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bp-buy-btn {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #ef4444 100%) !important;
+  color: #ffffff !important;
+  font-weight: 900 !important;
+  font-size: 0.85rem !important;
+  padding: 8px 18px !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.4) !important;
+  transition: transform 0.18s ease, box-shadow 0.18s ease !important;
+}
+.bp-buy-btn:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.03) !important;
+  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.7) !important;
+}
+.bp-buy-btn.owned {
+  background: rgba(34, 197, 94, 0.2) !important;
+  border: 1px solid #22c55e !important;
+  color: #4ade80 !important;
+  box-shadow: none !important;
+}
+
+.bp-claim-all-btn {
+  background: linear-gradient(135deg, #38bdf8 0%, #2563eb 100%) !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  font-size: 0.82rem !important;
+  padding: 8px 16px !important;
+  border-radius: 12px !important;
+}
+
+/* Progress Tracker */
+.bp-progress-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.bp-progress-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+}
+
+.bp-xp-text {
+  font-weight: 800;
+  color: #fef08a;
+}
+
+.bp-xp-hint {
+  color: #94a3b8;
+  font-size: 0.72rem;
+}
+
+.bp-progress-bar-bg {
+  width: 100%;
+  height: 10px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.bp-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b 0%, #ef4444 50%, #a855f7 100%);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.8);
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Track Scroll Area */
+.bp-track-scroll-area {
+  padding: 20px 24px 28px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(245, 158, 11, 0.4) rgba(15, 23, 42, 0.6);
+}
+
+.bp-track-grid {
+  display: flex;
+  gap: 16px;
+  min-width: max-content;
+}
+
+/* Tier Column */
+.bp-tier-col {
+  width: 155px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+.bp-tier-col.reached {
+  background: rgba(20, 30, 50, 0.8);
+  border-color: rgba(245, 158, 11, 0.5);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+}
+
+.bp-tier-header {
+  text-align: center;
+  padding: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bp-tier-num {
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 900;
+  color: #fef08a;
+  letter-spacing: 0.06em;
+}
+
+/* Reward Card */
+.bp-reward-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 8px;
+  min-height: 145px;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  text-align: center;
+  box-sizing: border-box;
+}
+.bp-reward-card.prem-card {
+  background: linear-gradient(160deg, rgba(40, 25, 60, 0.8) 0%, rgba(20, 15, 35, 0.9) 100%);
+  border-color: rgba(168, 85, 247, 0.35);
+}
+.bp-reward-card.prem-card.unlocked {
+  border-color: rgba(245, 158, 11, 0.6);
+  box-shadow: inset 0 0 12px rgba(245, 158, 11, 0.15);
+}
+
+.bp-card-tag {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  font-size: 0.58rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.2);
+  color: #94a3b8;
+}
+.bp-card-tag.prem {
+  background: rgba(245, 158, 11, 0.25);
+  color: #fef08a;
+  border: 0.5px solid rgba(245, 158, 11, 0.4);
+}
+
+.bp-reward-icon {
+  font-size: 2.2rem;
+  margin-top: 14px;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+}
+
+.bp-reward-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #f8fafc;
+  line-height: 1.25;
+  margin: 6px 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.bp-claim-btn {
+  width: 100%;
+  padding: 5px 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.bp-claim-btn.claimed {
+  background: rgba(34, 197, 94, 0.15) !important;
+  color: #4ade80 !important;
+  border: 1px solid rgba(34, 197, 94, 0.3) !important;
+  cursor: default;
+}
+.bp-claim-btn.locked {
+  background: rgba(51, 65, 85, 0.5) !important;
+  color: #64748b !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  cursor: default;
+}
+.bp-claim-btn.active-free {
+  background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+  color: #ffffff !important;
+  box-shadow: 0 3px 10px rgba(34, 197, 94, 0.4) !important;
+}
+.bp-claim-btn.active-free:hover {
+  transform: scale(1.04);
+}
+.bp-claim-btn.active-prem {
+  background: linear-gradient(135deg, #f59e0b, #a855f7) !important;
+  color: #ffffff !important;
+  box-shadow: 0 3px 10px rgba(245, 158, 11, 0.5) !important;
+}
+.bp-claim-btn.active-prem:hover {
+  transform: scale(1.04);
+}
+.bp-claim-btn.prem-locked {
+  background: rgba(245, 158, 11, 0.15) !important;
+  border: 1px solid rgba(245, 158, 11, 0.4) !important;
+  color: #fef08a !important;
+}
+.bp-claim-btn.prem-locked:hover {
+  background: rgba(245, 158, 11, 0.3) !important;
+}
+
+.bp-unclaimed-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 18px;
+  height: 18px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 900;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 0 8px #ef4444;
+  animation: buxCoinPop 1.2s infinite alternate;
+}
+.bp-unclaimed-badge.hidden { display: none !important; }
+
+/* ============================================================
+   SEASON 1 NEW THEME BACKGROUND STYLES (CHRONOS, CYBERPUNK, SINGULARITY)
+   ============================================================ */
+/* Theme 1: Chronos Horizon */
+#theme-chronos-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(circle at 50% 30%, #1e1535 0%, #0d091e 60%, #05030b 100%);
+  overflow: hidden;
+}
+.chronos-gear-clockwork {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px dashed rgba(245, 158, 11, 0.25);
+  box-shadow: inset 0 0 30px rgba(245, 158, 11, 0.15);
+}
+.chronos-gear-clockwork.cg1 {
+  width: 450px;
+  height: 450px;
+  top: -100px;
+  left: -100px;
+  animation: gearSpin 28s linear infinite;
+}
+.chronos-gear-clockwork.cg2 {
+  width: 600px;
+  height: 600px;
+  bottom: -150px;
+  right: -150px;
+  animation: gearSpin 38s linear infinite reverse;
+}
+.chronos-temporal-haze {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 70%);
+  animation: pulseRing 6s ease-in-out infinite alternate;
+}
+
+/* Theme 2: Hyperdrive Cyber-Grid */
+#theme-neon_cyberpunk-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, #090314 0%, #17092c 60%, #2e083a 100%);
+  overflow: hidden;
+}
+.hyperdrive-grid-floor {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(to right, rgba(0, 240, 255, 0.15) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(236, 72, 153, 0.15) 1px, transparent 1px);
+  background-size: 40px 40px;
+  transform: perspective(400px) rotateX(60deg) translateY(-100px) scale(1.5);
+  animation: cyberGridMove 8s linear infinite;
+}
+.hyperdrive-vapor-sun {
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #f59e0b 0%, #ec4899 50%, #8b5cf6 100%);
+  box-shadow: 0 0 60px rgba(236, 72, 153, 0.6);
+  opacity: 0.85;
+}
+
+/* Theme 3: Void Singularity */
+#theme-void_singularity-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(circle at 50% 50%, #0c021a 0%, #05010a 70%, #000000 100%);
+  overflow: hidden;
+}
+.singularity-core-portal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: #000000;
+  box-shadow: 0 0 50px #8b5cf6, 0 0 100px #3b82f6, inset 0 0 30px #a855f7;
+  animation: voidPortalPulse 4s ease-in-out infinite;
+}
+.singularity-accretion-disk {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(45deg);
+  width: 500px;
+  height: 120px;
+  border-radius: 50%;
+  border: 3px solid rgba(168, 85, 247, 0.6);
+  box-shadow: 0 0 40px rgba(168, 85, 247, 0.8);
+  animation: voidPortalSpin 12s linear infinite;
 }

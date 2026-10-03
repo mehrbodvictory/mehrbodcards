@@ -370,9 +370,33 @@ window.THEME_TEMPLATES = {
       <div class="prism-obsidian-bedrock"></div>
       <div class="prism-refraction-caustic-primary"></div>
       <div class="prism-refraction-caustic-secondary"></div>
+      <div class="prism-chromatic-ring"></div>
+      <div class="prism-core-pulse"></div>
+      <div class="prism-crystal-octahedron">
+        <div class="octa-face f1"></div>
+        <div class="octa-face f2"></div>
+        <div class="octa-face f3"></div>
+        <div class="octa-face f4"></div>
+      </div>
+      <div class="prism-laser-pillar p1"></div>
+      <div class="prism-laser-pillar p2"></div>
+      <div class="prism-cosmic-dust cd1"></div>
+      <div class="prism-cosmic-dust cd2"></div>
+      <div class="prism-cosmic-dust cd3"></div>
+      <div class="prism-cosmic-dust cd4"></div>
+      <div class="prism-cosmic-dust cd5"></div>
+      <div class="prism-cosmic-dust cd6"></div>
+      <div class="prism-cosmic-dust cd7"></div>
+      <div class="prism-cosmic-dust cd8"></div>
+      <div class="prism-cosmic-dust cd9"></div>
+      <div class="prism-cosmic-dust cd10"></div>
+      <div class="prism-cosmic-dust cd11"></div>
+      <div class="prism-cosmic-dust cd12"></div>
       <div class="prism-dispersion-ray ray1"></div>
       <div class="prism-dispersion-ray ray2"></div>
       <div class="prism-dispersion-ray ray3"></div>
+      <div class="prism-light-beam b1"></div>
+      <div class="prism-light-beam b2"></div>
       <div class="prism-crystal-lattice"></div>
       <div class="prism-light-sweep"></div>
       <div class="prism-diamond-shard ds1"></div>
@@ -395,6 +419,10 @@ window.THEME_TEMPLATES = {
       <div class="prism-refractor-sparkle ps10"></div>
       <div class="prism-refractor-sparkle ps11"></div>
       <div class="prism-refractor-sparkle ps12"></div>
+      <div class="prism-refractor-sparkle ps13"></div>
+      <div class="prism-refractor-sparkle ps14"></div>
+      <div class="prism-refractor-sparkle ps15"></div>
+      <div class="prism-refractor-sparkle ps16"></div>
     </div>
   `,
   darkmatter: `
@@ -480,6 +508,36 @@ window.THEME_TEMPLATES = {
       <div class="galaxy-star-particle gs2"></div>
       <div class="galaxy-star-particle gs3"></div>
       <div class="galaxy-star-particle gs4"></div>
+    </div>
+  `,
+  chronos: `
+    <div id="theme-chronos-bg" aria-hidden="true">
+      <div class="chronos-gear-clockwork cg1"></div>
+      <div class="chronos-gear-clockwork cg2"></div>
+      <div class="chronos-temporal-haze"></div>
+      <div class="chronos-pendulum-pulse pp1"></div>
+      <div class="chronos-pendulum-pulse pp2"></div>
+      <div class="chronos-stardust-field cs1"></div>
+      <div class="chronos-stardust-field cs2"></div>
+    </div>
+  `,
+  neon_cyberpunk: `
+    <div id="theme-neon_cyberpunk-bg" aria-hidden="true">
+      <div class="hyperdrive-grid-floor"></div>
+      <div class="hyperdrive-vapor-sun"></div>
+      <div class="hyperdrive-speed-line sl1"></div>
+      <div class="hyperdrive-speed-line sl2"></div>
+      <div class="hyperdrive-speed-line sl3"></div>
+      <div class="hyperdrive-laser-beam lb1"></div>
+    </div>
+  `,
+  void_singularity: `
+    <div id="theme-void_singularity-bg" aria-hidden="true">
+      <div class="singularity-core-portal"></div>
+      <div class="singularity-accretion-disk"></div>
+      <div class="singularity-hawking-ray hr1"></div>
+      <div class="singularity-hawking-ray hr2"></div>
+      <div class="singularity-event-horizon"></div>
     </div>
   `
 };

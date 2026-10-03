@@ -16,6 +16,7 @@ function isFreshCard(bucket, id) {
 
 function cardEl(card, { owner, slot, selected, defending, attacking, forceGlow, popIn, attackAnim, deathAnim, hitAnim, selectableClass, extraClass, mergePickNumber } = {}) {
   const el = document.createElement('div');
+  el._cardData = card;
   el.className = `card tier${card.tier} ${extraClass || ''}`;
   if (selected) el.classList.add('selected');
   if (defending) el.classList.add('defending');
@@ -102,6 +103,7 @@ function abilityLabel(id) { return ABILITY_SHORT[id] || ''; }
 
 function renderBoard(container, playerState, ownerKey, { selectedSlot, selectedSlots, targetableSlots, forceGlowAll } = {}) {
   container.innerHTML = '';
+  const frag = document.createDocumentFragment();
   const bucket = 'board:' + ownerKey;
   playerState.board.forEach((card, slot) => {
     const slotEl = document.createElement('div');
@@ -125,24 +127,24 @@ function renderBoard(container, playerState, ownerKey, { selectedSlot, selectedS
     } else if (selectedSlot === 'placing') {
       slotEl.classList.add('selectable');
     }
-    container.appendChild(slotEl);
+    frag.appendChild(slotEl);
   });
+  container.appendChild(frag);
 }
 
-// v3.0: there's no more separate "hand" - every card in the player's deck
-// is visible and available from the start of the match. This renders that
-// whole pool as a scrollable strip: Blue cards are tappable/draggable onto
-// the board, higher-tier "blueprint" cards just sit there (dashed border)
-// until a matching merge consumes them.
 function renderHand(container, playerState, selectedHandIdx) {
   container.innerHTML = '';
+  const frag = document.createDocumentFragment();
   let hadFresh = false;
+  const isPlacementPhase = (typeof state !== 'undefined' && state && state.phase === 'placement');
+
   playerState.deck.forEach((card, idx) => {
     const isFresh = isFreshCard('hand', card.id);
     if (isFresh) hadFresh = true;
+    const isPlayable = isPlacementPhase && card.tier === 1;
     const el = cardEl(card, {
       owner: 'hand', slot: idx, selected: selectedHandIdx === idx, popIn: isFresh,
-      extraClass: card.tier !== 1 ? 'blueprint-card' : '',
+      extraClass: (card.tier !== 1 ? 'blueprint-card' : '') + (isPlayable ? ' playable-glow' : ''),
     });
     if (isFresh) el.style.animationDelay = `${idx * 0.04}s`;
     el.dataset.handIdx = idx;
@@ -151,8 +153,9 @@ function renderHand(container, playerState, selectedHandIdx) {
     el.addEventListener('mouseenter', () => {
       if (typeof Sound !== 'undefined' && Sound.cardHover) Sound.cardHover();
     });
-    container.appendChild(el);
+    frag.appendChild(el);
   });
+  container.appendChild(frag);
   if (hadFresh && typeof Sound !== 'undefined' && Sound.cardDraw) {
     Sound.cardDraw();
   }
@@ -160,28 +163,36 @@ function renderHand(container, playerState, selectedHandIdx) {
 
 function renderSpellsChips(container, playerState, selection) {
   container.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  const isPlacementPhase = (typeof state !== 'undefined' && state && state.phase === 'placement');
+
   playerState.spells.forEach(spell => {
     const el = document.createElement('div');
-    el.className = 'sc-card spell' + (isFreshCard('spell', spell.id) ? ' pop-in' : '');
+    const isFresh = isFreshCard('spell', spell.id);
+    const isPlayable = isPlacementPhase;
+    el.className = 'sc-card spell' + (isFresh ? ' pop-in' : '') + (isPlayable ? ' playable-spell-glow' : '');
     el.dataset.role = 'spell'; el.dataset.spellId = spell.id;
     if (selection && selection.mode === 'spell' && selection.id === spell.id) el.classList.add('selected');
     el.innerHTML = `<div class="card-name">${spell.name}</div><div class="card-ability">${spell.text}</div>`;
     el.addEventListener('mouseenter', () => {
       if (typeof Sound !== 'undefined' && Sound.cardHover) Sound.cardHover();
     });
-    container.appendChild(el);
+    frag.appendChild(el);
   });
   playerState.chips.forEach(chip => {
     const el = document.createElement('div');
-    el.className = 'sc-card chip' + (isFreshCard('chip', chip.id) ? ' pop-in' : '');
+    const isFresh = isFreshCard('chip', chip.id);
+    const isPlayable = isPlacementPhase;
+    el.className = 'sc-card chip' + (isFresh ? ' pop-in' : '') + (isPlayable ? ' playable-spell-glow' : '');
     el.dataset.role = 'chip'; el.dataset.chipId = chip.id;
     if (selection && selection.mode === 'chip' && selection.id === chip.id) el.classList.add('selected');
     el.innerHTML = `<div class="card-name">${chip.name}</div><div class="card-ability">${chip.text}</div>`;
     el.addEventListener('mouseenter', () => {
       if (typeof Sound !== 'undefined' && Sound.cardHover) Sound.cardHover();
     });
-    container.appendChild(el);
+    frag.appendChild(el);
   });
+  container.appendChild(frag);
 }
 
 function showToast(msg, ms = 2200) {

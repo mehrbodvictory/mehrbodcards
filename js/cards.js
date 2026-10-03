@@ -108,6 +108,7 @@ const UNIT_ARCHETYPES = {
     { id: 'green_warden_ii',    name: 'Sentinel',      sp: 4, pool: ['green_onplay_ward1'] },
     { id: 'green_footpad',      name: 'Footpad',       sp: 3, pool: ['green_onplay_stealcard'] },
     { id: 'green_tinkerer',     name: 'Tinkerer',      sp: 4, pool: ['green_onplay_chipslot1'] },
+    { id: 'green_aether_glider', name: 'Aether Glider', sp: 3, pool: ['onplay_heal2'] },
   ],
   3: [ // Red (Scaling 4 - 6 SP)
     { id: 'red_wraith',      name: 'Wraith',      sp: 5, pool: ['onattack_pierce'] },
@@ -118,6 +119,8 @@ const UNIT_ARCHETYPES = {
     { id: 'red_immolator',   name: 'Immolator',   sp: 5, pool: ['red_onplay_burn2'] },
     { id: 'red_purger',      name: 'Purger',      sp: 6, pool: ['red_onplay_purge_weak'] },
     { id: 'red_duelist',     name: 'Duelist',     sp: 4, pool: ['red_onattack_doublestrike'] },
+    { id: 'red_hyperdrive_drake', name: 'Hyperdrive Drake', sp: 5, pool: ['red_onplay_dmgall1'] },
+    { id: 'red_cyber_valkyrie',   name: 'Cyber Valkyrie',   sp: 6, pool: ['red_onplay_buffallies_dmg1'] },
   ],
   4: [ // Orange (Scaling 7 - 9 SP, max 9)
     { id: 'orange_colossus',   name: 'Colossus',   sp: 8, pool: ['onplay_dmg2'] },
@@ -128,6 +131,8 @@ const UNIT_ARCHETYPES = {
     { id: 'orange_harvester',  name: 'Harvester',  sp: 9, pool: ['orange_onplay_soulharvest'] },
     { id: 'orange_phoenix',    name: 'Phoenix',    sp: 8, pool: ['orange_ondeath_rebirth2'] },
     { id: 'orange_warlord',    name: 'Warlord',    sp: 9, pool: ['orange_onplay_alphastrike'] },
+    { id: 'orange_chronos_sentinel', name: 'Chronos Sentinel', sp: 8, pool: ['orange_onplay_refreshall'] },
+    { id: 'orange_singularity_devourer', name: 'Singularity Devourer', sp: 9, pool: ['orange_onplay_execute'] },
   ],
 };
 
@@ -298,6 +303,65 @@ function savePlayerName(name) {
   return true;
 }
 
+function validateDeckConfigIntegrity(config) {
+  if (!config || typeof config !== 'object') {
+    return { valid: false, reason: 'Invalid deck configuration payload structure' };
+  }
+
+  // 1. Validate units
+  if (!config.units || typeof config.units !== 'object') {
+    return { valid: false, reason: 'Missing deck units configuration' };
+  }
+
+  let totalUnits = 0;
+  for (const [idStr, count] of Object.entries(config.units)) {
+    const archId = Number(idStr);
+    const arch = typeof findArchetypeById === 'function' ? findArchetypeById(archId) : null;
+    if (!arch) {
+      return { valid: false, reason: `Unknown unit archetype ID: ${idStr}` };
+    }
+    const num = Number(count);
+    if (!Number.isInteger(num) || num <= 0) {
+      return { valid: false, reason: `Invalid unit count for ${arch.name}` };
+    }
+    // Tier max copies check
+    const maxAllowed = arch.tier === 1 ? 4 : arch.tier === 2 ? 3 : arch.tier === 3 ? 2 : 1;
+    if (num > maxAllowed) {
+      return { valid: false, reason: `Exceeded tier ${arch.tier} limit (${num}/${maxAllowed}) for ${arch.name}` };
+    }
+    totalUnits += num;
+  }
+
+  if (totalUnits !== 10) {
+    return { valid: false, reason: `Deck must contain exactly 10 units (found ${totalUnits})` };
+  }
+
+  // 2. Validate Spells
+  if (!Array.isArray(config.spells)) {
+    return { valid: false, reason: 'Invalid spells list format' };
+  }
+  if (config.spells.length !== 3) {
+    return { valid: false, reason: `Deck must contain exactly 3 spells (found ${config.spells.length})` };
+  }
+  for (const sId of config.spells) {
+    if (typeof SPELL_DEFS !== 'undefined' && !SPELL_DEFS[sId]) {
+      return { valid: false, reason: `Unknown spell ID: ${sId}` };
+    }
+  }
+
+  // 3. Validate Chips
+  if (!Array.isArray(config.chips)) {
+    return { valid: false, reason: 'Invalid chips list format' };
+  }
+  for (const cId of config.chips) {
+    if (typeof CHIP_DEFS !== 'undefined' && !CHIP_DEFS[cId]) {
+      return { valid: false, reason: `Unknown chip ID: ${cId}` };
+    }
+  }
+
+  return { valid: true };
+}
+
 if (typeof window !== 'undefined') {
   window.PLAYER_XP_KEY = PLAYER_XP_KEY;
   window.loadPlayerXP = loadPlayerXP;
@@ -308,4 +372,5 @@ if (typeof window !== 'undefined') {
   window.PLAYER_NAME_KEY = PLAYER_NAME_KEY;
   window.loadPlayerName = loadPlayerName;
   window.savePlayerName = savePlayerName;
+  window.validateDeckConfigIntegrity = validateDeckConfigIntegrity;
 }

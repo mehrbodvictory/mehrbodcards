@@ -162,6 +162,13 @@ function playPackOpeningEffect(cards, onDone) {
 
 /* ---------- Sized card packs (backs the shop's 6 pack sizes) ----------- */
 function buyCardPackSized(count, cost, sizeName) {
+  if (typeof isCollectionComplete === 'function' && isCollectionComplete()) {
+    if (typeof Sound !== 'undefined' && typeof Sound.buzzer === 'function') {
+      try { Sound.buzzer(); } catch (e) {}
+    }
+    showToast('🎉 Your card collection is already 100% complete!', 3000);
+    return;
+  }
   if (!spendBux(cost)) { showToast("You don't have enough Mehrbod Bux for that pack."); return; }
   const col = loadCollection();
   const unownedUnits = ALL_NONBLUE_UNIT_IDS.filter(id => !col.units.includes(id));
@@ -174,6 +181,9 @@ function buyCardPackSized(count, cost, sizeName) {
   );
   if (pool.length === 0) {
     addBux(cost);
+    if (typeof Sound !== 'undefined' && typeof Sound.buzzer === 'function') {
+      try { Sound.buzzer(); } catch (e) {}
+    }
     showToast('🎉 Your collection is already complete! Refunded your Bux.', 2800);
     return;
   }
@@ -1702,6 +1712,7 @@ function playerLevelFromXP(xp) {
 }
 function grantPlayerXP(amount) {
   if (!amount) return;
+  if (typeof grantBattlePassXP === 'function') grantBattlePassXP(amount);
   const beforeLevel = playerLevelFromXP(loadPlayerXP()).level;
   const newXp = loadPlayerXP() + amount;
   savePlayerXP(newXp);
@@ -1713,6 +1724,17 @@ function grantPlayerXP(amount) {
     recordRecentActivity(`Reached Player Level ${afterInfo.level} — +${reward} Bux`);
     showToast(`⭐ Player Level ${afterInfo.level}! +${reward} Bux`, 3000);
     Sound.sparkle();
+
+    // Trigger tactile breathing pulse on top HUD profile button
+    const avatarBtn = document.getElementById('profile-avatar-btn');
+    if (avatarBtn) {
+      avatarBtn.classList.remove('avatar-level-up-pulse');
+      void avatarBtn.offsetWidth; // force reflow
+      avatarBtn.classList.add('avatar-level-up-pulse');
+      setTimeout(() => {
+        avatarBtn.classList.remove('avatar-level-up-pulse');
+      }, 1450);
+    }
   }
   if (typeof updateProfileAvatar === 'function') updateProfileAvatar(); // refresh the prestige "!" badge eligibility
 }
@@ -1829,22 +1851,6 @@ function loadDailyQuests() {
         if (!q || typeof q.goal !== 'number' || typeof q.current !== 'number' || !q.title) valid = false;
       });
       if (valid) return s.quests;
-    }
-  } catch (e) {}
-
-  // Also check if legacy v1 storage exists for today to preserve any in-progress goals
-  try {
-    const legacy = JSON.parse(localStorage.getItem('mehrbod_daily_quests_v1') || 'null');
-    if (legacy && legacy.date === today && Array.isArray(legacy.quests)) {
-      const generated = getDailyBountiesForDate(today);
-      legacy.quests.forEach((lq, idx) => {
-        if (generated[idx]) {
-          generated[idx].current = Math.min(generated[idx].goal, lq.current || 0);
-          generated[idx].claimed = !!lq.claimed;
-        }
-      });
-      saveDailyQuests(generated);
-      return generated;
     }
   } catch (e) {}
 
@@ -2696,7 +2702,13 @@ function isIndividualCardOwned(entry) {
   return col.chips.includes(entry.id);
 }
 function buyIndividualCard(entry) {
-  if (isIndividualCardOwned(entry)) { showToast('You already own this card.'); return; }
+  if (isIndividualCardOwned(entry) || (typeof isCollectionComplete === 'function' && isCollectionComplete())) {
+    if (typeof Sound !== 'undefined' && typeof Sound.buzzer === 'function') {
+      try { Sound.buzzer(); } catch (e) {}
+    }
+    showToast('You already own this card.');
+    return;
+  }
   if (!spendBux(entry.cost)) { showToast("You don't have enough Mehrbod Bux for that card."); return; }
   if (entry.kind === 'unit') grantCards([entry.id], [], []);
   else if (entry.kind === 'spell') grantCards([], [entry.id], []);
@@ -3093,19 +3105,21 @@ function renderCosmeticsShop() {
   };
 
   // Clean Fortnite-style Pack Tile
-  const packCard = (p) => `
-    <div class="fn-tile fn-epic" data-shop-buy="pack:${p.id}">
-      <div class="fn-tile-bg"></div>
+  const packCard = (p) => {
+    const isComplete = typeof isCollectionComplete === 'function' && isCollectionComplete();
+    return `
+    <div class="fn-tile fn-epic ${isComplete ? 'collection-complete' : ''}" data-shop-buy="pack:${p.id}" ${isComplete ? 'style="border: 2px dashed #9ca3af; filter: grayscale(1) opacity(0.55);"' : ''}>
+      <div class="fn-tile-bg" ${isComplete ? 'style="background: radial-gradient(circle at center, rgba(156, 163, 175, 0.15) 0%, rgba(0, 0, 0, 0) 70%);"' : ''}></div>
       <div class="fn-tile-top">
-        <span class="fn-tag">${p.tag || 'PACK'}</span>
+        ${isComplete ? `<span class="fn-tag" style="background: linear-gradient(135deg, #9ca3af, #4b5563); color: #fff; font-weight: 800; border-radius: 4px; box-shadow: 0 0 8px rgba(156, 163, 175, 0.5); text-shadow: none;">✓ COMPLETE</span>` : `<span class="fn-tag">${p.tag || 'PACK'}</span>`}
         <span class="fn-power-tag">${p.count} CARDS</span>
       </div>
       <div class="fn-tile-art">
-        <span class="fn-tile-icon">${p.art}</span>
+        <span class="fn-tile-icon" ${isComplete ? 'style="filter: drop-shadow(0 0 8px #9ca3af);"' : ''}>${p.art}</span>
       </div>
       <div class="fn-tile-footer">
-        <div class="fn-tile-name">${p.name}</div>
-        <div class="fn-tile-sub">${p.badge || `${p.count} Cards Unbox`}</div>
+        <div class="fn-tile-name" ${isComplete ? 'style="color: #9ca3af;"' : ''}>${p.name}</div>
+        <div class="fn-tile-sub">${isComplete ? '<strong style="color: #9ca3af; font-size: 0.8rem; text-shadow: 0 0 4px rgba(156, 163, 175, 0.3);">MAX COLLECTION!</strong>' : (p.badge || `${p.count} Cards Unbox`)}</div>
         <div class="fn-tile-price-row">
           <div class="fn-price">
             <span class="fn-coin">◉</span>
@@ -3114,6 +3128,7 @@ function renderCosmeticsShop() {
         </div>
       </div>
     </div>`;
+  };
 
   list.innerHTML = `
     <div class="fn-shop">
@@ -3126,11 +3141,6 @@ function renderCosmeticsShop() {
             <span>REFRESHES IN</span>
             <strong id="modern-shop-countdown">23:59:59</strong>
           </div>
-        </div>
-        <div class="fn-wallet-pill">
-          <span class="fn-wallet-coin">◉</span>
-          <strong class="fn-wallet-amount">${balance.toLocaleString()}</strong>
-          <span class="fn-wallet-unit">BUX</span>
         </div>
       </header>
 
@@ -3404,6 +3414,11 @@ function updateProfileAvatar() {
   letterEl.textContent = letter;
   btn.style.background = getProfileAvatarGradientCss(name);
   if (badge) badge.classList.toggle('hidden', !canPrestigeNow());
+
+  const hudCanvas = document.getElementById('hud-profile-particle-canvas');
+  if (hudCanvas && typeof ParticleAvatarEngine !== 'undefined') {
+    ParticleAvatarEngine.attachCanvas(hudCanvas, ParticleAvatarEngine.getActiveAvatarId(), { size: 40 });
+  }
 }
 
 function renderPerformanceChart(historyItems) {
@@ -3646,6 +3661,504 @@ function formatDuration(ms) {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
+// ============================================================================
+// ANIMATED PARTICLE AVATARS ENGINE
+// High-performance canvas particle systems for player profiles and match HUD
+// ============================================================================
+const PARTICLE_AVATARS = [
+  {
+    id: 'cosmic-singularity',
+    name: 'Cosmic Singularity',
+    element: 'Void / Gravity',
+    icon: '🌌',
+    desc: 'Event horizon accretion vortex with spiraling violet stardust and gravitational lensing.',
+    coreColor: '#3b0764',
+    glowColor: '#a855f7',
+    palette: ['#8b5cf6', '#6366f1', '#c084fc', '#ffffff', '#3b0764'],
+    type: 'spiral'
+  },
+  {
+    id: 'solar-phoenix',
+    name: 'Solar Phoenix',
+    element: 'Fire / Plasma',
+    icon: '🔥',
+    desc: 'Blazing incandescent solar core erupting turbulent fire embers and coronal plasma wind.',
+    coreColor: '#7c2d12',
+    glowColor: '#f97316',
+    palette: ['#f97316', '#ef4444', '#fbbf24', '#fef08a', '#ffffff'],
+    type: 'burst'
+  },
+  {
+    id: 'cyber-overdrive',
+    name: 'Cyber Overdrive',
+    element: 'Tech / Neon',
+    icon: '⚡',
+    desc: 'Supercharged neural core with orbiting neon cyan data bits and digital scan pulses.',
+    coreColor: '#022c22',
+    glowColor: '#06b6d4',
+    palette: ['#06b6d4', '#10b981', '#38bdf8', '#6ee7b7', '#ffffff'],
+    type: 'orbit'
+  },
+  {
+    id: 'glacial-frost',
+    name: 'Glacial Frost',
+    element: 'Ice / Cryo',
+    icon: '❄️',
+    desc: 'Sub-zero crystal nexus surrounded by drifting frost sparks and ethereal cryo mist.',
+    coreColor: '#082f49',
+    glowColor: '#00f5d4',
+    palette: ['#00f5d4', '#38bdf8', '#e0f2fe', '#bae6fd', '#ffffff'],
+    type: 'drift'
+  },
+  {
+    id: 'celestial-divinity',
+    name: 'Celestial Divinity',
+    element: 'Light / Holy',
+    icon: '✨',
+    desc: 'Radiant sanctified star emitting concentric golden halos, starlight prisms, and divine motes.',
+    coreColor: '#78350f',
+    glowColor: '#ffd700',
+    palette: ['#ffd700', '#fbbf24', '#fffbeb', '#fef08a', '#ffffff'],
+    type: 'radiate'
+  },
+  {
+    id: 'storm-tempest',
+    name: 'Storm Tempest',
+    element: 'Lightning / Storm',
+    icon: '🌩️',
+    desc: 'Kinetic thundercloud eye crackling with branching lightning arcs and plasma sparks.',
+    coreColor: '#1e1b4b',
+    glowColor: '#38bdf8',
+    palette: ['#38bdf8', '#818cf8', '#60a5fa', '#ffffff', '#c7d2fe'],
+    type: 'electric'
+  },
+  {
+    id: 'toxic-biohazard',
+    name: 'Toxic Biohazard',
+    element: 'Acid / Bio',
+    icon: '🧪',
+    desc: 'Radioactive isotope reactor bubbling with neon lime bioluminescent spores and vapor.',
+    coreColor: '#14532d',
+    glowColor: '#22c55e',
+    palette: ['#22c55e', '#84cc16', '#a3e635', '#ecfccb', '#ffffff'],
+    type: 'bubble'
+  },
+  {
+    id: 'mystic-arcana',
+    name: 'Mystic Arcana',
+    element: 'Arcane / Magic',
+    icon: '🔮',
+    desc: 'Esoteric runic prism veiled in swirling magenta spirit wisps and twilight ether.',
+    coreColor: '#581c87',
+    glowColor: '#ec4899',
+    palette: ['#ec4899', '#d946ef', '#a855f7', '#fbcfe8', '#ffffff'],
+    type: 'lissajous'
+  },
+  {
+    id: 'dragon-heart',
+    name: 'Dragon Heart',
+    element: 'Inferno / Draconic',
+    icon: '🐉',
+    desc: 'Beating primordial dragon gemstone heart erupting ruby magma droplets and ash.',
+    coreColor: '#450a0a',
+    glowColor: '#dc2626',
+    palette: ['#dc2626', '#b91c1c', '#f87171', '#fca5a5', '#ffffff'],
+    type: 'pulse'
+  },
+  {
+    id: 'aether-blossom',
+    name: 'Aether Blossom',
+    element: 'Spirit / Flora',
+    icon: '🌸',
+    desc: 'Spectral sakura spirit lotus surrounded by tumbling petal motes and gentle fireflies.',
+    coreColor: '#064e3b',
+    glowColor: '#f472b6',
+    palette: ['#f472b6', '#fb7185', '#fda4af', '#34d399', '#ffffff'],
+    type: 'flutter'
+  }
+];
+
+const ParticleAvatarEngine = (function() {
+  const STORAGE_KEY = 'mehrbod-cards-particle-avatar';
+  const attachedCanvases = new Map();
+  let animFrameId = null;
+  let lastTime = performance.now();
+
+  function getActiveAvatarId() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved && PARTICLE_AVATARS.some(a => a.id === saved)) return saved;
+    } catch (_) {}
+    return 'cosmic-singularity';
+  }
+
+  function setActiveAvatarId(id) {
+    if (!PARTICLE_AVATARS.some(a => a.id === id)) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, id);
+    } catch (_) {}
+    window.dispatchEvent(new CustomEvent('particle-avatar-changed', { detail: { id } }));
+    updateAll();
+    if (typeof updateProfileAvatar === 'function') updateProfileAvatar();
+  }
+
+  function getAvatar(id) {
+    return PARTICLE_AVATARS.find(a => a.id === id) || PARTICLE_AVATARS[0];
+  }
+
+  function createParticles(def, count = 24) {
+    const particles = [];
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: (Math.random() - 0.5) * 40,
+        y: (Math.random() - 0.5) * 40,
+        vx: (Math.random() - 0.5) * 1.5,
+        vy: (Math.random() - 0.5) * 1.5,
+        dist: 5 + Math.random() * 26,
+        angle: Math.random() * Math.PI * 2,
+        speed: 0.02 + Math.random() * 0.04,
+        radius: 1.2 + Math.random() * 2.6,
+        alpha: 0.3 + Math.random() * 0.7,
+        color: def.palette[Math.floor(Math.random() * def.palette.length)],
+        life: Math.random() * 100,
+        maxLife: 60 + Math.random() * 80,
+        seed: Math.random() * 1000
+      });
+    }
+    return particles;
+  }
+
+  function attachCanvas(canvas, avatarId, options = {}) {
+    if (!canvas) return;
+    const def = getAvatar(avatarId || getActiveAvatarId());
+    const count = options.particleCount || (options.size && options.size > 60 ? 32 : 20);
+    const state = {
+      canvas,
+      ctx: canvas.getContext('2d'),
+      avatarId: def.id,
+      def,
+      particles: createParticles(def, count),
+      options,
+      t: Math.random() * 100
+    };
+    attachedCanvases.set(canvas, state);
+    startLoop();
+  }
+
+  function detachCanvas(canvas) {
+    if (!canvas) return;
+    attachedCanvases.delete(canvas);
+  }
+
+  function updateAll() {
+    const activeId = getActiveAvatarId();
+    for (const [canvas, state] of attachedCanvases.entries()) {
+      if (!canvas.isConnected) {
+        attachedCanvases.delete(canvas);
+        continue;
+      }
+      if (state.options && state.options.useActive) {
+        state.def = getAvatar(activeId);
+        state.avatarId = activeId;
+        state.particles = createParticles(state.def, state.particles.length);
+      }
+    }
+  }
+
+  function startLoop() {
+    if (animFrameId) return;
+    lastTime = performance.now();
+    animFrameId = requestAnimationFrame(renderLoop);
+  }
+
+  function renderLoop(now) {
+    animFrameId = null;
+    if (attachedCanvases.size === 0) return;
+    if (document.hidden) {
+      animFrameId = requestAnimationFrame(renderLoop);
+      return;
+    }
+    const dt = Math.min(0.05, (now - lastTime) / 1000);
+    lastTime = now;
+
+    for (const [canvas, state] of attachedCanvases.entries()) {
+      if (!canvas.isConnected) {
+        attachedCanvases.delete(canvas);
+        continue;
+      }
+      if (canvas.offsetWidth === 0 && canvas.offsetHeight === 0) continue;
+      renderState(state, dt);
+    }
+
+    if (attachedCanvases.size > 0) {
+      animFrameId = requestAnimationFrame(renderLoop);
+    }
+  }
+
+  function renderState(state, dt) {
+    const { canvas, ctx, def, particles } = state;
+    const w = canvas.width;
+    const h = canvas.height;
+    state.t += dt;
+    const t = state.t;
+
+    ctx.clearRect(0, 0, w, h);
+    const cx = w / 2;
+    const cy = h / 2;
+    const scale = Math.min(w, h) / 70;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    // Draw central glow aura
+    const pulse = 1 + 0.12 * Math.sin(t * 3);
+    const auraRad = Math.max(8, 20 * scale * pulse);
+    const grad = ctx.createRadialGradient(0, 0, 2 * scale, 0, 0, auraRad);
+    grad.addColorStop(0, def.glowColor + 'cc');
+    grad.addColorStop(0.4, def.glowColor + '44');
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, auraRad, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Specific background geometry
+    if (def.type === 'spiral') {
+      ctx.strokeStyle = def.palette[0] + '33';
+      ctx.lineWidth = 1.5 * scale;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 24 * scale, 16 * scale, t * 0.5, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (def.type === 'orbit') {
+      ctx.strokeStyle = def.palette[1] + '44';
+      ctx.lineWidth = 1 * scale;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 26 * scale, 12 * scale, 0.4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 26 * scale, 12 * scale, -0.4, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (def.type === 'radiate') {
+      const r1 = ((t * 20) % 28) * scale;
+      ctx.strokeStyle = def.glowColor + '44';
+      ctx.lineWidth = 1.2 * scale;
+      ctx.beginPath();
+      ctx.arc(0, 0, r1, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (def.type === 'electric') {
+      if (Math.random() < 0.35) {
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.6 * scale;
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 8 * scale;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        const targetAng = Math.random() * Math.PI * 2;
+        const targetDist = (18 + Math.random() * 12) * scale;
+        const steps = 4;
+        for (let s = 1; s <= steps; s++) {
+          const frac = s / steps;
+          const nx = Math.cos(targetAng) * targetDist * frac + (Math.random() - 0.5) * 10 * scale;
+          const ny = Math.sin(targetAng) * targetDist * frac + (Math.random() - 0.5) * 10 * scale;
+          ctx.lineTo(nx, ny);
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    // Update & draw particles
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      p.life += dt * 40;
+      if (p.life > p.maxLife) {
+        p.life = 0;
+        p.dist = (8 + Math.random() * 24) * scale;
+        p.angle = Math.random() * Math.PI * 2;
+        p.x = Math.cos(p.angle) * p.dist;
+        p.y = Math.sin(p.angle) * p.dist;
+        p.color = def.palette[Math.floor(Math.random() * def.palette.length)];
+      }
+
+      const lifeRatio = p.life / p.maxLife;
+      const alpha = Math.sin(lifeRatio * Math.PI) * p.alpha;
+
+      if (def.type === 'spiral') {
+        p.angle += (1.8 + 20 / (p.dist / scale + 5)) * dt;
+        p.dist -= 7 * scale * dt;
+        if (p.dist < 2 * scale) p.dist = 28 * scale;
+        p.x = Math.cos(p.angle) * p.dist;
+        p.y = Math.sin(p.angle) * p.dist * 0.75;
+      } else if (def.type === 'burst') {
+        p.x += p.vx * scale * 1.5;
+        p.y += p.vy * scale * 1.5 - 0.3 * scale;
+        p.dist = Math.hypot(p.x, p.y);
+      } else if (def.type === 'orbit') {
+        p.angle += p.speed * 2;
+        const rMajor = (20 + (i % 3) * 4) * scale;
+        const rMinor = (10 + (i % 2) * 3) * scale;
+        const tilt = (i % 2 === 0 ? 0.4 : -0.4);
+        const ox = Math.cos(p.angle) * rMajor;
+        const oy = Math.sin(p.angle) * rMinor;
+        p.x = ox * Math.cos(tilt) - oy * Math.sin(tilt);
+        p.y = ox * Math.sin(tilt) + oy * Math.cos(tilt);
+      } else if (def.type === 'drift') {
+        p.y += (0.4 + (i % 3) * 0.3) * scale;
+        p.x += Math.sin(t * 2 + p.seed) * 0.5 * scale;
+        if (p.y > 28 * scale) p.y = -28 * scale;
+        if (p.x > 28 * scale) p.x = -28 * scale;
+        if (p.x < -28 * scale) p.x = 28 * scale;
+      } else if (def.type === 'radiate') {
+        p.angle += 0.01;
+        p.dist += (8 + (i % 3) * 6) * scale * dt;
+        if (p.dist > 30 * scale) p.dist = 4 * scale;
+        p.x = Math.cos(p.angle) * p.dist;
+        p.y = Math.sin(p.angle) * p.dist;
+      } else if (def.type === 'electric') {
+        p.angle += (i % 2 === 0 ? 1 : -1) * 0.04;
+        p.x = Math.cos(p.angle) * p.dist + (Math.random() - 0.5) * 3 * scale;
+        p.y = Math.sin(p.angle) * p.dist + (Math.random() - 0.5) * 3 * scale;
+      } else if (def.type === 'bubble') {
+        p.y -= (0.8 + (i % 4) * 0.4) * scale;
+        p.x += Math.sin(p.y * 0.1 + p.seed) * 0.4 * scale;
+        if (p.y < -28 * scale) {
+          p.y = (18 + Math.random() * 8) * scale;
+          p.x = (Math.random() - 0.5) * 26 * scale;
+        }
+      } else if (def.type === 'lissajous') {
+        const la = 2, lb = 3;
+        const lt = t * 1.5 + p.seed;
+        p.x = Math.sin(la * lt) * 24 * scale;
+        p.y = Math.cos(lb * lt) * 20 * scale;
+      } else if (def.type === 'pulse') {
+        const beat = Math.pow(Math.sin(t * 3.5), 6);
+        p.dist = (8 + (i % 4) * 5 + beat * 12) * scale;
+        p.x = Math.cos(p.angle) * p.dist;
+        p.y = Math.sin(p.angle) * p.dist;
+      } else if (def.type === 'flutter') {
+        p.x += Math.cos(t * 1.2 + p.seed) * 0.6 * scale;
+        p.y += (0.5 + Math.sin(t * 0.8 + p.seed) * 0.3) * scale;
+        if (p.y > 28 * scale) p.y = -28 * scale;
+        if (p.x > 28 * scale) p.x = -28 * scale;
+        if (p.x < -28 * scale) p.x = 28 * scale;
+      }
+
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, Math.max(0.8, p.radius * scale), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Core icon / center node
+    ctx.globalAlpha = 0.95;
+    ctx.font = `${Math.round(14 * scale)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(def.icon, 0, 0);
+
+    ctx.restore();
+  }
+
+  function populateTab(overlay) {
+    const container = overlay.querySelector('#particle-tab-content-container');
+    if (!container) return;
+
+    const activeId = getActiveAvatarId();
+    const activeDef = getAvatar(activeId);
+
+    container.innerHTML = `
+      <div class="avatars-tab-header">
+        <div class="avatars-tab-title">✨ Animated Particle Avatars</div>
+        <div class="avatars-tab-sub">Select your signature animated particle avatar. It renders in full motion alongside your name in the Match HUD and on your profile.</div>
+      </div>
+
+      <div class="particle-avatar-featured-showcase">
+        <div class="pafs-canvas-box">
+          <canvas id="pafs-featured-canvas" width="180" height="180"></canvas>
+        </div>
+        <div class="pafs-details">
+          <div class="pafs-tag">${activeDef.element}</div>
+          <div class="pafs-name" id="pafs-featured-name">${activeDef.name}</div>
+          <div class="pafs-desc" id="pafs-featured-desc">${activeDef.desc}</div>
+          <div class="pafs-status-chip">✓ Currently Active in Match HUD</div>
+        </div>
+      </div>
+
+      <div class="profile-section-heading" style="margin-top:20px;">Avatar Roster (${PARTICLE_AVATARS.length})</div>
+      <div class="particle-avatars-grid" id="particle-avatars-grid">
+        ${PARTICLE_AVATARS.map(av => {
+          const isEquipped = av.id === activeId;
+          return `
+            <div class="particle-avatar-card ${isEquipped ? 'equipped' : ''}" data-avatar-id="${av.id}">
+              <div class="pac-canvas-wrapper">
+                <canvas class="pac-preview-canvas" data-avatar-id="${av.id}" width="128" height="128"></canvas>
+              </div>
+              <div class="pac-info">
+                <div class="pac-header">
+                  <span class="pac-name">${av.name}</span>
+                  <span class="pac-element-tag">${av.element.split('/')[0].trim()}</span>
+                </div>
+                <div class="pac-desc">${av.desc}</div>
+                <button type="button" class="pac-equip-btn ${isEquipped ? 'active' : ''}">
+                  ${isEquipped ? '✓ Equipped' : 'Equip Avatar'}
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+
+    // Attach canvases
+    const featuredCanvas = container.querySelector('#pafs-featured-canvas');
+    if (featuredCanvas) {
+      attachCanvas(featuredCanvas, activeId, { size: 90, particleCount: 36 });
+    }
+
+    container.querySelectorAll('.pac-preview-canvas').forEach(canv => {
+      const aId = canv.dataset.avatarId;
+      attachCanvas(canv, aId, { size: 64, particleCount: 22 });
+    });
+
+    // Bind card equip clicks
+    container.querySelectorAll('.particle-avatar-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const aId = card.dataset.avatarId;
+        if (!aId) return;
+        setActiveAvatarId(aId);
+        if (typeof Sound !== 'undefined' && typeof Sound.playLevelUp === 'function') {
+          try { Sound.playLevelUp(); } catch (_) {}
+        } else if (typeof Sound !== 'undefined' && typeof Sound.claimQuest === 'function') {
+          try { Sound.claimQuest(); } catch (_) {}
+        }
+        showToast(`✨ Equipped "${getAvatar(aId).name}" Particle Avatar!`, 2200);
+
+        // Update hero canvas on profile modal
+        const heroCanvas = overlay.querySelector('#profile-hero-particle-canvas');
+        if (heroCanvas) {
+          attachCanvas(heroCanvas, aId, { size: 76, particleCount: 32 });
+        }
+
+        // Re-populate tab
+        populateTab(overlay);
+      });
+    });
+  }
+
+  return {
+    getAllAvatars: () => PARTICLE_AVATARS,
+    getActiveAvatarId,
+    setActiveAvatarId,
+    getAvatar,
+    attachCanvas,
+    detachCanvas,
+    updateAll,
+    populateTab
+  };
+})();
+window.ParticleAvatarEngine = ParticleAvatarEngine;
+
 function openProfilePanel() {
   const old = document.getElementById('profile-overlay');
   if (old) old.remove();
@@ -3687,11 +4200,15 @@ function openProfilePanel() {
       <button class="feature-close">✕</button>
       <div class="profile-hero">
         <div class="profile-hero-row">
-          <div class="profile-hero-avatar" id="profile-hero-avatar" title="Click to customize profile gradient" style="background:${avatarGradCss}">${letter}</div>
+          <div class="profile-hero-avatar" id="profile-hero-avatar" title="Click to customize animated particle avatar" style="background:${avatarGradCss}">
+            <canvas id="profile-hero-particle-canvas" class="profile-hero-particle-canvas" width="160" height="160"></canvas>
+            <span id="profile-hero-avatar-letter">${letter}</span>
+          </div>
           <div style="flex:1; min-width:0;">
             <div class="profile-hero-name" id="profile-name-container">
               <span id="profile-name-text">${escapePresetText(name)}</span>
               <button type="button" class="link-btn" id="btn-profile-rename" title="Change your player name">✎ rename</button>
+              <button type="button" class="link-btn" id="btn-profile-avatars-shortcut" title="Choose Animated Particle Avatar">✨ avatar</button>
               <button type="button" class="link-btn" id="btn-profile-color" title="Pick profile avatar gradient">🎨 color</button>
             </div>
             <div class="profile-hero-sub">
@@ -3707,9 +4224,15 @@ function openProfilePanel() {
       </div>
       <div class="profile-body">
         <!-- Profile Tabs -->
-        <div class="profile-tabs" style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px;">
-          <button type="button" class="profile-tab-btn active" data-tab="overview" style="flex:1; padding: 8px 12px; border-radius: 8px; background: rgba(125,211,252,0.15); color: #7dd3fc; border: 1px solid rgba(125,211,252,0.3); font-weight: 700; font-size: 0.8rem; cursor: pointer;">Overview & Ledger</button>
-          <button type="button" class="profile-tab-btn" data-tab="performance" style="flex:1; padding: 8px 12px; border-radius: 8px; background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid rgba(255,255,255,0.08); font-weight: 700; font-size: 0.8rem; cursor: pointer;">📈 Performance Trend</button>
+        <div class="profile-tabs" style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; flex-wrap: wrap;">
+          <button type="button" class="profile-tab-btn active" data-tab="overview" style="flex:1; min-width:120px; padding: 8px 12px; border-radius: 8px; background: rgba(125,211,252,0.15); color: #7dd3fc; border: 1px solid rgba(125,211,252,0.3); font-weight: 700; font-size: 0.8rem; cursor: pointer;">Overview & Ledger</button>
+          <button type="button" class="profile-tab-btn" data-tab="avatars" style="flex:1; min-width:130px; padding: 8px 12px; border-radius: 8px; background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid rgba(255,255,255,0.08); font-weight: 700; font-size: 0.8rem; cursor: pointer;">✨ Particle Avatars</button>
+          <button type="button" class="profile-tab-btn" data-tab="performance" style="flex:1; min-width:130px; padding: 8px 12px; border-radius: 8px; background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid rgba(255,255,255,0.08); font-weight: 700; font-size: 0.8rem; cursor: pointer;">📈 Performance Trend</button>
+        </div>
+
+        <!-- Particle Avatars Tab Content -->
+        <div id="profile-tab-content-avatars" class="profile-tab-content" style="display:none;">
+          <div id="particle-tab-content-container"></div>
         </div>
 
         <div id="profile-tab-content-overview" class="profile-tab-content">
@@ -3839,7 +4362,8 @@ function openProfilePanel() {
       });
       const ov = overlay.querySelector('#profile-tab-content-overview');
       const pf = overlay.querySelector('#profile-tab-content-performance');
-      [ov, pf].forEach(el => {
+      const av = overlay.querySelector('#profile-tab-content-avatars');
+      [ov, pf, av].forEach(el => {
         if (!el) return;
         el.style.animation = 'none';
         el.offsetHeight; // trigger reflow
@@ -3848,8 +4372,17 @@ function openProfilePanel() {
       if (tab === 'overview') {
         if (ov) ov.style.display = 'block';
         if (pf) pf.style.display = 'none';
+        if (av) av.style.display = 'none';
+      } else if (tab === 'avatars') {
+        if (ov) ov.style.display = 'none';
+        if (pf) pf.style.display = 'none';
+        if (av) av.style.display = 'block';
+        if (typeof ParticleAvatarEngine !== 'undefined') {
+          ParticleAvatarEngine.populateTab(overlay);
+        }
       } else {
         if (ov) ov.style.display = 'none';
+        if (av) av.style.display = 'none';
         if (pf) pf.style.display = 'block';
         const perfContainer = pf.querySelector('#performance-chart');
         const adaptContainer = pf.querySelector('#adaptive-profile-chart-container');
@@ -3860,6 +4393,28 @@ function openProfilePanel() {
       }
     };
   });
+
+  // Attach hero avatar particle canvas
+  const heroCanvas = overlay.querySelector('#profile-hero-particle-canvas');
+  if (heroCanvas && typeof ParticleAvatarEngine !== 'undefined') {
+    ParticleAvatarEngine.attachCanvas(heroCanvas, ParticleAvatarEngine.getActiveAvatarId(), { size: 76, particleCount: 32 });
+  }
+
+  // Bind avatar shortcut buttons
+  const btnAvatarShortcut = overlay.querySelector('#btn-profile-avatars-shortcut');
+  if (btnAvatarShortcut) {
+    btnAvatarShortcut.onclick = () => {
+      const tabBtn = overlay.querySelector('.profile-tab-btn[data-tab="avatars"]');
+      if (tabBtn) tabBtn.click();
+    };
+  }
+  const heroAvatarEl = overlay.querySelector('#profile-hero-avatar');
+  if (heroAvatarEl) {
+    heroAvatarEl.onclick = () => {
+      const tabBtn = overlay.querySelector('.profile-tab-btn[data-tab="avatars"]');
+      if (tabBtn) tabBtn.click();
+    };
+  }
 
   // Claim quest buttons
   overlay.querySelectorAll('.claim-quest-btn').forEach(btn => {
@@ -4173,7 +4728,7 @@ window.addEventListener('load', ensureProfileHud);
   window.showScreen = function (id) {
     original(id);
     document.getElementById('top-right-hud')?.classList.toggle('hidden', id === 'screen-game');
-    document.getElementById('top-left-hud')?.classList.toggle('hidden', id === 'screen-game');
+    document.getElementById('top-left-hud')?.classList.toggle('hidden', id === 'screen-game' || id === 'screen-matchmaking');
     updateProfileAvatar();
   };
 })();
@@ -4213,6 +4768,7 @@ window.addEventListener('load', ensureProfileHud);
   const stageAuth = document.getElementById('secret-stage-auth');
   const stageUnlocked = document.getElementById('secret-stage-unlocked');
   const unlockAllCardsBtn = document.getElementById('btn-secret-unlock-all-cards');
+  const launch3DHubBtn = document.getElementById('btn-secret-launch-3d-hub');
   const unlockAllCosmeticsBtn = document.getElementById('btn-secret-unlock-all-cosmetics') || document.getElementById('btn-secret-unlock-all-themes');
   const showCodesBtn = document.getElementById('btn-secret-show-codes');
   const codesManifest = document.getElementById('secret-codes-manifest');
@@ -4335,6 +4891,19 @@ window.addEventListener('load', ensureProfileHud);
         cipherInput.select();
         cipherInput.focus();
       }
+    }
+  });
+
+  launch3DHubBtn?.addEventListener('click', () => {
+    closeSecretMenu();
+    if (typeof showXRArenaScreen === 'function') {
+      showXRArenaScreen();
+    }
+    if (typeof enableMobileVRHubJoystick === 'function') {
+      enableMobileVRHubJoystick();
+    }
+    if (typeof showToast === 'function') {
+      showToast('🌐 3D VR Central Hub Simulation Launched! Use On-Screen Joystick or WASD keys to explore.', 4000);
     }
   });
 
@@ -5485,6 +6054,60 @@ window.playRemainsMaskAnimation = playRemainsMaskAnimation;
 window.playSupremeShirtAnimation = playSupremeShirtAnimation;
 window.playReviveAnimation = playReviveAnimation;
 window.playSkeletonStaffAnimation = playSkeletonStaffAnimation;
+
+// ---------- PRISM CORE INTERACTIVE CURSOR SPARKLE & CHIME ENGINE ----------
+(function initPrismCoreInteractiveEngine() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+  let lastSparkleTime = 0;
+  const SPARKLE_SYMBOLS = ['✨', '✦', '♦', '❇️', '💎', '⭐'];
+  const SPARKLE_COLORS = ['#38bdf8', '#f43f5e', '#f59e0b', '#10b981', '#a855f7', '#ffffff'];
+
+  function spawnPrismSparkle(x, y, count = 1) {
+    if (!document.documentElement.classList.contains('theme-prism') && !document.body.classList.contains('theme-prism')) return;
+
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement('span');
+      p.className = 'prism-interactive-sparkle';
+      p.textContent = SPARKLE_SYMBOLS[Math.floor(Math.random() * SPARKLE_SYMBOLS.length)];
+      
+      const offsetX = (Math.random() - 0.5) * 24;
+      const offsetY = (Math.random() - 0.5) * 24;
+      const color = SPARKLE_COLORS[Math.floor(Math.random() * SPARKLE_COLORS.length)];
+
+      p.style.cssText = `
+        position: fixed;
+        left: ${x + offsetX}px;
+        top: ${y + offsetY}px;
+        color: ${color};
+        font-size: ${10 + Math.random() * 12}px;
+        pointer-events: none;
+        z-index: 9999;
+        text-shadow: 0 0 8px ${color};
+        transform: translate(-50%, -50%) scale(0.6) rotate(${Math.random() * 360}deg);
+        animation: prismSparkleFloat 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      `;
+
+      document.body.appendChild(p);
+      setTimeout(() => { if (p.parentNode) p.parentNode.removeChild(p); }, 850);
+    }
+  }
+
+  // Mouse trail
+  document.addEventListener('mousemove', (e) => {
+    const now = Date.now();
+    if (now - lastSparkleTime > 50) {
+      lastSparkleTime = now;
+      spawnPrismSparkle(e.clientX, e.clientY, 1);
+    }
+  }, { passive: true });
+
+  // Tap burst on Prism theme (chime sound removed as requested)
+  document.addEventListener('click', (e) => {
+    if (!document.documentElement.classList.contains('theme-prism') && !document.body.classList.contains('theme-prism')) return;
+    spawnPrismSparkle(e.clientX, e.clientY, 6);
+  }, { passive: true });
+})();
 
 
 

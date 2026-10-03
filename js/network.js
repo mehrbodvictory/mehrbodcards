@@ -222,12 +222,41 @@ class NetSession {
         if (this.onPing) this.onPing(latency);
       } else if (data.type === 'intent') {
         if (!data.action || data.action.player !== 'guest') return;
+        if (typeof AntiCheat !== 'undefined') {
+          const check = AntiCheat.sanitizeAndVerifyAction(typeof state !== 'undefined' ? state : null, data.action, 'guest');
+          if (!check.valid) {
+            console.warn('[AntiCheat] Rejected illegal intent from guest:', check.reason);
+            this._send({ type: 'security_violation', reason: check.reason });
+            return;
+          }
+        }
         this.onApplied(data.action);
         this._send({ type: 'applied', action: data.action });
+      } else if (data.type === 'state_digest_sync') {
+        if (typeof AntiCheat !== 'undefined' && typeof state !== 'undefined') {
+          const res = AntiCheat.verifyStateDigest(state, data.digest);
+          if (!res.synced) {
+            console.warn('[AntiCheat] State divergence detected:', res.reason);
+            if (typeof showToast === 'function') showToast('⚠️ Match sync warning: State reconciled.', 3000);
+          }
+        }
       } else if (data.type === 'guestConfig') {
         if (this.receivedGuestConfig) return;
+        if (typeof validateDeckConfigIntegrity === 'function') {
+          const check = validateDeckConfigIntegrity(data.deckConfig);
+          if (!check.valid) {
+            console.warn('[AntiCheat] Illegal guest deck rejected:', check.reason);
+            if (typeof showToast === 'function') showToast(`⚠️ Opponent deck failed anti-cheat integrity check: ${check.reason}`, 4000);
+            this._send({ type: 'security_violation', reason: check.reason });
+            this.destroy();
+            return;
+          }
+        }
         this.receivedGuestConfig = true;
         this.onGuestConfig(data.deckConfig);
+      } else if (data.type === 'security_violation') {
+        if (typeof showToast === 'function') showToast(`🛡️ Anti-Cheat: Match aborted — ${data.reason || 'Integrity check failed'}`, 4000);
+        this.destroy();
       } else if (data.type === 'forfeit') {
         this.onForfeit();
       } else if (data.type === 'reconnect_sync') {
@@ -291,13 +320,34 @@ class NetSession {
         const latency = Date.now() - data.sentAt;
         if (this.onPing) this.onPing(latency);
       } else if (data.type === 'init') {
+        if (typeof validateDeckConfigIntegrity === 'function' && data.hostDeckConfig) {
+          const check = validateDeckConfigIntegrity(data.hostDeckConfig);
+          if (!check.valid) {
+            console.warn('[AntiCheat] Illegal host deck rejected:', check.reason);
+            if (typeof showToast === 'function') showToast(`⚠️ Host deck failed anti-cheat integrity check: ${check.reason}`, 4000);
+            this.destroy();
+            return;
+          }
+        }
         this.actionInFlight = false;
         this.actionInFlightTime = null;
         this.onInit(data);
+      } else if (data.type === 'security_violation') {
+        if (typeof showToast === 'function') {
+          showToast(`🛡️ Anti-Cheat: Match aborted — ${data.reason || 'Configuration rejected'}`, 4000);
+        }
+        this.destroy();
       } else if (data.type === 'applied') {
         this.actionInFlight = false; // Reset lock on authority applied action response
         this.actionInFlightTime = null;
         this.onApplied(data.action);
+      } else if (data.type === 'state_digest_sync') {
+        if (typeof AntiCheat !== 'undefined' && typeof state !== 'undefined') {
+          const res = AntiCheat.verifyStateDigest(state, data.digest);
+          if (!res.synced) {
+            console.warn('[AntiCheat] State divergence detected on guest:', res.reason);
+          }
+        }
       } else if (data.type === 'forfeit') {
         this.onForfeit();
       } else if (data.type === 'reconnect_sync_ack') {

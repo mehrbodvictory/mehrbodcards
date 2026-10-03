@@ -121,33 +121,44 @@ const Sound = (function () {
     if (muted || !sfxEnabled || volume <= 0) return;
     const c = ensureCtx();
     if (!c) return;
-    const t0 = c.currentTime + (delay || 0);
-    const osc = c.createOscillator();
-    const gain = c.createGain();
-    osc.type = type || 'sine';
-    osc.frequency.setValueAtTime(freq, t0);
-    gain.gain.setValueAtTime((vol || 0.12) * volume, t0);
-    gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-    osc.connect(gain).connect(c.destination);
-    osc.start(t0);
-    osc.stop(t0 + dur + 0.02);
+    const safeFreq = Math.max(20, Math.min(20000, Number(freq) || 440));
+    const safeDur = Math.max(0.005, Number(dur) || 0.05);
+    const safeVol = Math.max(0.0001, (Number(vol) || 0.12) * volume);
+    const t0 = c.currentTime + Math.max(0, Number(delay) || 0);
+    try {
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.type = type || 'sine';
+      osc.frequency.setValueAtTime(safeFreq, t0);
+      gain.gain.setValueAtTime(safeVol, t0);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + safeDur);
+      osc.connect(gain).connect(c.destination);
+      osc.start(t0);
+      osc.stop(t0 + safeDur + 0.02);
+    } catch (_) {}
   }
 
   function sweep(f0, f1, dur, type, vol, delay) {
     if (muted || !sfxEnabled || volume <= 0) return;
     const c = ensureCtx();
     if (!c) return;
-    const t0 = c.currentTime + (delay || 0);
-    const osc = c.createOscillator();
-    const gain = c.createGain();
-    osc.type = type || 'sine';
-    osc.frequency.setValueAtTime(f0, t0);
-    osc.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t0 + dur);
-    gain.gain.setValueAtTime((vol || 0.12) * volume, t0);
-    gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-    osc.connect(gain).connect(c.destination);
-    osc.start(t0);
-    osc.stop(t0 + dur + 0.02);
+    const safeF0 = Math.max(20, Math.min(20000, Number(f0) || 440));
+    const safeF1 = Math.max(20, Math.min(20000, Number(f1) || 880));
+    const safeDur = Math.max(0.005, Number(dur) || 0.05);
+    const safeVol = Math.max(0.0001, (Number(vol) || 0.12) * volume);
+    const t0 = c.currentTime + Math.max(0, Number(delay) || 0);
+    try {
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.type = type || 'sine';
+      osc.frequency.setValueAtTime(safeF0, t0);
+      osc.frequency.exponentialRampToValueAtTime(safeF1, t0 + safeDur);
+      gain.gain.setValueAtTime(safeVol, t0);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + safeDur);
+      osc.connect(gain).connect(c.destination);
+      osc.start(t0);
+      osc.stop(t0 + safeDur + 0.02);
+    } catch (_) {}
   }
 
   // ---- Ambient Engine Master ------------------------------------------------
@@ -2061,11 +2072,41 @@ const Sound = (function () {
     getVolume() { return volume; },
 
     // Game Combat & Board SFX
-    place() { tone(440, 0.07, 'triangle', 0.10); },
-    merge() { sweep(320, 760, 0.25, 'sine', 0.13); },
-    megaMerge() {
-      sweep(220, 980, 0.4, 'sine', 0.16);
-      [660, 880, 1200].forEach((f, i) => tone(f, 0.2, 'triangle', 0.09, 0.12 + i * 0.07));
+    place(tier) { this.cardPlace(tier); },
+    merge(tier) {
+      const t = tier || 2;
+      if (t === 2) {
+        // Green Tier: Smooth ascending crystal fusion wave
+        sweep(260, 523.25, 0.22, 'sine', 0.14);
+        tone(659.25, 0.18, 'triangle', 0.09, 0.08);
+      } else if (t === 3) {
+        // Red Tier: Fiery power surge and harmonic rise
+        sweep(280, 783.99, 0.26, 'triangle', 0.16);
+        sweep(587.33, 1174.66, 0.16, 'sawtooth', 0.11, 0.04);
+        tone(880, 0.20, 'sine', 0.10, 0.08);
+      } else {
+        // Orange / Apex Tier: Grand Supernova Merge
+        this.megaMerge(4);
+      }
+    },
+    megaMerge(tier) {
+      duckAmbient(1400, 0.25);
+      sweep(140, 1046.50, 0.38, 'sawtooth', 0.17);
+      sweep(220, 1318.51, 0.42, 'sine', 0.14, 0.04);
+      [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98].forEach((f, i) => {
+        tone(f, 0.22, 'triangle', 0.08, 0.06 + i * 0.045);
+        tone(f * 1.5, 0.16, 'sine', 0.06, 0.10 + i * 0.045);
+      });
+    },
+    criticalHit(amount) {
+      duckAmbient(1200, 0.22);
+      // High-voltage sonic crack + explosive bass boom + crystalline resonance
+      sweep(2600, 75, 0.18, 'sawtooth', 0.22);
+      tone(58, 0.28, 'square', 0.18, 0.02);
+      sweep(95, 32, 0.32, 'sawtooth', 0.16, 0.03);
+      [1567.98, 2093.00, 3135.96].forEach((f, i) => {
+        tone(f, 0.20, 'sine', 0.10, 0.04 + i * 0.035);
+      });
     },
     meteor() {
       duckAmbient(1800, 0.3);
@@ -2145,6 +2186,20 @@ const Sound = (function () {
         tone(f * 1.5, 0.25, 'sine', 0.06, 0.28 + i * 0.03);
       });
     },
+    playWinFanfare() {
+      if (muted || !sfxEnabled || volume <= 0) return;
+      try {
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2018/2018-84.wav');
+        audio.volume = Math.max(0.01, Math.min(1, volume * 0.8));
+        audio.play().catch(e => {
+          console.warn('HTML5 Audio play failed, falling back to Web Audio synthesis:', e);
+          this.epicVictory();
+        });
+      } catch (err) {
+        console.warn('Audio construction failed, falling back to Web Audio synthesis:', err);
+        this.epicVictory();
+      }
+    },
 
     // ---- Expanded Game SFX --------------------------------------------------
     // Card movement & interactions
@@ -2158,12 +2213,37 @@ const Sound = (function () {
       lastHoverTime = now;
       tone(850, 0.015, 'triangle', 0.02);
     },
+    inspectHover() {
+      if (muted || !sfxEnabled) return;
+      ensureCtx();
+      // Soft crystalline cosmic chime sweep indicating magic focus and high-tech tactile feel
+      sweep(1200, 1800, 0.12, 'sine', 0.06);
+      tone(2400, 0.06, 'sine', 0.02, 0.02);
+    },
     cardSelect() {
       sweep(480, 720, 0.06, 'triangle', 0.08);
     },
     cardPlace(tier) {
-      const baseFreq = 220 + (tier || 1) * 60;
-      tone(baseFreq, 0.05, 'triangle', 0.08);
+      const t = tier || 1;
+      if (t === 1) {
+        // Tier 1 (Blue): Crisp tactile crystal clack with smooth airy resonant tail
+        tone(440, 0.045, 'triangle', 0.11);
+        tone(880, 0.03, 'sine', 0.07, 0.015);
+      } else if (t === 2) {
+        // Tier 2 (Green): Resonant wood-block thump with harmonic overtone
+        tone(280, 0.065, 'triangle', 0.13);
+        tone(560, 0.05, 'sine', 0.08, 0.02);
+      } else if (t === 3) {
+        // Tier 3 (Red): Fiery heavy slam with power surge
+        sweep(220, 110, 0.09, 'sawtooth', 0.15);
+        tone(660, 0.08, 'triangle', 0.12, 0.01);
+      } else {
+        // Tier 4 (Orange): Grand celestial slam with sub drop and chime shimmer
+        duckAmbient(800, 0.3);
+        sweep(180, 55, 0.16, 'sawtooth', 0.18);
+        tone(1046.5, 0.14, 'sine', 0.10, 0.02);
+        tone(1318.5, 0.18, 'sine', 0.09, 0.06);
+      }
     },
     spellSelect() {
       [784, 1046].forEach((f, i) => tone(f, 0.08, 'sine', 0.06, i * 0.04));
@@ -2413,6 +2493,27 @@ const Sound = (function () {
     emoteSocial() {
       tone(659.25, 0.06, 'sine', 0.08);
       tone(880, 0.08, 'sine', 0.08, 0.06);
+    },
+    buzzer() {
+      tone(130, 0.35, 'sawtooth', 0.25);
+      tone(128, 0.35, 'square', 0.2);
+    },
+    radarPing() {
+      if (muted || !sfxEnabled) return;
+      ensureCtx();
+      // High-tech subtle sonar ping with soft reverberant decay echo
+      tone(1760, 0.22, 'sine', 0.05); // Primary crystalline A6 ping
+      tone(3520, 0.12, 'sine', 0.02, 0.02); // Subtle harmonic click
+      tone(1760, 0.18, 'triangle', 0.018, 0.11); // Soft echo tail
+    },
+    metallicClick() {
+      if (muted || !sfxEnabled) return;
+      ensureCtx();
+      // Heavy mechanical metallic lock-in latch click
+      tone(2200, 0.1, 'square', 0.015);
+      tone(850, 0.25, 'triangle', 0.03, 0.012);
+      tone(420, 0.35, 'sawtooth', 0.04, 0.025);
+      tone(1200, 0.15, 'sine', 0.02, 0.045);
     }
   };
 

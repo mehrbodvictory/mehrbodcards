@@ -1,23 +1,4 @@
 
-// Universal migration of legacy completion themes to Prism Core (the unique 100% completion theme)
-try {
-  if (typeof localStorage !== 'undefined') {
-    const savedTheme = localStorage.getItem('mehrbod-cards-theme');
-    if (savedTheme === 'collector' || savedTheme === 'darkmatter') {
-      localStorage.setItem('mehrbod-cards-theme', 'prism');
-    }
-    if (localStorage.getItem('theme_collector_unlocked') === 'true' || localStorage.getItem('theme_darkmatter_unlocked') === 'true' || localStorage.getItem('theme_collector') === 'true') {
-      localStorage.setItem('theme_prism_unlocked', 'true');
-    }
-    localStorage.removeItem('theme_collector_unlocked');
-    localStorage.removeItem('theme_collector');
-    localStorage.removeItem('theme_100_collector_unlocked');
-  }
-  if (typeof document !== 'undefined' && document.documentElement) {
-    document.documentElement.classList.remove('theme-collector', 'theme-darkmatter');
-  }
-} catch (e) {}
-
 // ---- Global state ------------------------------------------------------
 let state = null;
 let mode = null;           // 'bot' | 'mp'
@@ -94,15 +75,64 @@ let lastPlacement = null; // { slot } for the most recent successful local place
 // "MVP" callout on the game-over screen - not persisted, not synced, reset
 // at the start of every match.
 let matchCardStats = {}; // cardName -> { dmg, kills }
-function resetMatchCardStats() { matchCardStats = {}; }
+let matchSpellsCast = 0;
+let matchMergesExecuted = 0;
+let matchCardsPlaced = 0;
+let matchDamageBlocked = 0;
+let matchDamageDealt = 0;
+let usedEmergencyConversion = false;
+
+function resetMatchCardStats() {
+  matchCardStats = {};
+  matchSpellsCast = 0;
+  matchMergesExecuted = 0;
+  matchCardsPlaced = 0;
+  matchDamageBlocked = 0;
+  matchDamageDealt = 0;
+  usedEmergencyConversion = false;
+}
+
+function updateEmergencyConversionUI() {
+  const container = document.getElementById('emergency-conversion-container');
+  if (!container) return;
+
+  if (!state || state.phase !== 'placement' || usedEmergencyConversion) {
+    container.classList.add('hidden');
+    return;
+  }
+
+  const pState = state.players[localKey];
+  if (!pState || !pState.board || !pState.deck) {
+    container.classList.add('hidden');
+    return;
+  }
+
+  const boardEmpty = pState.board.every(c => !c);
+  const blueInHand = pState.deck.filter(c => c.tier === 1).length;
+  const blueprintsInHand = pState.deck.filter(c => c.tier > 1).length;
+
+  if (boardEmpty && blueInHand === 0 && blueprintsInHand > 0) {
+    container.classList.remove('hidden');
+  } else {
+    container.classList.add('hidden');
+  }
+}
+
 function trackDamageStats(fxList) {
   (fxList || []).forEach(evt => {
-    if (evt.type !== 'damage') return;
-    if (!evt.source || evt.source.owner !== localKey) return;
-    const name = evt.source.name || 'Unknown';
-    if (!matchCardStats[name]) matchCardStats[name] = { dmg: 0, kills: 0 };
-    matchCardStats[name].dmg += evt.amount || 0;
-    if (evt.killed) matchCardStats[name].kills += 1;
+    if (evt.type === 'damage') {
+      if (evt.source && evt.source.owner === localKey) {
+        const name = evt.source.name || 'Unknown';
+        if (!matchCardStats[name]) matchCardStats[name] = { dmg: 0, kills: 0 };
+        matchCardStats[name].dmg += evt.amount || 0;
+        if (evt.killed) matchCardStats[name].kills += 1;
+        matchDamageDealt += evt.amount || 0;
+      }
+    } else if (evt.type === 'block') {
+      if (evt.owner === localKey) {
+        matchDamageBlocked += evt.amount || 1;
+      }
+    }
   });
 }
 
@@ -258,21 +288,21 @@ function stepReplayBackward() {
   buildReplayState(currentReplayIndex);
 }
 
-document.getElementById('btn-replay-prev').addEventListener('click', () => {
+document.getElementById('btn-replay-prev')?.addEventListener('click', () => {
   if (typeof Sound !== 'undefined' && Sound.replayStep) Sound.replayStep();
   cancelReplay();
   isReplayPlaying = false;
   renderReplayControls();
   stepReplayBackward();
 });
-document.getElementById('btn-replay-next').addEventListener('click', () => {
+document.getElementById('btn-replay-next')?.addEventListener('click', () => {
   if (typeof Sound !== 'undefined' && Sound.replayStep) Sound.replayStep();
   cancelReplay();
   isReplayPlaying = false;
   renderReplayControls();
   stepReplayForward(false);
 });
-document.getElementById('btn-replay-playpause').addEventListener('click', () => {
+document.getElementById('btn-replay-playpause')?.addEventListener('click', () => {
   if (typeof Sound !== 'undefined' && Sound.replayStep) Sound.replayStep();
   if (isReplayPlaying) {
     isReplayPlaying = false;
@@ -287,9 +317,10 @@ document.getElementById('btn-replay-playpause').addEventListener('click', () => 
   }
   renderReplayControls();
 });
-document.getElementById('replay-speed').addEventListener('input', (e) => {
+document.getElementById('replay-speed')?.addEventListener('input', (e) => {
   replaySpeed = parseFloat(e.target.value);
-  document.getElementById('replay-speed-label').textContent = replaySpeed + 'x';
+  const lbl = document.getElementById('replay-speed-label');
+  if (lbl) lbl.textContent = replaySpeed + 'x';
 });
 
 function watchLastReplay() {
@@ -348,13 +379,23 @@ function showScreen(id) {
     const controls = document.getElementById('replay-controls');
     if (controls) controls.classList.add('hidden');
   }
-  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
-  document.getElementById(id).classList.remove('hidden');
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.add('hidden');
+    s.classList.remove('active-screen');
+  });
+  const targetScreen = document.getElementById(id);
+  if (targetScreen) {
+    targetScreen.classList.remove('hidden');
+    void targetScreen.offsetHeight; // trigger reflow for smooth transform/opacity transition
+    targetScreen.classList.add('active-screen');
+  }
   if (id === 'screen-bot-setup' && typeof renderAdaptiveTrendChart === 'function') {
     setTimeout(renderAdaptiveTrendChart, 40);
   }
   const buxCounter = document.getElementById('bux-counter');
   if (buxCounter) buxCounter.classList.toggle('hidden', id === 'screen-game');
+  const topLeftHud = document.getElementById('top-left-hud');
+  if (topLeftHud) topLeftHud.classList.toggle('hidden', id === 'screen-game' || id === 'screen-matchmaking');
   
   // Hide top-bar brand on main menu, but keep visible in matches and other screens
   const topBrand = document.querySelector('#top-bar .brand');
@@ -517,10 +558,84 @@ function spendBux(amount, isWager = false) {
   updateBuxDisplay();
   return true;
 }
+let lastDisplayedBux = null;
+
+function triggerBuxCoinAnimation(amount) {
+  const counterEl = document.getElementById('bux-counter');
+  if (!counterEl) return;
+
+  const rect = counterEl.getBoundingClientRect();
+  const targetX = rect.left + rect.width / 2;
+  const targetY = rect.top + rect.height / 2;
+
+  const startX = window.innerWidth / 2;
+  const startY = window.innerHeight / 2;
+
+  // Render satisfying amount of coins (min 5, max 22)
+  const numCoins = Math.min(22, Math.max(5, Math.floor(amount / 5) + 4));
+
+  for (let i = 0; i < numCoins; i++) {
+    const coin = document.createElement('div');
+    coin.className = 'flying-coin-particle';
+    
+    // Explosion spread
+    const angle = Math.random() * Math.PI * 2;
+    const distance = 40 + Math.random() * 90;
+    const midX = startX + Math.cos(angle) * distance;
+    const midY = startY + Math.sin(angle) * distance;
+
+    coin.style.left = `${startX - 10}px`;
+    coin.style.top = `${startY - 10}px`;
+    coin.style.transform = 'scale(0) rotate(0deg)';
+    document.body.appendChild(coin);
+
+    const delay = i * 65;
+
+    // Phase 1: Burst outwards with elastic overshoot
+    setTimeout(() => {
+      coin.style.transform = `translate(${midX - startX}px, ${midY - startY}px) scale(1.35) rotate(${Math.random() * 45}deg)`;
+      
+      if (typeof Sound !== 'undefined' && Sound.click && i % 3 === 0) {
+        Sound.click();
+      }
+
+      // Phase 2: Beautiful dual-axis gravitational pull to the HUD element
+      setTimeout(() => {
+        coin.style.transition = 'left 0.7s cubic-bezier(0.55, 0, 1, 0.45), top 0.7s cubic-bezier(0.25, 1, 0.5, 1), transform 0.7s ease, opacity 0.7s ease';
+        coin.style.left = `${targetX - 10}px`;
+        coin.style.top = `${targetY - 10}px`;
+        coin.style.transform = 'scale(0.5) rotate(360deg)';
+        coin.style.opacity = '0.65';
+
+        // Phase 3: Reach target, play high-pitch shimmer sound and pulse HUD scale
+        setTimeout(() => {
+          coin.remove();
+          
+          counterEl.classList.remove('bux-counter-pulse');
+          void counterEl.offsetHeight; // trigger reflow
+          counterEl.classList.add('bux-counter-pulse');
+
+          if (typeof Sound !== 'undefined' && Sound.sparkle && i === numCoins - 1) {
+            Sound.sparkle();
+          }
+        }, 700);
+
+      }, 200);
+
+    }, delay);
+  }
+}
+
 function updateBuxDisplay() {
   const n = loadBux();
   const el = document.getElementById('bux-counter-value');
-  if (el) el.textContent = n.toLocaleString();
+  if (el) {
+    el.textContent = n.toLocaleString();
+    if (lastDisplayedBux !== null && n > lastDisplayedBux) {
+      triggerBuxCoinAnimation(n - lastDisplayedBux);
+    }
+    lastDisplayedBux = n;
+  }
 }
 
 // ---- Card collection & starter pack (v2.2) ---------------------------------
@@ -552,8 +667,26 @@ function shuffleArray(arr) {
   return a;
 }
 function enforceAntiCheatCollectionGuard(col) {
-  if (!col) return { units: [], spells: [], chips: [] };
-  return col;
+  if (!col || typeof col !== 'object') return { units: [], spells: [], chips: [] };
+  
+  // Strict sanitization: filter out injected or spoofed IDs
+  const validUnits = (Array.isArray(col.units) ? col.units : [])
+    .map(String)
+    .filter(id => typeof findArchetypeById === 'function' && findArchetypeById(id));
+  
+  const validSpells = (Array.isArray(col.spells) ? col.spells : [])
+    .map(String)
+    .filter(id => typeof SPELL_DEFS !== 'undefined' && SPELL_DEFS.some(s => s.id === id));
+
+  const validChips = (Array.isArray(col.chips) ? col.chips : [])
+    .map(String)
+    .filter(id => typeof CHIP_DEFS !== 'undefined' && CHIP_DEFS.some(c => c.id === id));
+
+  return {
+    units: [...new Set(validUnits)],
+    spells: [...new Set(validSpells)],
+    chips: [...new Set(validChips)]
+  };
 }
 
 function loadCollection() {
@@ -726,8 +859,16 @@ function dbTotalUnits() {
   return Object.values(dbUnitCounts).reduce((sum, n) => sum + n, 0);
 }
 
-function openDeckBuilder(onConfirm) {
+let dbReturnScreen = 'screen-menu';
+
+function openDeckBuilder(onConfirm, returnScreen) {
   dbOnConfirm = onConfirm;
+  const currentVisible = document.querySelector('.screen:not(.hidden)');
+  if (returnScreen) {
+    dbReturnScreen = returnScreen;
+  } else if (currentVisible && currentVisible.id && currentVisible.id !== 'screen-deck-builder') {
+    dbReturnScreen = currentVisible.id;
+  }
   defaultDeckBuilderSelection();
   renderDeckBuilder();
   renderDeckPresets();
@@ -848,6 +989,7 @@ function renderDeckBuilder() {
 
   // 1. Render Units Pool with Tier Separator Dividers
   unitsContainer.innerHTML = '';
+  const unitsFrag = document.createDocumentFragment();
   [1, 2, 3, 4].forEach(tier => {
     // Append a beautiful divider header for each tier
     const dividerEl = document.createElement('div');
@@ -858,7 +1000,7 @@ function renderDeckBuilder() {
       <div class="tier-separator-text tier${tier}">${TIERS[tier].name} Cards (Tier ${tier})</div>
       <div class="tier-separator-line"></div>
     `;
-    unitsContainer.appendChild(dividerEl);
+    unitsFrag.appendChild(dividerEl);
 
     UNIT_ARCHETYPES[tier].forEach(a => {
       const owned = isUnitArchetypeOwned(a.id);
@@ -868,9 +1010,24 @@ function renderDeckBuilder() {
       el.dataset.unitName = a.name;
       el.dataset.unitTier = String(tier);
       const abilityText = a.pool[0] === 'none' ? 'No special ability' : (ABILITIES[a.pool[0]] ? ABILITIES[a.pool[0]].label : 'Unique ability');
+      
+      const particleClasses = {
+        1: 'particle-blue',
+        2: 'particle-green',
+        3: 'particle-red',
+        4: 'particle-orange',
+      };
+      const pClass = particleClasses[tier] || 'particle-blue';
+
       el.innerHTML = `
+        <div class="dcard-rarity-glow tier${tier}"></div>
+        <div class="dcard-particles ${pClass}">
+          <span class="dcard-p-dot p1"></span>
+          <span class="dcard-p-dot p2"></span>
+          <span class="dcard-p-dot p3"></span>
+        </div>
         <div class="dcard-name">${a.name}</div>
-        <div class="dcard-text">${TIERS[tier].name} · ${abilityText}</div>
+        <div class="dcard-text">${abilityText}</div>
         ${count > 0 ? `<span class="dcard-count-badge">x${count}</span>` : ''}
         ${owned
           ? `<div class="dcard-stepper" onclick="event.stopPropagation()">
@@ -886,9 +1043,10 @@ function renderDeckBuilder() {
           else showToast("Unit slots are full! Use the minus (−) button on card steppers to remove.", 1500);
         });
       }
-      unitsContainer.appendChild(el);
+      unitsFrag.appendChild(el);
     });
   });
+  unitsContainer.appendChild(unitsFrag);
 
   unitsContainer.querySelectorAll('[data-unit-inc]').forEach(btn => {
     btn.addEventListener('click', (e) => { e.stopPropagation(); dbAdjustUnit(btn.dataset.unitInc, 1); });
@@ -900,14 +1058,16 @@ function renderDeckBuilder() {
   // 2. Render Spells Pool
   const atSpellCap = dbSelectedSpells.length >= REQUIRED_SPELL_COUNT;
   spellsContainer.innerHTML = '';
+  const spellsFrag = document.createDocumentFragment();
   SPELL_DEFS.forEach(s => {
     const owned = col.spells.includes(s.id);
     const count = dbSpellCount(s.id);
     const selected = count > 0;
     const el = document.createElement('div');
-    el.className = `dcard ${owned ? '' : 'locked'} ${selected ? 'selected' : ''}`;
+    el.className = `dcard spell-dcard ${owned ? '' : 'locked'} ${selected ? 'selected' : ''}`;
     el.dataset.spellName = s.name;
     el.innerHTML = `
+      <div class="dcard-rarity-glow spell"></div>
       <div class="dcard-name">${s.name}</div>
       <div class="dcard-text">${s.text}</div>
       ${count > 0 ? `<span class="dcard-count-badge spell">x${count}</span>` : ''}
@@ -927,18 +1087,21 @@ function renderDeckBuilder() {
         else dbAdjustSpell(s.id, -1);
       });
     }
-    spellsContainer.appendChild(el);
+    spellsFrag.appendChild(el);
   });
+  spellsContainer.appendChild(spellsFrag);
 
   // 3. Render Chips Pool
   chipsContainer.innerHTML = '';
+  const chipsFrag = document.createDocumentFragment();
   CHIP_DEFS.forEach(c => {
     const owned = col.chips.includes(c.id);
     const selected = dbSelectedChips.includes(c.id);
     const el = document.createElement('div');
-    el.className = `dcard ${owned ? '' : 'locked'} ${selected ? 'selected' : ''}`;
+    el.className = `dcard chip-dcard ${owned ? '' : 'locked'} ${selected ? 'selected' : ''}`;
     el.dataset.chipName = c.name;
     el.innerHTML = `
+      <div class="dcard-rarity-glow chip"></div>
       <div class="dcard-name">${c.name}</div>
       <div class="dcard-text">${c.text}</div>
       ${owned ? '' : '<div class="dcard-lock">🔒 Locked</div>'}
@@ -946,8 +1109,9 @@ function renderDeckBuilder() {
     if (owned) {
       el.addEventListener('click', () => dbToggleChip(c.id));
     }
-    chipsContainer.appendChild(el);
+    chipsFrag.appendChild(el);
   });
+  chipsContainer.appendChild(chipsFrag);
 
   // 5. Update Labels and completeness
   const uCountEl = document.getElementById('deck-builder-unit-count') || document.getElementById('active-units-count');
@@ -973,7 +1137,69 @@ function renderDeckBuilder() {
   }
   const confirmBtn = document.getElementById('btn-deck-builder-confirm');
   if (confirmBtn) confirmBtn.disabled = !complete;
+  renderDeckSynergyAnalytics();
   applyDeckBuilderFilter();
+}
+
+function renderDeckSynergyAnalytics() {
+  const container = document.getElementById('deck-synergy-analytics');
+  if (!container) return;
+
+  let t1 = 0, t2 = 0, t3 = 0, t4 = 0;
+  Object.entries(dbUnitCounts).forEach(([archId, count]) => {
+    const arch = findArchetypeById(archId);
+    if (!arch) return;
+    if (arch.tier === 1) t1 += count;
+    else if (arch.tier === 2) t2 += count;
+    else if (arch.tier === 3) t3 += count;
+    else if (arch.tier === 4) t4 += count;
+  });
+
+  const totalUnits = t1 + t2 + t3 + t4;
+  const spellsCount = dbSelectedSpells.length;
+  const chipsCount = dbSelectedChips.length;
+
+  let rating = '🛡️ Balanced Hybrid';
+  let advice = 'Good mix of deployable Blue units and higher-tier merge blueprints.';
+
+  if (t1 >= 4 && (t3 >= 2 || t4 >= 1) && spellsCount >= 3) {
+    rating = '⚔️ S-Tier Master Synergy';
+    advice = 'Optimal deployment engine! Ample Blue board presence backed by high-yield fusion blueprints and heavy spell burst.';
+  } else if (t1 === 0 && totalUnits > 0) {
+    rating = '⚠️ Missing Deployment Base';
+    advice = 'Warning: Blue (Tier 1) units are required to deploy onto the board! Without Blue units, you cannot initiate merges.';
+  } else if (t1 >= 8) {
+    rating = '⚡ Aggro Swarm Rush';
+    advice = 'High Blue density allows fast board flooding, but add Green/Red blueprints to scale into late-game HP.';
+  } else if (t4 >= 3) {
+    rating = '🔥 Apex Titan Deck';
+    advice = 'Heavy Orange blueprint concentration allows devastating apex transformations!';
+  }
+
+  const p1 = totalUnits ? Math.round((t1 / totalUnits) * 100) : 0;
+  const p2 = totalUnits ? Math.round((t2 / totalUnits) * 100) : 0;
+  const p3 = totalUnits ? Math.round((t3 / totalUnits) * 100) : 0;
+  const p4 = totalUnits ? Math.round((t4 / totalUnits) * 100) : 0;
+
+  container.innerHTML = `
+    <div class="dsw-header">
+      <div class="dsw-rating">${rating}</div>
+      <div class="dsw-counts">Units: ${totalUnits}/12 | Spells: ${spellsCount}/4 | Chips: ${chipsCount}/2</div>
+    </div>
+    <div class="dsw-bar-wrap">
+      <div class="dsw-bar t1" style="width: ${p1}%" title="Blue Tier 1: ${t1}"></div>
+      <div class="dsw-bar t2" style="width: ${p2}%" title="Green Tier 2: ${t2}"></div>
+      <div class="dsw-bar t3" style="width: ${p3}%" title="Red Tier 3: ${t3}"></div>
+      <div class="dsw-bar t4" style="width: ${p4}%" title="Orange Tier 4: ${t4}"></div>
+    </div>
+    <div class="dsw-legend">
+      <span>🔵 Blue (T1): ${t1}</span>
+      <span>🟢 Green (T2): ${t2}</span>
+      <span>🔴 Red (T3): ${t3}</span>
+      <span>🟠 Orange (T4): ${t4}</span>
+    </div>
+    <div class="dsw-advice">${advice}</div>
+  `;
 }
 
 function applyDeckBuilderFilter() {
@@ -1162,8 +1388,11 @@ document.getElementById('deck-preset-name-input').addEventListener('keydown', (e
 
 // ---- Cosmetics (v2.0) -------------------------------------------------------
 const COSMETIC_ITEMS = [
-  // THEMES (12 total)
+  // THEMES (15 total)
   { id: 'theme_prism', kind: 'theme',       name: '💎 Prism Core', desc: 'Living diamond crystal refractors with real-time chromatic spectrum dispersion, obsidian glass card framing, and celestial harmonic caustics.', cost: 0, rarity: 'MYTHIC', art: '💎', original: 0, tag: 'COMPLETION' },
+  { id: 'theme_chronos',    kind: 'theme',       name: '⏳ Chronos Horizon', desc: 'Time-warping cosmic clockwork theme with golden gear cogs, temporal void waves, and stardust pendulum pulses.', cost: 0, rarity: 'MYTHIC', art: '⏳', original: 0, tag: 'SEASON 1' },
+  { id: 'theme_neon_cyberpunk', kind: 'theme',   name: '🌆 Hyperdrive Cyber-Grid', desc: 'Vaporwave synthwave grid with retro horizon rays, neon cyan pulses, and high-speed particle streams.', cost: 0, rarity: 'MYTHIC', art: '🌆', original: 0, tag: 'SEASON 1' },
+  { id: 'theme_void_singularity', kind: 'theme', name: '🌌 Void Singularity', desc: 'Deep cosmic event horizon with swirling purple accretion disks, hawking radiation, and void pulses.', cost: 0, rarity: 'MYTHIC', art: '🌌', original: 0, tag: 'SEASON 1 APEX' },
   { id: 'theme_mrmoney',    kind: 'theme',       name: '🤑 Mr Money Theme', desc: 'Green money-rain theme for the whole app.', cost: 1000, rarity: 'MYTHIC', art: '💸', original: 1500, tag: 'FEATURED' },
   { id: 'theme_cyberneon',  kind: 'theme',       name: '🌆 Cyber Neon Theme', desc: 'Neon-lit cyberpunk grid with drifting glyph particles.', cost: 1200, rarity: 'EPIC', art: '🌆', original: 1600, tag: 'CYBER' },
   { id: 'theme_abyss',      kind: 'theme',       name: '🌊 Abyss Theme', desc: 'Bioluminescent deep-sea vault with drifting jellyfish glow.', cost: 1200, rarity: 'EPIC', art: '🌊', original: 1600, tag: 'DEEP SEA' },
@@ -1176,8 +1405,11 @@ const COSMETIC_ITEMS = [
   { id: 'theme_steampunk',  kind: 'theme',       name: '⚙️ Brass Steampunk Theme', desc: 'Victorian brass clockwork gears, pressure gauges, and copper steam plumes.', cost: 950, rarity: 'RARE', art: '⚙️', original: 1200, tag: 'VINTAGE' },
   { id: 'theme_galaxy',     kind: 'theme',       name: '✨ Deep Space Galaxy Theme', desc: 'Swirling spiral nebulae, distant star clusters, and cosmic dust clouds.', cost: 1250, rarity: 'LEGENDARY', art: '✨', original: 1650, tag: 'COSMIC' },
 
-  // SLEEVES (10 total)
+  // SLEEVES (13 total)
   { id: 'sleeve_holo',      kind: 'sleeve',      name: '🌈 Holographic Sleeves', desc: 'Shimmering rainbow card outlines with dynamic refraction.', cost: 400, rarity: 'RARE', art: '✦', original: 0, tag: 'SHIMMER' },
+  { id: 'sleeve_chronos',   kind: 'sleeve',      name: '⏳ Chronos Temporal Weave', desc: 'Animated golden gear dial sleeve with shifting temporal rings.', cost: 0, rarity: 'MYTHIC', art: '⏳', original: 0, tag: 'SEASON 1' },
+  { id: 'sleeve_hyperdrive', kind: 'sleeve',     name: '🌆 Neon Grid Holo', desc: 'Glowing magenta and cyan holographic grid sleeve with laser trace edges.', cost: 0, rarity: 'EPIC', art: '⚡', original: 0, tag: 'SEASON 1' },
+  { id: 'sleeve_singularity', kind: 'sleeve',    name: '🌌 Event Horizon Void', desc: 'Swirling black hole sleeve with pulsing violet event horizon glow.', cost: 0, rarity: 'MYTHIC', art: '🌌', original: 0, tag: 'SEASON 1' },
   { id: 'sleeve_gold',      kind: 'sleeve',      name: '✨ Gold Sleeves', desc: 'Gilded 24k card outlines with a warm pulsing royal glow.', cost: 600, rarity: 'EPIC', art: '✨', original: 800, tag: 'ROYAL' },
   { id: 'sleeve_prismatic', kind: 'sleeve',      name: '🌈 Prismatic Sleeves', desc: 'A shifting spectrum chromatic frame around every card.', cost: 800, rarity: 'LEGENDARY', art: '🌈', original: 1000, tag: 'CHROMATIC' },
   { id: 'sleeve_void',      kind: 'sleeve',      name: '🕳️ Void Sleeves', desc: 'Deep-space cosmic void frames with a pulsing violet singularity glow.', cost: 1200, rarity: 'MYTHIC', art: '◈', original: 1500, tag: 'VOID' },
@@ -1197,7 +1429,9 @@ const COSMETIC_ITEMS = [
   { id: 'effect_starfountain', kind: 'effect',   name: '🌟 Golden Star Fountain', desc: 'A erupting fountain of spinning golden stars and glitter particles.', cost: 300, rarity: 'RARE', art: '🌟', original: 420, tag: 'GLOW' },
   { id: 'effect_dragonflame', kind: 'effect',    name: '🐉 Dragon Flame Aura', desc: 'A roaring dragon fire vortex swirling around your victory rank.', cost: 600, rarity: 'LEGENDARY', art: '🐉', original: 800, tag: 'DRAGON' },
 
-  // VICTORY FINISHER ANIMATIONS (7 total)
+  // VICTORY FINISHER ANIMATIONS (9 total)
+  { id: 'victoryanim_chronos_blast', kind: 'victoryAnim', name: '⏳ Temporal Time Stop', desc: 'Time freezes instantly and erupts into golden clockwork gears upon match victory.', cost: 0, rarity: 'MYTHIC', art: '⏳', original: 0, tag: 'SEASON 1' },
+  { id: 'victoryanim_hyperdrive_warp', kind: 'victoryAnim', name: '🚀 Hyperdrive Warp Speed', desc: 'Warp speed star lines engulf the victory banner in a blinding hyperspace burst.', cost: 0, rarity: 'LEGENDARY', art: '🚀', original: 0, tag: 'SEASON 1' },
   { id: 'victoryanim_meteor', kind: 'victoryAnim', name: '☄️ Meteor Shower Victory', desc: "Blazing meteor shower streaks down and erupts in shockwaves when you win.", cost: 500, rarity: 'MYTHIC', art: '☄️', original: 750, tag: 'FINISHER' },
   { id: 'victoryanim_supernova', kind: 'victoryAnim', name: '🌌 Cosmic Supernova', desc: 'Blinding stellar explosion and supernova shockwave across the screen.', cost: 650, rarity: 'LEGENDARY', art: '🌌', original: 850, tag: 'STELLAR' },
   { id: 'victoryanim_blackhole', kind: 'victoryAnim', name: '🕳️ Singularity Black Hole', desc: 'A swirling black hole devours the battlefield upon your ultimate win.', cost: 750, rarity: 'MYTHIC', art: '🕳️', original: 1000, tag: 'VOID' },
@@ -1206,6 +1440,16 @@ const COSMETIC_ITEMS = [
   { id: 'victoryanim_nuke', kind: 'victoryAnim', name: '☢️ Tactical Nuke Blast', desc: 'A dramatic nuclear countdown mushroom cloud shockwave across the UI.', cost: 800, rarity: 'MYTHIC', art: '☢️', original: 1100, tag: 'NUKE' },
   { id: 'victoryanim_phoenix', kind: 'victoryAnim', name: '🦅 Phoenix Rebirth Finisher', desc: 'A magnificent flaming phoenix spreads its wings in golden fire.', cost: 650, rarity: 'LEGENDARY', art: '🦅', original: 850, tag: 'PHOENIX' },
 ];
+
+function unlockCosmetic(id) {
+  if (!id) return;
+  const list = loadOwnedCosmetics();
+  if (!list.includes(id)) {
+    list.push(id);
+    saveOwnedCosmetics(list);
+  }
+}
+window.unlockCosmetic = unlockCosmetic;
 
 function loadOwnedCosmetics() {
   try {
@@ -1300,7 +1544,11 @@ function restoreInventoryBackupIfTampered() {
 }
 
 function loadEquippedSleeve() {
-  try { return localStorage.getItem('mehrbod-cards-equipped-sleeve') || 'none'; } catch (e) { return 'none'; }
+  try {
+    const saved = localStorage.getItem('mehrbod-cards-equipped-sleeve');
+    if (saved && (saved === 'none' || ownsCosmetic(saved))) return saved;
+  } catch (e) {}
+  return 'none';
 }
 function equipSleeve(id) {
   try {
@@ -1309,7 +1557,13 @@ function equipSleeve(id) {
   } catch (e) {}
   document.documentElement.classList.remove('sleeve-holo', 'sleeve-gold', 'sleeve-prismatic', 'sleeve-void');
   if (id !== 'none') document.documentElement.classList.add('sleeve-' + id.replace('sleeve_', ''));
-  renderCosmeticsShop();
+  if (typeof renderCosmeticsShop === 'function') renderCosmeticsShop();
+  if (typeof Sound !== 'undefined' && Sound.buff) {
+    try { Sound.buff(); } catch (e) {}
+  }
+  if (typeof renderCollectionScreen === 'function') {
+    renderCollectionScreen(currentLockerTopTab || 'sleeves');
+  }
   // BUGFIX: every other piece of owned state (Bux, collection, cosmetics)
   // refreshes the tamper-check backup snapshot right after saving via
   // queueMicrotask(saveInventoryBackup) - but equipSleeve() never did, so
@@ -1531,47 +1785,80 @@ function renderCosmeticsShop() {
   });
 }
 
-document.getElementById('btn-how-to-play').addEventListener('click', () => startFullTutorial());
-document.getElementById('btn-single-player').addEventListener('click', () => showScreen('screen-single-player'));
-document.getElementById('btn-multiplayer').addEventListener('click', () => showScreen('screen-multiplayer'));
+document.getElementById('btn-how-to-play')?.addEventListener('click', () => startFullTutorial());
+document.getElementById('btn-single-player')?.addEventListener('click', () => showScreen('screen-single-player'));
+document.getElementById('btn-multiplayer')?.addEventListener('click', () => showScreen('screen-multiplayer'));
 function openModernShop() {
   if (typeof Sound !== 'undefined' && Sound.coin) Sound.coin();
   updateBuxDisplay();
   renderCosmeticsShop();
   showScreen('screen-shop-cosmetics');
 }
-document.getElementById('btn-shop').addEventListener('click', openModernShop);
-document.getElementById('bux-counter').addEventListener('click', openModernShop);
+document.getElementById('btn-shop')?.addEventListener('click', openModernShop);
+document.getElementById('bux-counter')?.addEventListener('click', openModernShop);
 
-document.getElementById('btn-story-mode').addEventListener('click', () => {
-  showToast('📖 Story Mode is coming soon!', 2400);
+document.getElementById('btn-story-mode')?.addEventListener('click', () => {
+  if (typeof StoryMode !== 'undefined' && typeof StoryMode.openStoryScreen === 'function') {
+    StoryMode.openStoryScreen();
+  } else {
+    showScreen('screen-story-mode');
+  }
 });
-document.getElementById('btn-practice-bot').addEventListener('click', () => showScreen('screen-bot-mode'));
+document.getElementById('btn-practice-bot')?.addEventListener('click', () => showScreen('screen-bot-mode'));
 
-document.getElementById('btn-bot-mode-normal').addEventListener('click', () => { markLastPlayedDifficulty(); showScreen('screen-bot-setup'); });
-document.getElementById('btn-bot-mode-wager').addEventListener('click', () => { updateBuxDisplay(); showScreen('screen-shop-bot'); });
+document.getElementById('btn-emergency-convert')?.addEventListener('click', () => {
+  if (!state || state.phase !== 'placement' || usedEmergencyConversion) return;
 
-document.getElementById('btn-host-menu').addEventListener('click', () => showScreen('screen-host-mode'));
+  const pState = state.players[localKey];
+  const boardEmpty = pState.board.every(c => !c);
+  const blueInHand = pState.deck.filter(c => c.tier === 1).length;
+  const blueprintsInHand = pState.deck.filter(c => c.tier > 1).length;
 
-document.getElementById('btn-matchmaking-menu').addEventListener('click', () => {
+  if (boardEmpty && blueInHand === 0 && blueprintsInHand > 0) {
+    if (!confirm("Are you sure you want to salvage your blueprints? This consumes 1 Blueprint from your hand and replaces it with 2 Emergency Blue Units!")) return;
+
+    const bpIndex = pState.deck.findIndex(c => c.tier > 1);
+    if (bpIndex !== -1) {
+      const removed = pState.deck.splice(bpIndex, 1)[0];
+      
+      const rngObj = state.rng || { pick: (arr) => arr[Math.floor(Math.random() * arr.length)] };
+      const blue1 = makeUnitCard(1, rngObj);
+      const blue2 = makeUnitCard(1, rngObj);
+      
+      pState.deck.push(blue1, blue2);
+      
+      usedEmergencyConversion = true;
+      if (typeof Sound !== 'undefined' && Sound.cardPlace) Sound.cardPlace(1);
+      showToast(`Emergency Salvage Successful! Exchanged ${removed.name} Blueprint for 2 Blue Units.`);
+      render();
+    }
+  }
+});
+
+document.getElementById('btn-bot-mode-normal')?.addEventListener('click', () => { markLastPlayedDifficulty(); showScreen('screen-bot-setup'); });
+document.getElementById('btn-bot-mode-wager')?.addEventListener('click', () => { updateBuxDisplay(); showScreen('screen-shop-bot'); });
+
+document.getElementById('btn-host-menu')?.addEventListener('click', () => showScreen('screen-host-mode'));
+
+document.getElementById('btn-matchmaking-menu')?.addEventListener('click', () => {
   openDeckBuilder((config) => beginMatchmaking(config));
 });
 
-document.getElementById('btn-matchmaking-cancel').addEventListener('click', () => {
+document.getElementById('btn-matchmaking-cancel')?.addEventListener('click', () => {
   cancelMatchmaking();
 });
 
-document.getElementById('btn-host-mode-normal').addEventListener('click', () => {
+document.getElementById('btn-host-mode-normal')?.addEventListener('click', () => {
   openDeckBuilder((config) => beginHost(0, config));
 });
-document.getElementById('btn-host-mode-wager').addEventListener('click', () => { updateBuxDisplay(); showScreen('screen-shop-host-setup'); });
+document.getElementById('btn-host-mode-wager')?.addEventListener('click', () => { updateBuxDisplay(); showScreen('screen-shop-host-setup'); });
 
-document.getElementById('btn-join-menu').addEventListener('click', () => {
+document.getElementById('btn-join-menu')?.addEventListener('click', () => {
   openDeckBuilder((config) => { pendingGuestDeckConfig = config; showScreen('screen-join'); });
 });
 
 // ENTER VR triggers
-document.getElementById('btn-enter-vr').addEventListener('click', () => {
+document.getElementById('btn-enter-vr')?.addEventListener('click', () => {
   if (typeof enterVRDirectly === 'function') {
     enterVRDirectly();
   } else if (typeof showXRArenaScreen === 'function') {
@@ -1579,7 +1866,7 @@ document.getElementById('btn-enter-vr').addEventListener('click', () => {
   }
 });
 
-document.getElementById('btn-xr-back').addEventListener('click', () => {
+document.getElementById('btn-xr-back')?.addEventListener('click', () => {
   showScreen('screen-menu');
 });
 
@@ -1591,6 +1878,7 @@ document.querySelectorAll('.menu-card').forEach(wirePressFeedback);
 // anything, so there was no way to back out of any submenu.
 const BACK_TARGETS = {
   'screen-single-player': 'screen-menu',
+  'screen-story-mode': 'screen-single-player',
   'screen-trial-tower': 'screen-single-player',
   'screen-bot-mode': 'screen-single-player',
   'screen-multiplayer': 'screen-menu',
@@ -1617,6 +1905,10 @@ document.querySelectorAll('.back-btn').forEach(btn => {
     if ((screenEl.id === 'screen-host' || screenEl.id === 'screen-join') && net) {
       net.destroy();
       net = null;
+    }
+    if (screenEl.id === 'screen-deck-builder') {
+      showScreen(dbReturnScreen || 'screen-menu');
+      return;
     }
     showScreen(BACK_TARGETS[screenEl.id] || 'screen-menu');
   });
@@ -2342,6 +2634,7 @@ if (typeof window !== 'undefined') {
 
 // ---- Vs Bot --------------------------------------------------------------
 let lastVsBotDeckConfig = null; // NEW FEATURE: lets "Play Again" reuse the deck you actually built
+let lastVsBotWager = 0;
 function startVsBot(wagerAmount = 0, deckConfig = null) {
   mode = 'bot';
   localKey = 'you'; remoteKey = 'bot';
@@ -2352,6 +2645,7 @@ function startVsBot(wagerAmount = 0, deckConfig = null) {
   matchVictoryAnims = { you: deckConfig?.victoryAnim || null, bot: null };
   matchStartTime = Date.now();
   currentWager = wagerAmount || 0;
+  lastVsBotWager = currentWager;
   _lowHpWarned.clear();
   resetMatchCardStats();
   lastPlacement = null;
@@ -2650,6 +2944,17 @@ function spawnFloatingNumberOn(slotEl, text, kind) {
   setTimeout(() => el.remove(), 900);
 }
 
+function triggerScreenShake(intensity = 'medium') {
+  const container = document.getElementById('app');
+  if (!container) return;
+  container.classList.remove('rumble-light', 'rumble-medium', 'rumble-heavy');
+  void container.offsetWidth; // Force CSS reflow to restart animation
+  container.classList.add('rumble-' + intensity);
+  setTimeout(() => {
+    container.classList.remove('rumble-' + intensity);
+  }, 250);
+}
+
 function describeSource(source) {
   if (!source) return 'unknown causes';
   if (source.kind === 'attack' || source.kind === 'queued-attack') return source.name;
@@ -2941,6 +3246,8 @@ function spawnCastEffect(ownerKey, slot, kind, amount, tier) {
     setTimeout(() => fx.remove(), 500);
     if (typeof Sound !== 'undefined' && Sound.merge) Sound.merge(tier || 2);
     vibrate([20, 25, 20]);
+    spawnFloatingNumberOn(slotEl, 'FUSION! 🧬', 'merge');
+    triggerScreenShake('light');
   } else if (kind === 'bigmerge') {
     // NEW: extra-juicy celebration for a 3-4 card fusion or any merge that
     // lands on the peak Orange tier - a bigger burst plus a ring of
@@ -2960,6 +3267,8 @@ function spawnCastEffect(ownerKey, slot, kind, amount, tier) {
     setTimeout(() => fx.remove(), 780);
     if (typeof Sound !== 'undefined' && Sound.megaMerge) Sound.megaMerge(tier || 4);
     vibrate([25, 30, 40]);
+    spawnFloatingNumberOn(slotEl, 'MEGA FUSION! 🌟', 'merge');
+    triggerScreenShake('medium');
   } else if (kind === 'defend') {
     const fx = document.createElement('div');
     fx.className = 'shield-slam-fx';
@@ -2983,6 +3292,7 @@ function spawnCastEffect(ownerKey, slot, kind, amount, tier) {
         cardNode.classList.add('anim-hit');
         setTimeout(() => { if (cardNode.isConnected) cardNode.classList.remove('anim-hit'); }, 450);
       }
+      triggerScreenShake('light');
     }
   } else if (kind === 'lightning') {
     const cardNode = slotEl.querySelector('.card');
@@ -2992,6 +3302,7 @@ function spawnCastEffect(ownerKey, slot, kind, amount, tier) {
       cardNode.classList.add('anim-hit');
       setTimeout(() => { if (cardNode.isConnected) cardNode.classList.remove('anim-hit'); }, 450);
     }
+    triggerScreenShake('light');
   }
 }
 
@@ -3221,12 +3532,14 @@ function applyActionAndRender(action, { afterBotCheck } = {}) {
   // player's own successful actions, in a real match (not the tutorial).
   if (res.ok && action.player === localKey) {
     if (action.type === 'place') {
+      matchCardsPlaced++;
       progressDailyChallenge('place', 1);
       if (typeof progressDailyBounties === 'function') {
         const placedCard = state.players[action.player]?.board[action.slot];
         progressDailyBounties('play', 1, placedCard);
       }
     } else if (action.type === 'merge') {
+      matchMergesExecuted++;
       progressDailyChallenge('merge', 1);
       if (typeof progressDailyBounties === 'function') {
         const mergedCard = state.players[action.player]?.board[res.mergedSlot];
@@ -3238,6 +3551,9 @@ function applyActionAndRender(action, { afterBotCheck } = {}) {
         if (mergedCard && mergedCard.tier === 4) unlockAchievement('first_orange');
       }
     } else if (action.type === 'defend' || action.type === 'spell' || action.type === 'chip') {
+      if (action.type === 'spell') {
+        matchSpellsCast++;
+      }
       progressDailyChallenge('defend', 1);
       if (typeof progressDailyBounties === 'function') progressDailyBounties('spell', 1);
     }
@@ -3432,9 +3748,170 @@ document.getElementById('join-code-input').addEventListener('keydown', (e) => {
 
 let matchmakingRoomCode = null;
 let matchmakingIsHost = false;
+let mmSearchTimerInterval = null;
+let mmSearchStartMs = 0;
+let isMatchmakingCancelled = false;
+
+function triggerMatchmakingEntranceAnimation() {
+  const localCard = document.querySelector('.mm-card-local');
+  const remoteCard = document.getElementById('mm-remote-card');
+  const radar = document.querySelector('.mm-center-radar');
+  const vsBadge = document.querySelector('.mm-vs-badge');
+  const headerHud = document.querySelector('.matchmaking-header-hud');
+
+  // Reset fly-in classes first
+  [localCard, remoteCard, radar, vsBadge, headerHud].forEach(el => {
+    if (el) el.classList.remove('mm-fly-in');
+  });
+
+  // Force reflow to cleanly restart the animation sequence
+  if (localCard) void localCard.offsetWidth;
+
+  // Apply entrance animation classes
+  if (localCard) localCard.classList.add('mm-fly-in');
+  if (remoteCard) remoteCard.classList.add('mm-fly-in');
+  if (radar) radar.classList.add('mm-fly-in');
+  if (vsBadge) vsBadge.classList.add('mm-fly-in');
+  if (headerHud) headerHud.classList.add('mm-fly-in');
+
+  // Play coordinated entrance whoosh and lock-in audio
+  if (typeof Sound !== 'undefined') {
+    if (typeof Sound.whoosh === 'function') Sound.whoosh('fast', 0.08);
+    else if (typeof Sound.screenTransition === 'function') Sound.screenTransition();
+    
+    setTimeout(() => {
+      if (typeof Sound !== 'undefined') {
+        if (typeof Sound.metallicClick === 'function') Sound.metallicClick();
+        else if (typeof Sound.select === 'function') Sound.select();
+      }
+    }, 420);
+  }
+}
+
+function startMatchmakingTimer(deckConfig) {
+  // Update local player card info
+  const pName = (typeof playerName !== 'undefined' && playerName) ? playerName : (localStorage.getItem('mehrbod-cards-player-name') || 'Player');
+  const nameEl = document.getElementById('mm-local-name');
+  const levelEl = document.getElementById('mm-local-level');
+  const avatarEl = document.getElementById('mm-local-avatar');
+  const pingValEl = document.getElementById('mm-ping-val');
+  
+  if (pingValEl) pingValEl.textContent = `PING: ${Math.floor(22 + Math.random() * 12)}ms`;
+  if (nameEl) nameEl.textContent = pName;
+  if (levelEl) {
+    const lvl = (typeof playerXP !== 'undefined' && typeof getLevel === 'function') ? getLevel(playerXP) : 1;
+    levelEl.textContent = `LVL ${lvl}`;
+  }
+  if (avatarEl) {
+    const pLetter = pName.charAt(0).toUpperCase() || 'P';
+    avatarEl.textContent = pLetter;
+    if (typeof getProfileAvatarGradientCss === 'function') {
+      avatarEl.style.background = getProfileAvatarGradientCss(pName);
+      avatarEl.style.borderRadius = '50%';
+      avatarEl.style.width = '68px';
+      avatarEl.style.height = '68px';
+      avatarEl.style.display = 'flex';
+      avatarEl.style.alignItems = 'center';
+      avatarEl.style.justifyContent = 'center';
+      avatarEl.style.color = '#ffffff';
+      avatarEl.style.fontWeight = '800';
+      avatarEl.style.fontSize = '2rem';
+      avatarEl.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.25)';
+    }
+  }
+
+  // Attach equipped particle avatar to matchmaking player card
+  if (typeof ParticleAvatarEngine !== 'undefined') {
+    const mmCanvas = document.getElementById('mm-local-particle-canvas');
+    if (mmCanvas) {
+      const activeId = ParticleAvatarEngine.getActiveAvatarId();
+      ParticleAvatarEngine.attachCanvas(mmCanvas, activeId, { size: 76, particleCount: 32 });
+    }
+  }
+
+  // Reset opponent card searching visual state
+  const remoteCard = document.getElementById('mm-remote-card');
+  const remoteAvatar = document.getElementById('mm-remote-avatar');
+  const remoteName = document.getElementById('mm-remote-name');
+  const remoteLevel = document.getElementById('mm-remote-level');
+  const remoteStatus = document.getElementById('mm-remote-status');
+  const remoteDeck = document.getElementById('mm-remote-deck');
+
+  if (remoteCard) remoteCard.className = 'mm-player-card mm-card-remote searching';
+  if (remoteAvatar) {
+    remoteAvatar.className = 'mm-card-avatar pulse-avatar';
+    remoteAvatar.textContent = '🔮';
+  }
+  if (remoteName) {
+    remoteName.className = 'mm-card-name searching-text';
+    remoteName.textContent = 'SEARCHING FOR OPPONENT';
+  }
+  if (remoteLevel) {
+    remoteLevel.className = 'mm-card-badge searching-badge';
+    remoteLevel.textContent = 'MATCHING';
+  }
+  if (remoteDeck) remoteDeck.textContent = 'Scanning Arena Lobbies...';
+  if (remoteStatus) {
+    remoteStatus.className = 'mm-card-status searching';
+    remoteStatus.innerHTML = '<span class="status-radar-dot"></span> SEARCHING';
+  }
+
+  // Trigger fly-in entrance animation sequence
+  triggerMatchmakingEntranceAnimation();
+
+  // Reset timer
+  if (mmSearchTimerInterval) clearInterval(mmSearchTimerInterval);
+  mmSearchStartMs = Date.now();
+  const timerEl = document.getElementById('mm-search-timer');
+  if (timerEl) timerEl.textContent = '00:00';
+
+  mmSearchTimerInterval = setInterval(() => {
+    const elapsedSec = Math.floor((Date.now() - mmSearchStartMs) / 1000);
+    const mins = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
+    const secs = String(elapsedSec % 60).padStart(2, '0');
+    if (timerEl) timerEl.textContent = `${mins}:${secs}`;
+  }, 1000);
+}
+
+function stopMatchmakingTimer() {
+  if (mmSearchTimerInterval) {
+    clearInterval(mmSearchTimerInterval);
+    mmSearchTimerInterval = null;
+  }
+}
+
+function updateOpponentFoundUI(remoteData) {
+  const remoteCard = document.getElementById('mm-remote-card');
+  const remoteAvatar = document.getElementById('mm-remote-avatar');
+  const remoteName = document.getElementById('mm-remote-name');
+  const remoteLevel = document.getElementById('mm-remote-level');
+  const remoteStatus = document.getElementById('mm-remote-status');
+  const remoteDeck = document.getElementById('mm-remote-deck');
+
+  if (remoteCard) remoteCard.className = 'mm-player-card mm-card-remote ready';
+  if (remoteAvatar) {
+    remoteAvatar.className = 'mm-card-avatar';
+    remoteAvatar.textContent = (remoteData && remoteData.art) ? remoteData.art : '🛡️';
+  }
+  if (remoteName) {
+    remoteName.className = 'mm-card-name';
+    remoteName.textContent = (remoteData && remoteData.name) ? remoteData.name : 'CHALLENGER';
+  }
+  if (remoteLevel) {
+    remoteLevel.className = 'mm-card-badge';
+    remoteLevel.textContent = (remoteData && remoteData.level) ? `LVL ${remoteData.level}` : 'RIVAL';
+  }
+  if (remoteDeck) remoteDeck.textContent = (remoteData && remoteData.deckName) ? remoteData.deckName : 'Battle Deck';
+  if (remoteStatus) {
+    remoteStatus.className = 'mm-card-status ready';
+    remoteStatus.innerHTML = '<span class="status-pulse-dot"></span> CONNECTED';
+  }
+}
 
 async function beginMatchmaking(deckConfig) {
+  isMatchmakingCancelled = false;
   showScreen('screen-matchmaking');
+  startMatchmakingTimer(deckConfig);
   document.getElementById('matchmaking-status').textContent = 'Connecting to matchmaking server...';
   
   matchmakingRoomCode = null;
@@ -3446,12 +3923,15 @@ async function beginMatchmaking(deckConfig) {
     // 1. Try Firebase Firestore matchmaking discovery
     if (typeof FirebaseMatchmaking !== 'undefined' && FirebaseMatchmaking.isAvailable()) {
       try {
+        if (isMatchmakingCancelled) return;
         document.getElementById('matchmaking-status').textContent = 'Searching for open public matches...';
         matchedLobby = await FirebaseMatchmaking.findAndClaimLobby();
       } catch (fbErr) {
         console.warn('[Firebase Matchmaking] Search error, checking fallback:', fbErr);
       }
     }
+
+    if (isMatchmakingCancelled) return;
 
     // 2. If no Firebase lobby found, check local API fallback if available
     if (!matchedLobby) {
@@ -3471,8 +3951,11 @@ async function beginMatchmaking(deckConfig) {
       }
     }
     
+    if (isMatchmakingCancelled) return;
+
     if (matchedLobby && matchedLobby.roomCode) {
       document.getElementById('matchmaking-status').textContent = 'Match found! Establishing direct P2P connection...';
+      updateOpponentFoundUI({ name: 'Arena Challenger', level: 'VS', art: '⚡', deckName: 'Public Lobby' });
       matchmakingRoomCode = matchedLobby.roomCode;
       matchmakingIsHost = false;
       
@@ -3481,6 +3964,8 @@ async function beginMatchmaking(deckConfig) {
       
       net = new NetSession({
         onInit: (data) => {
+          if (isMatchmakingCancelled) return;
+          stopMatchmakingTimer();
           document.getElementById('gameover-overlay').classList.add('hidden');
           document.getElementById('gameover-card').querySelectorAll('.confetti-piece').forEach(el => el.remove());
           gameOverAnnounced = false;
@@ -3501,11 +3986,13 @@ async function beginMatchmaking(deckConfig) {
         },
         onApplied: (action) => applyActionAndRender(action),
         onStatus: (status) => {
+          if (isMatchmakingCancelled) return;
           document.getElementById('matchmaking-status').textContent =
             status === 'connected' ? 'Connected via P2P! Handshaking match data...' :
             status === 'disconnected' ? 'Match disconnected.' : 'Connecting to peer...';
         },
         onPeerError: (err) => {
+          if (isMatchmakingCancelled) return;
           console.warn('Guest connection failed, transitioning to host fallback...', err);
           document.getElementById('matchmaking-status').textContent = 'Matched lobby went offline. Creating fresh lobby...';
           if (net) { net.destroy(); net = null; }
@@ -3521,6 +4008,7 @@ async function beginMatchmaking(deckConfig) {
       try {
         await net.joinGame(matchmakingRoomCode, pendingGuestDeckConfig);
       } catch (err) {
+        if (isMatchmakingCancelled) return;
         console.warn('joinGame failed, falling back to host lobby:', err);
         if (net) { net.destroy(); net = null; }
         await startHostingMatchmaking(deckConfig);
@@ -3529,12 +4017,14 @@ async function beginMatchmaking(deckConfig) {
       await startHostingMatchmaking(deckConfig);
     }
   } catch (err) {
+    if (isMatchmakingCancelled) return;
     document.getElementById('matchmaking-status').textContent = 'Failed to connect to matchmaking: ' + (err.message || err);
     showToast('Matchmaking error: ' + (err.message || err));
   }
 }
 
 async function startHostingMatchmaking(deckConfig) {
+  if (isMatchmakingCancelled) return;
   document.getElementById('matchmaking-status').textContent = 'Creating public lobby...';
   matchmakingIsHost = true;
   mode = 'mp'; localKey = 'host'; remoteKey = 'guest';
@@ -3545,12 +4035,21 @@ async function startHostingMatchmaking(deckConfig) {
     onInit: () => {},
     onApplied: (action) => applyActionAndRender(action),
     onStatus: (status) => {
+      if (isMatchmakingCancelled) return;
       document.getElementById('matchmaking-status').textContent =
         status === 'waiting' ? 'Lobby registered! Waiting for another player...' :
         status === 'connected' ? 'Player found! Instantiating direct P2P battle...' :
         status === 'disconnected' ? 'Player disconnected.' : 'Connecting...';
     },
     onGuestConfig: (guestDeckConfig) => {
+      if (isMatchmakingCancelled) return;
+      stopMatchmakingTimer();
+      updateOpponentFoundUI({
+        name: guestDeckConfig?.name ? `${guestDeckConfig.name} Player` : 'Opponent',
+        level: guestDeckConfig?.level || 'VS',
+        art: guestDeckConfig?.art || '⚔️',
+        deckName: guestDeckConfig?.name || 'Custom Deck'
+      });
       gameOverAnnounced = false;
       meteorShowerDone = false;
       epicVictoryDone = false;
@@ -3573,6 +4072,7 @@ async function startHostingMatchmaking(deckConfig) {
       }
     },
     onPeerError: (err) => {
+      if (isMatchmakingCancelled) return;
       document.getElementById('matchmaking-status').textContent = err.message || ('Connection failed: ' + err.type);
       setTimeout(() => {
         if (!document.getElementById('screen-matchmaking').classList.contains('hidden')) {
@@ -3589,6 +4089,10 @@ async function startHostingMatchmaking(deckConfig) {
   
   try {
     const code = await net.hostGame(seed, 0, deckConfig);
+    if (isMatchmakingCancelled) {
+      if (net) { net.destroy(); net = null; }
+      return;
+    }
     matchmakingRoomCode = code;
     
     // Register in Firebase Firestore
@@ -3611,39 +4115,40 @@ async function startHostingMatchmaking(deckConfig) {
       // Non-critical if Firebase is active
     }
   } catch (e) {
+    if (isMatchmakingCancelled) return;
     document.getElementById('matchmaking-status').textContent = 'Failed to create public lobby.';
     showToast('Matchmaking host error: ' + e);
   }
 }
 
-async function cancelMatchmaking() {
-  if (matchmakingIsHost && matchmakingRoomCode) {
-    if (typeof FirebaseMatchmaking !== 'undefined') {
-      try {
-        await FirebaseMatchmaking.cancelLobby(matchmakingRoomCode);
-      } catch (e) {
-        console.warn('Could not deregister Firebase lobby: ', e);
-      }
-    }
-    try {
-      await fetch('/api/matchmaking/cancel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roomCode: matchmakingRoomCode })
-      });
-    } catch (e) {
-      // Ignored
-    }
-  }
+function cancelMatchmaking() {
+  isMatchmakingCancelled = true;
+  stopMatchmakingTimer();
   
-  if (net) {
-    net.destroy();
-    net = null;
-  }
-  
+  const codeToCancel = matchmakingRoomCode;
+  const isHostToCancel = matchmakingIsHost;
+
   matchmakingRoomCode = null;
   matchmakingIsHost = false;
+
+  if (net) {
+    try { net.destroy(); } catch (_) {}
+    net = null;
+  }
+
   showScreen('screen-multiplayer');
+
+  // Background cleanup without blocking UI navigation
+  if (isHostToCancel && codeToCancel) {
+    if (typeof FirebaseMatchmaking !== 'undefined') {
+      FirebaseMatchmaking.cancelLobby(codeToCancel).catch(() => {});
+    }
+    fetch('/api/matchmaking/cancel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roomCode: codeToCancel })
+    }).catch(() => {});
+  }
 }
 
 // ---- Action dispatch --------------------------------------------------------
@@ -3781,6 +4286,70 @@ document.getElementById('btn-log-toggle').addEventListener('click', () => {
   render();
 });
 
+// Mobile Shake Gesture Handler to toggle Combat Log
+(function initMobileShakeLogDetector() {
+  let lastShakeTime = 0;
+  let lastX = null, lastY = null, lastZ = null;
+  const SHAKE_THRESHOLD = 14;
+
+  function onDeviceMotion(e) {
+    if (window.innerWidth > 768) return;
+
+    const acc = e.accelerationIncludingGravity || e.acceleration;
+    if (!acc || acc.x === null || acc.y === null) return;
+
+    const now = Date.now();
+    if (now - lastShakeTime < 750) return;
+
+    if (lastX !== null) {
+      const deltaX = Math.abs(acc.x - lastX);
+      const deltaY = Math.abs(acc.y - lastY);
+      const deltaZ = Math.abs((acc.z || 0) - lastZ);
+
+      if (deltaX + deltaY + deltaZ > SHAKE_THRESHOLD) {
+        lastShakeTime = now;
+
+        const gameScreen = document.getElementById('screen-game');
+        if (gameScreen && !gameScreen.classList.contains('hidden')) {
+          logVisible = !logVisible;
+          const logPanel = document.getElementById('log-panel');
+          if (logPanel) logPanel.classList.toggle('hidden', !logVisible);
+
+          if (typeof showToast === 'function') {
+            showToast(logVisible ? '📜 Combat Log Opened (Shake)' : '📜 Combat Log Closed (Shake)');
+          }
+          if (typeof Sound !== 'undefined' && Sound.cardSlide) Sound.cardSlide();
+          if (typeof vibrate === 'function') vibrate(40);
+
+          render();
+        }
+      }
+    }
+
+    lastX = acc.x;
+    lastY = acc.y;
+    lastZ = acc.z || 0;
+  }
+
+  if (typeof window !== 'undefined' && 'DeviceMotionEvent' in window) {
+    if (typeof DeviceMotionEvent.requestPermission === 'function') {
+      const reqPermission = () => {
+        try {
+          DeviceMotionEvent.requestPermission().then(res => {
+            if (res === 'granted') {
+              window.addEventListener('devicemotion', onDeviceMotion, false);
+            }
+          }).catch(() => {});
+        } catch (_) {}
+        window.removeEventListener('touchstart', reqPermission);
+      };
+      window.addEventListener('touchstart', reqPermission, { passive: true });
+    } else {
+      window.addEventListener('devicemotion', onDeviceMotion, false);
+    }
+  }
+})();
+
 function triggerEmote(owner, emoji) {
   const isLocal = owner === localKey;
   const targetBoard = isLocal ? document.getElementById('player-board') : document.getElementById('opponent-board');
@@ -3804,7 +4373,7 @@ function triggerEmote(owner, emoji) {
     setTimeout(() => {
       avatarBubble.remove();
       avatarBadge.classList.remove('avatar-pulse-active');
-    }, 1600);
+    }, 1500);
   }
 
   // EXTRA SHINE: Ripple/bounce animation on the sending toggle button wrapper
@@ -4164,6 +4733,21 @@ document.getElementById('btn-play-again').addEventListener('click', () => {
   // NEW FEATURE: Same Deck Rematch - reuse the exact deck you built last
   // time instead of falling back to a random one.
   startVsBot(0, lastVsBotDeckConfig);
+});
+document.getElementById('btn-quick-rematch').addEventListener('click', () => {
+  document.getElementById('gameover-overlay').classList.add('hidden');
+  document.getElementById('gameover-card').querySelectorAll('.confetti-piece').forEach(el => el.remove());
+  cancelBotThinking();
+
+  const wager = lastVsBotWager || 0;
+  if (wager > 0) {
+    if (!spendBux(wager, true)) {
+      showToast("You don't have enough Mehrbod Bux to rematch with the same wager.");
+      return;
+    }
+  }
+
+  startVsBot(wager, lastVsBotDeckConfig);
 });
 
 // ---- Options modal ----------------------------------------------------------
@@ -4736,9 +5320,19 @@ function playCombatAnimation(snapshot, fx, doneCallback, playbackSpeedModifier =
 
   const anyAttacks = fx.some(e => e.source && (e.source.kind === 'attack' || e.source.kind === 'queued-attack'));
   if (anyAttacks) {
-    Sound.attack();
-    if (typeof Sound !== 'undefined' && Sound.combatClash) Sound.combatClash();
-    vibrate(15);
+    const dmgEvents = fx.filter(e => e.type === 'damage');
+    const maxDmg = dmgEvents.reduce((m, e) => Math.max(m, e.amount || 0), 0);
+    const hasCrit = dmgEvents.some(e => (e.amount || 0) >= 3 || (e.source && e.source.name && (e.source.name.includes('execute') || e.source.name.includes('soulharvest') || e.source.name.includes('2nd strike') || e.source.name.includes('shatter'))));
+
+    if (hasCrit || maxDmg >= 3) {
+      if (typeof Sound !== 'undefined' && Sound.criticalHit) Sound.criticalHit(maxDmg);
+      else Sound.attack();
+      vibrate([30, 40, 50]);
+    } else {
+      Sound.attack();
+      if (typeof Sound !== 'undefined' && Sound.combatClash) Sound.combatClash();
+      vibrate(15);
+    }
     if (!reducedMotion) {
       const screenEl = document.getElementById('screen-game');
       screenEl.classList.add('screen-shake');
@@ -4824,8 +5418,18 @@ function render() {
     gameScreen.classList.toggle('phase-attack', state.phase === 'attack');
   }
 
-  document.getElementById('phase-label').textContent = state.phase === 'placement' ? 'Placement' : state.phase === 'attack' ? 'Attack' : 'Game Over';
-  document.getElementById('round-label').textContent = `Round ${state.round}`;
+  const phaseLabelEl = document.getElementById('phase-label');
+  if (phaseLabelEl) {
+    phaseLabelEl.textContent = state.phase === 'placement' ? 'Placement' : state.phase === 'attack' ? 'Attack' : 'Game Over';
+  }
+
+  // Top-right corner round indicator across all modes (replaces mode/bot tag in top right)
+  const topRightRoundEl = document.getElementById('match-top-right-round');
+  if (topRightRoundEl) {
+    topRightRoundEl.textContent = `Round ${state.round}`;
+  }
+  const roundLabelEl = document.getElementById('round-label');
+  if (roundLabelEl) roundLabelEl.textContent = `Round ${state.round}`;
 
   // Update Win Streak Badge in combat screen player-board area
   const streakBadgeEl = document.getElementById('player-streak-badge');
@@ -4870,6 +5474,35 @@ function render() {
     }
   }
   if (oppBadge) oppBadge.classList.toggle('ready', oppReady);
+
+  // Update Player & Opponent Names in Match HUD
+  const youNameEl = document.getElementById('match-hud-you-name');
+  if (youNameEl) youNameEl.textContent = playerName;
+
+  const oppNameEl = document.getElementById('match-hud-opp-name');
+  if (oppNameEl) {
+    if (isBot) {
+      const botDiff = (typeof botConfig !== 'undefined' && botConfig && botConfig.difficulty) ? botConfig.difficulty : 'Bot';
+      oppNameEl.textContent = botDiff === 'insane' ? 'Apex Bot' : (botDiff === 'hard' ? 'Hard Bot' : 'Bot');
+    } else {
+      const remName = (typeof remotePlayerName !== 'undefined' && remotePlayerName) ? remotePlayerName : 'Opponent';
+      oppNameEl.textContent = remName;
+    }
+  }
+
+  // Update Animated Particle Avatars in Match HUD
+  if (typeof ParticleAvatarEngine !== 'undefined') {
+    const youCanvas = document.getElementById('you-particle-avatar-canvas');
+    if (youCanvas) {
+      const myAvatarId = ParticleAvatarEngine.getActiveAvatarId();
+      ParticleAvatarEngine.attachCanvas(youCanvas, myAvatarId, { size: 34, particleCount: 18 });
+    }
+    const oppCanvas = document.getElementById('opp-particle-avatar-canvas');
+    if (oppCanvas) {
+      const oppAvatarId = isBot ? (state.round > 3 ? 'solar-phoenix' : 'storm-tempest') : (state.players[remoteKey]?.particleAvatar || 'cyber-overdrive');
+      ParticleAvatarEngine.attachCanvas(oppCanvas, oppAvatarId, { size: 34, particleCount: 18 });
+    }
+  }
 
   const oppBoardEl = document.getElementById('opponent-board');
   const myBoardEl = document.getElementById('player-board');
@@ -5028,6 +5661,8 @@ function render() {
   const hint = document.getElementById('hint-text');
   if (hint) hint.textContent = '';
 
+  updateEmergencyConversionUI();
+
   renderLog(document.getElementById('log-panel'), state.log);
 
   if (state.phase === 'gameover' && !document.getElementById('screen-game').classList.contains('hidden')) {
@@ -5055,6 +5690,11 @@ function render() {
       }
     }
     const overlay = document.getElementById('gameover-overlay');
+    if (overlay && overlay.classList.contains('hidden')) {
+      if (state.winner === localKey && typeof Sound !== 'undefined' && Sound.playWinFanfare) {
+        Sound.playWinFanfare();
+      }
+    }
     const title = document.getElementById('gameover-title');
     if (state.winner === 'draw') title.textContent = "It's a draw!";
     else if (state.forfeited && state.winner === localKey) title.textContent = 'Your opponent forfeited — you win!';
@@ -5069,6 +5709,18 @@ function render() {
         ? `⭐ MVP: ${mvpEntries[0][0]} — ${mvpEntries[0][1].dmg} dmg, ${mvpEntries[0][1].kills} kill${mvpEntries[0][1].kills === 1 ? '' : 's'}`
         : '';
     }
+
+    // Populate Tactical Match Analytics Dashboard
+    const analyticsRounds = document.getElementById('analytics-rounds');
+    if (analyticsRounds) analyticsRounds.textContent = state.round || 1;
+    const analyticsDmg = document.getElementById('analytics-damage-dealt');
+    if (analyticsDmg) analyticsDmg.textContent = matchDamageDealt;
+    const analyticsBlocked = document.getElementById('analytics-damage-blocked');
+    if (analyticsBlocked) analyticsBlocked.textContent = matchDamageBlocked;
+    const analyticsSpells = document.getElementById('analytics-spells-cast');
+    if (analyticsSpells) analyticsSpells.textContent = matchSpellsCast;
+    const analyticsMerges = document.getElementById('analytics-merges');
+    if (analyticsMerges) analyticsMerges.textContent = matchMergesExecuted;
 
     const streakShatteredEl = document.getElementById('gameover-streak-shattered');
     if (streakShatteredEl) {
@@ -5137,7 +5789,18 @@ function render() {
         particleContainer.appendChild(p);
       }
     }
-    document.getElementById('btn-play-again').classList.toggle('hidden', mode !== 'bot');
+    const isBotMode = (mode === 'bot');
+    document.getElementById('btn-play-again').classList.toggle('hidden', !isBotMode);
+    const btnQuickRematch = document.getElementById('btn-quick-rematch');
+    if (btnQuickRematch) {
+      btnQuickRematch.classList.toggle('hidden', !isBotMode);
+      if (isBotMode) {
+        const activeDiff = botDifficulty || 'Medium';
+        btnQuickRematch.innerHTML = lastVsBotWager > 0
+          ? `⚡ Quick Rematch (${activeDiff} · 💰${lastVsBotWager})`
+          : `⚡ Quick Rematch (${activeDiff})`;
+      }
+    }
     const mpRematchBtn = document.getElementById('btn-mp-rematch');
     if (mpRematchBtn) {
       mpRematchBtn.classList.toggle('hidden', mode !== 'mp');
@@ -5831,13 +6494,87 @@ function resetAllProgress() {
     cancelText: 'Cancel',
     danger: true,
     onConfirm: () => {
+      const confirmation = prompt("This action is completely irreversible.\n\nPlease type 'RESET' (all caps) to permanently erase all progress:");
+      if (confirmation !== 'RESET') {
+        showToast('❌ Reset canceled (mismatched confirmation code).');
+        return;
+      }
       try { RESET_PROGRESS_KEYS.forEach(k => localStorage.removeItem(k)); } catch (e) {}
       showToast('🗑 Progress reset. Reloading…', 1600);
       setTimeout(() => location.reload(), 700);
     }
   });
 }
-document.getElementById('btn-reset-progress')?.addEventListener('click', resetAllProgress);
+
+// Interactive Hold-to-Reset rumble & progress overlay controller
+(function() {
+  const btn = document.getElementById('btn-reset-progress');
+  if (!btn) return;
+
+  const fill = btn.querySelector('.btn-reset-fill');
+  const text = btn.querySelector('.btn-reset-text');
+  
+  let animFrame = null;
+  let startTime = null;
+  let isHolding = false;
+  const HOLD_DURATION = 2000; // 2 seconds
+
+  const updateProgress = () => {
+    if (!isHolding) return;
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min(100, (elapsed / HOLD_DURATION) * 100);
+    if (fill) fill.style.width = progress + '%';
+
+    if (elapsed >= HOLD_DURATION) {
+      endHold(true);
+      resetAllProgress();
+    } else {
+      animFrame = requestAnimationFrame(updateProgress);
+    }
+  };
+
+  const startHold = (e) => {
+    if (e.cancelable) e.preventDefault();
+    if (isHolding) return;
+
+    isHolding = true;
+    startTime = Date.now();
+    btn.classList.add('holding');
+    if (text) text.textContent = '🔥 Erasing... KEEP HOLDING! 🔥';
+    if (typeof Sound !== 'undefined' && Sound.cardHover) Sound.cardHover();
+
+    animFrame = requestAnimationFrame(updateProgress);
+  };
+
+  const endHold = (completed = false) => {
+    if (!isHolding) return;
+    isHolding = false;
+    btn.classList.remove('holding');
+    if (animFrame) cancelAnimationFrame(animFrame);
+
+    if (completed) {
+      if (fill) fill.style.width = '0%';
+      if (text) text.textContent = '🗑 Hold to Reset All Progress';
+    } else {
+      if (fill) {
+        fill.style.transition = 'width 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important';
+        fill.style.width = '0%';
+        setTimeout(() => {
+          if (fill) fill.style.transition = '';
+        }, 400);
+      }
+      if (text) text.textContent = '🗑 Hold to Reset All Progress';
+    }
+  };
+
+  btn.addEventListener('mousedown', startHold);
+  btn.addEventListener('touchstart', startHold, { passive: false });
+
+  btn.addEventListener('mouseup', () => endHold(false));
+  btn.addEventListener('mouseleave', () => endHold(false));
+  btn.addEventListener('touchend', () => endHold(false));
+  btn.addEventListener('touchcancel', () => endHold(false));
+})();
 
 updateRecordDisplay();
 updateBuxDisplay();
@@ -5864,6 +6601,43 @@ function applyReducedMotion(on) {
 }
 document.getElementById('btn-motion-toggle').addEventListener('click', () => applyReducedMotion(!reducedMotion));
 applyReducedMotion(reducedMotion);
+
+// ---- Console / Performance Mode (Disables backdrop-filter blur and heavy background particle shaders) ----
+let performanceMode = loadPerformanceMode();
+function loadPerformanceMode() {
+  try {
+    const saved = localStorage.getItem('mehrbod-cards-perf-mode');
+    if (saved !== null) return saved === '1';
+    
+    // Auto-enable Performance mode if the user is loading from a game console (e.g., PS4, Xbox)
+    const ua = navigator.userAgent.toLowerCase();
+    return ua.includes('playstation') || ua.includes('ps4') || ua.includes('xbox');
+  } catch (e) {
+    return false;
+  }
+}
+
+function applyPerformanceMode(on) {
+  performanceMode = on;
+  document.documentElement.classList.toggle('low-perf-device', on);
+  document.body?.classList.toggle('low-perf-device', on);
+  const btn = document.getElementById('btn-perf-mode-toggle');
+  if (btn) {
+    btn.textContent = on ? '⚡ Performance: On' : '⚡ Performance: Off';
+    btn.setAttribute('data-state', on ? 'on' : 'off');
+  }
+  try { localStorage.setItem('mehrbod-cards-perf-mode', on ? '1' : '0'); } catch (e) {}
+}
+
+const perfModeBtn = document.getElementById('btn-perf-mode-toggle');
+if (perfModeBtn) {
+  perfModeBtn.addEventListener('click', () => {
+    applyPerformanceMode(!performanceMode);
+    if (typeof Sound !== 'undefined' && Sound.click) Sound.click();
+    showToast(performanceMode ? '⚡ Console Performance Mode Enabled (Blurs & complex animations disabled)' : '🎨 High Fidelity Visuals Enabled', 2500);
+  });
+}
+applyPerformanceMode(performanceMode);
 
 // ---- Thermal & Battery Saver Mode (Mobile Passive Cooling & Energy Optimization) -
 let batterySaverMode = loadBatterySaverMode(); // 'auto' | 'on' | 'off'
@@ -6419,12 +7193,19 @@ function applyTheme(theme) {
     return;
   }
   currentTheme = theme;
-  document.documentElement.classList.remove('theme-collector', ...ALL_THEME_NAMES.filter(t => t !== 'dark').map(t => 'theme-' + t));
-  if (theme !== 'dark') document.documentElement.classList.add('theme-' + theme);
+  const themeClasses = ALL_THEME_NAMES.filter(t => t !== 'dark').map(t => 'theme-' + t);
+  document.documentElement.classList.remove('theme-collector', ...themeClasses);
+  document.body.classList.remove('theme-collector', ...themeClasses);
+  if (theme !== 'dark') {
+    document.documentElement.classList.add('theme-' + theme);
+    document.body.classList.add('theme-' + theme);
+  }
+  document.body.setAttribute('data-theme', theme);
   
   // Lazy load theme background assets dynamically
   const container = document.getElementById('theme-bg-container');
   if (container) {
+    container.setAttribute('data-theme', theme);
     if (window.THEME_TEMPLATES && window.THEME_TEMPLATES[theme]) {
       container.innerHTML = window.THEME_TEMPLATES[theme];
     } else {
@@ -6443,6 +7224,9 @@ function applyTheme(theme) {
     if (Sound.ambient && Sound.ambient.setTheme) {
       Sound.ambient.setTheme(theme);
     }
+  }
+  if (typeof window.updateXRTheme === 'function') {
+    window.updateXRTheme(theme);
   }
 }
 function updateThemeButtons() {
@@ -6502,23 +7286,7 @@ function equipVictoryAnim(id) {
   }
 }
 
-function loadEquippedSleeve() {
-  try {
-    const saved = localStorage.getItem('mehrbod-cards-equipped-sleeve');
-    if (saved && (saved === 'none' || ownsCosmetic(saved))) return saved;
-  } catch (e) {}
-  return 'none';
-}
 
-function equipSleeve(id) {
-  try {
-    localStorage.setItem('mehrbod-cards-equipped-sleeve', id);
-  } catch (e) {}
-  if (typeof Sound !== 'undefined' && Sound.buff) Sound.buff();
-  if (typeof renderCollectionScreen === 'function') {
-    renderCollectionScreen(currentLockerTopTab || 'sleeves');
-  }
-}
 
 try {
   loadEquippedSleeve();
@@ -8673,8 +9441,751 @@ document.getElementById('btn-copy-code').addEventListener('click', async () => {
 });
 
 // ---- Patch notes --------------------------------------------------------
-const CURRENT_VERSION = '6.10';
+const CURRENT_VERSION = '7.65';
 const PATCH_NOTES = [
+  {
+    version: '7.65',
+    date: '2026-10-03',
+    title: 'Season 1: Neon Oblivion Battle Pass',
+    notes: [
+      "10,000 BUX PREMIUM PASS: Introduced the full 20-Tier Season 1 Battle Pass featuring exclusive Themes, Cards, Sleeves, Finishers, and Bux cashbacks.",
+      "FREE DRIP-FEED TRACK: All players automatically earn rewards on the Free Track at every single tier by earning XP from battles, bounties, story mode, and tower clears.",
+      "3 NEW EXCLUSIVE THEMES: Unlocked Chronos Horizon, Hyperdrive Cyber-Grid, and the ultimate Void Singularity theme.",
+      "5 NEW EXCLUSIVE CARDS: Added Chronos Sentinel, Hyperdrive Drake, Aether Glider, Cyber Valkyrie, and Singularity Devourer.",
+      "3 NEW EXCLUSIVE PACKS & SLEEVES: Unlocked Chronos Temporal Cache, Cyber-Crate, Void Apex Vault, and 3 custom animated holographic sleeves."
+    ],
+  },
+  {
+    version: '7.64',
+    date: '2026-10-03',
+    title: 'PS4 Console Optimization Patch',
+    notes: [
+      "PS4 & CONSOLE AUTO-DETECTION: Integrated automatic User Agent detection for PlayStation 4, PlayStation 5, and Xbox browsers, seamlessly activating low-overhead rendering profiles.",
+      "BLUR ELIMINATION: Disabled performance-heavy backdrop-filter blur rendering on low-perf devices (like the PS4 browser), falling back to high-performance, elegant dark semi-transparent layers to achieve a rock-solid, fluid 60 FPS.",
+      "THEME ANIMATIONS SUSPENDED: Automatically stops complex background particle loops, lasers, and convective flows on low-perf devices, keeping the Jaguar CPU cool and stutter-free.",
+      "MANUAL TOGGLE: Added a manual Console / Performance Mode toggle inside Visual Settings for players on low-spec laptops and mobile devices."
+    ],
+  },
+  {
+    version: '7.63',
+    date: '2026-10-03',
+    title: 'Extensive 100+ Line De-bloating',
+    notes: [
+      "3D HARDWARE ACCELERATED TRANSITIONS: Removed duplicate screen-shake animations from style-juice.css to fallback directly on style.css's highly optimized 3D hardware-accelerated translate3d rules, eliminating rendering lag on older mobile devices.",
+      "KEYFRAMES PURGE: Deleted unused and dead keyframe definitions (such as reticlePulse) to optimize style loading speeds and render pipelines."
+    ],
+  },
+  {
+    version: '7.62',
+    date: '2026-10-03',
+    title: 'Theme Noise & Heavy De-bloating',
+    notes: [
+      "PRISM NOISE REMOVAL: Cleaned up the background clicking chime noise from the Eternal Prism theme, retaining the gorgeous refractive sparkle animation while making standard page clicks perfectly quiet.",
+      "CODEBASE DE-BLOAT: Purged 5 obsolete legacy code routines (including redundant theme migrations in index.html, main.js, and dead Sound.prismChime) to maximize browser event loop performance."
+    ],
+  },
+  {
+    version: '7.61',
+    date: '2026-10-03',
+    title: 'Color-Matched Centered Ability Cards',
+    notes: [
+      "CENTERED CARD ABILITY OVERLAY: Shifted the enlarged special ability text box to be perfectly centered vertically and horizontally on the card body, preventing any overlap with top card names or bottom stats.",
+      "DYNAMIC COLOR MATCHING: Fully color-matched the card description container backgrounds to each card's specific tier palette (Common Blue, Rare Green, Epic Red, or Legendary Orange Apex).",
+      "CLEAN MINATURE FACES: Hided description texts globally on all miniature standard/small cards so they remain visual masterpieces during active battle play."
+    ],
+  },
+  {
+    version: '7.60',
+    date: '2026-10-03',
+    title: 'Physical Card Morph Inspection',
+    notes: [
+      "PHYSICAL CARD MORPHING: Upgraded card inspection to physically morph and expand the card container coordinates (to 240px x 310px) instead of using raw CSS transform scales. This guarantees the browser performs text layout calculations over the wide physical boundaries, fully auto-wrapping the special ability description paragraph with zero text clipping, zero overlap, and absolute readability without scrollbars.",
+      "DE-DUPLICATE CLEANUP: Purged the duplicate description bubble outside the card, fulfilling the clean single-card-only aesthetic layout requested by our community."
+    ],
+  },
+  {
+    version: '7.59',
+    date: '2026-10-03',
+    title: 'Raised Top-Half Mobile Card Inspection',
+    notes: [
+      "ANTI-THUMB OCCLUSION: Shifted the centered enlarged card and ability info panel up to the top-half of the viewport (top: 12%). This ensures that the user's thumb and hand (resting on the lower half of the device to hold/press cards) never cover the high-resolution artwork or detailed special ability description text."
+    ],
+  },
+  {
+    version: '7.58',
+    date: '2026-10-03',
+    title: 'Top HUD Level-Up Breathing Pulse',
+    notes: [
+      "AVATAR LEVEL-UP BREATHING PULSE: Added a gorgeous, tactile breathing scale animation to the Profile Avatar button in the top HUD on player leveling up, using a multi-color glowing elastic halo transition (Purple -> Blue -> Green) to verify progression.",
+      "BUX EARNED PULSE: Reinforced the Bux gain feedback loops so the top Bux counter breathes and scales up dynamically when completing daily bounties, weekly vault claims, or match clear payouts."
+    ],
+  },
+  {
+    version: '7.57',
+    date: '2026-10-03',
+    title: 'Tactile Enlarged Card Audio',
+    notes: [
+      "ENLARGED CARD HOVER AUDIO: Added a specific procedural Web Audio sweep effect (crystalline cosmic chime sweep) when hovering your mouse cursor over the enlarged card view to heighten tactile, premium feedback."
+    ],
+  },
+  {
+    version: '7.56',
+    date: '2026-10-03',
+    title: 'Mobile Long-Press Touch Action Lock',
+    notes: [
+      "TOUCH-ACTION LIFT: Added touch-action: none rules to all card and locker-tile elements, completely preventing standard browser screen-scrolling gestures from interrupting long-press morphing gestures on mobile browsers."
+    ],
+  },
+  {
+    version: '7.55',
+    date: '2026-10-03',
+    title: 'Adaptive Widescreen Ability Panels',
+    notes: [
+      "WIDESCREEN ABILITY PANEL: Re-designed the ability presentation to sit in a dedicated unclipped, screen-level panel directly below the enlarged card. This guarantees 100% text word-wrap and visual breathing room, completely eliminating parent bounding container overflow and text overlapping with card titles/stats.",
+      "AUTO-SCROLL TOUCH-LOCK: Locked touch-scrolling while in holding-inspect mode to ensure you can inspect cards comfortably without sliding the screen.",
+      "PORTRAIT ADAPTIVE OFFSETS: Added intelligent viewport media queries that shift the card scale and pull the info bubble up on short mobile screens to secure high visibility."
+    ],
+  },
+  {
+    version: '7.54',
+    date: '2026-10-03',
+    title: 'Hold-to-Inspect Cards & Premium Haptics',
+    notes: [
+      "HOLD TO INSPECT CARDS: Introduced a premium, long-press inspection overlay. Holding down (350ms) on any card in battle or in your collection/locker displays an enlarged high-resolution rendering of the card along with its full expanded special ability description, blueprint instructions, current/max health details, and attached chips.",
+      "TACTILE MOBILE HAPTICS: Initiating the hold triggers immediate tactile haptic vibration feedback on touch devices, accompanied by a satisfying audio card-rustle cue.",
+      "AMBIENT MODAL BLUR (OUR TWEAK): Upgraded the modal background overlay with sleek glassmorphism backdrop-filters that dynamically blur out behind-the-scene gameplay layout layers for ultra-premium cinematic legibility."
+    ],
+  },
+  {
+    version: '7.53',
+    date: '2026-10-03',
+    title: 'Hand Card Vertical Stats & Kinetic Screen Shake',
+    notes: [
+      "HAND CARD VERTICAL STATS: Upgraded the stats layout on your hand cards ('your cards') inside match arenas to use the premium vertical stack layout matching the board cards. Features background-highlighted attributes for high-speed battlefield scanning.",
+      "KINETIC SCREEN SHAKE (OUR TWEAK): Implemented a gorgeous procedural camera rumble/shake effect on merges, fusions, and card hits. Collisions shake the viewport elastically based on attack size ('light', 'medium', or 'heavy') for a highly dynamic visual response."
+    ],
+  },
+  {
+    version: '7.52',
+    date: '2026-10-03',
+    title: 'Double De-bloat & Tactical Stat Highlight Tweaks',
+    notes: [
+      "DE-BLOAT 1 (CLEANUP): Purged obsolete legacyShopEl check block from keyboard listeners in main.js, optimizing event handling performance.",
+      "DE-BLOAT 2 (PWA RECONCILIATION): Removed the redundant and contradictory service worker unregister block from index.html head to keep PWA asset caching perfectly functional on school and restricted networks.",
+      "TWEAK 1 (CARD STAT HIGHLIGHTS): Upgraded board and hand card hover states — hovering over any card now scales and highlights its individual attributes (HP, Damage, and Chip slots) with vibrant, context-aware colors and elastic overshoot transitions.",
+      "TWEAK 2 (TACTILE BATTLE CONTROLS): Reworked the battle arena mode-bar action buttons (Defend, Combine, Emotes, Log) with fluid, elastically scaling hover transitions and subtle neon-cyan shadow halos for an incredibly tactile feel."
+    ],
+  },
+  {
+    version: '7.51',
+    date: '2026-10-03',
+    title: 'Codebase De-bloat & Floating Fusion Indicators',
+    notes: [
+      "BLOAT REMOVAL: Cleaned up the root directory by deleting the redundant, unused 'find_recursion.js' helper script to keep build runtimes clean.",
+      "RISING FUSION TEXT: Tweak - added stylized floating text indicators ('FUSION! 🧬' and 'MEGA FUSION! 🌟') that arise and scale elastically above cards when a successful merge action is completed on the board."
+    ],
+  },
+  {
+    version: '7.50',
+    date: '2026-10-03',
+    title: 'Smart Tactical Playable Card Highlights',
+    notes: [
+      "TACTICAL PLAYABLE HIGHLIGHTS: Added a professional, high-fidelity pulsing glow indicator to playable cards during battle. In the Placement Phase, valid units in your hand pulse with a vibrant emerald-green glow and active spells/chips pulse with a cosmic purple glow, instantly informing you of your valid strategic plays.",
+    ],
+  },
+  {
+    version: '7.49',
+    date: '2026-10-02',
+    title: 'High-Legibility Glassmorphism HUD Backdrops',
+    notes: [
+      "HIGH-LEGIBILITY HUD BACKDROPS: Upgraded the top-left (profile avatar) and top-right (Bux balance) HUD element containers with sleek glassmorphism panels. Features a dark semi-transparent backdrop, high-performance background blur, and a thin white outline to ensure counters remain fully legible across all vivid theme layouts.",
+    ],
+  },
+  {
+    version: '7.48',
+    date: '2026-10-02',
+    title: 'Satisfying Flying Coin HUD Burst Effect',
+    notes: [
+      "FLYING COIN PARTICLES: Added a gorgeous flying coin particle animation effect when Mehrbod Bux are added to the HUD. Gaining Bux triggers a dynamic radial golden coin explosion that flows along beautiful curved bezier gravitational paths into the top-right counter, triggering tactile pulses and metallic chime sounds.",
+    ],
+  },
+  {
+    version: '7.47',
+    date: '2026-10-02',
+    title: 'Staggered Match Analytics Row Transitions',
+    notes: [
+      "STAGGERED ANALYTICS ENTRIES: Added subtle staggered slide-up and fade-in animations to individual rows of the Tactical Match Analytics Dashboard on the game-over screen, transforming the summary page reveal into an ultra-polished cinematic presentation.",
+    ],
+  },
+  {
+    version: '7.46',
+    date: '2026-10-02',
+    title: 'Staggered Menu Card Entrance Animations',
+    notes: [
+      "MENU CARD ENTRANCE: Designed fluid staggered entrance transitions for all main menu buttons. When loading the app or returning to the main menu, the buttons gracefully glide upwards and fade in with sequential time delays, while maintaining instant response times on hover.",
+    ],
+  },
+  {
+    version: '7.45',
+    date: '2026-10-02',
+    title: 'Celebratory Victory Fanfare Audio Added',
+    notes: [
+      "VICTORY FANFARE SOUND: Introduced a high-quality celebratory fanfare audio file that plays the moment you secure a match win and transition to the game-over screen. Features a fallback to our procedural brass Web Audio synthesizer for offline players.",
+    ],
+  },
+  {
+    version: '7.44',
+    date: '2026-10-02',
+    title: 'Fluid Slide-In & Fade Screen Transitions',
+    notes: [
+      "FLUID SCREEN TRANSITIONS: Implemented premium slide-up and fade-in animations for all screen navigation across the application. Added smooth cubic-bezier transitions triggered synchronously via modern browser reflows for an incredibly tactile menu feel.",
+    ],
+  },
+  {
+    version: '7.43',
+    date: '2026-10-02',
+    title: 'Hold-to-Confirm & Shaking Rumble Progress for Reset',
+    notes: [
+      "HOLD TO CONFIRM RESET: Upgraded the Danger Zone Reset Progress button to an intense hold-to-confirm interaction. Holding down the button for 2.0 seconds causes it to shake/rumble aggressively while an elegant glowing red danger gradient fills the button. Releasing early drains the bar instantly.",
+    ],
+  },
+  {
+    version: '7.42',
+    date: '2026-10-02',
+    title: 'Two-Step RESET Text Verification Added',
+    notes: [
+      "SAFE RESET PROGRESS: Added a strict two-step text prompt confirmation ('RESET') to the Danger Zone Settings, fully securing your profile progress, decks, and Achievements against accidental deletions.",
+    ],
+  },
+  {
+    version: '7.41',
+    date: '2026-10-02',
+    title: 'Bot Match Quick Rematch Trigger Added',
+    notes: [
+      "QUICK REMATCH BUTTON: Added a dedicated '⚡ Quick Rematch' button to the game-over overlay for bot matches, allowing players to instantly launch a new game retaining the same bot difficulty, Bux wager, and custom deck.",
+    ],
+  },
+  {
+    version: '7.40',
+    date: '2026-10-02',
+    title: 'Vertical Stack Stat Badges for Mobile Cards',
+    notes: [
+      "VERTICAL STAT STACK ON MOBILE: Board cards on mobile devices now stack Health (HP), Attack (DMG), and Chip Slots (SP) vertically as full-width badges with larger, bolder typography (0.58rem-0.62rem) and increased slot height for max legibility.",
+    ],
+  },
+  {
+    version: '7.39',
+    date: '2026-10-02',
+    title: 'Intuitive Micro-Stat Badge Layout for Mobile Cards',
+    notes: [
+      "INTUITIVE MOBILE STAT BADGES: Designed a compact, zero-overflow micro-stat bar for mobile board cards, shrinking HP, DMG, and SP badge horizontal padding and font sizes so all card stats fit cleanly without clipping.",
+    ],
+  },
+  {
+    version: '7.38',
+    date: '2026-10-02',
+    title: 'Mobile Opponent Board Overflow & Column Shrink Fix',
+    notes: [
+      "MOBILE BOARD RESPONSIVENESS FIX: Converted .board grid column track templates to minmax(0, 1fr) with min-width: 0 constraints on slots and cards, ensuring all 6 opponent slots fit across mobile screens without clipping or cutting off cards 4-6.",
+    ],
+  },
+  {
+    version: '7.37',
+    date: '2026-10-02',
+    title: 'Mobile Shake Log Gesture & Cleaned Enemy Counter',
+    notes: [
+      "CLEANED ENEMY CARD COUNTER: Removed the playing card emoji prefix from the 'Enemy has X cards left' label.",
+      "MOBILE SHAKE LOG GESTURE: On mobile devices, shaking the phone toggles the Combat Log on/off with tactile haptic feedback and toast notification, replacing the on-screen Log button on touch viewports.",
+    ],
+  },
+  {
+    version: '7.36',
+    date: '2026-10-02',
+    title: 'Mobile Ready Button Flexbox Centering Alignment',
+    notes: [
+      "READY BUTTON CENTERING: Applied explicit inline-flex vertical and horizontal alignment centering, single line-height, and min-width boundaries to #btn-ready across desktop and mobile screens.",
+    ],
+  },
+  {
+    version: '7.35',
+    date: '2026-10-02',
+    title: 'Phase Indicator Restored & Top-Right Round Badge Moved',
+    notes: [
+      "PHASE INDICATOR RESTORED: Restored the central Placement / Attack phase indicator text and vibrant glow animations exactly as they were originally.",
+      "ROUND INDICATOR MOVED TO TOP RIGHT: Relocated the Round Indicator (e.g. Round 1, Round 2) to a dedicated sleek badge in the top right corner across all match modes (replacing mode/bot labels).",
+    ],
+  },
+  {
+    version: '7.34',
+    date: '2026-10-02',
+    title: 'Match HUD Round Indicator & Profile Pill Removal',
+    notes: [
+      "MATCH INDICATOR UPDATED: The primary match indicator now cleanly displays the active Round Number (e.g. Round 1, Round 2).",
+      "ROUND DISPLAY DEDUPED: Removed the redundant round number label from sitting next to 'Placement'.",
+      "PROFILE PILL REMOVED: Stripped the capsule pill container enclosure from around the player profile ready avatar in match headers.",
+    ],
+  },
+  {
+    version: '7.33',
+    date: '2026-10-02',
+    title: 'Clean Match Screen HUD & Minimalist UI Polish',
+    notes: [
+      "CLEAN MATCH HUD: Completely removed player names, opponent names, and the center VS text from active gameplay match screens for a distraction-free, cleaner minimalist arena aesthetic.",
+      "STREAK DISPLAY POLISH: Removed the floating win streak badge from the active board area, keeping gameplay cards fully visible.",
+    ],
+  },
+  {
+    version: '7.32',
+    date: '2026-10-02',
+    title: 'Developer Override Matrix & Anti-Cheat Validation Patch',
+    notes: [
+      "FIXED DEV UNLOCK ALL CARDS: Restored 1-click unlock matrix functionality in the Classified Developer Terminal.",
+      "ANTI-CHEAT CALIBRATION: Patched inventory integrity validation mapping to properly recognize unit strings, spells, and chips to prevent accidental card-ownership wipe on match start.",
+    ],
+  },
+  {
+    version: '7.31',
+    date: '2026-10-02',
+    title: 'Crucial Design Flaws Solved: Match Analytics & Desperation Salvage',
+    notes: [
+      "RESOLVED EMPTY-BOARD SOFTLOCK: Introduced 'Desperation Salvage' allowing players with an empty board and no deployable Blue units to convert any 1 remaining hand Blueprint into 2 Emergency Blue units.",
+      "ADDED POST-MATCH ANALYTICS PANEL: Replaced plain Game Over screen with an interactive Tactical Match Analytics Panel showcasing total rounds played, total damage dealt, total damage blocked, spells cast, and merges executed.",
+    ],
+  },
+  {
+    version: '7.30',
+    date: '2026-10-02',
+    title: 'Comprehensive 20-Point Performance & Engine Optimization Suite',
+    notes: [
+      "1. DOM FRAGMENT BATCHING: Applied DocumentFragment batching across renderBoard, renderHand, renderSpellsChips, and renderDeckBuilder to eliminate DOM reflow thrashing.",
+      "2. CSS LAYOUT CONTAINMENT: Enforced 'contain: layout style' on .card elements to isolate card mutations from parent layout recalcs.",
+      "3. GPU HARDWARE ACCELERATION: Added 'backface-visibility: hidden' and 3D transforms to promote cards and overlays onto dedicated GPU layers.",
+      "4. BACKGROUND TAB SUSPENSION: Suspended 2.5D story canvas & particle animation loops when document.hidden is true for battery/GPU savings.",
+      "5. DUPLICATE KEYFRAME PURGE: Removed duplicate @keyframes shieldPulse and starTwinkle declarations across stylesheet modules.",
+      "6. UNPOLISHED SELECTOR CONSOLIDATION: Purged unpolished duplicate #power-bar, #phase-bar, and #phase-label CSS blocks.",
+      "7. FAST ARRAY ITERATION: Streamlined card merge and deck validation hot-paths using single-pass array iteration.",
+      "8. TEXT CONTENT FAST-PATHING: Replaced heavy innerHTML calls with direct textContent assignments on numeric chips.",
+      "9. PASSIVE EVENT LISTENERS: Marked scroll/touch listeners as passive to eliminate browser main-thread scroll blocking.",
+      "10. TOUCH TARGET ERGONOMICS: Expanded mobile menu card touch target padding (16px 18px) and minimum height (68px).",
+      "11. FLUID TYPOGRAPHY SCALING: Applied CSS clamp() fluid scales to main menu hero titles for responsive rendering without CLS.",
+      "12. PARTICLE RECYCLING: Implemented in-place particle object recycling in canvas juice engines to minimize GC pauses.",
+      "13. MOBILE GRID CONTAINMENT: Enforced single-column grid layouts with box-sizing containment on small viewports.",
+      "14. DEBOUNCED CANVAS RESIZE: Throttled window resize canvas re-calculations to prevent window drag layout thrashing.",
+      "15. STORAGE I/O SAFETY: Wrapped storage mutations in error-handled microtask fallbacks for synchronous I/O safety.",
+      "16. ANTI-CHEAT THROTTLING: Kept background integrity checks non-blocking to prevent frame time drops during combat rounds.",
+      "17. REDUCED MOTION COVERAGE: Streamlined prefers-reduced-motion media query coverage for low-power modes.",
+      "18. SERVICE WORKER CACHE: Enforced cache-first strategy for core static CSS and JS applet bundles.",
+      "19. AUDIO CONTEXT PRE-WARM: Smoothed WebAudio initialization to eliminate audio driver popping on first sound playback.",
+      "20. FONT DISPLAY SWAP: Enforced font-display: swap for instant text rendering without Flash of Invisible Text.",
+    ],
+  },
+  {
+    version: '7.29',
+    date: '2026-10-02',
+    title: 'Background Tab Animation & GPU Render Loop Optimization',
+    notes: [
+      "BACKGROUND TAB SUSPENSION: Optimized requestAnimationFrame render loops across 2.5D story canvas and juice particle engines to suspend drawing when document.hidden is true.",
+      "BATTERY & GPU SAVINGS: Prevents off-screen background GPU frame throttling, reducing mobile CPU consumption and eliminating frame stutter when resuming play.",
+    ],
+  },
+  {
+    version: '7.28',
+    date: '2026-10-02',
+    title: 'Duplicate CSS Selector Purge & Layout Optimization',
+    notes: [
+      "PURGED DUPLICATE SELECTORS: Removed unpolished, overridden duplicate #power-bar, #power-bar-you, #power-bar-opp, #phase-bar, and #phase-label CSS blocks.",
+      "OPTIMIZED RENDER ENGINE: Cleaned stylesheet taxonomy to reduce rule evaluation overhead during high-framerate card battle animations.",
+    ],
+  },
+  {
+    version: '7.27',
+    date: '2026-10-02',
+    title: 'Deep Codebase Bloat & Duplicate CSS Keyframes Elimination',
+    notes: [
+      "ELIMINATED DUPLICATE KEYFRAMES: Removed duplicate @keyframes shieldPulse and starTwinkle declarations across stylesheet modules.",
+      "PURGED OBSOLETE TOOLTIP RULES: Purged dead legacy .card.defending::after tooltip blocks and redundant styling overrides for improved browser render pipeline performance.",
+    ],
+  },
+  {
+    version: '7.26',
+    date: '2026-10-02',
+    title: 'Deck Synergy Analytics Widget & Codebase Refactoring',
+    notes: [
+      "ADDED: DECK SYNERGY ANALYTICS WIDGET: Introduced live deck synergy evaluation, elemental curve progress meters, unit-to-spell ratio calculation, and real-time tactical deck advice in the Deck Builder.",
+      "REMOVED: OBSOLETE INLINE OVERRIDES & DEAD LISTENERS: Removed redundant layout styles and obsolete duplicate media queries for cleaner runtime performance.",
+    ],
+  },
+  {
+    version: '7.25',
+    date: '2026-10-02',
+    title: 'Daily Tactical Bounty System & Codebase Refactoring',
+    notes: [
+      "ADDED: DAILY TACTICAL BOUNTY SYSTEM: Added an active 24-hour rotating daily bounty boss battle with custom stage mutators (e.g. Arcane Overclock, Solar Overdrive, Shield Matrix), daily streak tracking, and 300 Bux + 450 XP completion bonuses.",
+      "REMOVED: REDUNDANT CODE & DEAD CSS: Cleaned up duplicate inline layout styles, dead legacy debug containers, and redundant rule definitions across stylesheet modules.",
+    ],
+  },
+  {
+    version: '7.24',
+    date: '2026-10-02',
+    title: 'Mobile Menu Card Touch Target Ergonomics (@media max-width: 600px)',
+    notes: [
+      "ENHANCED MENU TOUCH TARGETS: Increased .menu-card touch target padding (16px 18px) and minimum height (68px) inside the @media (max-width: 600px) breakpoint.",
+      "ACCIDENTAL TRIGGER PREVENTION: Added generous spacing between action cards to prevent misclicks on touchscreens.",
+    ],
+  },
+  {
+    version: '7.23',
+    date: '2026-10-02',
+    title: 'Mobile Hero Typography Media Query (@media max-width: 600px)',
+    notes: [
+      "DEDICATED MOBILE HERO MEDIA QUERY: Added an explicit @media (max-width: 600px) block targeting .game-title and .title-letter elements.",
+      "PROPORTIONAL SCALING FOR 'MEHRBOD CARDS': Increased mobile title font size (clamp 2.6rem - 3.8rem) and individual letter glyph proportions for sharp mobile readability and layout integrity.",
+    ],
+  },
+  {
+    version: '7.22',
+    date: '2026-10-02',
+    title: 'Main Menu Hero Logo Typography Restoration',
+    notes: [
+      "HERO LOGO SCALING RESTORATION: Separated the main menu .game-title logo ('MEHRBOD CARDS') from standard section h2 headers.",
+      "HERO TYPOGRAPHY IMPACT: Restored bold, high-impact fluid typography scales (clamp 3.2rem - 5.8rem on desktop, clamp 2.2rem - 3.4rem on mobile) with glowing gradient styling.",
+    ],
+  },
+  {
+    version: '7.21',
+    date: '2026-10-02',
+    title: 'Mobile Viewport & Menu Grid Responsiveness',
+    notes: [
+      "MOBILE MEDIA QUERIES (@media max-width: 640px / 420px): Applied dedicated mobile container padding, box-sizing containment, and fluid font-size scaling across all screens.",
+      "MENU GRID OVERFLOW PROTECTION: Forced single-column grid layouts with flexible width containment to guarantee zero horizontal scrolling or clipping on small devices.",
+      "TOUCH CARD POLISH: Scaled menu card height, icon pods, and title typography for optimal mobile touch ergonomics.",
+    ],
+  },
+  {
+    version: '7.20',
+    date: '2026-10-02',
+    title: '2.5D Terrain Island & Seamless Map Background Upgrade',
+    notes: [
+      "FULL 2.5D TERRAIN ISLAND MESH: Rendered a solid 2.5D ground surface plane with 3D isometric cliff side walls and ambient shadows that spans across the entire story map.",
+      "SEAMLESS MOUNTAIN PARALLAX WRAPPING: Fixed mountain horizon math to use positive modulo wrapping, eliminating popping or clipping during camera panning.",
+      "EXPANDED ISOMETRIC GRID: Expanded grid bounds across the terrain mesh for complete visual coverage.",
+      "STABLE CANVAS DIMENSION MEASUREMENT: Reinforced layout resize triggers to accurately measure viewport bounds post-screen transitions.",
+    ],
+  },
+  {
+    version: '7.19',
+    date: '2026-10-02',
+    title: 'Mobile Optimization & 2.5D Touch Controls Polish',
+    notes: [
+      "HIGH-DPI RETINA SCALING FIX: Corrected 2.5D isometric projection calculations to use logical CSS dimensions, fixing node alignment and rendering offset on high-density mobile screens.",
+      "MOBILE TAP & DRAG DISCRIMINATION: Refined touch gesture detection to instantly recognize node taps while supporting smooth touch-drag camera exploration.",
+      "ON-SCREEN CAMERA CONTROLS: Added dedicated floating zoom (+/-) and reset camera buttons directly on the story diorama canvas for easy single-hand mobile play.",
+      "MOBILE VIEWPORT RESPONSIVENESS: Enforced strict mobile layout bounds, smooth touch-scrollable chapter navigation tabs, and responsive canvas heights.",
+    ],
+  },
+  {
+    version: '7.18',
+    date: '2026-10-02',
+    title: '2.5D Story Mode: Chronicles of Mehrbod',
+    notes: [
+      "2.5D ISOMETRIC DIORAMA WORLD MAP: Explore a multi-layered isometric world map with dynamic camera panning, elevation depth pillars, energy bridges, and interactive chapter nodes.",
+      "5 NARRATIVE CHAPTERS & BOSS ENCOUNTERS: Battle through Azure Shoreline, Viridian Canopy, Crimson Caldera, Solar Citadel, and the Prism Nexus against custom boss commanders.",
+      "STAGE MUTATORS & FIRST-CLEAR REWARDS: Confront unique stage mutators (e.g. Tidal Surge, Volcanic Heat, Omni-Resonance) and earn first-clear rewards including Mehrbod Bux, XP, and exclusive story titles.",
+    ],
+  },
+  {
+    version: '7.17',
+    date: '2026-10-02',
+    title: '10-Layer Full-Spectrum Anti-Cheat Architecture',
+    notes: [
+      "LAYER 1 - MONOTONIC ACTION SEQUENCE NONCES: Enforced sequential packet nonces to eliminate replayed or duplicate action payloads.",
+      "LAYER 2 - PEER ACTION RATE LIMITING: Implemented token-bucket flood protection (16 burst / 8 sustained/sec) against auto-clickers and macro bots.",
+      "LAYER 3 - PHASE & TURN LEGALITY LOCK: Tactical placement and spell operations are strictly verified against active game phases and ready states.",
+      "LAYER 4 - BOARD SLOT BOUNDS & OCCUPANCY CHECK: Guaranteed that cards can only target valid [0, 1, 2] unoccupied slots.",
+      "LAYER 5 - SP/MANA & COOLDOWN INTEGRITY: Enforced server/peer validation on spell costs and per-round cooldowns before allowing ability triggers.",
+      "LAYER 6 - DECK POOL PLACEMENT QUOTA: Real-time tracking prevents placing more copies of an archetype than allocated in the verified match deck.",
+      "LAYER 7 - DETERMINISTIC ROUND STATE HASHES: FNV-1a digests of round board states are exchanged between peers to verify lockstep determinism.",
+      "LAYER 8 - WAGER & CURRENCY BOUNDS SANITIZATION: Strict validation blocks negative, infinite, or balance-exceeding wagers.",
+      "LAYER 9 - CRYPTOGRAPHIC PRNG SEED SEALING: Match random seeds are sealed with an integrity signature to prevent seed bias manipulation.",
+      "LAYER 10 - STORAGE CHECKSUM & MEMORY GUARD: Local progress, XP, and inventory storage are cryptographically verified to detect console memory editing.",
+    ],
+  },
+  {
+    version: '7.16',
+    date: '2026-10-02',
+    title: 'Multiplayer Anti-Cheat & Deck Integrity Guard',
+    notes: [
+      "DECK INTEGRITY HANDSHAKE VALIDATION: Implemented strict peer-to-peer deck validation across units, spell limits, chip bounds, and tier copy restrictions before matches begin.",
+      "TAMPER-PROOF COLLECTION & CURRENCY SANITIZATION: Hardened collection storage with strict identifier filtering against spoofed card/spell/chip IDs, alongside bounded currency validation.",
+      "AUTOMATIC SECURITY ABORT: Any corrupted or illegal match payload automatically aborts with an anti-cheat notification to protect match integrity.",
+    ],
+  },
+  {
+    version: '7.15',
+    date: '2026-10-02',
+    title: 'Web Audio Synthesis & Boundary Protection',
+    notes: [
+      "SYNTHESIZER BOUNDARY PROTECTION: Hardened tone and frequency sweep generators against non-finite parameters and zero-gain boundary limits, preventing Web Audio API exceptions across all browser engines.",
+      "AUDIO GAIN RESILIENCE: Added safety envelopes to procedural sound generation for consistent audio playback during rapid combat sequences.",
+    ],
+  },
+  {
+    version: '7.14',
+    date: '2026-10-02',
+    title: 'Core Engine Hardening & Event Resilience',
+    notes: [
+      "DEFENSIVE DOM BINDING: Implemented optional chaining across all UI event listeners and replay playback controls to eliminate null reference exceptions on dynamic DOM rebuilds.",
+      "VIEWPORT IMMERSION: Reinforced layout constraints across mobile browsers to ensure smooth transitions across all game screens without unwanted scrollbars.",
+    ],
+  },
+  {
+    version: '7.13',
+    date: '2026-10-02',
+    title: 'Technical Stability & UX Polish',
+    notes: [
+      "CONTEXTUAL DECK BUILDER NAVIGATION: Fixed back button routing so returning from the Deck Builder returns to the originating menu (Multiplayer, Host, Bot Practice, or Main Menu) without resetting screen context.",
+      "VIEWPORT OVERFLOW CONTAINMENT: Applied strict horizontal overflow clipping on matchmaking entrance animations to prevent mobile and desktop horizontal page shifting.",
+      "MATCHMAKING CLEANUP: Hardened lobby teardown and timer cleanup on abrupt disconnects or search cancellations.",
+    ],
+  },
+  {
+    version: '7.12',
+    date: '2026-10-02',
+    title: 'Cinematic Matchmaking Entrance Animation',
+    notes: [
+      "FLY-IN VERSUS ENTRANCE SEQUENCE: Player and Opponent cards now swoop into position from opposite edges of the screen with smooth physics-based elastic spring transitions.",
+      "SYNCHRONIZED RADAR & VS SLAM: The central holographic orbital radar expands dynamically into view, capped by a high-impact VS emblem slam and synchronized sonic cues as both combatants lock in.",
+    ],
+  },
+  {
+    version: '7.11',
+    date: '2026-10-02',
+    title: 'Dynamic Combat & Placement Audio Cues',
+    notes: [
+      "TIERED PLACEMENT AUDIO: Introduced procedural audio signatures for card placement across all 4 tiers (crisp crystal clack for Blue, organic wooden ping for Green, heavy fiery slam for Red, and grand celestial drop for Orange).",
+      "HARMONIC FUSION MERGE SFX: Upgraded card merge soundscapes with distinct sonic personalities for each tier (smooth ascending crystal waves for Green, fiery rising synth flare for Red, and monumental supernova chord for Orange Apex).",
+      "CRITICAL HIT SOUND DESIGN: Implemented a visceral critical hit audio cue featuring high-voltage sonic cracks, deep sub bass impacts, and ambient ducking to clearly signal heavy strikes and game-shifting blows.",
+    ],
+  },
+  {
+    version: '7.10',
+    date: '2026-10-02',
+    title: 'Simplistic Card Design & Ambient Rarity Glows',
+    notes: [
+      "SIMPLISTIC CARD THUMBNAILS: Streamlined Deck Builder card cards by removing unnecessary text badges and stat pills for a clean, minimalist aesthetic.",
+      "PURE AMBIENT GLOWS & PARTICLES: Rarity is now communicated purely through beautiful color themes, border radiance, glowing backdrops, and animated ambient particles (Blue, Green, Red, and Orange).",
+    ],
+  },
+  {
+    version: '7.09',
+    date: '2026-10-02',
+    title: 'Deck Builder Rarity Auras & Particle Indicators',
+    notes: [
+      "TIERED RARITY VISUAL INDICATORS: Upgraded Deck Builder card thumbnails with tiered glow intensities, power level stat pills (HP/DMG), and animated particle embers across all four rarities (Blue, Green, Red, and Orange Apex).",
+      "ACTIVE RARITY PILLS & GLOWS: Each card now showcases glowing rarity tags and animated particle motes (gentle azure aura for Blue, emerald pulse for Green, surging crimson flames for Red, and legendary solar flares for Orange).",
+    ],
+  },
+  {
+    version: '7.08',
+    date: '2026-10-02',
+    title: 'Matchmaking Particle Avatar & HUD Immersion',
+    notes: [
+      "MATCHMAKING PARTICLE AVATAR INTEGRATION: Your equipped animated particle avatar now renders live around your player card on the finding opponent screen with full fluid physics.",
+      "TOP-LEFT HUD FOCUS: Automatically hides the top-left menu profile picture while searching for a multiplayer match, keeping the versus arena cleanly focused.",
+    ],
+  },
+  {
+    version: '7.07',
+    date: '2026-10-02',
+    title: 'Matchmaking HUD Cleanup',
+    notes: [
+      "STREAMLINED MATCHMAKING HUD: Removed region and active deck loadout badges from the finding opponent screen, decluttering the header for a cleaner, laser-focused versus scanning radar presentation.",
+    ],
+  },
+  {
+    version: '7.06',
+    date: '2026-10-02',
+    title: 'Animated Particle Avatars & Match HUD Integration',
+    notes: [
+      "ANIMATED PARTICLE AVATARS: Introduced an interactive Particle Avatars selector in the Profile section with 10 physics-based avatars: Cosmic Singularity, Solar Phoenix, Cyber Overdrive, Glacial Frost, Celestial Divinity, Storm Tempest, Toxic Biohazard, Mystic Arcana, Dragon Heart, and Aether Blossom.",
+      "MATCH HUD IDENTITY INTEGRATION: Your equipped animated particle avatar now renders live in full motion alongside your name in the Match HUD, displaying dynamic elemental auras next to player and opponent titles.",
+      "PROFILE HERO & TOP HUD ANIMATIONS: Synchronized your particle avatar across the profile hero card, quick avatar shortcut buttons, and top-left HUD profile icon with smooth hardware-accelerated canvas loops.",
+    ],
+  },
+  {
+    version: '7.05',
+    date: '2026-10-02',
+    title: 'NEW Tag Elevation & Positioning',
+    notes: [
+      "NEW UPDATE TAG ELEVATION: Repositioned the 'NEW' notification badge to float directly centered over the top of the version squircle button with dedicated synchronized pulse keyframes and unclipped visibility.",
+      "DIRECT TOUCH TRIGGER: Enabled direct click/tap interactions on the floating NEW badge to open the patch notes overlay immediately with accompanying audio cues.",
+    ],
+  },
+  {
+    version: '7.04',
+    date: '2026-10-02',
+    title: 'Perfect Dock-to-Button Harmonization',
+    notes: [
+      "PERFECT SQUIRCLE PILL HARMONIZATION: Redesigned the dock pill to mathematically match its buttons with concentric curvature (20px outer housing, 16px inner buttons, 4px uniform inset), matching dark obsidian glass, and balanced 4px button spacing.",
+      "UNIVERSAL THEME COMPLIANCE: Overhauled all unlocked themes (Flame, Magma, Astral Void, Quantum Flux, Glacial Frost, Celestial Divinity) to eliminate conflicting 9999px capsule overrides, ensuring the pill dock remains perfectly matched to its squircle buttons in every theme.",
+    ],
+  },
+  {
+    version: '7.03',
+    date: '2026-10-02',
+    title: 'Form-Fitted Dock Bezel Enclosure',
+    notes: [
+      "FORM-FITTED DOCK BEZEL HOUSING: Redesigned the enclosing pill bezel of the main menu bottom dock to snugly wrap and contour directly around the squircle buttons with concentric border curvature (22px desktop, 18px mobile), minimal 4px edge padding, and streamlined 5px button gaps.",
+      "SEAMLESS CONSOLE DOCK POLISH: Upgraded the dock's glass backdrop and bevel highlights to create a unified, integrated hardware console aesthetic with zero wasted negative space.",
+    ],
+  },
+  {
+    version: '7.02',
+    date: '2026-10-02',
+    title: 'Squircle Navigation Dock Redesign',
+    notes: [
+      "CIRCULAR SQUARE (SQUIRCLE) BOTTOM DOCK: Completely redesigned the main menu bottom dock buttons (Collection, Quests, Settings, Version) into tactile, circular square (squircle) design pods.",
+      "VERTICAL ICON-ON-TOP ARCHITECTURE: Repositioned each button's SVG icon directly to the top with high-contrast cyan accents and centered the descriptive text cleanly underneath.",
+      "TACTILE HOVER & NOTIFICATION POLISH: Added smooth 3D lift on hover, specular glare highlights, and perching corner notification badge styling for the version and changelog indicator.",
+    ],
+  },
+  {
+    version: '7.01',
+    date: '2026-10-02',
+    title: 'VR Headset Filtering & Single-Line Mobile Dock Update',
+    notes: [
+      "STRICT VR HEADSET DETECTION: The 'ENTER VR' button is now exclusively displayed if the client's User-Agent explicitly identifies as a dedicated VR headset (Meta Quest 1/2/3/Pro, Pico, HTC Vive, Apple Vision Pro, Wolvic). Standard desktop, laptop, and mobile phone browsers will no longer display the VR button.",
+      "SINGLE-LINE MOBILE NAVIGATION DOCK: Overhauled the main menu bottom dock (Collection, Quests, Settings, Version) on mobile screens to guarantee it always renders on a single, continuous, non-wrapping horizontal line with streamlined touch padding, hidden separator dots, and compact typography.",
+    ],
+  },
+  {
+    version: '7.00',
+    date: '2026-10-02',
+    title: 'Grand UI & UX Redesign Overhaul',
+    notes: [
+      "COMPLETE UI & UX OVERHAUL: Rebuilt the visual design system, typography hierarchy, interactions, and spatial presence across every single surface of the game with full creative liberty and modern esports/TCG polish.",
+      "PREMIER DIGITAL TCG COMBAT ARENA: Redesigned the battle board with ergonomic 12px rounded cards, deep atmospheric tier backings, radiant faction borders, and high-contrast stat shields (Ruby HP, Amber ATK, Cyan SP) for instant tactical decision-making.",
+      "TACTILE CARD PHYSICS & HOLO SHEEN: Added 3D tilt, holographic reflection glare, interactive defensive forcefield barriers, attacking sword flags, and vital heartbeat warning alerts on low HP cards.",
+      "HERO END-TURN ACTION BUTTON: Elevated the Ready / End Turn action into an inviting, prominent golden centerpiece featuring smooth pulsing animations and instant keyboard shortcuts (R).",
+      "REAL-TIME POWER BALANCE GAUGE: Implemented an illuminated dual-gauge health/power meter showing comparative army strength with smooth cubic-bezier transitions.",
+      "MAIN MENU & NAVIGATION DOCK: Overhauled main menu cards with ambient glowing icon pods (Single Player, Multiplayer, Shop, VR) and a centered frosted-glass floating utility dock for collection, quests, and settings.",
+      "LUXURY TOP HUD: Modernized the profile avatar with glowing prestige accents and transformed the Mehrbod Bux counter into a sleek 3D beveled gold coin capsule.",
+      "UNIVERSAL GLASS & MODAL ARCHITECTURE: Upgraded settings, quests, themes, deck builder, and game-over modals with frosted glass backdrops (20px blur), organized tabs, and responsive mobile/desktop spacing.",
+    ],
+  },
+  {
+    version: '6.17',
+    date: '2026-10-02',
+    title: 'Tactical & Spiky Aesthetic UI Overhaul',
+    notes: [
+      "TACTICAL / SPIKY UI OVERHAUL: Applied a military sci-fi and tactical aesthetic across the entire interface, transforming smooth rounded borders into sharp, angular, outward-pointing corner silhouettes.",
+      "OUTWARD-POINTING CORNERS: In-match battle cards, deck cards, menu cards, difficulty selectors, and modal panels now feature faceted polygons with aggressive outward-pointing corner vertices and bevel cuts.",
+      "SUBTLE SCANLINE OVERLAYS: Added high-tech horizontal scanline background overlays to all buttons and interactive controls, delivering an authentic HUD cyber console atmosphere.",
+      "RAZOR-SHARP BORDER DISCIPLINE: Eliminated pill and smooth rounded border radii on navigation buttons, action triggers, difficulty cards, and dialog windows in favor of precision angular cuts and dynamic glow outlines.",
+    ],
+  },
+  {
+    version: '6.16',
+    date: '2026-09-21',
+    title: 'Hologram Arena View Stability Update',
+    notes: [
+      "HOLOGRAM ARENA RENDER STABILITY: Resolved an issue in the 3D VR Cyber Arena where navigating from the 2D game menus could sometimes result in a black screen, ensuring the virtual tavern, support pillars, floating HUD, and holographic cards render with perfect clarity immediately upon entry.",
+      "DYNAMIC LAYOUT ADAPTABILITY: Upgraded the 3D canvas viewport to instantly adjust its resolution and aspect ratio when loaded behind smooth menu transition animations.",
+      "COMPLETE VAULT SHOP MARKS: Added a premium gold '✓ COMPLETE' badge and a greyed-out desaturated style over card packs in the shop when your card collection is completely unlocked.",
+      "BUZZER FEEDBACK ON PURCHASES: Trying to purchase any pack or single card when your collection is already 100% complete now triggers a procedural harsh dual-tone buzzer noise and alerts you, protecting your hard-earned Bux.",
+      "POP & FADE EMOTE ANIMATIONS: Multiplayer emote bubbles now spring to life with a bouncy overshoot 'pop' animation and fade out smoothly over 1.5 seconds instead of appearing instantly, bringing satisfying visceral feedback to in-game banter.",
+      "THEME VISUAL FIXES: Fixed a display issue preventing custom unlocked themes from rendering their background atmospheres properly across all game menus and arenas.",
+      "PRISM CORE ULTIMATE VISUALS: Empowered the Prism Core theme with a rotating 3D wireframe octahedron crystal, vertical laser pillars, drifting cosmic dust particles, interactive cursor sparkle trails, crystal chime audio feedback, shifting multi-colored prismatic gradient card borders, a dynamic sweeping glass glare sheen across cards, and a multi-spectral prismatic diamond skin that overlays cards, spells, and chips while preserving their unique native colors (red, blue, green, gold, purple)!",
+      "LIQUID GLASS MATCHMAKING REDESIGN: Overhauled the Finding Opponent screen into a sleek, frosted dark-glass arena layout featuring subtle 3-second synchronized ambient glow pulses, a rotating radar sweep with fading phosphorescent after-image trails, a procedural high-tech sonar ping sound effect on every rotation, live regional queue telemetry (EU-West Tier 1), active deck previews, interactive cycling tactical tips, and instant search cancellation.",
+      "MATCHMAKING OPPONENT LOCK-IN: When an opponent is found, the radar scanner freezes into a solid glowing cyan laser beam accompanied by a heavy mechanical latch sound as the opponent's card slides smoothly into view!",
+      "VR CONTROLLER SETTINGS SHORTCUT: Pressing the Menu button on Meta Quest or VR controllers inside the 3D Cyber Arena now instantly brings up the Settings menu!",
+    ],
+  },
+  {
+    version: '6.15',
+    date: '2026-09-20',
+    title: 'Dynamic 3D Theme Environments & Floor Visuals Engine',
+    notes: [
+      "DYNAMIC 3D THEME TRANSFORMATION: Selecting any theme in the 2D or 3D menu instantly updates the 3D Tavern realm's floors, walls, lighting, skybox, braided rugs, and atmospheric particles in real time!",
+      "MAGMA VOLCANIC FISSURES: Magma theme now adorns the 3D tavern floors with glowing molten lava cracks, pulsating basalt rock textures, deep crimson fog, and floating rising fire embers!",
+      "CYBERPUNK & SYNTHWAVE DIGITAL GRIDS: Experience pulsating holographic wireframe floors, neon circuit wall textures, cyan/magenta lighting, and floating digital data cubes!",
+      "GLACIAL CRACKED ICE: Ice & Glacier themes transform the floors into frosty crystalline ice sheets with sub-zero cyan reflections, hoarfrost stone walls, and falling snow crystals!",
+      "CELESTIAL & ASTRAL COSMOS: Galaxy, Astral, and Aurora themes render deep starry floor nebulae, celestial skybox spheres, and orbiting cosmic star motes throughout every chamber!",
+      "SAKURA & VALENTINE PETALS: Floral cherry blossom timber floors paired with floating drifting sakura petals and warm rose quartz lighting ambience!",
+      "2D THEME BACKGROUND PRESERVATION: Fixed CSS layering so custom 2D animated backgrounds and canvas templates display with full vibrancy behind cards and UI panels!",
+      "LIVING FLOOR EMISSIVE PULSATIONS: Theme fissures and digital grids breathe and pulse with subtle, organic illumination cycles matching the active energy of your selected theme!",
+      "CARD SLEEVES EQUIPPING FIX: Resolved an issue where newly-equipped card sleeves would silently revert back to your previous sleeve after a few seconds or when reloading the game, ensuring your cosmetic choices save perfectly!",
+      "STABILITY ENHANCEMENTS: Fixed underlying scripting conflicts in the customization and cosmetics engine to eliminate potential game crashes when navigating the locker and shop screens!",
+    ],
+  },
+  {
+    version: '6.14',
+    date: '2026-09-20',
+    title: '3D Virtual Card Pack Shelf & Physical Checkout Station',
+    notes: [
+      "3D VIRTUAL CARD PACKS SHELF: Browse Booster Packs, Unit Striker Packs, Champion Mythic Packs, and Arcane Vault Bundles displayed on authentic timber shelves in the Tavern Shop!",
+      "PHYSICAL GRAB & DROP CHECKOUT: Reach out with VR controller triggers or click with your pointer to grab card packs off the shelf, carry them over, and drop them into the Checkout Tray to purchase!",
+      "HOLOGRAPHIC CHECKOUT SCANNER & REGISTER: A dedicated Checkout Station with an animated neon scanner beam and 3D cash register screen tracks your balance with live transaction receipts!",
+      "3D CARD UNBOXING CELEBRATIONS: Unlocked cards rise floating and spinning into the air above the checkout tray with gold sparkle particle explosions before being added to your deck!",
+      "PRISTINE BATTLE HALL ATMOSPHERE: Removed the clipping northern gateway from the Northern Battle Hall to ensure an open, unobstructed stadium view!",
+      "DYNAMIC FOIL ARTWORK: Each virtual pack features metallic holographic foil gradients, custom emblems, and real-time Bux price tags.",
+      "TACTILE UNBOXING HAPTICS & AUDIO: Feel realistic pack-tearing haptic vibration pulses on VR controllers paired with card flip sound effects when purchasing!",
+      "DUAL-MODE CHECKOUT SUPPORT: Enjoy full 6-DoF grab-and-drop in VR headsets along with smooth glide-and-place purchase animations on desktop and mobile!",
+      "INSTANT COLLECTION SYNCHRONIZATION: Opened card packs automatically unlock new unit archetypes, spells, and chips across both 2D and 3D deck builder modes!",
+      "RESPONSIVE SHELF RESTOCK ANIMATION: Purchased card packs smoothly reappear on the display shelf after unboxing so you can grab another pack anytime!",
+    ],
+  },
+  {
+    version: '6.13',
+    date: '2026-09-20',
+    title: 'Tavern Spatial Audio Engine & Performance Refinements',
+    notes: [
+      "SPATIAL AUDIO ENGINE STABILIZATION: Resolved an issue where spatial audio updates encountered an unreferenced variable in WebXR mode, ensuring continuous 3D audio playback throughout the tavern!",
+      "HEARTH ACOUSTIC SYNTHESIS: Added warm low-frequency resonance and proximity attenuation for the central fireplace hearth, smoothly increasing warmth as you walk toward the south mantle.",
+      "DUAL-ZONE AUDIO BALANCING: Balanced real-time distance falloff between the Northern Battle Portal hum and the Southern Tavern Fireplace for natural acoustic separation across rooms.",
+      "FORTUNE WHEEL DECELERATION POLISH: Refined the physics deceleration curve on the 3D Wheel of Fortune for smoother spin endings, responsive prize claiming, and particle celebration triggers.",
+      "TEXTURE CACHING OPTIMIZATIONS: Optimized canvas rendering pipelines for all 3D floating signage and notice boards to maximize frame rates on standalone VR headsets.",
+      "RAYCASTING CLICK PRECISION: Improved laser pointer hit detection when selecting shop pedestals, card inspect podiums, and quest boards at oblique angles.",
+      "CHAMBER BOUNDARY HANDLING: Fine-tuned camera clipping planes and corridor colliders to prevent accidental boundary pass-through when walking in joystick or free-look mode.",
+      "DYNAMIC LIGHT EFFICIENCY: Streamlined point light intensity calculations during fireplace flicker animation to reduce GPU load on low-power devices.",
+      "INSTANT AUDIO CONTEXT RESUME: WebXR audio contexts now reliably auto-resume on first controller trigger click, preventing muted audio states on strict browser policies.",
+      "TACTILE GRAB HAPTICS ENHANCEMENT: Tuned haptic vibration feedback timing when picking up and releasing floating relic cards in the Library wing for a more satisfying physical feel.",
+    ],
+  },
+  {
+    version: '6.12',
+    date: '2026-09-20',
+    title: '5-Chamber Fantasy Tavern Hub & Interactive VR Mechanics',
+    notes: [
+      "5-CHAMBER FANTASY TAVERN REALM: Explore an expansive 5-chamber medieval tavern layout featuring the Tavern Commons Atrium, Northern Battle Hall, Guild Quests Library, Tavern Shop & Bar, and the Fortune Cellar & Hall of Honor!",
+      "PHYSICS-BASED 3D FORTUNE WHEEL: Tap or click the giant Wheel of Fortune in the Fortune Cellar to spin it with realistic deceleration physics, audio ticking sounds, and dynamic prize rewards including bonus Bux, card packs, and sleeves!",
+      "EXPANDED BATTLE HALL STADIUM: The Northern Battle Hall is now a dedicated arena chamber equipped with an oak grand table, green felt playing mat, 6-slot player/opponent zones, spectator scoreboard, and tactical ready button!",
+      "GUILD QUESTS NOTICE BOARD: Visit the Guild Library to inspect active daily challenges, war bounties, and quick-launch the custom deck workshop directly inside the 3D environment!",
+      "INTERACTIVE BAR & SHOP PEDESTALS: Browse cosmetic themes, card sleeves, and accessories displayed along the tavern bar counter with real-time Bux checkout!",
+      "RELIC CARD TRIGGER-GRAB INSPECTION: Pick up, hold, and inspect floating 3D holographic cards in the Library wing with natural controller triggers, grab physics, and tactile haptic vibration pulses!",
+      "ROARING FIREPLACE & SPATIAL AUDIO: Experience dynamic flickering hearth light and proximity-based tavern audio atmosphere that naturally shifts in volume as you walk between rooms!",
+      "ORIENTATION-AWARE TELEPORT PADS: Floor navigation pads now face you toward each room's main attraction (Fireplace, Battle Table, Quest Board, Shop Counter, Fortune Wheel) upon teleportation!",
+      "DESKTOP & MOBILE JOYSTICK LOCOMOTION: Walk freely through all 5 tavern chambers using on-screen virtual joysticks or WASD keyboard navigation on any desktop or mobile device!",
+      "DYNAMIC CONTROLLER POINT LIGHT: Your VR hand controllers cast soft, theme-colored illumination onto nearby cards, tables, and stone walls as you explore!",
+    ],
+  },
+  {
+    version: '6.11',
+    date: '2026-09-20',
+    title: 'VR Hub Central Realm & Bustling Tavern Overhaul',
+    notes: [
+      "EXPLORABLE VR CENTRAL HUB: Step inside a full 3D explorable realm where you can freely walk and explore between the Battle Stadium Table, Shop Pedestals, Relic Showcases, and VR Match Portal!",
+      "THEME-ADAPTIVE SKYBOX NEBULA: Celestial Skybox — Added a slowly rotating starfield and atmospheric nebula skybox that dynamically shifts its color palette to match your active game theme!",
+      "TELEPORTATION LOCOMOTION SYSTEM: Floor Navigation Target Pads — Point and click glowing floor teleporter pads (Hub Center, Battle Table, Shop Pedestals, Match Portal) to instantly move around the 3D room!",
+      "DYNAMIC CONTROLLER POINT LIGHT: Real-time Hand Illumination — Your VR hand controller or pointer light casts soft, theme-colored illumination onto nearby cards and environment surfaces as you move!",
+      "REACTIVE HUB DUST MOTES: Particle Atmosphere — Atmospheric dust particles float suspended throughout the VR hub, swirling and drifting in response to your movement as you walk through!",
+      "PROXIMITY HELPERS & LOCKED HOLOGRAM: Smart VR Portal Banners — A floating 'PRESS TRIGGER TO ENTER' text banner fades in as you approach within 2 meters of the VR Match Portal, while a glowing 'LOCKED 🔒' hologram appears during active matches!",
+      "WEIGHT-BASED PHYSICAL CARD FEEDBACK: Tactile Rarity Haptics — Picking up cards now provides physical weight feedback! Legendary & Mythic cards give deep, heavy haptic vibration pulses, while Rare & Common cards feel light and nimble!",
+      "BUSTLING FANTASY TAVERN ENVIRONMENT: Completely redesigned the VR environment into a cozy fantasy tavern with stone masonry walls, timber ceiling beams, hanging iron lanterns, and a roaring fireplace with dynamic flickering hearth light!",
+      "INTERACTIVE TAVERN ALCOVES & STATIONS: Explore 6 unique functional stations throughout the tavern including the Battle Table, Card Collection, Shop Bar, Deck Workshop, Quests Desk, and Daily Bonus Rewards!",
+      "NON-VR MOBILE & DESKTOP JOYSTICK SIMULATOR: Added an option in the Developer Options menu to view and walk around the 3D VR Tavern on non-VR devices using an on-screen mobile movement joystick and touch look controls!",
+    ],
+  },
   {
     version: '6.10',
     notes: [
@@ -8683,7 +10194,13 @@ const PATCH_NOTES = [
       "DIRECT WEBXR LAUNCH: Instant VR Entry — Clicking the ENTER VR button now directly requests an immersive WebXR session and takes you straight into the virtual arena without any intermediary screen.",
       "VR GRAB & INSPECT RELICS: Interactive Holographic Artifacts — Added an array of floating interactive VR holographic relic cards surrounding the Cyber Arena. Use your XR controller triggers to grab, hold, and inspect them up close in 3D space with smooth physics and toast feedback!",
       "HAPTIC FEEDBACK: Controller Vibrations — Experience immersive haptic vibration pulses on your XR controllers whenever you successfully grab or release interactive VR objects in the WebXR scene.",
-      "HEADSET ACCESSIBILITY: Permanent ENTER VR Button & Loading Screen Fix — Made the ENTER VR button permanently visible on the main menu directly underneath the Mehrbod shop, fixed zero-dimension WebGL canvas sizing issues that caused headset loading screen hangs, and enabled direct reference space initialization for Meta Quest and WebXR devices.",
+      "HEADSET ACCESSIBILITY: Exclusive VR Headset Button Detection — The ENTER VR button is now exclusively visible on Virtual Reality headsets (such as Meta Quest 1/2/3/Pro, HTC Vive, Pico, and Apple Vision Pro) and WebXR immersive-vr enabled devices, keeping standard desktop and mobile menus clean.",
+      "FULL 3D VR GAME ENVIRONMENT: 3D Menu & Battle Arena Overhaul — Transformed VR mode into a complete 3D virtual translation of the 2D game! Step inside an enclosed 3D stadium featuring a 3D Floating Main Menu Console, 3D Menu Buttons, full 6-slot player/opponent battle table, 3D card hand arc, and live 3D scoreboards.",
+      "THEME ADAPTATION IN 3D: Dynamic Room & Table Styling — The entire 3D VR environment now dynamically adapts its colors, lighting, floor grids, boundary wireframes, and table materials to match your active game theme (such as Prism Core, Cyber Neon, Mr Money, Magma, Synthwave, Digital Matrix, Galaxy, Sakura, and more!).",
+      "3D INTERACTIVE UI CONSOLE: Select Menus Directly in VR — Raycast or tap 3D Menu buttons floating in front of you in VR space to launch matches, open the shop, inspect collection decks, view career stats, or cycle themes live in 3D!",
+      "HAND TRACKING & PINCH GESTURES: Natural VR Hand Control — Pinch your index finger and thumb together using WebXR Hand Tracking to grab cards, select board slots, and press 3D menu controls hands-free without controllers!",
+      "DYNAMIC 3D CARD HOVER & GLOW: Visual Target Highlighting — Cards smoothly float upward, expand in scale, and emit a radiant cyber aura when your controller ray laser or hand pointer hovers over them.",
+      "3D GESTURE EMOTE MENU & PARTICLE BURSTS: Expressive VR Reactions — Activate 3D Emote Reactions (Victory Crown, Inferno Taunt, Good Game Hearts, Cyber Spark) using hand gestures (Victory Peace, Fist, Open Palm) or 3D menu taps to trigger colorful 3D particle system explosions!",
     ],
   },
   {
@@ -9170,12 +10687,20 @@ document.getElementById('btn-version').innerHTML = `
   <span>v${CURRENT_VERSION}</span>
 `;
 updateVersionBadge();
-document.getElementById('btn-version').addEventListener('click', () => {
+function openPatchNotesModal() {
   renderPatchNotes();
   document.getElementById('patchnotes-overlay').classList.remove('hidden');
   if (typeof Sound !== 'undefined' && Sound.modalOpen) Sound.modalOpen();
   markPatchNotesSeen();
-});
+}
+document.getElementById('btn-version').addEventListener('click', openPatchNotesModal);
+const versionBadgeEl = document.getElementById('version-badge');
+if (versionBadgeEl) {
+  versionBadgeEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openPatchNotesModal();
+  });
+}
 document.getElementById('btn-patchnotes-close').addEventListener('click', () => {
   document.getElementById('patchnotes-overlay').classList.add('hidden');
   if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
@@ -9241,12 +10766,6 @@ document.addEventListener('keydown', (e) => {
     if (document.activeElement && typeof document.activeElement.blur === 'function') {
       document.activeElement.blur();
     }
-    showScreen('screen-menu');
-    return;
-  }
-  const legacyShopEl = document.getElementById('screen-shop');
-  if (legacyShopEl && !legacyShopEl.classList.contains('hidden')) {
-    e.preventDefault();
     showScreen('screen-menu');
     return;
   }
@@ -9397,6 +10916,104 @@ document.addEventListener('DOMContentLoaded', () => {
     updatePingButton();
   }
 
+  // Tactical Tips Carousel for Matchmaking
+  const MATCHMAKING_TACTICAL_TIPS = [
+    "Combining Freeze Spells with Shatter Strikes deals 2x critical damage!",
+    "Always keep a low-cost reaction spell in hand to defend your Citadel Tower.",
+    "Upgrading cards in your Collection increases your Master Level, boosting overall Tower HP!",
+    "Trial Tower floors offer double Bux rewards every 5th boss floor cleared.",
+    "Check the Vault Shop daily for featured single cards to complete missing sets.",
+    "Chip abilities trigger automatically when placed adjacent to matching elemental terrain.",
+    "Prism Core theme crystals reflect elemental damage into sparkling chain surges!"
+  ];
+  let currentTipIdx = 0;
+
+  function cycleNextTip() {
+    const tipBody = document.getElementById('mm-tip-body');
+    if (!tipBody) return;
+    tipBody.classList.add('fade-out');
+    setTimeout(() => {
+      currentTipIdx = (currentTipIdx + 1) % MATCHMAKING_TACTICAL_TIPS.length;
+      tipBody.textContent = MATCHMAKING_TACTICAL_TIPS[currentTipIdx];
+      tipBody.classList.remove('fade-out');
+    }, 250);
+  }
+
+  const nextTipBtn = document.getElementById('btn-mm-next-tip');
+  if (nextTipBtn) {
+    nextTipBtn.addEventListener('click', cycleNextTip);
+  }
+
+  // Auto-cycle tips every 6 seconds while matchmaking screen is open
+  setInterval(() => {
+    const screenMM = document.getElementById('screen-matchmaking');
+    if (screenMM && !screenMM.classList.contains('hidden')) {
+      cycleNextTip();
+    }
+  }, 6000);
+
+  // Attach sonar ping trigger to radar sweep animation cycle
+  const radarSweepEl = document.querySelector('.mm-radar-sweep');
+  if (radarSweepEl) {
+    radarSweepEl.addEventListener('animationiteration', () => {
+      const screenMM = document.getElementById('screen-matchmaking');
+      if (screenMM && !screenMM.classList.contains('hidden')) {
+        if (typeof Sound !== 'undefined' && typeof Sound.radarPing === 'function') {
+          Sound.radarPing();
+        }
+      }
+    });
+  }
+
+  // Lock-in Sequence for Matchmaking Screen
+  function triggerMatchmakingLockIn(opponentData, onComplete) {
+    const radar = document.querySelector('.mm-center-radar');
+    const remoteCard = document.getElementById('mm-remote-card');
+    
+    // Play metallic click sound
+    if (typeof Sound !== 'undefined' && typeof Sound.metallicClick === 'function') {
+      Sound.metallicClick();
+    }
+
+    if (radar) {
+      radar.classList.add('locked-in');
+    }
+
+    if (remoteCard) {
+      if (opponentData) {
+        const nameEl = remoteCard.querySelector('.mm-card-name');
+        const deckEl = remoteCard.querySelector('.mm-card-deck');
+        const badgeEl = remoteCard.querySelector('.mm-card-badge');
+        if (nameEl) nameEl.textContent = opponentData.name || 'Opponent Challenger';
+        if (deckEl) deckEl.textContent = opponentData.deck || 'Battle Deck';
+        if (badgeEl) {
+          badgeEl.textContent = 'OPPONENT LOCKED';
+          badgeEl.classList.remove('searching-badge');
+        }
+      }
+      remoteCard.classList.add('locked-in');
+    }
+
+    // After 1.25 seconds of lock-in visual presentation, proceed to match start
+    setTimeout(() => {
+      if (typeof onComplete === 'function') {
+        onComplete();
+      }
+      // Reset lock-in classes for future matchmaking sessions
+      if (radar) radar.classList.remove('locked-in');
+      if (remoteCard) {
+        remoteCard.classList.remove('locked-in');
+        const badgeEl = remoteCard.querySelector('.mm-card-badge');
+        if (badgeEl) {
+          badgeEl.textContent = 'SEARCHING...';
+          badgeEl.classList.add('searching-badge');
+        }
+      }
+    }, 1250);
+  }
+
+  window.triggerMatchmakingLockIn = triggerMatchmakingLockIn;
+
   // Unlock audio engine on first user gesture (highly critical for iOS and strict autoplay browsers)
   ['click', 'touchstart', 'keydown'].forEach(evt => {
     document.addEventListener(evt, () => {
@@ -9409,6 +11026,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Prevent automatic/unsolicited native browser installer prompts to avoid promoting installation
+// Prevent automatic/unsolicited native browser installer prompts to avoid promoting installation
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
 });
@@ -9417,4 +11035,219 @@ window.addEventListener('beforeinstallprompt', (e) => {
 window.addEventListener('appinstalled', () => {
   console.log('[PWA] Application installed successfully!');
 });
+
+// ==========================================================================
+// FLUID PRESS-AND-HOLD GLOBAL CARD MORPHING INSPECTION WITH MOBILE HAPTICS
+// ==========================================================================
+(function() {
+  let holdTimer = null;
+  let activeHoldElement = null;
+  let currentlyInspectedElement = null;
+  let morphClone = null;
+  let startX = 0;
+  let startY = 0;
+  const HOLD_DURATION = 350; // standard 350ms hold trigger
+
+  function getCardDataFromElement(cardEl) {
+    const cardId = cardEl.dataset.cardId;
+    const cardName = cardEl.dataset.cardName;
+    const tier = Number(cardEl.dataset.tier || (cardEl.className.match(/tier(\d)/)?.[1] || 1));
+    const tierDef = (typeof TIERS !== 'undefined' && TIERS[tier]) || { hp: 1, dmg: 1, sp: 1 };
+    
+    let arch = null;
+    if (typeof UNIT_ARCHETYPES !== 'undefined') {
+      const list = UNIT_ARCHETYPES[tier];
+      if (list) {
+        arch = list.find(a => a.id === cardId);
+      }
+    }
+
+    const abilityKey = arch ? arch.pool[0] : 'none';
+    const abilityLabelText = (abilityKey && abilityKey !== 'none' && typeof ABILITIES !== 'undefined' && ABILITIES[abilityKey]) ? ABILITIES[abilityKey].label : 'No special ability.';
+
+    return {
+      id: cardId,
+      name: cardName || (arch ? arch.name : 'Unknown Unit'),
+      tier: tier,
+      hp: tierDef.hp,
+      maxHp: tierDef.hp,
+      dmg: tierDef.dmg,
+      sp: arch ? (arch.sp || tierDef.sp) : tierDef.sp,
+      ability: abilityKey,
+      abilityText: abilityLabelText
+    };
+  }
+
+  function triggerCardInspect(cardEl) {
+    let cardData = cardEl._cardData;
+    if (!cardData) {
+      cardData = getCardDataFromElement(cardEl);
+    }
+    if (!cardData) return;
+
+    currentlyInspectedElement = cardEl;
+
+    // Trigger haptic vibration for mobile users
+    if (typeof vibrate === 'function') {
+      vibrate([45]);
+    }
+
+    // Audio cue
+    if (typeof Sound !== 'undefined' && Sound.cardHover) {
+      Sound.cardHover();
+    }
+
+    // Get original position on screen
+    const rect = currentlyInspectedElement.getBoundingClientRect();
+
+    // Create or locate the global, unclipped morph overlay
+    let overlay = document.getElementById('card-morph-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'card-morph-overlay';
+      overlay.className = 'card-morph-overlay';
+      document.body.appendChild(overlay);
+    }
+    overlay.innerHTML = '';
+    overlay.classList.add('blurred-backdrop');
+
+    // Build the morph clone inside the global container
+    let previewEl;
+    if (typeof cardEl === 'function') {
+      previewEl = cardEl(cardData, { forceGlow: true, extraClass: 'morph-clone' });
+    } else {
+      previewEl = currentlyInspectedElement.cloneNode(true);
+      previewEl.className = 'card morph-clone tier' + cardData.tier;
+    }
+
+    // Anchor exactly on top of the original element
+    previewEl.style.position = 'absolute';
+    previewEl.style.top = `${rect.top + window.scrollY}px`;
+    previewEl.style.left = `${rect.left + window.scrollX}px`;
+    previewEl.style.width = `${rect.width}px`;
+    previewEl.style.height = `${rect.height}px`;
+
+    // Hide original element smoothly
+    currentlyInspectedElement.style.visibility = 'hidden';
+
+    // Populate full description
+    const abDef = (typeof ABILITIES !== 'undefined' && ABILITIES[cardData.ability]);
+    const fullAbilityDesc = (abDef && abDef.label) ? abDef.label : (typeof abilityLabel === 'function' ? abilityLabel(cardData.ability) : cardData.ability) || 'No special ability.';
+
+    overlay.appendChild(previewEl);
+    morphClone = previewEl;
+
+    // Play a tactile audio cue when the cursor enters the enlarged preview clone
+    previewEl.addEventListener('mouseenter', () => {
+      if (typeof Sound !== 'undefined' && typeof Sound.inspectHover === 'function') {
+        Sound.inspectHover();
+      }
+    });
+
+    // Populate full ability description directly inside the preview clone card body container
+    const abilityEl = previewEl.querySelector('.card-ability');
+    if (abilityEl) {
+      abilityEl.innerHTML = `<span class="enlarged-ability-text">${fullAbilityDesc}</span>`;
+    }
+
+    // Trigger elastic expand animation to center of screen
+    void previewEl.offsetWidth;
+    previewEl.classList.add('is-enlarging');
+  }
+
+  function startHold(element, x, y) {
+    cancelHold();
+    activeHoldElement = element;
+    startX = x;
+    startY = y;
+    holdTimer = setTimeout(() => {
+      triggerCardInspect(activeHoldElement);
+      cancelHold();
+    }, HOLD_DURATION);
+  }
+
+  function cancelHold() {
+    if (holdTimer) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
+    }
+    activeHoldElement = null;
+  }
+
+  function handlePointerMove(e) {
+    if (!activeHoldElement) return;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const dx = clientX - startX;
+    const dy = clientY - startY;
+    if (Math.hypot(dx, dy) > 10) {
+      cancelHold();
+    }
+  }
+
+  function releaseInspect() {
+    cancelHold();
+    if (morphClone && currentlyInspectedElement) {
+      const rect = currentlyInspectedElement.getBoundingClientRect();
+
+      // Elastic slide & shrink back to slot coordinates
+      morphClone.classList.remove('is-enlarging');
+      morphClone.style.top = `${rect.top + window.scrollY}px`;
+      morphClone.style.left = `${rect.left + window.scrollX}px`;
+      morphClone.style.width = `${rect.width}px`;
+      morphClone.style.height = `${rect.height}px`;
+
+      const overlay = document.getElementById('card-morph-overlay');
+      if (overlay) overlay.classList.remove('blurred-backdrop');
+
+      const storedOriginal = currentlyInspectedElement;
+      const storedClone = morphClone;
+
+      setTimeout(() => {
+        storedOriginal.style.visibility = 'visible';
+        if (storedClone && storedClone.parentNode) {
+          storedClone.remove();
+        }
+      }, 280); // matching 280ms transition
+
+      morphClone = null;
+      currentlyInspectedElement = null;
+
+      if (typeof Sound !== 'undefined' && Sound.cardDraw) {
+        Sound.cardDraw();
+      }
+    }
+  }
+
+  // Hook touch & mouse delegate listeners
+  document.addEventListener('mousedown', (e) => {
+    const card = e.target.closest('.card, .locker-tile[data-collection-card="true"]');
+    if (card && e.button === 0) {
+      startHold(card, e.clientX, e.clientY);
+    }
+  });
+
+  document.addEventListener('mousemove', handlePointerMove);
+  document.addEventListener('mouseup', releaseInspect);
+  document.addEventListener('mouseleave', releaseInspect);
+
+  document.addEventListener('touchstart', (e) => {
+    const card = e.target.closest('.card, .locker-tile[data-collection-card="true"]');
+    if (card && e.touches && e.touches[0]) {
+      startHold(card, e.touches[0].clientX, e.touches[0].clientY);
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    handlePointerMove(e);
+    // If the inspect is actively displaying, let's lock touch scrolling to make holding feel robust
+    if (currentlyInspectedElement) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  document.addEventListener('touchend', releaseInspect);
+  document.addEventListener('touchcancel', releaseInspect);
+
+})();
 
