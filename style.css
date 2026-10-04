@@ -2516,20 +2516,33 @@ input, textarea {
   -webkit-user-select: none;
   touch-action: manipulation;
   background: linear-gradient(120deg, #ff0055, #ff5e00, #ffbe00, #00ff77, #00e1ff, #a200ff, #ff0055);
-  background-size: 300% 300%;
+  background-size: 400% 400%;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  animation: heroGradientShift 3s linear infinite;
+  animation: heroGradientShift 4s linear infinite, letterBob 3s ease-in-out infinite;
   transition: transform 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.3), filter 0.18s ease;
   position: relative;
   will-change: transform, filter;
 }
 
+@keyframes letterBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.title-letter:nth-child(1) { animation-delay: 0.1s, 0.1s; }
+.title-letter:nth-child(2) { animation-delay: 0.2s, 0.2s; }
+.title-letter:nth-child(3) { animation-delay: 0.3s, 0.3s; }
+.title-letter:nth-child(4) { animation-delay: 0.4s, 0.4s; }
+.title-letter:nth-child(5) { animation-delay: 0.5s, 0.5s; }
+.title-letter:nth-child(6) { animation-delay: 0.6s, 0.6s; }
+.title-letter:nth-child(7) { animation-delay: 0.7s, 0.7s; }
+
 .title-letter:hover {
-  transform: translateY(-4px) scale(1.15);
-  filter: drop-shadow(0 0 14px var(--live-glow, rgba(62, 124, 177, 0.95))) drop-shadow(0 0 28px var(--live-glow, rgba(76, 154, 91, 0.75)));
+  transform: translateY(-10px) scale(1.22) !important;
+  filter: drop-shadow(0 0 16px var(--live-glow, rgba(255, 0, 85, 0.95))) drop-shadow(0 0 32px var(--live-glow, rgba(0, 225, 255, 0.85))) !important;
 }
 
 .tagline {
@@ -2538,7 +2551,7 @@ input, textarea {
 }
 @keyframes heroGradientShift {
   0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
+  50%  { background-position: 100% 100%; }
   100% { background-position: 0% 50%; }
 }
 @keyframes heroGlow {
@@ -2557,10 +2570,10 @@ input, textarea {
 }
 @keyframes logoBreathing {
   0%, 100% {
-    transform: scale(0.95);
+    transform: scale(0.975);
   }
   50% {
-    transform: scale(1.05);
+    transform: scale(1.025);
   }
 }
 /* ==========================================================================
@@ -3288,6 +3301,13 @@ html.theme-light .menu-footer {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   text-shadow: 0 2px 4px rgba(0,0,0,0.8), 0 0 2px rgba(255,255,255,0.3);
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.35s ease, text-shadow 0.35s ease;
+  display: inline-block;
+}
+#bux-counter-value.bux-value-animating {
+  transform: scale(1.28);
+  color: #fde047 !important;
+  text-shadow: 0 0 16px rgba(250, 204, 21, 0.85), 0 2px 4px rgba(0,0,0,0.8);
 }
 #bux-counter:hover {
   transform: translateY(-2px) scale(1.04);

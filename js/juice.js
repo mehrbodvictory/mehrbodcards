@@ -6313,11 +6313,17 @@ window.playSkeletonStaffAnimation = playSkeletonStaffAnimation;
   let lastSparkleTime = 0;
   const SPARKLE_SYMBOLS = ['✨', '✦', '♦', '❇️', '💎', '⭐'];
   const SPARKLE_COLORS = ['#38bdf8', '#f43f5e', '#f59e0b', '#10b981', '#a855f7', '#ffffff'];
+  let activeSparklesCount = 0;
+  const MAX_ACTIVE_SPARKLES = 25;
 
   function spawnPrismSparkle(x, y, count = 1) {
     if (!document.documentElement.classList.contains('theme-prism') && !document.body.classList.contains('theme-prism')) return;
+    if (activeSparklesCount >= MAX_ACTIVE_SPARKLES) return;
 
-    for (let i = 0; i < count; i++) {
+    const actualSpawnCount = Math.min(count, MAX_ACTIVE_SPARKLES - activeSparklesCount);
+
+    for (let i = 0; i < actualSpawnCount; i++) {
+      activeSparklesCount++;
       const p = document.createElement('span');
       p.className = 'prism-interactive-sparkle';
       p.textContent = SPARKLE_SYMBOLS[Math.floor(Math.random() * SPARKLE_SYMBOLS.length)];
@@ -6340,7 +6346,10 @@ window.playSkeletonStaffAnimation = playSkeletonStaffAnimation;
       `;
 
       document.body.appendChild(p);
-      setTimeout(() => { if (p.parentNode) p.parentNode.removeChild(p); }, 850);
+      setTimeout(() => {
+        if (p.parentNode) p.parentNode.removeChild(p);
+        activeSparklesCount = Math.max(0, activeSparklesCount - 1);
+      }, 850);
     }
   }
 
@@ -6369,6 +6378,9 @@ window.playSkeletonStaffAnimation = playSkeletonStaffAnimation;
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
   let activeCard = null;
+  let moveX = 0;
+  let moveY = 0;
+  let renderScheduled = false;
 
   const CARD_SELECTOR = '.card, .dcard, .sc-card, .modern-shop-card, .merge-preview-card, .flip-card-3d, .bounty-card, .milestone-card-item, .packopen-card';
 
@@ -6453,7 +6465,18 @@ window.playSkeletonStaffAnimation = playSkeletonStaffAnimation;
       resetUniversalCardParallax(activeCard);
     }
     activeCard = card;
-    applyUniversalCardParallax(card, e.clientX, e.clientY);
+    moveX = e.clientX;
+    moveY = e.clientY;
+
+    if (!renderScheduled) {
+      renderScheduled = true;
+      requestAnimationFrame(() => {
+        if (activeCard) {
+          applyUniversalCardParallax(activeCard, moveX, moveY);
+        }
+        renderScheduled = false;
+      });
+    }
   }, { passive: true });
 
   document.addEventListener('pointerleave', () => {
@@ -6468,6 +6491,7 @@ window.playSkeletonStaffAnimation = playSkeletonStaffAnimation;
 // 3D BATTLE PASS THEMES MULTI-PLANE PARALLAX WORLD ENGINE
 // Reacts dynamically to cursor positioning across the viewport
 // creating multi-plane depth in both full-screen backgrounds and locker previews!
+// Optimized with background tab suspension & DOM query caching.
 // ============================================================
 (function initThemeWorldParallaxEngine() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
@@ -6477,6 +6501,9 @@ window.playSkeletonStaffAnimation = playSkeletonStaffAnimation;
   let targetX = 0;
   let targetY = 0;
   let animId = null;
+  let frameCount = 0;
+  let activeBgsCache = [];
+  let isTabActive = true;
 
   const THEME_BG_SELECTORS = [
     '#theme-chronos-bg',
@@ -6491,39 +6518,74 @@ window.playSkeletonStaffAnimation = playSkeletonStaffAnimation;
     '.showcase-theme-canvas'
   ];
 
+  function refreshActiveBgsCache() {
+    activeBgsCache = [];
+    THEME_BG_SELECTORS.forEach(sel => {
+      const els = document.querySelectorAll(sel);
+      els.forEach(el => {
+        if (el && !el.classList.contains('hidden') && el.offsetParent !== null) {
+          // Pre-cache query sub-selectors for maximum rendering speed and 0 frame-level DOM queries
+          activeBgsCache.push({
+            el: el,
+            isCanvas: el.classList.contains('showcase-theme-canvas'),
+            bgLayers: el.querySelectorAll('.temporal-grid, .cyber-highway-grid, .singularity-matter-streams, .quantum-subatomic-grid, .solar-corona-cells, .prism-shards-field, .celestial-star-dust, .abyss-trench-floor, .apex-colonnade-hall'),
+            midLayers: el.querySelectorAll('.chronos-astrolabe-3d, .cyber-skyline-parallax, .singularity-core-3d, .quantum-core-lattice, .solar-core-pulsar, .prism-diamond-core-3d, .celestial-dust-cloud, .abyss-caustics-layer, .apex-gilded-portal'),
+            fgLayers: el.querySelectorAll('.chronos-gear-ring, .cyber-scanlines-depth, .singularity-photon-ring, .quantum-particle-cloud, .solar-prominence-arcs, .prism-refractor-facets, .celestial-meteor-streak, .abyss-kraken-tentacle, .apex-runic-obelisk, .apex-cathedral-beams')
+          });
+        }
+      });
+    });
+  }
+
   function updateThemeParallax() {
-    // Smooth lerp interpolation
+    if (!isTabActive || document.hidden) {
+      animId = requestAnimationFrame(updateThemeParallax);
+      return;
+    }
+
+    // Refresh active DOM element cache once every 60 frames (1s) to eliminate high heap allocation & DOM lookups
+    if (frameCount++ % 60 === 0) {
+      refreshActiveBgsCache();
+    }
+
+    if (activeBgsCache.length === 0) {
+      animId = requestAnimationFrame(updateThemeParallax);
+      return;
+    }
+
+    // Smooth lerp interpolation for 60fps cinematic fluidity
     mouseX += (targetX - mouseX) * 0.12;
     mouseY += (targetY - mouseY) * 0.12;
 
     const rotX = (-mouseY * 5).toFixed(2);
     const rotY = (mouseX * 6).toFixed(2);
 
-    THEME_BG_SELECTORS.forEach(sel => {
-      const els = document.querySelectorAll(sel);
-      els.forEach(el => {
-        // Main container 3D perspective tilt
-        if (el.classList.contains('showcase-theme-canvas')) {
-          el.style.transform = `perspective(900px) rotateX(${rotX * 1.5}deg) rotateY(${rotY * 1.5}deg)`;
-        }
+    const mX12 = (-mouseX * 12).toFixed(1);
+    const mY10 = (-mouseY * 10).toFixed(1);
+    const mX22 = (mouseX * 22).toFixed(1);
+    const mY18 = (mouseY * 18).toFixed(1);
+    const mX40 = (mouseX * 40).toFixed(1);
+    const mY32 = (mouseY * 32).toFixed(1);
 
-        // Depth Layer 1 (Deep Background)
-        const bgLayers = el.querySelectorAll('.temporal-grid, .cyber-highway-grid, .singularity-matter-streams, .quantum-subatomic-grid, .solar-corona-cells, .prism-shards-field, .celestial-star-dust, .abyss-trench-floor, .apex-colonnade-hall');
-        bgLayers.forEach(l => {
-          l.style.transform = `translate3d(${(-mouseX * 12).toFixed(1)}px, ${(-mouseY * 10).toFixed(1)}px, 0)`;
-        });
+    activeBgsCache.forEach(cache => {
+      // Main container 3D perspective tilt
+      if (cache.isCanvas) {
+        cache.el.style.transform = `perspective(900px) rotateX(${rotX * 1.5}deg) rotateY(${rotY * 1.5}deg)`;
+      }
 
-        // Depth Layer 2 (Midground Centerpieces)
-        const midLayers = el.querySelectorAll('.chronos-astrolabe-3d, .cyber-skyline-parallax, .singularity-core-3d, .quantum-core-lattice, .solar-core-pulsar, .prism-diamond-core-3d, .celestial-dust-cloud, .abyss-caustics-layer, .apex-gilded-portal');
-        midLayers.forEach(l => {
-          l.style.transform = `translate3d(${(mouseX * 22).toFixed(1)}px, ${(mouseY * 18).toFixed(1)}px, 35px)`;
-        });
+      // Depth Layer 1 (Deep Background)
+      cache.bgLayers.forEach(l => {
+        l.style.transform = `translate3d(${mX12}px, ${mY10}px, 0)`;
+      });
 
-        // Depth Layer 3 (Foreground Floating Elements)
-        const fgLayers = el.querySelectorAll('.chronos-gear-ring, .cyber-scanlines-depth, .singularity-photon-ring, .quantum-particle-cloud, .solar-prominence-arcs, .prism-refractor-facets, .celestial-meteor-streak, .abyss-kraken-tentacle, .apex-runic-obelisk, .apex-cathedral-beams');
-        fgLayers.forEach(l => {
-          l.style.transform = `translate3d(${(mouseX * 40).toFixed(1)}px, ${(mouseY * 32).toFixed(1)}px, 75px)`;
-        });
+      // Depth Layer 2 (Midground Centerpieces)
+      cache.midLayers.forEach(l => {
+        l.style.transform = `translate3d(${mX22}px, ${mY18}px, 35px)`;
+      });
+
+      // Depth Layer 3 (Foreground Floating Elements)
+      cache.fgLayers.forEach(l => {
+        l.style.transform = `translate3d(${mX40}px, ${mY32}px, 75px)`;
       });
     });
 
@@ -6541,6 +6603,14 @@ window.playSkeletonStaffAnimation = playSkeletonStaffAnimation;
     targetY = 0;
   }, { passive: true });
 
+  document.addEventListener('visibilitychange', () => {
+    isTabActive = !document.hidden;
+    if (isTabActive) {
+      refreshActiveBgsCache();
+    }
+  });
+
+  refreshActiveBgsCache();
   animId = requestAnimationFrame(updateThemeParallax);
 })();
 

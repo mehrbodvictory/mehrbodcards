@@ -4,7 +4,7 @@
 (function() {
   'use strict';
 
-  const BATTLEPASS_PRICE = 5000;
+  const BATTLEPASS_PRICE = 2500;
   const BATTLEPASS_XP_PER_TIER = 500;
   const BATTLEPASS_MAX_TIER = 100;
 
@@ -124,9 +124,6 @@
         premium: premiumReward
       });
     }
-
-    return baseTiers;
-  }
 
     return baseTiers;
   }
@@ -392,7 +389,7 @@
     const currentBux = typeof loadBux === 'function' ? loadBux() : 0;
     if (currentBux < BATTLEPASS_PRICE) {
       if (typeof showToast === 'function') {
-        showToast(`Insufficient Bux! Premium Pass costs 10,000 Bux (You have ${currentBux.toLocaleString()} Bux).`, 3000);
+        showToast(`Insufficient Bux! Premium Pass costs 2,500 Bux (You have ${currentBux.toLocaleString()} Bux).`, 3000);
       }
       return;
     }
@@ -490,7 +487,7 @@
         buyBtn.disabled = true;
         buyBtn.classList.add('owned');
       } else {
-        buyBtn.textContent = 'UNLOCK PREMIUM (10,000 BUX)';
+        buyBtn.textContent = '⚡ UNLOCK PREMIUM (2,500 BUX)';
         buyBtn.disabled = false;
         buyBtn.classList.remove('owned');
       }
@@ -890,6 +887,16 @@
   }
 
   // --- Attach Event Listeners ---
+  document.addEventListener('click', (e) => {
+    const bpBtn = e.target.closest('#btn-open-battlepass, .battlepass-glow-btn');
+    if (bpBtn) {
+      if (typeof Sound !== 'undefined' && Sound.click) Sound.click();
+      renderBattlePassScreen();
+      const overlay = document.getElementById('battlepass-overlay');
+      if (overlay) overlay.classList.remove('hidden');
+    }
+  });
+
   function initBattlePassModule() {
     const btnOpen = document.getElementById('btn-open-battlepass');
     const overlay = document.getElementById('battlepass-overlay');

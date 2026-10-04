@@ -376,6 +376,7 @@ function showScreen(id) {
   if (id !== 'screen-game') {
     cancelReplay();
     mode = 'menu';
+    state = null; // Clean up the match state memory immediately when leaving the game screen!
     const controls = document.getElementById('replay-controls');
     if (controls) controls.classList.add('hidden');
   }
@@ -626,15 +627,67 @@ function triggerBuxCoinAnimation(amount) {
   }
 }
 
+let currentAnimatedBuxVal = null;
+let buxAnimFrame = null;
+
 function updateBuxDisplay() {
   const n = loadBux();
   const el = document.getElementById('bux-counter-value');
-  if (el) {
-    el.textContent = n.toLocaleString();
-    if (lastDisplayedBux !== null && n > lastDisplayedBux) {
-      triggerBuxCoinAnimation(n - lastDisplayedBux);
-    }
+  if (!el) return;
+
+  if (lastDisplayedBux === null) {
     lastDisplayedBux = n;
+    currentAnimatedBuxVal = n;
+    el.textContent = n.toLocaleString();
+    return;
+  }
+
+  const prev = lastDisplayedBux;
+  lastDisplayedBux = n;
+
+  if (n !== prev) {
+    el.classList.remove('bux-value-animating');
+    void el.offsetWidth; // force reflow
+    el.classList.add('bux-value-animating');
+    setTimeout(() => {
+      el.classList.remove('bux-value-animating');
+    }, 750);
+
+    if (n > prev) {
+      triggerBuxCoinAnimation(n - prev);
+
+      const startTime = performance.now();
+      const duration = 650;
+      const startVal = currentAnimatedBuxVal !== null ? currentAnimatedBuxVal : prev;
+      const diff = n - startVal;
+
+      if (buxAnimFrame) cancelAnimationFrame(buxAnimFrame);
+
+      const updateCount = (currentTime) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(1, elapsed / duration);
+        const ease = 1 - Math.pow(1 - progress, 3);
+        const currentVal = Math.round(startVal + diff * ease);
+        currentAnimatedBuxVal = currentVal;
+        el.textContent = currentVal.toLocaleString();
+
+        if (progress < 1) {
+          buxAnimFrame = requestAnimationFrame(updateCount);
+        } else {
+          currentAnimatedBuxVal = n;
+          el.textContent = n.toLocaleString();
+        }
+      };
+      buxAnimFrame = requestAnimationFrame(updateCount);
+    } else {
+      currentAnimatedBuxVal = n;
+      el.textContent = n.toLocaleString();
+    }
+  } else {
+    if (currentAnimatedBuxVal === null) {
+      currentAnimatedBuxVal = n;
+      el.textContent = n.toLocaleString();
+    }
   }
 }
 
