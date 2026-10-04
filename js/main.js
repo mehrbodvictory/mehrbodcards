@@ -2753,97 +2753,97 @@ let tutorialSuppressBot = false;
 
 const MENU_TOUR_STEPS = [
   {
-    text: "Welcome to Mehrbod Cards! Quick tour of the menu first, then we'll jump into a real practice match.",
+    text: "Welcome to Mehrbod Cards! Let's do a quick menu tour, then jump into a practice match.",
     target: null,
   },
   {
-    text: '💰 Your Mehrbod Bux balance lives here, top-right, on every menu screen. You start with 50 — tap it anytime to jump straight to the Shop.',
+    text: "💰 Your Bux Balance: Earned from matches to buy card packs, cosmetics, or enter wager matches.",
     target: () => document.getElementById('bux-counter'),
   },
   {
-    text: 'Single Player is where Practice vs Bot lives — free matches against 5 AI difficulty levels. Story Mode is coming soon!',
+    text: "🎮 Single Player: Battle practice bots across 5 difficulty levels for free.",
     target: () => document.getElementById('btn-single-player'),
   },
   {
-    text: 'The Mehrbod Shop sells Card Packs (unlock new spells, chips, and Green/Red/Orange cards), cosmetics like the Mr Money theme, and is where wagered matches for real stakes get set up.',
+    text: "🛒 Shop: Spend your Bux here on Booster Packs, custom themes, or set up high-stakes matches.",
     target: () => document.getElementById('btn-shop'),
   },
   {
-    text: "Multiplayer lets you host a room for a friend or join one with a 5-letter code — no account needed.",
+    text: "⚔️ Multiplayer: Host or join custom online rooms with a simple 5-letter code.",
     target: () => document.getElementById('btn-multiplayer'),
   },
   {
-    text: '📖 Your Collection Book shows every card in the game and lets you switch themes. Cards you own are ready to use in the deck builder; greyed-out ones are still waiting to be unlocked from a Card Pack.',
+    text: "📖 Collection: View your card library, customize your deck blueprints, and equip unlocked themes.",
     target: () => document.getElementById('btn-open-collection'),
   },
   {
-    text: '🏆 Quests track theme unlocks, your Daily Challenge, and Forge Milestones, all in one place.',
+    text: "🏆 Quests: Track daily rewards, forge milestones, and challenge difficulties to unlock themes.",
     target: () => document.getElementById('btn-open-quests-menu'),
   },
   {
-    text: "Alright, let's actually play. We'll drop straight into a practice match against an Easy bot and walk through everything step by step.",
+    text: "Let's play! Let's drop into a practice match against an Easy bot to learn the rules.",
     target: null,
   },
 ];
 
 const MATCH_TUTORIAL_STEPS = [
   {
-    text: "This is a real practice match against an Easy bot - nothing here is faked, this is the actual game.",
+    text: "This is a live match! Let's walk through how to play in 10 simple steps.",
     target: null,
   },
   {
-    text: 'These are all your cards, available from the start - no drawing needed. Drag any Blue card down onto an empty slot on your board to place it.',
+    text: "Step 1: Drag any Blue card from your hand onto an empty slot on your board.",
     target: () => document.getElementById('hand-row'),
     waitFor: (action, res) => action.type === 'place' && res.ok,
   },
   {
-    text: 'Nicely done! Place one more Blue card the same way.',
+    text: "Step 2: Great! Drag another Blue card down to place a second card on your board.",
     target: () => document.getElementById('hand-row'),
     waitFor: (action, res) => action.type === 'place' && res.ok,
   },
   {
-    text: "You've got two Blue cards on your board now. Drag one Blue card onto the other to merge them into a stronger Green card - this only works if you still have a Green card sitting in your cards to use as the blueprint. Blue is the only tier you can ever place directly - everything above it only ever comes from merging. Once you have 3+ cards down, try the 🧬 Combine button below to select several at once and fuse them all in one go.",
+    text: "Step 3: Drag one Blue card onto the other to merge them into a stronger Green card. Merging builds stronger tiers (Green ➔ Red ➔ Orange)!",
     target: () => document.getElementById('player-board'),
     waitFor: (action, res) => action.type === 'merge' && res.ok,
   },
   {
-    text: "Spells and chips (below your cards) can target any card, on either side, at any point in the round - you don't need to wait for a special phase to use them.",
+    text: "Step 4: Spells & Chips (below your hand) can be dragged onto any card at any time to instantly trigger powerful tactical effects.",
     target: () => document.getElementById('spells-chips-row'),
   },
   {
-    text: "One more thing: before a real match, you'll pick your own deck in the deck builder - including any Green/Red/Orange cards you own. Those can't be placed directly either, but merging Blues into their exact tier consumes one and uses its special ability instead of a generic result. You can merge 2, 3, or even 4 cards in one go (say, four Blues straight into an Orange) as long as you have the matching blueprint. Run out of a tier's blueprint and you can never merge into it again for the rest of the match. We skipped the deck builder for this practice match so you could jump straight in.",
+    text: "Step 5: Deck Blueprints: In real matches, merging Blue cards consumes your custom deck blueprints to activate powerful unique abilities.",
     target: null,
   },
   {
-    text: 'If you ever get 4+ Blue cards on your board at once, you\u2019ll be forced to merge some before doing anything else - your Blues will glow and a banner will explain. Keep an eye out for it.',
+    text: "Step 6: Blues Limit: If you ever have 4+ Blues on your board, you must merge some of them before you can end your placement phase.",
     target: () => document.getElementById('player-board'),
   },
   {
-    text: 'When your board looks good, hit Ready to lock in your placements for this round.',
+    text: "Step 7: Lock Placements: When your board looks ready, hit Ready to end the placement phase.",
     target: () => document.getElementById('btn-ready'),
     waitFor: (action, res) => action.type === 'readyPlacement' && res.ok,
     onComplete: () => { tutorialSuppressBot = false; ensureBotActs(() => render()); },
   },
   {
-    text: 'Combat time! Tap one of your cards, then tap an enemy card to choose its target.',
+    text: "Step 8: Combat Phase! Tap one of your active cards, then tap an opponent card to target it for attack.",
     target: () => document.getElementById('opponent-board'),
     requirePhase: 'attack',
     waitFor: (action, res) => action.type === 'attack' && res.ok,
   },
   {
-    text: 'Ready up again to resolve combat — both sides\u2019 attacks land at the exact same time.',
+    text: "Step 9: Lock Attacks: Tap Ready to resolve combat. Both players' attacks resolve and deal damage simultaneously!",
     target: () => document.getElementById('btn-ready'),
     requirePhase: 'attack',
     waitFor: (action, res) => action.type === 'readyAttack' && res.ok,
   },
   {
-    text: 'New round! Instead of attacking, try tapping Defend below, then tapping one of your cards to block incoming damage with it.',
+    text: "Step 10: Defense: Tap 'Defend' at the bottom, then tap one of your cards to block incoming damage with it during the round.",
     target: () => document.querySelector('.mode-btn[data-mode="defend"]'),
     requirePhase: 'placement',
     waitFor: (action, res) => action.type === 'defend' && res.ok,
   },
   {
-    text: "That's the core loop: place, merge, attack, defend, repeat until one side runs out of cards. Keep playing this practice match, or head back to the menu whenever you're ready. Good luck out there!",
+    text: "That's the game loop! Place, merge, attack, and defend to defeat the enemy bot. Have fun out there!",
     target: null,
   },
 ];

@@ -563,6 +563,17 @@
                 <span class="apex-p p1">✦</span><span class="apex-p p2">⭐</span><span class="apex-p p3">✨</span>
                 <span class="apex-p p4">👑</span><span class="apex-p p5">✦</span><span class="apex-p p6">💎</span>
                 <span class="apex-p p7">⭐</span><span class="apex-p p8">✨</span>
+                <span class="apex-p p9">🔥</span><span class="apex-p p10">👑</span><span class="apex-p p11">💎</span><span class="apex-p p12">✨</span>
+              </div>
+              <div class="apex-3d-stargate-container">
+                <div class="stargate-ring ring-outer"></div>
+                <div class="stargate-ring ring-middle"></div>
+                <div class="stargate-ring ring-inner"></div>
+                <div class="stargate-core-orb"></div>
+              </div>
+              <div class="apex-cascading-gold">
+                <span class="gold-ember g1"></span><span class="gold-ember g2"></span><span class="gold-ember g3"></span><span class="gold-ember g4"></span>
+                <span class="gold-ember g5"></span><span class="gold-ember g6"></span><span class="gold-ember g7"></span><span class="gold-ember g8"></span>
               </div>
             </div>
             <div class="apex-sovereign-explosion-3d" aria-hidden="true">
@@ -572,6 +583,7 @@
               <div class="apex-exp-shard-cluster">
                 <span class="apex-shard s1"></span><span class="apex-shard s2"></span><span class="apex-shard s3"></span><span class="apex-shard s4"></span>
                 <span class="apex-shard s5"></span><span class="apex-shard s6"></span><span class="apex-shard s7"></span><span class="apex-shard s8"></span>
+                <span class="apex-shard s9"></span><span class="apex-shard s10"></span><span class="apex-shard s11"></span><span class="apex-shard s12"></span>
               </div>
             </div>
           `;
