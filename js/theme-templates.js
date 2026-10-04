@@ -510,34 +510,802 @@ window.THEME_TEMPLATES = {
       <div class="galaxy-star-particle gs4"></div>
     </div>
   `,
+
+  // ============================================================
+  // SEASON 1 BATTLE PASS 3D / 2.5D THEME TEMPLATES
+  // ============================================================
+
+  // 1. Chronos Horizon (⏳ Tier 1) - 3D Clockwork Astrolabe & Temporal Orrery World
   chronos: `
-    <div id="theme-chronos-bg" aria-hidden="true">
-      <div class="chronos-gear-clockwork cg1"></div>
-      <div class="chronos-gear-clockwork cg2"></div>
+    <div id="theme-chronos-bg" class="theme-3d-scene chronos-3d-astrolabe" aria-hidden="true">
+      <div class="chronos-deep-void"></div>
+      <div class="chronos-temporal-grid"></div>
+      <div class="chronos-celestial-rings-back"></div>
+      <div class="chronos-3d-stage">
+        <div class="chronos-orrery-ring r1">
+          <div class="chronos-planet-mote pm1"></div>
+          <div class="chronos-planet-mote pm2"></div>
+        </div>
+        <div class="chronos-orrery-ring r2">
+          <div class="chronos-planet-mote pm3"></div>
+        </div>
+        <div class="chronos-orrery-ring r3"></div>
+        <div class="chronos-gear-clockwork cg1"></div>
+        <div class="chronos-gear-clockwork cg2"></div>
+        <div class="chronos-gear-clockwork cg3"></div>
+        <div class="chronos-gear-clockwork cg4"></div>
+        <div class="chronos-dial-center">
+          <div class="chronos-clock-face">
+            <span class="chronos-numeral num-12">XII</span>
+            <span class="chronos-numeral num-3">III</span>
+            <span class="chronos-numeral num-6">VI</span>
+            <span class="chronos-numeral num-9">IX</span>
+          </div>
+          <div class="chronos-clock-hand hand-h"></div>
+          <div class="chronos-clock-hand hand-m"></div>
+          <div class="chronos-clock-hand hand-s"></div>
+          <div class="chronos-clock-pin"></div>
+        </div>
+        <div class="chronos-3d-pendulum">
+          <div class="chronos-pendulum-arm"></div>
+          <div class="chronos-pendulum-bob"></div>
+        </div>
+      </div>
       <div class="chronos-temporal-haze"></div>
-      <div class="chronos-pendulum-pulse pp1"></div>
-      <div class="chronos-pendulum-pulse pp2"></div>
-      <div class="chronos-stardust-field cs1"></div>
-      <div class="chronos-stardust-field cs2"></div>
+      <div class="chronos-stardust cs1"></div>
+      <div class="chronos-stardust cs2"></div>
+      <div class="chronos-stardust cs3"></div>
+      <div class="chronos-stardust cs4"></div>
+      <div class="chronos-stardust cs5"></div>
+      <div class="chronos-stardust cs6"></div>
+      <div class="chronos-stardust cs7"></div>
+      <div class="chronos-stardust cs8"></div>
+      <div class="chronos-light-sweep"></div>
+      <div class="chronos-hourglass-stream"></div>
     </div>
   `,
+  theme_chronos: `
+    <div id="theme-chronos-bg" class="theme-3d-scene chronos-3d-astrolabe" aria-hidden="true">
+      <div class="chronos-deep-void"></div>
+      <div class="chronos-temporal-grid"></div>
+      <div class="chronos-celestial-rings-back"></div>
+      <div class="chronos-3d-stage">
+        <div class="chronos-orrery-ring r1">
+          <div class="chronos-planet-mote pm1"></div>
+          <div class="chronos-planet-mote pm2"></div>
+        </div>
+        <div class="chronos-orrery-ring r2">
+          <div class="chronos-planet-mote pm3"></div>
+        </div>
+        <div class="chronos-orrery-ring r3"></div>
+        <div class="chronos-gear-clockwork cg1"></div>
+        <div class="chronos-gear-clockwork cg2"></div>
+        <div class="chronos-gear-clockwork cg3"></div>
+        <div class="chronos-gear-clockwork cg4"></div>
+        <div class="chronos-dial-center">
+          <div class="chronos-clock-face">
+            <span class="chronos-numeral num-12">XII</span>
+            <span class="chronos-numeral num-3">III</span>
+            <span class="chronos-numeral num-6">VI</span>
+            <span class="chronos-numeral num-9">IX</span>
+          </div>
+          <div class="chronos-clock-hand hand-h"></div>
+          <div class="chronos-clock-hand hand-m"></div>
+          <div class="chronos-clock-hand hand-s"></div>
+          <div class="chronos-clock-pin"></div>
+        </div>
+        <div class="chronos-3d-pendulum">
+          <div class="chronos-pendulum-arm"></div>
+          <div class="chronos-pendulum-bob"></div>
+        </div>
+      </div>
+      <div class="chronos-temporal-haze"></div>
+      <div class="chronos-stardust cs1"></div>
+      <div class="chronos-stardust cs2"></div>
+      <div class="chronos-stardust cs3"></div>
+      <div class="chronos-stardust cs4"></div>
+      <div class="chronos-stardust cs5"></div>
+      <div class="chronos-stardust cs6"></div>
+      <div class="chronos-stardust cs7"></div>
+      <div class="chronos-stardust cs8"></div>
+      <div class="chronos-light-sweep"></div>
+      <div class="chronos-hourglass-stream"></div>
+    </div>
+  `,
+
+  // 2. Hyperdrive Cyber-Grid (🌆 Tier 10) - 3D Outrun Synthwave Cyber Metropolis
   neon_cyberpunk: `
-    <div id="theme-neon_cyberpunk-bg" aria-hidden="true">
+    <div id="theme-neon_cyberpunk-bg" class="theme-3d-scene cyberpunk-3d-stage" aria-hidden="true">
+      <div class="hyperdrive-skyline-haze"></div>
+      <div class="hyperdrive-cyber-cityscape">
+        <div class="cyber-building cb1"><div class="cb-windows"></div></div>
+        <div class="cyber-building cb2"><div class="cb-windows"></div><div class="cb-antenna"></div></div>
+        <div class="cyber-building cb3"><div class="cb-windows"></div></div>
+        <div class="cyber-building cb4"><div class="cb-windows"></div><div class="cb-beacon"></div></div>
+        <div class="cyber-building cb5"><div class="cb-windows"></div></div>
+      </div>
       <div class="hyperdrive-grid-floor"></div>
-      <div class="hyperdrive-vapor-sun"></div>
+      <div class="hyperdrive-vapor-sun">
+        <div class="vapor-sun-lines"></div>
+        <div class="vapor-sun-corona"></div>
+      </div>
+      <div class="hyperdrive-horizon-glow"></div>
+      <div class="hyperdrive-laser-road">
+        <div class="road-tracer left"></div>
+        <div class="road-tracer right"></div>
+        <div class="road-tracer center"></div>
+      </div>
       <div class="hyperdrive-speed-line sl1"></div>
       <div class="hyperdrive-speed-line sl2"></div>
       <div class="hyperdrive-speed-line sl3"></div>
+      <div class="hyperdrive-speed-line sl4"></div>
+      <div class="hyperdrive-speed-line sl5"></div>
+      <div class="hyperdrive-speed-line sl6"></div>
+      <div class="hyperdrive-holo-pyramid p1"></div>
+      <div class="hyperdrive-holo-pyramid p2"></div>
+      <div class="hyperdrive-holo-pyramid p3"></div>
       <div class="hyperdrive-laser-beam lb1"></div>
+      <div class="hyperdrive-laser-beam lb2"></div>
+      <div class="hyperdrive-cyber-rain cr1"></div>
+      <div class="hyperdrive-cyber-rain cr2"></div>
+      <div class="hyperdrive-cyber-rain cr3"></div>
     </div>
   `,
+  theme_neon_cyberpunk: `
+    <div id="theme-neon_cyberpunk-bg" class="theme-3d-scene cyberpunk-3d-stage" aria-hidden="true">
+      <div class="hyperdrive-skyline-haze"></div>
+      <div class="hyperdrive-cyber-cityscape">
+        <div class="cyber-building cb1"><div class="cb-windows"></div></div>
+        <div class="cyber-building cb2"><div class="cb-windows"></div><div class="cb-antenna"></div></div>
+        <div class="cyber-building cb3"><div class="cb-windows"></div></div>
+        <div class="cyber-building cb4"><div class="cb-windows"></div><div class="cb-beacon"></div></div>
+        <div class="cyber-building cb5"><div class="cb-windows"></div></div>
+      </div>
+      <div class="hyperdrive-grid-floor"></div>
+      <div class="hyperdrive-vapor-sun">
+        <div class="vapor-sun-lines"></div>
+        <div class="vapor-sun-corona"></div>
+      </div>
+      <div class="hyperdrive-horizon-glow"></div>
+      <div class="hyperdrive-laser-road">
+        <div class="road-tracer left"></div>
+        <div class="road-tracer right"></div>
+        <div class="road-tracer center"></div>
+      </div>
+      <div class="hyperdrive-speed-line sl1"></div>
+      <div class="hyperdrive-speed-line sl2"></div>
+      <div class="hyperdrive-speed-line sl3"></div>
+      <div class="hyperdrive-speed-line sl4"></div>
+      <div class="hyperdrive-speed-line sl5"></div>
+      <div class="hyperdrive-speed-line sl6"></div>
+      <div class="hyperdrive-holo-pyramid p1"></div>
+      <div class="hyperdrive-holo-pyramid p2"></div>
+      <div class="hyperdrive-holo-pyramid p3"></div>
+      <div class="hyperdrive-laser-beam lb1"></div>
+      <div class="hyperdrive-laser-beam lb2"></div>
+      <div class="hyperdrive-cyber-rain cr1"></div>
+      <div class="hyperdrive-cyber-rain cr2"></div>
+      <div class="hyperdrive-cyber-rain cr3"></div>
+    </div>
+  `,
+
+  // 3. Void Singularity (🌌 Tier 20) - 3D Relativistic Black Hole & Accretion Vortex
   void_singularity: `
-    <div id="theme-void_singularity-bg" aria-hidden="true">
-      <div class="singularity-core-portal"></div>
-      <div class="singularity-accretion-disk"></div>
-      <div class="singularity-hawking-ray hr1"></div>
-      <div class="singularity-hawking-ray hr2"></div>
-      <div class="singularity-event-horizon"></div>
+    <div id="theme-void_singularity-bg" class="theme-3d-scene singularity-3d-stage" aria-hidden="true">
+      <div class="singularity-deep-cosmos"></div>
+      <div class="singularity-gravitational-field"></div>
+      <div class="singularity-3d-vortex">
+        <div class="singularity-accretion-outer-halo"></div>
+        <div class="singularity-accretion-disk ad1"></div>
+        <div class="singularity-accretion-disk ad2"></div>
+        <div class="singularity-photon-ring"></div>
+        <div class="singularity-event-horizon"></div>
+        <div class="singularity-hawking-jet jet-north"></div>
+        <div class="singularity-hawking-jet jet-south"></div>
+        <div class="singularity-jet-spiral jsp1"></div>
+        <div class="singularity-jet-spiral jsp2"></div>
+      </div>
+      <div class="singularity-warp-wave ww1"></div>
+      <div class="singularity-warp-wave ww2"></div>
+      <div class="singularity-warp-wave ww3"></div>
+      <div class="singularity-void-mote vm1"></div>
+      <div class="singularity-void-mote vm2"></div>
+      <div class="singularity-void-mote vm3"></div>
+      <div class="singularity-void-mote vm4"></div>
+      <div class="singularity-void-mote vm5"></div>
+      <div class="singularity-void-mote vm6"></div>
+      <div class="singularity-void-mote vm7"></div>
+      <div class="singularity-void-mote vm8"></div>
+    </div>
+  `,
+  theme_void_singularity: `
+    <div id="theme-void_singularity-bg" class="theme-3d-scene singularity-3d-stage" aria-hidden="true">
+      <div class="singularity-deep-cosmos"></div>
+      <div class="singularity-gravitational-field"></div>
+      <div class="singularity-3d-vortex">
+        <div class="singularity-accretion-outer-halo"></div>
+        <div class="singularity-accretion-disk ad1"></div>
+        <div class="singularity-accretion-disk ad2"></div>
+        <div class="singularity-photon-ring"></div>
+        <div class="singularity-event-horizon"></div>
+        <div class="singularity-hawking-jet jet-north"></div>
+        <div class="singularity-hawking-jet jet-south"></div>
+        <div class="singularity-jet-spiral jsp1"></div>
+        <div class="singularity-jet-spiral jsp2"></div>
+      </div>
+      <div class="singularity-warp-wave ww1"></div>
+      <div class="singularity-warp-wave ww2"></div>
+      <div class="singularity-warp-wave ww3"></div>
+      <div class="singularity-void-mote vm1"></div>
+      <div class="singularity-void-mote vm2"></div>
+      <div class="singularity-void-mote vm3"></div>
+      <div class="singularity-void-mote vm4"></div>
+      <div class="singularity-void-mote vm5"></div>
+      <div class="singularity-void-mote vm6"></div>
+      <div class="singularity-void-mote vm7"></div>
+      <div class="singularity-void-mote vm8"></div>
+    </div>
+  `,
+
+  // 4. Quantum Horizon (⚛️ Tier 25) - 3D Subatomic Matrix & Superposition Chamber
+  quantum_overdrive: `
+    <div id="theme-quantum_overdrive-bg" class="theme-3d-scene quantum-3d-stage" aria-hidden="true">
+      <div class="quantum-subatomic-void"></div>
+      <div class="quantum-matrix-plane"></div>
+      <div class="quantum-lattice-sphere"></div>
+      <div class="quantum-3d-atom">
+        <div class="quantum-nucleus-core">
+          <div class="quantum-proton-spark p1"></div>
+          <div class="quantum-proton-spark p2"></div>
+          <div class="quantum-proton-spark p3"></div>
+        </div>
+        <div class="quantum-orbital ring-x">
+          <div class="quantum-electron e1"></div>
+          <div class="quantum-orbital-glow"></div>
+        </div>
+        <div class="quantum-orbital ring-y">
+          <div class="quantum-electron e2"></div>
+          <div class="quantum-orbital-glow"></div>
+        </div>
+        <div class="quantum-orbital ring-z">
+          <div class="quantum-electron e3"></div>
+          <div class="quantum-orbital-glow"></div>
+        </div>
+        <div class="quantum-orbital ring-w">
+          <div class="quantum-electron e4"></div>
+        </div>
+      </div>
+      <div class="quantum-wave-packet wp1"></div>
+      <div class="quantum-wave-packet wp2"></div>
+      <div class="quantum-wave-packet wp3"></div>
+      <div class="quantum-interference-grid"></div>
+      <div class="quantum-quark-spark qs1"></div>
+      <div class="quantum-quark-spark qs2"></div>
+      <div class="quantum-quark-spark qs3"></div>
+      <div class="quantum-quark-spark qs4"></div>
+      <div class="quantum-quark-spark qs5"></div>
+      <div class="quantum-quark-spark qs6"></div>
+    </div>
+  `,
+  theme_quantum_overdrive: `
+    <div id="theme-quantum_overdrive-bg" class="theme-3d-scene quantum-3d-stage" aria-hidden="true">
+      <div class="quantum-subatomic-void"></div>
+      <div class="quantum-matrix-plane"></div>
+      <div class="quantum-lattice-sphere"></div>
+      <div class="quantum-3d-atom">
+        <div class="quantum-nucleus-core">
+          <div class="quantum-proton-spark p1"></div>
+          <div class="quantum-proton-spark p2"></div>
+          <div class="quantum-proton-spark p3"></div>
+        </div>
+        <div class="quantum-orbital ring-x">
+          <div class="quantum-electron e1"></div>
+          <div class="quantum-orbital-glow"></div>
+        </div>
+        <div class="quantum-orbital ring-y">
+          <div class="quantum-electron e2"></div>
+          <div class="quantum-orbital-glow"></div>
+        </div>
+        <div class="quantum-orbital ring-z">
+          <div class="quantum-electron e3"></div>
+          <div class="quantum-orbital-glow"></div>
+        </div>
+        <div class="quantum-orbital ring-w">
+          <div class="quantum-electron e4"></div>
+        </div>
+      </div>
+      <div class="quantum-wave-packet wp1"></div>
+      <div class="quantum-wave-packet wp2"></div>
+      <div class="quantum-wave-packet wp3"></div>
+      <div class="quantum-interference-grid"></div>
+      <div class="quantum-quark-spark qs1"></div>
+      <div class="quantum-quark-spark qs2"></div>
+      <div class="quantum-quark-spark qs3"></div>
+      <div class="quantum-quark-spark qs4"></div>
+      <div class="quantum-quark-spark qs5"></div>
+      <div class="quantum-quark-spark qs6"></div>
+    </div>
+  `,
+
+  // 5. Solar Corona (☀️ Tier 35) - 3D Stellar Photosphere & Magnetic Flare Arcs
+  solar_prominence: `
+    <div id="theme-solar_prominence-bg" class="theme-3d-scene solar-3d-stage" aria-hidden="true">
+      <div class="solar-photosphere-glow"></div>
+      <div class="solar-granulation-surface"></div>
+      <div class="solar-heliosphere-ring"></div>
+      <div class="solar-3d-sun">
+        <div class="solar-core-sphere">
+          <div class="solar-sunspot sp1"></div>
+          <div class="solar-sunspot sp2"></div>
+          <div class="solar-sunspot sp3"></div>
+        </div>
+        <div class="solar-prominence-arc arc1"></div>
+        <div class="solar-prominence-arc arc2"></div>
+        <div class="solar-prominence-arc arc3"></div>
+        <div class="solar-prominence-arc arc4"></div>
+        <div class="solar-magnetic-loop loop1"></div>
+        <div class="solar-magnetic-loop loop2"></div>
+        <div class="solar-magnetic-loop loop3"></div>
+      </div>
+      <div class="solar-coronal-wind"></div>
+      <div class="solar-plasma-ember pe1"></div>
+      <div class="solar-plasma-ember pe2"></div>
+      <div class="solar-plasma-ember pe3"></div>
+      <div class="solar-plasma-ember pe4"></div>
+      <div class="solar-plasma-ember pe5"></div>
+      <div class="solar-plasma-ember pe6"></div>
+      <div class="solar-plasma-ember pe7"></div>
+      <div class="solar-plasma-ember pe8"></div>
+      <div class="solar-godray-sweep"></div>
+    </div>
+  `,
+  theme_solar_prominence: `
+    <div id="theme-solar_prominence-bg" class="theme-3d-scene solar-3d-stage" aria-hidden="true">
+      <div class="solar-photosphere-glow"></div>
+      <div class="solar-granulation-surface"></div>
+      <div class="solar-heliosphere-ring"></div>
+      <div class="solar-3d-sun">
+        <div class="solar-core-sphere">
+          <div class="solar-sunspot sp1"></div>
+          <div class="solar-sunspot sp2"></div>
+          <div class="solar-sunspot sp3"></div>
+        </div>
+        <div class="solar-prominence-arc arc1"></div>
+        <div class="solar-prominence-arc arc2"></div>
+        <div class="solar-prominence-arc arc3"></div>
+        <div class="solar-prominence-arc arc4"></div>
+        <div class="solar-magnetic-loop loop1"></div>
+        <div class="solar-magnetic-loop loop2"></div>
+        <div class="solar-magnetic-loop loop3"></div>
+      </div>
+      <div class="solar-coronal-wind"></div>
+      <div class="solar-plasma-ember pe1"></div>
+      <div class="solar-plasma-ember pe2"></div>
+      <div class="solar-plasma-ember pe3"></div>
+      <div class="solar-plasma-ember pe4"></div>
+      <div class="solar-plasma-ember pe5"></div>
+      <div class="solar-plasma-ember pe6"></div>
+      <div class="solar-plasma-ember pe7"></div>
+      <div class="solar-plasma-ember pe8"></div>
+      <div class="solar-godray-sweep"></div>
+    </div>
+  `,
+
+  // 6. Diamond Refractor (💎 Tier 50) - 3D Crystal Prism Sanctum & Caustic Dispersion Chamber
+  prism_mythic: `
+    <div id="theme-prism_mythic-bg" class="theme-3d-scene prism-mythic-3d-stage" aria-hidden="true">
+      <div class="prism-obsidian-bedrock"></div>
+      <div class="prism-refraction-caustic-primary"></div>
+      <div class="prism-refraction-caustic-secondary"></div>
+      <div class="prism-spectrum-chamber">
+        <div class="prism-spectrum-arc red"></div>
+        <div class="prism-spectrum-arc gold"></div>
+        <div class="prism-spectrum-arc emerald"></div>
+        <div class="prism-spectrum-arc cyan"></div>
+        <div class="prism-spectrum-arc violet"></div>
+      </div>
+      <div class="prism-3d-crystal-stage">
+        <div class="prism-crystal-halo"></div>
+        <div class="prism-rotating-polyhedron">
+          <div class="crystal-face f1"></div>
+          <div class="crystal-face f2"></div>
+          <div class="crystal-face f3"></div>
+          <div class="crystal-face f4"></div>
+          <div class="crystal-face f5"></div>
+          <div class="crystal-face f6"></div>
+          <div class="crystal-face-top"></div>
+          <div class="crystal-face-bottom"></div>
+          <div class="crystal-core-sparkle"></div>
+        </div>
+      </div>
+      <div class="prism-dispersion-ray ray1"></div>
+      <div class="prism-dispersion-ray ray2"></div>
+      <div class="prism-dispersion-ray ray3"></div>
+      <div class="prism-dispersion-ray ray4"></div>
+      <div class="prism-diamond-shard ds1"></div>
+      <div class="prism-diamond-shard ds2"></div>
+      <div class="prism-diamond-shard ds3"></div>
+      <div class="prism-diamond-shard ds4"></div>
+      <div class="prism-diamond-shard ds5"></div>
+      <div class="prism-diamond-shard ds6"></div>
+      <div class="prism-refractor-sparkle ps1"></div>
+      <div class="prism-refractor-sparkle ps2"></div>
+      <div class="prism-refractor-sparkle ps3"></div>
+      <div class="prism-refractor-sparkle ps4"></div>
+      <div class="prism-refractor-sparkle ps5"></div>
+      <div class="prism-refractor-sparkle ps6"></div>
+      <div class="prism-refractor-sparkle ps7"></div>
+    </div>
+  `,
+  theme_prism_mythic: `
+    <div id="theme-prism_mythic-bg" class="theme-3d-scene prism-mythic-3d-stage" aria-hidden="true">
+      <div class="prism-obsidian-bedrock"></div>
+      <div class="prism-refraction-caustic-primary"></div>
+      <div class="prism-refraction-caustic-secondary"></div>
+      <div class="prism-spectrum-chamber">
+        <div class="prism-spectrum-arc red"></div>
+        <div class="prism-spectrum-arc gold"></div>
+        <div class="prism-spectrum-arc emerald"></div>
+        <div class="prism-spectrum-arc cyan"></div>
+        <div class="prism-spectrum-arc violet"></div>
+      </div>
+      <div class="prism-3d-crystal-stage">
+        <div class="prism-crystal-halo"></div>
+        <div class="prism-rotating-polyhedron">
+          <div class="crystal-face f1"></div>
+          <div class="crystal-face f2"></div>
+          <div class="crystal-face f3"></div>
+          <div class="crystal-face f4"></div>
+          <div class="crystal-face f5"></div>
+          <div class="crystal-face f6"></div>
+          <div class="crystal-face-top"></div>
+          <div class="crystal-face-bottom"></div>
+          <div class="crystal-core-sparkle"></div>
+        </div>
+      </div>
+      <div class="prism-dispersion-ray ray1"></div>
+      <div class="prism-dispersion-ray ray2"></div>
+      <div class="prism-dispersion-ray ray3"></div>
+      <div class="prism-dispersion-ray ray4"></div>
+      <div class="prism-diamond-shard ds1"></div>
+      <div class="prism-diamond-shard ds2"></div>
+      <div class="prism-diamond-shard ds3"></div>
+      <div class="prism-diamond-shard ds4"></div>
+      <div class="prism-diamond-shard ds5"></div>
+      <div class="prism-diamond-shard ds6"></div>
+      <div class="prism-refractor-sparkle ps1"></div>
+      <div class="prism-refractor-sparkle ps2"></div>
+      <div class="prism-refractor-sparkle ps3"></div>
+      <div class="prism-refractor-sparkle ps4"></div>
+      <div class="prism-refractor-sparkle ps5"></div>
+      <div class="prism-refractor-sparkle ps6"></div>
+      <div class="prism-refractor-sparkle ps7"></div>
+    </div>
+  `,
+
+  // 7. Celestial Nebula (🌠 Tier 65) - 3D Deep Space Parallax Nebula & Starfield
+  celestial_nebula: `
+    <div id="theme-celestial_nebula-bg" class="theme-3d-scene celestial-3d-stage" aria-hidden="true">
+      <div class="nebula-deep-space"></div>
+      <div class="nebula-cloud-layer nc-back"></div>
+      <div class="nebula-cloud-layer nc-mid"></div>
+      <div class="nebula-cloud-layer nc-front"></div>
+      <div class="nebula-cosmic-pillar cp1"></div>
+      <div class="nebula-cosmic-pillar cp2"></div>
+      <div class="nebula-3d-starfield">
+        <div class="star-layer sl-back"></div>
+        <div class="star-layer sl-mid"></div>
+        <div class="star-layer sl-front"></div>
+      </div>
+      <div class="celestial-starlight-filament sf1"></div>
+      <div class="celestial-starlight-filament sf2"></div>
+      <div class="celestial-starlight-filament sf3"></div>
+      <div class="celestial-comet-trail ct1"></div>
+      <div class="celestial-comet-trail ct2"></div>
+      <div class="celestial-comet-trail ct3"></div>
+      <div class="celestial-glitter-mote gm1"></div>
+      <div class="celestial-glitter-mote gm2"></div>
+      <div class="celestial-glitter-mote gm3"></div>
+      <div class="celestial-glitter-mote gm4"></div>
+      <div class="celestial-glitter-mote gm5"></div>
+      <div class="celestial-glitter-mote gm6"></div>
+      <div class="celestial-glitter-mote gm7"></div>
+    </div>
+  `,
+  theme_celestial_nebula: `
+    <div id="theme-celestial_nebula-bg" class="theme-3d-scene celestial-3d-stage" aria-hidden="true">
+      <div class="nebula-deep-space"></div>
+      <div class="nebula-cloud-layer nc-back"></div>
+      <div class="nebula-cloud-layer nc-mid"></div>
+      <div class="nebula-cloud-layer nc-front"></div>
+      <div class="nebula-cosmic-pillar cp1"></div>
+      <div class="nebula-cosmic-pillar cp2"></div>
+      <div class="nebula-3d-starfield">
+        <div class="star-layer sl-back"></div>
+        <div class="star-layer sl-mid"></div>
+        <div class="star-layer sl-front"></div>
+      </div>
+      <div class="celestial-starlight-filament sf1"></div>
+      <div class="celestial-starlight-filament sf2"></div>
+      <div class="celestial-starlight-filament sf3"></div>
+      <div class="celestial-comet-trail ct1"></div>
+      <div class="celestial-comet-trail ct2"></div>
+      <div class="celestial-comet-trail ct3"></div>
+      <div class="celestial-glitter-mote gm1"></div>
+      <div class="celestial-glitter-mote gm2"></div>
+      <div class="celestial-glitter-mote gm3"></div>
+      <div class="celestial-glitter-mote gm4"></div>
+      <div class="celestial-glitter-mote gm5"></div>
+      <div class="celestial-glitter-mote gm6"></div>
+      <div class="celestial-glitter-mote gm7"></div>
+    </div>
+  `,
+
+  // 8. Kraken Abyss (🦑 Tier 80) - 3D Abyssal Trench & Bioluminescent Leviathan
+  abyss_kraken: `
+    <div id="theme-abyss_kraken-bg" class="theme-3d-scene kraken-3d-stage" aria-hidden="true">
+      <div class="kraken-abyssal-floor"></div>
+      <div class="kraken-trench-caustics"></div>
+      <div class="kraken-hydrothermal-vent hv1"><div class="vent-plume"></div></div>
+      <div class="kraken-hydrothermal-vent hv2"><div class="vent-plume"></div></div>
+      <div class="kraken-25d-stage">
+        <div class="kraken-tentacle-3d t1">
+          <div class="tentacle-segment s1"></div>
+          <div class="tentacle-segment s2"></div>
+          <div class="tentacle-segment s3"></div>
+          <div class="tentacle-sucker glow-cyan sk1"></div>
+          <div class="tentacle-sucker glow-cyan sk2"></div>
+        </div>
+        <div class="kraken-tentacle-3d t2">
+          <div class="tentacle-segment s1"></div>
+          <div class="tentacle-segment s2"></div>
+          <div class="tentacle-segment s3"></div>
+          <div class="tentacle-sucker glow-magenta sk1"></div>
+          <div class="tentacle-sucker glow-magenta sk2"></div>
+        </div>
+        <div class="kraken-tentacle-3d t3">
+          <div class="tentacle-segment s1"></div>
+          <div class="tentacle-segment s2"></div>
+          <div class="tentacle-segment s3"></div>
+          <div class="tentacle-sucker glow-cyan sk1"></div>
+        </div>
+        <div class="kraken-tentacle-3d t4">
+          <div class="tentacle-segment s1"></div>
+          <div class="tentacle-segment s2"></div>
+          <div class="tentacle-sucker glow-teal sk1"></div>
+        </div>
+        <div class="kraken-tentacle-3d t5">
+          <div class="tentacle-segment s1"></div>
+          <div class="tentacle-segment s2"></div>
+          <div class="tentacle-sucker glow-magenta sk1"></div>
+        </div>
+        <div class="kraken-tentacle-3d t6">
+          <div class="tentacle-segment s1"></div>
+          <div class="tentacle-segment s2"></div>
+          <div class="tentacle-sucker glow-cyan sk1"></div>
+        </div>
+      </div>
+      <div class="kraken-sonar-ping sp1"></div>
+      <div class="kraken-sonar-ping sp2"></div>
+      <div class="kraken-sonar-ping sp3"></div>
+      <div class="kraken-plankton-mote pm1"></div>
+      <div class="kraken-plankton-mote pm2"></div>
+      <div class="kraken-plankton-mote pm3"></div>
+      <div class="kraken-plankton-mote pm4"></div>
+      <div class="kraken-plankton-mote pm5"></div>
+      <div class="kraken-plankton-mote pm6"></div>
+      <div class="kraken-plankton-mote pm7"></div>
+      <div class="kraken-plankton-mote pm8"></div>
+    </div>
+  `,
+  theme_abyss_kraken: `
+    <div id="theme-abyss_kraken-bg" class="theme-3d-scene kraken-3d-stage" aria-hidden="true">
+      <div class="kraken-abyssal-floor"></div>
+      <div class="kraken-trench-caustics"></div>
+      <div class="kraken-hydrothermal-vent hv1"><div class="vent-plume"></div></div>
+      <div class="kraken-hydrothermal-vent hv2"><div class="vent-plume"></div></div>
+      <div class="kraken-25d-stage">
+        <div class="kraken-tentacle-3d t1">
+          <div class="tentacle-segment s1"></div>
+          <div class="tentacle-segment s2"></div>
+          <div class="tentacle-segment s3"></div>
+          <div class="tentacle-sucker glow-cyan sk1"></div>
+          <div class="tentacle-sucker glow-cyan sk2"></div>
+        </div>
+        <div class="kraken-tentacle-3d t2">
+          <div class="tentacle-segment s1"></div>
+          <div class="tentacle-segment s2"></div>
+          <div class="tentacle-segment s3"></div>
+          <div class="tentacle-sucker glow-magenta sk1"></div>
+          <div class="tentacle-sucker glow-magenta sk2"></div>
+        </div>
+        <div class="kraken-tentacle-3d t3">
+          <div class="tentacle-segment s1"></div>
+          <div class="tentacle-segment s2"></div>
+          <div class="tentacle-segment s3"></div>
+          <div class="tentacle-sucker glow-cyan sk1"></div>
+        </div>
+        <div class="kraken-tentacle-3d t4">
+          <div class="tentacle-segment s1"></div>
+          <div class="tentacle-segment s2"></div>
+          <div class="tentacle-sucker glow-teal sk1"></div>
+        </div>
+        <div class="kraken-tentacle-3d t5">
+          <div class="tentacle-segment s1"></div>
+          <div class="tentacle-segment s2"></div>
+          <div class="tentacle-sucker glow-magenta sk1"></div>
+        </div>
+        <div class="kraken-tentacle-3d t6">
+          <div class="tentacle-segment s1"></div>
+          <div class="tentacle-segment s2"></div>
+          <div class="tentacle-sucker glow-cyan sk1"></div>
+        </div>
+      </div>
+      <div class="kraken-sonar-ping sp1"></div>
+      <div class="kraken-sonar-ping sp2"></div>
+      <div class="kraken-sonar-ping sp3"></div>
+      <div class="kraken-plankton-mote pm1"></div>
+      <div class="kraken-plankton-mote pm2"></div>
+      <div class="kraken-plankton-mote pm3"></div>
+      <div class="kraken-plankton-mote pm4"></div>
+      <div class="kraken-plankton-mote pm5"></div>
+      <div class="kraken-plankton-mote pm6"></div>
+      <div class="kraken-plankton-mote pm7"></div>
+      <div class="kraken-plankton-mote pm8"></div>
+    </div>
+  `,
+
+  // 9. Apex Sovereign Gold (👑 Tier 100) - Epic 3D Imperial Gold Pantheon & Stargate World
+  apex_sovereign: `
+    <div id="theme-apex_sovereign-bg" class="theme-3d-scene sovereign-3d-stage" aria-hidden="true">
+      <div class="sovereign-celestial-void"></div>
+      <div class="sovereign-3d-floor-grid"></div>
+      <div class="sovereign-3d-colonnade">
+        <div class="gilded-column col-left-1"><div class="column-flute"></div><div class="column-capital"></div></div>
+        <div class="gilded-column col-left-2"><div class="column-flute"></div><div class="column-capital"></div></div>
+        <div class="gilded-column col-left-3"><div class="column-flute"></div><div class="column-capital"></div></div>
+        <div class="gilded-column col-right-1"><div class="column-flute"></div><div class="column-capital"></div></div>
+        <div class="gilded-column col-right-2"><div class="column-flute"></div><div class="column-capital"></div></div>
+        <div class="gilded-column col-right-3"><div class="column-flute"></div><div class="column-capital"></div></div>
+      </div>
+      <div class="sovereign-stargate-3d">
+        <div class="sovereign-stargate-ring ring-outer">
+          <span class="sovereign-rune r1">⚡</span>
+          <span class="sovereign-rune r2">👑</span>
+          <span class="sovereign-rune r3">⚜️</span>
+          <span class="sovereign-rune r4">💎</span>
+        </div>
+        <div class="sovereign-stargate-ring ring-mid">
+          <span class="sovereign-rune r5">✦</span>
+          <span class="sovereign-rune r6">★</span>
+          <span class="sovereign-rune r7">✦</span>
+          <span class="sovereign-rune r8">★</span>
+        </div>
+        <div class="sovereign-stargate-ring ring-inner"></div>
+        <div class="sovereign-stargate-core"></div>
+      </div>
+      <div class="sovereign-3d-crown-stage">
+        <div class="sovereign-floating-crown">
+          <div class="crown-aura-ring"></div>
+          <div class="crown-base-ring"></div>
+          <div class="crown-peak p1"></div>
+          <div class="crown-peak p2"></div>
+          <div class="crown-peak p3"></div>
+          <div class="crown-peak p4"></div>
+          <div class="crown-peak p5"></div>
+          <div class="crown-gem ruby"></div>
+          <div class="crown-gem emerald-l"></div>
+          <div class="crown-gem emerald-r"></div>
+        </div>
+      </div>
+      <div class="sovereign-monolith-orbit">
+        <div class="sovereign-monolith m1"><div class="monolith-face"></div><div class="monolith-rune">👑</div></div>
+        <div class="sovereign-monolith m2"><div class="monolith-face"></div><div class="monolith-rune">⚡</div></div>
+        <div class="sovereign-monolith m3"><div class="monolith-face"></div><div class="monolith-rune">⚜️</div></div>
+        <div class="sovereign-monolith m4"><div class="monolith-face"></div><div class="monolith-rune">💎</div></div>
+      </div>
+      <div class="sovereign-god-rays">
+        <div class="sovereign-light-shaft ls1"></div>
+        <div class="sovereign-light-shaft ls2"></div>
+        <div class="sovereign-light-shaft ls3"></div>
+        <div class="sovereign-light-shaft ls4"></div>
+        <div class="sovereign-light-shaft ls5"></div>
+      </div>
+      <div class="sovereign-gold-flakes">
+        <div class="sovereign-gold-flake gf1"></div>
+        <div class="sovereign-gold-flake gf2"></div>
+        <div class="sovereign-gold-flake gf3"></div>
+        <div class="sovereign-gold-flake gf4"></div>
+        <div class="sovereign-gold-flake gf5"></div>
+        <div class="sovereign-gold-flake gf6"></div>
+        <div class="sovereign-gold-flake gf7"></div>
+        <div class="sovereign-gold-flake gf8"></div>
+        <div class="sovereign-gold-flake gf9"></div>
+        <div class="sovereign-gold-flake gf10"></div>
+        <div class="sovereign-gold-flake gf11"></div>
+        <div class="sovereign-gold-flake gf12"></div>
+        <div class="sovereign-gold-flake gf13"></div>
+        <div class="sovereign-gold-flake gf14"></div>
+        <div class="sovereign-gold-flake gf15"></div>
+        <div class="sovereign-gold-flake gf16"></div>
+      </div>
+      <div class="sovereign-horizon-corona"></div>
+    </div>
+  `,
+  theme_apex_sovereign: `
+    <div id="theme-apex_sovereign-bg" class="theme-3d-scene sovereign-3d-stage" aria-hidden="true">
+      <div class="sovereign-celestial-void"></div>
+      <div class="sovereign-3d-floor-grid"></div>
+      <div class="sovereign-3d-colonnade">
+        <div class="gilded-column col-left-1"><div class="column-flute"></div><div class="column-capital"></div></div>
+        <div class="gilded-column col-left-2"><div class="column-flute"></div><div class="column-capital"></div></div>
+        <div class="gilded-column col-left-3"><div class="column-flute"></div><div class="column-capital"></div></div>
+        <div class="gilded-column col-right-1"><div class="column-flute"></div><div class="column-capital"></div></div>
+        <div class="gilded-column col-right-2"><div class="column-flute"></div><div class="column-capital"></div></div>
+        <div class="gilded-column col-right-3"><div class="column-flute"></div><div class="column-capital"></div></div>
+      </div>
+      <div class="sovereign-stargate-3d">
+        <div class="sovereign-stargate-ring ring-outer">
+          <span class="sovereign-rune r1">⚡</span>
+          <span class="sovereign-rune r2">👑</span>
+          <span class="sovereign-rune r3">⚜️</span>
+          <span class="sovereign-rune r4">💎</span>
+        </div>
+        <div class="sovereign-stargate-ring ring-mid">
+          <span class="sovereign-rune r5">✦</span>
+          <span class="sovereign-rune r6">★</span>
+          <span class="sovereign-rune r7">✦</span>
+          <span class="sovereign-rune r8">★</span>
+        </div>
+        <div class="sovereign-stargate-ring ring-inner"></div>
+        <div class="sovereign-stargate-core"></div>
+      </div>
+      <div class="sovereign-3d-crown-stage">
+        <div class="sovereign-floating-crown">
+          <div class="crown-aura-ring"></div>
+          <div class="crown-base-ring"></div>
+          <div class="crown-peak p1"></div>
+          <div class="crown-peak p2"></div>
+          <div class="crown-peak p3"></div>
+          <div class="crown-peak p4"></div>
+          <div class="crown-peak p5"></div>
+          <div class="crown-gem ruby"></div>
+          <div class="crown-gem emerald-l"></div>
+          <div class="crown-gem emerald-r"></div>
+        </div>
+      </div>
+      <div class="sovereign-monolith-orbit">
+        <div class="sovereign-monolith m1"><div class="monolith-face"></div><div class="monolith-rune">👑</div></div>
+        <div class="sovereign-monolith m2"><div class="monolith-face"></div><div class="monolith-rune">⚡</div></div>
+        <div class="sovereign-monolith m3"><div class="monolith-face"></div><div class="monolith-rune">⚜️</div></div>
+        <div class="sovereign-monolith m4"><div class="monolith-face"></div><div class="monolith-rune">💎</div></div>
+      </div>
+      <div class="sovereign-god-rays">
+        <div class="sovereign-light-shaft ls1"></div>
+        <div class="sovereign-light-shaft ls2"></div>
+        <div class="sovereign-light-shaft ls3"></div>
+        <div class="sovereign-light-shaft ls4"></div>
+        <div class="sovereign-light-shaft ls5"></div>
+      </div>
+      <div class="sovereign-gold-flakes">
+        <div class="sovereign-gold-flake gf1"></div>
+        <div class="sovereign-gold-flake gf2"></div>
+        <div class="sovereign-gold-flake gf3"></div>
+        <div class="sovereign-gold-flake gf4"></div>
+        <div class="sovereign-gold-flake gf5"></div>
+        <div class="sovereign-gold-flake gf6"></div>
+        <div class="sovereign-gold-flake gf7"></div>
+        <div class="sovereign-gold-flake gf8"></div>
+        <div class="sovereign-gold-flake gf9"></div>
+        <div class="sovereign-gold-flake gf10"></div>
+        <div class="sovereign-gold-flake gf11"></div>
+        <div class="sovereign-gold-flake gf12"></div>
+        <div class="sovereign-gold-flake gf13"></div>
+        <div class="sovereign-gold-flake gf14"></div>
+        <div class="sovereign-gold-flake gf15"></div>
+        <div class="sovereign-gold-flake gf16"></div>
+      </div>
+      <div class="sovereign-horizon-corona"></div>
     </div>
   `
 };

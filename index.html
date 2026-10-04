@@ -17,13 +17,16 @@
   var ctx = typeof window !== 'undefined' ? window.ctx : null;
 </script>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Mehrbod Cards</title>
 <meta name="description" content="A browser card battler with vs-bot practice and peer-to-peer multiplayer">
 <meta property="og:title" content="Mehrbod Cards">
 <meta property="og:description" content="A browser card battler with vs-bot practice and peer-to-peer multiplayer">
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#1c1917">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0b0f19">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#0b0f19">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0f19">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -32,10 +35,49 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=14.6.0">
-<link rel="stylesheet" href="style-juice.css?v=14.0.0">
+<link rel="stylesheet" href="style.css?v=14.7.0">
+<link rel="stylesheet" href="style-juice.css?v=14.1.0">
+<style>
+  :root {
+    color-scheme: dark !important;
+    --bg: #0b0f19;
+  }
+  html {
+    background-color: #0b0f19 !important;
+    background: #0b0f19 !important;
+    color-scheme: dark !important;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overscroll-behavior: none !important;
+    overscroll-behavior-y: none !important;
+  }
+  body {
+    background-color: #0b0f19 !important;
+    background: radial-gradient(ellipse at top, #131b2e 0%, #080c14 70%) !important;
+    color-scheme: dark !important;
+    min-height: 100%;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+    margin: 0;
+    padding: 0;
+    overscroll-behavior: none !important;
+    overscroll-behavior-y: none !important;
+  }
+  #pwa-top-safe-guard {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: max(24px, env(safe-area-inset-top, 24px));
+    background-color: #0b0f19 !important;
+    z-index: 450;
+    pointer-events: none;
+  }
+</style>
 </head>
 <body>
+<div id="pwa-top-safe-guard" aria-hidden="true"></div>
 <div id="top-left-hud">
   <button id="profile-avatar-btn" type="button" aria-label="Open your profile">
     <canvas id="hud-profile-particle-canvas" class="hud-avatar-particle-canvas" width="80" height="80"></canvas>
@@ -143,13 +185,6 @@
     </div>
 
     <div class="menu-footer">
-      <div class="footer-btn-wrapper" style="position: relative; display: inline-flex; align-items: center; justify-content: center;">
-        <button class="link-btn glass-pill-btn footer-squircle-btn battlepass-glow-btn" id="btn-open-battlepass">
-          <span style="font-size: 1.1rem; filter: drop-shadow(0 0 6px #f59e0b);">⚡</span>
-          <span style="background: linear-gradient(135deg, #f59e0b, #ef4444); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800;">PASS S1</span>
-        </button>
-        <span id="bp-claim-indicator" class="bp-unclaimed-badge hidden">!</span>
-      </div>
       <button class="link-btn glass-pill-btn footer-squircle-btn" id="btn-open-collection">
         <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
         <span>Collection</span>
@@ -158,6 +193,15 @@
         <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.45 1-1 1H8c-.55 0-1 .45-1 1v1c0 .55.45 1 1 1h8c.55 0 1-.45 1-1v-1c0-.55-.45-1-1-1h-1c-.55 0-1-.45-1-1v-2.34"></path><path d="M18 4H6v7a6 6 0 0 0 12 0V4z"></path></svg>
         <span>Quests</span>
       </button>
+      <div class="footer-btn-wrapper" style="position: relative; display: inline-flex; align-items: center; justify-content: center;">
+        <button class="link-btn glass-pill-btn footer-squircle-btn battlepass-glow-btn" id="btn-open-battlepass">
+          <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 6px #38bdf8); color: #38bdf8;">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+          <span style="background: linear-gradient(135deg, #38bdf8 0%, #a855f7 50%, #f43f5e 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 900; letter-spacing: 0.05em;">PASS S1</span>
+        </button>
+        <span id="bp-claim-indicator" class="bp-unclaimed-badge hidden">!</span>
+      </div>
       <button class="link-btn glass-pill-btn footer-squircle-btn" id="btn-open-settings-menu">
         <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
         <span>Settings</span>
@@ -320,7 +364,7 @@
                 <span class="tri-icon">
                   <svg class="glass-icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"></circle><path d="M18.09 10.37A6 6 0 1 1 10.34 18"></path><path d="M7 6h2v4H7z"></path></svg>
                 </span>
-                <span class="tri-val" id="tower-console-bux-val">+20 Bux</span>
+                <span class="tri-val" id="tower-console-bux-val">+10 Bux</span>
                 <span class="tri-label">Clear Bounty</span>
               </div>
               <div class="tmc-reward-item">
@@ -1041,19 +1085,19 @@
           <span class="theme-icon">⛈️</span><span>Storm</span>
           <span class="theme-lock-icon">🔒</span>
         </button>
-        <button class="theme-btn locked" id="theme-btn-mrmoney" data-theme="mrmoney" title="Buy in the Mehrbod Shop for 1000 Bux!">
+        <button class="theme-btn locked" id="theme-btn-mrmoney" data-theme="mrmoney" title="Buy in the Mehrbod Shop for 500 Bux!">
           <span class="theme-icon">🤑</span><span>Mr Money</span>
           <span class="theme-lock-icon">🔒</span>
         </button>
-        <button class="theme-btn locked" id="theme-btn-cyberneon" data-theme="cyberneon" title="Buy in the Mehrbod Shop for 1200 Bux!">
+        <button class="theme-btn locked" id="theme-btn-cyberneon" data-theme="cyberneon" title="Buy in the Mehrbod Shop for 600 Bux!">
           <span class="theme-icon">🌆</span><span>Cyber Neon</span>
           <span class="theme-lock-icon">🔒</span>
         </button>
-        <button class="theme-btn locked" id="theme-btn-abyss" data-theme="abyss" title="Buy in the Mehrbod Shop for 1200 Bux!">
+        <button class="theme-btn locked" id="theme-btn-abyss" data-theme="abyss" title="Buy in the Mehrbod Shop for 600 Bux!">
           <span class="theme-icon">🌊</span><span>Abyss</span>
           <span class="theme-lock-icon">🔒</span>
         </button>
-        <button class="theme-btn locked" id="theme-btn-magma" data-theme="magma" title="Buy in the Mehrbod Shop for 1200 Bux!">
+        <button class="theme-btn locked" id="theme-btn-magma" data-theme="magma" title="Buy in the Mehrbod Shop for 600 Bux!">
           <span class="theme-icon">🌋</span><span>Magma</span>
           <span class="theme-lock-icon">🔒</span>
         </button>
@@ -1075,6 +1119,47 @@
         </button>
         <button class="theme-btn locked" id="theme-btn-prism" data-theme="prism" title="Collect 100% of all cards to unlock Prism Core!">
           <span class="theme-icon">💎</span><span>Prism Core</span>
+          <span class="theme-lock-icon">🔒</span>
+        </button>
+
+        <div style="grid-column: 1 / -1; margin: 12px 0 4px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.12); font-family: var(--font-display); font-size: 0.72rem; font-weight: 800; color: #38bdf8; letter-spacing: 0.08em; text-transform: uppercase; display: flex; align-items: center; gap: 6px;">
+          <span>⚡ Season 1: Neon Oblivion 3D Themes</span>
+        </div>
+
+        <button class="theme-btn locked" id="theme-btn-chronos" data-theme="chronos" title="Unlocked in Season 1 Battle Pass Tier 1!">
+          <span class="theme-icon">⏳</span><span>Chronos Horizon</span>
+          <span class="theme-lock-icon">🔒</span>
+        </button>
+        <button class="theme-btn locked" id="theme-btn-neon_cyberpunk" data-theme="neon_cyberpunk" title="Unlocked in Season 1 Battle Pass Tier 10!">
+          <span class="theme-icon">🌆</span><span>Cyber-Grid</span>
+          <span class="theme-lock-icon">🔒</span>
+        </button>
+        <button class="theme-btn locked" id="theme-btn-void_singularity" data-theme="void_singularity" title="Unlocked in Season 1 Battle Pass Tier 20!">
+          <span class="theme-icon">🌌</span><span>Void Singularity</span>
+          <span class="theme-lock-icon">🔒</span>
+        </button>
+        <button class="theme-btn locked" id="theme-btn-quantum_overdrive" data-theme="quantum_overdrive" title="Unlocked in Season 1 Battle Pass Tier 25!">
+          <span class="theme-icon">⚛️</span><span>Quantum Horizon</span>
+          <span class="theme-lock-icon">🔒</span>
+        </button>
+        <button class="theme-btn locked" id="theme-btn-solar_prominence" data-theme="solar_prominence" title="Unlocked in Season 1 Battle Pass Tier 35!">
+          <span class="theme-icon">☀️</span><span>Solar Corona</span>
+          <span class="theme-lock-icon">🔒</span>
+        </button>
+        <button class="theme-btn locked" id="theme-btn-prism_mythic" data-theme="prism_mythic" title="Unlocked in Season 1 Battle Pass Tier 50!">
+          <span class="theme-icon">💎</span><span>Diamond Refractor</span>
+          <span class="theme-lock-icon">🔒</span>
+        </button>
+        <button class="theme-btn locked" id="theme-btn-celestial_nebula" data-theme="celestial_nebula" title="Unlocked in Season 1 Battle Pass Tier 65!">
+          <span class="theme-icon">🌠</span><span>Celestial Nebula</span>
+          <span class="theme-lock-icon">🔒</span>
+        </button>
+        <button class="theme-btn locked" id="theme-btn-abyss_kraken" data-theme="abyss_kraken" title="Unlocked in Season 1 Battle Pass Tier 80!">
+          <span class="theme-icon">🦑</span><span>Kraken Abyss</span>
+          <span class="theme-lock-icon">🔒</span>
+        </button>
+        <button class="theme-btn locked" id="theme-btn-apex_sovereign" data-theme="apex_sovereign" title="Unlocked in Season 1 Battle Pass Tier 100!">
+          <span class="theme-icon">👑</span><span>Apex Sovereign</span>
           <span class="theme-lock-icon">🔒</span>
         </button>
       </div>
@@ -1543,6 +1628,19 @@
               </div>
             </div>
 
+            <!-- Developer Override Section -->
+            <div class="settings-card-item">
+              <div class="settings-item-main">
+                <div class="settings-item-info">
+                  <div class="settings-item-title">
+                    <span class="item-icon">⚡</span> Developer: Master Unlock All
+                  </div>
+                  <div class="settings-item-desc">Instantly unlock 100% of all cards, all cosmetics, and Max Tier 100 Battle Pass with Premium</div>
+                </div>
+                <button type="button" class="primary-btn" id="btn-settings-dev-unlock" onclick="if(window.devUnlockAll) window.devUnlockAll();" style="background: linear-gradient(135deg, #38bdf8, #8b5cf6); padding: 8px 16px; font-size: 0.8rem; border-radius: 8px; font-weight: 800; cursor: pointer;">⚡ UNLOCK ALL</button>
+              </div>
+            </div>
+
             <!-- Danger Zone: Reset Progress -->
             <div id="reset-progress-section" class="settings-danger-card">
               <div class="danger-card-header">
@@ -1609,6 +1707,15 @@
         <p class="secret-desc">Access granted, Commander. Executive override matrix activated.</p>
         
         <div class="secret-commands-matrix">
+          <button type="button" id="btn-secret-unlock-all" class="secret-cmd-card" style="border: 1.5px solid #38bdf8; background: rgba(56, 189, 248, 0.12);">
+            <div class="cmd-icon-box" style="color: #38bdf8;">⚡</div>
+            <div class="cmd-info">
+              <span class="cmd-title" style="color: #38bdf8;">⚡ Master Unlock All (Cards, BP Tiers &amp; Cosmetics)</span>
+              <span class="cmd-subtitle">Instantly unlock 100% cards, Battle Pass Max Tier 100, Premium Pass &amp; all cosmetics</span>
+            </div>
+            <div class="cmd-arrow">➔</div>
+          </button>
+
           <button type="button" id="btn-secret-unlock-all-cards" class="secret-cmd-card">
             <div class="cmd-icon-box">🃏</div>
             <div class="cmd-info">
@@ -1726,10 +1833,11 @@
 
           <div class="bp-action-btns">
             <button type="button" id="btn-bp-buy-premium" class="primary-btn bp-buy-btn">
-              ⚡ UNLOCK PREMIUM (10,000 BUX)
+              ⚡ UNLOCK PREMIUM (2,500 BUX)
             </button>
-            <button type="button" id="btn-bp-claim-all" class="primary-btn bp-claim-all-btn">
-              🎁 Claim All Rewards
+            <button type="button" id="bp-claim-all" class="primary-btn bp-claim-all-btn bp-hold-btn">
+              <div id="bp-hold-fill-bar" class="bp-hold-fill-bar"></div>
+              <span id="bp-hold-btn-text" class="bp-hold-btn-text">CLAIM ALL</span>
             </button>
           </div>
         </div>

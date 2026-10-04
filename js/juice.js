@@ -1556,7 +1556,7 @@ function seededPick(arr, seed, count) { return seededShuffleCopy(arr, seed).slic
    button to find it.
    ============================================================ */
 const DAILY_LOGIN_KEY = 'mehrbod_daily_login_v1';
-const DAILY_LOGIN_REWARDS = [10, 15, 20, 30, 40, 60, 100]; // Day 1..7, Day 7 is the big bonus
+const DAILY_LOGIN_REWARDS = [5, 8, 10, 15, 20, 30, 50]; // Day 1..7, Day 7 is the big bonus
 
 function loadDailyLoginState() {
   try {
@@ -1718,7 +1718,7 @@ function grantPlayerXP(amount) {
   savePlayerXP(newXp);
   const afterInfo = playerLevelFromXP(newXp);
   if (afterInfo.level > beforeLevel) {
-    const reward = 20 + afterInfo.level * 5;
+    const reward = Math.floor((20 + afterInfo.level * 5) / 2);
     addBux(reward);
     recordEconomyChange(reward, `Reached Player Level ${afterInfo.level}`);
     recordRecentActivity(`Reached Player Level ${afterInfo.level} — +${reward} Bux`);
@@ -1751,7 +1751,7 @@ function grantPlayerXP(amount) {
    ============================================================ */
 const WEEKLY_VAULT_KEY = 'mehrbod_weekly_vault_v1';
 const WEEKLY_VAULT_TIERS = [50, 120, 220, 350, 500];
-const WEEKLY_VAULT_REWARDS = [30, 60, 100, 150, 250];
+const WEEKLY_VAULT_REWARDS = [15, 30, 50, 75, 125];
 function currentWeekKey() {
   const d = new Date();
   const onejan = new Date(d.getFullYear(), 0, 1);
@@ -1792,20 +1792,20 @@ function claimWeeklyVaultTier(tierIdx) {
    ============================================================ */
 const DAILY_QUESTS_KEY = 'mehrbod_daily_quests_v2';
 const DAILY_BOUNTY_POOL = [
-  { id: 'b_win_2', type: 'win', title: 'Arena Domination', desc: 'Win 2 matches in Single Player, Bot, or Multiplayer', goal: 2, rewardBux: 150, rewardXP: 45, icon: '⚔️' },
-  { id: 'b_place_10', type: 'play', title: 'Card Deployment', desc: 'Play 10 unit cards onto the battlefield', goal: 10, rewardBux: 120, rewardXP: 35, icon: '🃏' },
-  { id: 'b_tower_1', type: 'tower', title: 'Tower Conqueror', desc: 'Conquer any Trial Tower floor', goal: 1, rewardBux: 200, rewardXP: 60, icon: '🗼' },
-  { id: 'b_merge_3', type: 'merge', title: 'Fusion Mastery', desc: 'Merge 3 pairs or groups of cards in battle', goal: 3, rewardBux: 140, rewardXP: 40, icon: '🧬' },
-  { id: 'b_spell_3', type: 'spell', title: 'Arcane Mastery', desc: 'Cast 3 tactical spells or battle chips', goal: 3, rewardBux: 130, rewardXP: 40, icon: '✨' },
-  { id: 'b_streak_2', type: 'streak', title: 'Winning Momentum', desc: 'Achieve a 2-game winning streak', goal: 2, rewardBux: 250, rewardXP: 75, icon: '🔥' },
-  { id: 'b_win_3', type: 'win', title: 'Gladiator Supreme', desc: 'Win 3 arena matches across any mode', goal: 3, rewardBux: 220, rewardXP: 70, icon: '👑' },
-  { id: 'b_matches_3', type: 'match', title: 'Battle Veteran', desc: 'Complete 3 full matches in any arena mode', goal: 3, rewardBux: 110, rewardXP: 30, icon: '🛡️' },
-  { id: 'b_play_green_3', type: 'play_green', title: 'Emerald Tactics', desc: 'Play 3 Green (Tier 2) cards onto the board', goal: 3, rewardBux: 150, rewardXP: 45, icon: '🟢' },
-  { id: 'b_play_red_2', type: 'play_red', title: 'Ruby Destruction', desc: 'Play 2 Red (Tier 3) cards onto the board', goal: 2, rewardBux: 180, rewardXP: 55, icon: '🔴' },
-  { id: 'b_play_orange_1', type: 'play_orange', title: 'Solar Sovereign', desc: 'Play 1 legendary Orange (Tier 4) card', goal: 1, rewardBux: 250, rewardXP: 80, icon: '🟠' },
-  { id: 'b_arch_def', type: 'play_archetype_defender', title: 'Iron Guard', desc: 'Play 2 defensive cards (Chaplain, Warden, Bulwark, or Sentinel)', goal: 2, rewardBux: 160, rewardXP: 50, icon: '🛡️' },
-  { id: 'b_arch_str', type: 'play_archetype_striker', title: 'War Offensive', desc: 'Play 2 offensive cards (Firestarter, Cannoneer, Duelist, or Devastator)', goal: 2, rewardBux: 160, rewardXP: 50, icon: '🔥' },
-  { id: 'b_arch_rog', type: 'play_archetype_rogue', title: 'Shadow Agents', desc: 'Play 2 utility cards (Saboteur, Pathfinder, Footpad, or Reaper)', goal: 2, rewardBux: 160, rewardXP: 50, icon: '👥' }
+  { id: 'b_win_2', type: 'win', title: 'Arena Domination', desc: 'Win 2 matches in Single Player, Bot, or Multiplayer', goal: 2, rewardBux: 75, rewardXP: 45, icon: '⚔️' },
+  { id: 'b_place_10', type: 'play', title: 'Card Deployment', desc: 'Play 10 unit cards onto the battlefield', goal: 10, rewardBux: 60, rewardXP: 35, icon: '🃏' },
+  { id: 'b_tower_1', type: 'tower', title: 'Tower Conqueror', desc: 'Conquer any Trial Tower floor', goal: 1, rewardBux: 100, rewardXP: 60, icon: '🗼' },
+  { id: 'b_merge_3', type: 'merge', title: 'Fusion Mastery', desc: 'Merge 3 pairs or groups of cards in battle', goal: 3, rewardBux: 70, rewardXP: 40, icon: '🧬' },
+  { id: 'b_spell_3', type: 'spell', title: 'Arcane Mastery', desc: 'Cast 3 tactical spells or battle chips', goal: 3, rewardBux: 65, rewardXP: 40, icon: '✨' },
+  { id: 'b_streak_2', type: 'streak', title: 'Winning Momentum', desc: 'Achieve a 2-game winning streak', goal: 2, rewardBux: 125, rewardXP: 75, icon: '🔥' },
+  { id: 'b_win_3', type: 'win', title: 'Gladiator Supreme', desc: 'Win 3 arena matches across any mode', goal: 3, rewardBux: 110, rewardXP: 70, icon: '👑' },
+  { id: 'b_matches_3', type: 'match', title: 'Battle Veteran', desc: 'Complete 3 full matches in any arena mode', goal: 3, rewardBux: 55, rewardXP: 30, icon: '🛡️' },
+  { id: 'b_play_green_3', type: 'play_green', title: 'Emerald Tactics', desc: 'Play 3 Green (Tier 2) cards onto the board', goal: 3, rewardBux: 75, rewardXP: 45, icon: '🟢' },
+  { id: 'b_play_red_2', type: 'play_red', title: 'Ruby Destruction', desc: 'Play 2 Red (Tier 3) cards onto the board', goal: 2, rewardBux: 90, rewardXP: 55, icon: '🔴' },
+  { id: 'b_play_orange_1', type: 'play_orange', title: 'Solar Sovereign', desc: 'Play 1 legendary Orange (Tier 4) card', goal: 1, rewardBux: 125, rewardXP: 80, icon: '🟠' },
+  { id: 'b_arch_def', type: 'play_archetype_defender', title: 'Iron Guard', desc: 'Play 2 defensive cards (Chaplain, Warden, Bulwark, or Sentinel)', goal: 2, rewardBux: 80, rewardXP: 50, icon: '🛡️' },
+  { id: 'b_arch_str', type: 'play_archetype_striker', title: 'War Offensive', desc: 'Play 2 offensive cards (Firestarter, Cannoneer, Duelist, or Devastator)', goal: 2, rewardBux: 80, rewardXP: 50, icon: '🔥' },
+  { id: 'b_arch_rog', type: 'play_archetype_rogue', title: 'Shadow Agents', desc: 'Play 2 utility cards (Saboteur, Pathfinder, Footpad, or Reaper)', goal: 2, rewardBux: 80, rewardXP: 50, icon: '👥' }
 ];
 
 function getDailyBountiesForDate(dateStr) {
@@ -1987,7 +1987,7 @@ function applyArenaRankChange(won) {
   saveArenaRankState(s);
   const afterIdx = arenaRankIndexFromRP(s.rp);
   if (afterIdx > beforeIdx) {
-    const reward = 20 + afterIdx * 15;
+    const reward = Math.floor((20 + afterIdx * 15) / 2);
     addBux(reward);
     recordEconomyChange(reward, `Ranked up to ${ARENA_RANKS[afterIdx]}`);
     recordRecentActivity(`Ranked up to ${ARENA_RANKS[afterIdx]} — +${reward} Bux`);
@@ -2004,7 +2004,7 @@ function grantArenaRP(amount) {
   saveArenaRankState(s);
   const afterIdx = arenaRankIndexFromRP(s.rp);
   if (afterIdx > beforeIdx) {
-    const reward = 20 + afterIdx * 15;
+    const reward = Math.floor((20 + afterIdx * 15) / 2);
     addBux(reward);
     recordEconomyChange(reward, `Ranked up to ${ARENA_RANKS[afterIdx]}`);
     recordRecentActivity(`Ranked up to ${ARENA_RANKS[afterIdx]} — +${reward} Bux`);
@@ -2032,7 +2032,7 @@ function loadPrestigeState() {
 function savePrestigeState(s) { try { localStorage.setItem(PRESTIGE_KEY, JSON.stringify(s)); } catch (e) {} }
 function applyPrestigeWinBonus() {
   const count = loadPrestigeState().count || 0;
-  if (count > 0) addBux(count * 2);
+  if (count > 0) addBux(Math.max(1, Math.floor(count * 1)));
 }
 function canPrestigeNow() { return playerLevelFromXP(loadPlayerXP()).level >= PRESTIGE_LEVEL_REQUIREMENT; }
 function doPrestige() {
@@ -2041,11 +2041,11 @@ function doPrestige() {
   s.count = (s.count || 0) + 1;
   savePrestigeState(s);
   savePlayerXP(0);
-  const reward = 150 + s.count * 50;
+  const reward = Math.floor((150 + s.count * 50) / 2);
   addBux(reward);
   recordEconomyChange(reward, `Prestige ${s.count}`);
   recordRecentActivity(`Reached Prestige ${s.count} — +${reward} Bux`);
-  showToast(`✦ Prestige ${s.count}! Player Level reset, +${reward} Bux, and +${s.count * 2} Bux on every future win.`, 4000);
+  showToast(`✦ Prestige ${s.count}! Player Level reset, +${reward} Bux, and +${Math.max(1, Math.floor(s.count * 1))} Bux on every future win.`, 4000);
   Sound.sparkle();
   renderQuests();
 }
@@ -2060,11 +2060,11 @@ function doPrestige() {
    ============================================================ */
 const SET_BONUS_KEY = 'mehrbod_set_bonuses_v1';
 const SET_DEFS = [
-  { id: 'green',  name: 'Green Set',  reward: 40,  owned: () => UNIT_ARCHETYPES[2].filter(a => isUnitArchetypeOwned(a.id)).length, total: () => UNIT_ARCHETYPES[2].length },
-  { id: 'red',    name: 'Red Set',    reward: 70,  owned: () => UNIT_ARCHETYPES[3].filter(a => isUnitArchetypeOwned(a.id)).length, total: () => UNIT_ARCHETYPES[3].length },
-  { id: 'orange', name: 'Orange Set', reward: 120, owned: () => UNIT_ARCHETYPES[4].filter(a => isUnitArchetypeOwned(a.id)).length, total: () => UNIT_ARCHETYPES[4].length },
-  { id: 'spells', name: 'Spell Set',  reward: 60,  owned: () => loadCollection().spells.length, total: () => ALL_SPELL_IDS.length },
-  { id: 'chips',  name: 'Chip Set',   reward: 60,  owned: () => loadCollection().chips.length, total: () => ALL_CHIP_IDS.length },
+  { id: 'green',  name: 'Green Set',  reward: 20,  owned: () => UNIT_ARCHETYPES[2].filter(a => isUnitArchetypeOwned(a.id)).length, total: () => UNIT_ARCHETYPES[2].length },
+  { id: 'red',    name: 'Red Set',    reward: 35,  owned: () => UNIT_ARCHETYPES[3].filter(a => isUnitArchetypeOwned(a.id)).length, total: () => UNIT_ARCHETYPES[3].length },
+  { id: 'orange', name: 'Orange Set', reward: 60,  owned: () => UNIT_ARCHETYPES[4].filter(a => isUnitArchetypeOwned(a.id)).length, total: () => UNIT_ARCHETYPES[4].length },
+  { id: 'spells', name: 'Spell Set',  reward: 30,  owned: () => loadCollection().spells.length, total: () => ALL_SPELL_IDS.length },
+  { id: 'chips',  name: 'Chip Set',   reward: 30,  owned: () => loadCollection().chips.length, total: () => ALL_CHIP_IDS.length },
 ];
 function loadSetBonusState() {
   try { const s = JSON.parse(localStorage.getItem(SET_BONUS_KEY) || 'null'); if (s && Array.isArray(s.claimed)) return s; }
@@ -2112,7 +2112,7 @@ function towerFloorDifficulty(floor) {
   const idx = Math.min(DIFFICULTIES.length - 1, Math.floor((floor - 1) / 3));
   return DIFFICULTIES[idx];
 }
-function towerFloorReward(floor) { return 15 + floor * 5; }
+function towerFloorReward(floor) { return Math.floor((15 + floor * 5) / 2); }
 const TOWER_DIFF_COLORS = { Easy: '#4C9A5B', Medium: '#d9b23c', Hard: '#e0752c', Expert: '#c1443c', Master: '#b23cf0' };
 function trialTowerBrickColor(floor) { return TOWER_DIFF_COLORS[towerFloorDifficulty(floor)] || '#3E7CB1'; }
 
@@ -2672,8 +2672,9 @@ function individualCardPrice(kind, tier) {
 
 function buildTodaysShopPicks() {
   const seed = dayIndexSeed();
-  // 8 rotating cosmetics daily:
-  const cosmeticIds = seededPick(COSMETIC_ITEMS.map(c => c.id), seed, 8);
+  // Filter out any Battle Pass cosmetics (cost 0 or tagged SEASON / BATTLE PASS):
+  const shopEligibleCosmetics = COSMETIC_ITEMS.filter(c => c.cost > 0 && !(c.tag && c.tag.includes('SEASON')) && !c.id.startsWith('victoryanim_') && !c.id.includes('chronos') && !c.id.includes('quantum') && !c.id.includes('singularity') && !c.id.includes('apex') && !c.id.includes('hyperdrive') && !c.id.includes('solar') && !c.id.includes('nebula') && !c.id.includes('kraken'));
+  const cosmeticIds = seededPick(shopEligibleCosmetics.map(c => c.id), seed, 8);
 
   const cardPool = [];
   ALL_NONBLUE_UNIT_IDS.forEach(id => {
@@ -4767,12 +4768,187 @@ window.addEventListener('load', ensureProfileHud);
   const authStatus = document.getElementById('secret-auth-status');
   const stageAuth = document.getElementById('secret-stage-auth');
   const stageUnlocked = document.getElementById('secret-stage-unlocked');
+  const unlockAllMasterBtn = document.getElementById('btn-secret-unlock-all');
   const unlockAllCardsBtn = document.getElementById('btn-secret-unlock-all-cards');
   const launch3DHubBtn = document.getElementById('btn-secret-launch-3d-hub');
   const unlockAllCosmeticsBtn = document.getElementById('btn-secret-unlock-all-cosmetics') || document.getElementById('btn-secret-unlock-all-themes');
+  const settingsDevUnlockBtn = document.getElementById('btn-settings-dev-unlock');
   const showCodesBtn = document.getElementById('btn-secret-show-codes');
   const codesManifest = document.getElementById('secret-codes-manifest');
   const execResult = document.getElementById('secret-exec-result');
+
+  // Master Dev Unlock All Function
+  window.devUnlockAll = function () {
+    try {
+      // 1. Gather all unit archetypes across all tiers (Green, Red, Orange), spells, and chips
+      const allUnitIds = (typeof getAllNonBlueUnitIds === 'function') ? getAllNonBlueUnitIds() : [2, 3, 4].flatMap(tier => (typeof UNIT_ARCHETYPES !== 'undefined' && UNIT_ARCHETYPES[tier] ? UNIT_ARCHETYPES[tier].map(a => a.id) : []));
+      const allSpellIds = (typeof getAllSpellIds === 'function') ? getAllSpellIds() : ((typeof SPELL_DEFS !== 'undefined') ? SPELL_DEFS.map(s => s.id) : []);
+      const allChipIds = (typeof getAllChipIds === 'function') ? getAllChipIds() : ((typeof CHIP_DEFS !== 'undefined') ? CHIP_DEFS.map(c => c.id) : []);
+
+      if (typeof grantCards === 'function') {
+        grantCards(allUnitIds, allSpellIds, allChipIds);
+      } else {
+        const col = { units: allUnitIds, spells: allSpellIds, chips: allChipIds };
+        localStorage.setItem('mehrbod-cards-collection', JSON.stringify(col));
+      }
+
+      // 2. Unlock Battle Pass: Premium Pass Active + Max Tier 100 (50,000 XP)
+      localStorage.setItem('mehrbod-cards-bp-premium', 'true');
+      localStorage.setItem('mehrbod-cards-bp-xp', (100 * 500).toString());
+      localStorage.removeItem('mehrbod-cards-bp-claimed');
+      if (typeof window.devUnlockBattlePass === 'function') {
+        try { window.devUnlockBattlePass(false); } catch (_) {}
+      }
+
+      // 3. Unlock all cosmetics & difficulty themes in registries & local storage
+      localStorage.setItem('mehrbod_all_themes_unlocked', 'true');
+      localStorage.setItem('theme_prism_unlocked', 'true');
+      localStorage.setItem('theme_darkmatter_unlocked', 'true');
+      localStorage.setItem('theme_quantum_unlocked', 'true');
+      localStorage.setItem('theme_glacier_unlocked', 'true');
+      localStorage.setItem('theme_astral_unlocked', 'true');
+      localStorage.setItem('theme_celestial_unlocked', 'true');
+      localStorage.setItem('theme_valentine_unlocked', 'true');
+      localStorage.setItem('theme_sakura_unlocked', 'true');
+      localStorage.setItem('theme_solar_unlocked', 'true');
+      localStorage.setItem('theme_steampunk_unlocked', 'true');
+      localStorage.setItem('theme_galaxy_unlocked', 'true');
+      localStorage.setItem('theme_mrmoney_unlocked', 'true');
+      localStorage.setItem('theme_cyberneon_unlocked', 'true');
+      localStorage.setItem('theme_abyss_unlocked', 'true');
+      localStorage.setItem('theme_magma_unlocked', 'true');
+      localStorage.setItem('theme_verdant_unlocked', 'true');
+      localStorage.setItem('theme_pink_unlocked', 'true');
+      localStorage.setItem('theme_flame_unlocked', 'true');
+      localStorage.setItem('theme_aurora_unlocked', 'true');
+      localStorage.setItem('theme_sovereign_unlocked', 'true');
+      localStorage.setItem('theme_storm_unlocked', 'true');
+      try {
+        localStorage.setItem('mehrbod-cards-beaten-difficulties', JSON.stringify(['easy', 'medium', 'hard', 'expert', 'master', 'impossible']));
+      } catch (_) {}
+
+      const cosmeticIdsToUnlock = new Set(['prism', 'theme_prism', 'darkmatter', 'theme_darkmatter']);
+      const bpCosmetics = [
+        'theme_chronos', 'theme_neon_cyberpunk', 'theme_singularity', 'theme_quantum_horizon',
+        'theme_solar_corona', 'theme_refractor', 'theme_nebula', 'theme_kraken', 'theme_apex_gold',
+        'sleeve_chronos', 'sleeve_hyperdrive', 'sleeve_singularity', 'sleeve_quantum',
+        'sleeve_solar', 'sleeve_nebula', 'sleeve_kraken', 'sleeve_apex_gold',
+        'victoryanim_chronos_blast', 'victoryanim_hyperdrive_warp', 'victoryanim_singularity_collapse',
+        'victoryanim_quantum_shatter', 'victoryanim_solar_flare', 'victoryanim_starlight_supernova',
+        'victoryanim_kraken_tentacle', 'victoryanim_apex_orbital'
+      ];
+      bpCosmetics.forEach(id => {
+        cosmeticIdsToUnlock.add(id);
+        cosmeticIdsToUnlock.add('theme_' + id);
+      });
+      if (typeof COSMETIC_ITEMS !== 'undefined') COSMETIC_ITEMS.forEach(c => cosmeticIdsToUnlock.add(c.id));
+      if (typeof THEME_DATA_REGISTRY !== 'undefined') {
+        THEME_DATA_REGISTRY.forEach(t => {
+          cosmeticIdsToUnlock.add(t.id);
+          cosmeticIdsToUnlock.add('theme_' + t.id);
+        });
+      }
+      if (typeof SLEEVE_DATA_REGISTRY !== 'undefined') SLEEVE_DATA_REGISTRY.forEach(s => cosmeticIdsToUnlock.add(s.id));
+      if (typeof VICTORY_DATA_REGISTRY !== 'undefined') VICTORY_DATA_REGISTRY.forEach(v => cosmeticIdsToUnlock.add(v.id));
+
+      const bpBadges = ['badge_chronos_gear', 'badge_cyber_reticle', 'badge_void_portal', 'badge_quantum_core', 'badge_solar_crest', 'badge_nebula_star', 'badge_kraken_eye', 'badge_apex_crown'];
+      const bpTitles = ['Temporal Voyager', 'Cyber Pioneer', 'Void Walker', 'Quantum Operative', 'Solar Ascendant', 'Nebula Stargazer', 'Abyssal Monarch', 'Apex Sovereign'];
+      try {
+        localStorage.setItem('mehrbod-cards-unlocked-badges', JSON.stringify(bpBadges));
+        localStorage.setItem('mehrbod-cards-unlocked-titles', JSON.stringify(bpTitles));
+      } catch (_) {}
+
+      const allCosmeticArray = [...cosmeticIdsToUnlock];
+      if (typeof saveOwnedCosmetics === 'function') {
+        saveOwnedCosmetics(allCosmeticArray);
+      } else {
+        localStorage.setItem('mehrbod-cards-owned-cosmetics', JSON.stringify(allCosmeticArray));
+      }
+      localStorage.setItem('mehrbod-cards-cosmetics', JSON.stringify(allCosmeticArray));
+
+      // 4. Ensure plenty of Bux
+      if (typeof saveBux === 'function') {
+        saveBux(50000);
+        if (typeof updateBuxDisplay === 'function') updateBuxDisplay();
+      }
+
+      // 5. Save inventory backup for anti-cheat
+      if (typeof saveInventoryBackup === 'function') {
+        saveInventoryBackup();
+      }
+
+      // 6. Refresh all UI components
+      if (typeof renderBattlePassScreen === 'function') renderBattlePassScreen();
+      if (typeof updateBattlePassBadge === 'function') updateBattlePassBadge();
+      if (typeof updateThemeButtons === 'function') updateThemeButtons();
+      if (typeof renderCollectionScreen === 'function') renderCollectionScreen();
+      if (typeof renderDeckBuilder === 'function') renderDeckBuilder();
+      if (typeof fireConfetti === 'function') fireConfetti();
+      if (typeof showToast === 'function') {
+        showToast('⚡ MASTER UNLOCK: All Cards, Max Tier 100 Battle Pass & All Cosmetics Unlocked!', 4500);
+      }
+
+      if (execResult) {
+        execResult.textContent = '✔ SUCCESS: All Cards, Battle Pass Tiers (Max 100 & Premium), and Cosmetics unlocked!';
+        execResult.className = 'secret-exec-result success';
+        execResult.classList.remove('hidden');
+      }
+      return true;
+    } catch (err) {
+      console.error('devUnlockAll error:', err);
+      return false;
+    }
+  };
+
+  authForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const entered = (cipherInput?.value || '').trim().toLowerCase();
+    const validKeys = ['ohio', 'dev', 'developer', 'unlock', 'unlockall', 'mehrbod', 'admin'];
+    if (validKeys.includes(entered)) {
+      // Access Granted!
+      if (authStatus) {
+        authStatus.textContent = 'STATUS: DECRYPT SUCCESSFUL. ACCESS GRANTED.';
+        authStatus.className = 'secret-status-line success';
+      }
+      if (typeof fireConfetti === 'function') fireConfetti();
+      setTimeout(() => {
+        stageAuth?.classList.add('hidden');
+        stageUnlocked?.classList.remove('hidden');
+      }, 400);
+    } else {
+      // Access Denied
+      if (authStatus) {
+        authStatus.textContent = 'STATUS: ACCESS DENIED. INVALID CIPHER KEY.';
+        authStatus.className = 'secret-status-line error';
+      }
+      const card = document.getElementById('secret-terminal-card');
+      if (card) {
+        card.classList.remove('terminal-shake');
+        void card.offsetWidth;
+        card.classList.add('terminal-shake');
+      }
+      if (cipherInput) {
+        cipherInput.select();
+        cipherInput.focus();
+      }
+    }
+  });
+
+  unlockAllMasterBtn?.addEventListener('click', () => {
+    window.devUnlockAll();
+  });
+
+  settingsDevUnlockBtn?.addEventListener('click', () => {
+    window.devUnlockAll();
+  });
+
+  unlockAllCardsBtn?.addEventListener('click', () => {
+    window.devUnlockAll();
+  });
+
+  unlockAllCosmeticsBtn?.addEventListener('click', () => {
+    window.devUnlockAll();
+  });
 
   function renderCodesManifest() {
     if (!codesManifest) return;
@@ -4838,23 +5014,57 @@ window.addEventListener('load', ensureProfileHud);
     overlay?.classList.add('hidden');
   }
 
-  if (mTrigger) {
-    mTrigger.addEventListener('click', (e) => {
-      e.stopPropagation();
-      mClickCount++;
-      clearTimeout(mResetTimer);
+  function handleMTap(e) {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+    mClickCount++;
+    clearTimeout(mResetTimer);
 
-      if (mClickCount >= 5) {
+    if (mClickCount >= 5) {
+      mClickCount = 0;
+      if (typeof fireConfetti === 'function') fireConfetti();
+      if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
+      openSecretMenu();
+    } else {
+      mResetTimer = setTimeout(() => {
         mClickCount = 0;
-        if (typeof fireConfetti === 'function') fireConfetti();
-        openSecretMenu();
-      } else {
-        mResetTimer = setTimeout(() => {
-          mClickCount = 0;
-        }, 3500);
-      }
-    });
+      }, 3500);
+    }
   }
+
+  if (mTrigger) {
+    mTrigger.addEventListener('click', handleMTap);
+    mTrigger.addEventListener('pointerdown', handleMTap);
+  }
+
+  document.addEventListener('click', (e) => {
+    if (e.target && (e.target.id === 'secret-m-trigger' || e.target.closest('#secret-m-trigger'))) {
+      handleMTap(e);
+    }
+  });
+
+  // Also support spamming 'M' on the keyboard 5 times from menus!
+  let mKeyCount = 0;
+  let mKeyResetTimer = null;
+  window.addEventListener('keydown', (e) => {
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
+    if (e.key === 'm' || e.key === 'M') {
+      const gameScreen = document.getElementById('screen-game');
+      if (!gameScreen || gameScreen.classList.contains('hidden')) {
+        mKeyCount++;
+        clearTimeout(mKeyResetTimer);
+        if (mKeyCount >= 5) {
+          mKeyCount = 0;
+          if (typeof fireConfetti === 'function') fireConfetti();
+          if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
+          openSecretMenu();
+        } else {
+          mKeyResetTimer = setTimeout(() => {
+            mKeyCount = 0;
+          }, 3000);
+        }
+      }
+    }
+  });
 
   closeBtn?.addEventListener('click', closeSecretMenu);
   overlay?.addEventListener('click', (e) => {
@@ -4931,6 +5141,18 @@ window.addEventListener('load', ensureProfileHud);
         localStorage.setItem('theme_darkmatter_unlocked', 'true');
       } catch (e) {}
 
+      // Unlock Battle Pass Premium, Max Tier 100, and claim all 100 tiers
+      localStorage.setItem('mehrbod-cards-bp-premium', 'true');
+      localStorage.setItem('mehrbod-cards-bp-xp', (100 * 500).toString());
+      const claimedMap = {};
+      for (let i = 1; i <= 100; i++) {
+        claimedMap[`${i}_free`] = true;
+        claimedMap[`${i}_premium`] = true;
+      }
+      localStorage.setItem('mehrbod-cards-bp-claimed', JSON.stringify(claimedMap));
+      if (typeof renderBattlePassScreen === 'function') renderBattlePassScreen();
+      if (typeof updateBattlePassBadge === 'function') updateBattlePassBadge();
+
       // Also ensure plenty of Mehrbod Bux
       if (typeof loadBux === 'function' && typeof saveBux === 'function') {
         const currentBux = loadBux();
@@ -4946,11 +5168,11 @@ window.addEventListener('load', ensureProfileHud);
       if (typeof renderDeckBuilder === 'function') renderDeckBuilder();
       if (typeof fireConfetti === 'function') fireConfetti();
       if (typeof showToast === 'function') {
-        showToast('🃏 All Cards, Spells & Chips Unlocked (100% Collection & Prism Core Theme)!', 4500);
+        showToast('🃏 All Cards, Battle Pass Tiers & Prism Core Theme Unlocked!', 4500);
       }
 
       if (execResult) {
-        execResult.textContent = '✔ SUCCESS: All Units (Green/Red/Orange), Spells, and Chips unlocked! (100% Complete Collection & Prism Core Theme Unlocked)';
+        execResult.textContent = '✔ SUCCESS: All Cards, Spells, Chips, and Battle Pass Tiers Unlocked! (Max Tier 100 & Premium Pass Active)';
         execResult.className = 'secret-exec-result success';
         execResult.classList.remove('hidden');
       }
@@ -4978,6 +5200,18 @@ window.addEventListener('load', ensureProfileHud);
       localStorage.setItem('theme_cyberneon_unlocked', 'true');
       localStorage.setItem('theme_abyss_unlocked', 'true');
       localStorage.setItem('theme_magma_unlocked', 'true');
+
+      // Unlock Battle Pass Premium, Max Tier 100, and claim all 100 tiers
+      localStorage.setItem('mehrbod-cards-bp-premium', 'true');
+      localStorage.setItem('mehrbod-cards-bp-xp', (100 * 500).toString());
+      const claimedMap = {};
+      for (let i = 1; i <= 100; i++) {
+        claimedMap[`${i}_free`] = true;
+        claimedMap[`${i}_premium`] = true;
+      }
+      localStorage.setItem('mehrbod-cards-bp-claimed', JSON.stringify(claimedMap));
+      if (typeof renderBattlePassScreen === 'function') renderBattlePassScreen();
+      if (typeof updateBattlePassBadge === 'function') updateBattlePassBadge();
 
       // Collect every cosmetic item across all registries
       const cosmeticIdsToUnlock = new Set(['prism', 'theme_prism', 'darkmatter', 'theme_darkmatter']);
@@ -5408,26 +5642,16 @@ window.showSingleCardReveal = showSingleCardReveal;
     letters.forEach((letter, idx) => {
       const fraction = idx / (letters.length - 1 || 1);
 
-      letter.addEventListener('pointerenter', () => {
-        const col = getLiveGradientColor(fraction);
-        letter.style.setProperty('--live-glow', col.rgb);
-      });
-
-      if (letter.dataset.bounceBound) return;
-      letter.dataset.bounceBound = 'true';
-
-      let currentAnim = null;
-
       const triggerLetterBounce = () => {
         const col = getLiveGradientColor(fraction);
         letter.style.setProperty('--live-glow', col.rgb);
 
-        if (currentAnim) {
-          currentAnim.cancel();
-          currentAnim = null;
+        if (letter._currentAnim) {
+          try { letter._currentAnim.cancel(); } catch (_) {}
+          letter._currentAnim = null;
         }
 
-        currentAnim = letter.animate([
+        letter._currentAnim = letter.animate([
           { transform: 'scale(1) translateY(0)', filter: `drop-shadow(0 0 10px ${col.glow1}) drop-shadow(0 0 20px ${col.glow2}) brightness(1.2)` },
           { transform: 'scale(1.42) translateY(-16px) rotate(-4deg)', filter: `drop-shadow(0 0 28px ${col.glow1}) drop-shadow(0 0 50px ${col.glow2}) drop-shadow(0 0 80px ${col.subtle}) brightness(1.85)`, offset: 0.28 },
           { transform: 'scale(0.85) translateY(5px) rotate(2deg)', filter: `drop-shadow(0 0 18px ${col.glow1}) brightness(1.3)`, offset: 0.60 },
@@ -5439,8 +5663,8 @@ window.showSingleCardReveal = showSingleCardReveal;
           fill: 'none'
         });
 
-        currentAnim.onfinish = () => {
-          currentAnim = null;
+        letter._currentAnim.onfinish = () => {
+          letter._currentAnim = null;
         };
 
         try {
@@ -5450,17 +5674,44 @@ window.showSingleCardReveal = showSingleCardReveal;
         } catch (e) {}
       };
 
-      letter.addEventListener('pointerdown', () => {
-        triggerLetterBounce();
+      letter.addEventListener('pointerenter', () => {
+        const col = getLiveGradientColor(fraction);
+        letter.style.setProperty('--live-glow', col.rgb);
       });
+
+      if (!letter.dataset.bounceBound) {
+        letter.dataset.bounceBound = 'true';
+        letter.addEventListener('pointerdown', triggerLetterBounce);
+        letter.addEventListener('click', triggerLetterBounce);
+      }
     });
   };
+
+  // Delegated fallback for title letter clicks and taps
+  document.addEventListener('click', (e) => {
+    const letter = e.target.closest('.game-title .title-letter');
+    if (!letter) return;
+    const letters = Array.from(document.querySelectorAll('.game-title .title-letter'));
+    const idx = letters.indexOf(letter);
+    const fraction = (idx >= 0 ? idx : 0) / (letters.length - 1 || 1);
+    const col = getLiveGradientColor(fraction);
+    letter.style.setProperty('--live-glow', col.rgb);
+    letter.animate([
+      { transform: 'scale(1) translateY(0)', filter: `drop-shadow(0 0 10px ${col.glow1}) brightness(1.2)` },
+      { transform: 'scale(1.42) translateY(-16px) rotate(-4deg)', filter: `drop-shadow(0 0 28px ${col.glow1}) drop-shadow(0 0 50px ${col.glow2}) brightness(1.85)`, offset: 0.28 },
+      { transform: 'scale(0.85) translateY(5px) rotate(2deg)', filter: `drop-shadow(0 0 18px ${col.glow1}) brightness(1.3)`, offset: 0.60 },
+      { transform: 'scale(1) translateY(0) rotate(0deg)', filter: 'none' }
+    ], { duration: 420, easing: 'cubic-bezier(0.175, 0.885, 0.32, 1.35)' });
+    try { if (typeof Sound !== 'undefined' && Sound && Sound.tap) Sound.tap(); } catch (_) {}
+  });
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', setupLetters);
   } else {
     setupLetters();
   }
+  // Periodic check in case title was re-rendered
+  setInterval(setupLetters, 1500);
 })();
 
 function playEpicVictoryAnimation(difficulty, onDone) {
@@ -6107,6 +6358,190 @@ window.playSkeletonStaffAnimation = playSkeletonStaffAnimation;
     if (!document.documentElement.classList.contains('theme-prism') && !document.body.classList.contains('theme-prism')) return;
     spawnPrismSparkle(e.clientX, e.clientY, 6);
   }, { passive: true });
+})();
+
+// ============================================================
+// UNIVERSAL CARD 3D PARALLAX & SPECULAR GLARE ENGINE
+// Applies interactive mouse-follow 3D tilt, sub-element depth displacement,
+// and moving specular glare reflections to ALL cards across menus and in-match!
+// ============================================================
+(function initUniversalCardParallaxEngine() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+  let activeCard = null;
+
+  const CARD_SELECTOR = '.card, .dcard, .sc-card, .modern-shop-card, .merge-preview-card, .flip-card-3d, .bounty-card, .milestone-card-item, .packopen-card';
+
+  function applyUniversalCardParallax(card, clientX, clientY) {
+    const rect = card.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    const normX = Math.max(-1, Math.min(1, (clientX - centerX) / (rect.width / 2)));
+    const normY = Math.max(-1, Math.min(1, (clientY - centerY) / (rect.height / 2)));
+
+    const rotateX = (-normY * 12).toFixed(2);
+    const rotateY = (normX * 14).toFixed(2);
+    const shadowX = (-normX * 10).toFixed(2);
+    const shadowY = (-normY * 10).toFixed(2);
+
+    const glareX = Math.max(0, Math.min(100, (((clientX - rect.left) / rect.width) * 100))).toFixed(1);
+    const glareY = Math.max(0, Math.min(100, (((clientY - rect.top) / rect.height) * 100))).toFixed(1);
+
+    // Set custom CSS variables for specular glare and shine
+    card.style.setProperty('--shine-x', `${glareX}%`);
+    card.style.setProperty('--shine-y', `${glareY}%`);
+    card.style.setProperty('--glare-x', `${glareX}%`);
+    card.style.setProperty('--glare-y', `${glareY}%`);
+    card.style.setProperty('--glare-opacity', '1');
+
+    // Make sure holographic / glare shine element exists
+    if (!card.querySelector('.card-holo-shine') && !card.querySelector('.bp-card-glare') && !card.classList.contains('no-glare')) {
+      const shine = document.createElement('div');
+      shine.className = 'card-holo-shine';
+      card.appendChild(shine);
+    }
+
+    card.style.transform = `perspective(700px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateZ(12px) scale(1.035)`;
+    card.style.boxShadow = `${shadowX}px ${shadowY}px 24px rgba(0, 0, 0, 0.6), 0 0 16px rgba(56, 189, 248, 0.25)`;
+
+    // Displace child layers for interior 3D depth
+    const subName = card.querySelector('.card-name, .dcard-name, .modern-shop-card-name');
+    const subAbility = card.querySelector('.card-ability, .dcard-text, .modern-shop-card-desc');
+    const subStats = card.querySelector('.card-stats, .dcard-stat-pill, .dcard-rarity-pill');
+    const subBadge = card.querySelector('.dcard-count-badge, .merge-pick-badge');
+
+    if (subName) subName.style.transform = `translate3d(${(normX * 5).toFixed(1)}px, ${(normY * 5).toFixed(1)}px, 18px)`;
+    if (subAbility) subAbility.style.transform = `translate3d(${(normX * 3).toFixed(1)}px, ${(normY * 3).toFixed(1)}px, 12px)`;
+    if (subStats) subStats.style.transform = `translate3d(${(normX * 6).toFixed(1)}px, ${(normY * 6).toFixed(1)}px, 22px)`;
+    if (subBadge) subBadge.style.transform = `translate3d(${(-normX * 4).toFixed(1)}px, ${(-normY * 4).toFixed(1)}px, 26px)`;
+  }
+
+  function resetUniversalCardParallax(card) {
+    if (!card) return;
+    card.style.transform = '';
+    card.style.boxShadow = '';
+    card.style.setProperty('--glare-opacity', '0');
+
+    const subName = card.querySelector('.card-name, .dcard-name, .modern-shop-card-name');
+    const subAbility = card.querySelector('.card-ability, .dcard-text, .modern-shop-card-desc');
+    const subStats = card.querySelector('.card-stats, .dcard-stat-pill, .dcard-rarity-pill');
+    const subBadge = card.querySelector('.dcard-count-badge, .merge-pick-badge');
+
+    if (subName) subName.style.transform = '';
+    if (subAbility) subAbility.style.transform = '';
+    if (subStats) subStats.style.transform = '';
+    if (subBadge) subBadge.style.transform = '';
+  }
+
+  document.addEventListener('pointermove', (e) => {
+    // Avoid overriding battlepass tier cards which have dedicated setup
+    if (e.target.closest('.bp-reward-card')) return;
+
+    const card = e.target.closest(CARD_SELECTOR);
+    if (!card) {
+      if (activeCard) {
+        resetUniversalCardParallax(activeCard);
+        activeCard = null;
+      }
+      return;
+    }
+
+    if (activeCard && activeCard !== card) {
+      resetUniversalCardParallax(activeCard);
+    }
+    activeCard = card;
+    applyUniversalCardParallax(card, e.clientX, e.clientY);
+  }, { passive: true });
+
+  document.addEventListener('pointerleave', () => {
+    if (activeCard) {
+      resetUniversalCardParallax(activeCard);
+      activeCard = null;
+    }
+  }, { passive: true });
+})();
+
+// ============================================================
+// 3D BATTLE PASS THEMES MULTI-PLANE PARALLAX WORLD ENGINE
+// Reacts dynamically to cursor positioning across the viewport
+// creating multi-plane depth in both full-screen backgrounds and locker previews!
+// ============================================================
+(function initThemeWorldParallaxEngine() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+  let mouseX = 0;
+  let mouseY = 0;
+  let targetX = 0;
+  let targetY = 0;
+  let animId = null;
+
+  const THEME_BG_SELECTORS = [
+    '#theme-chronos-bg',
+    '#theme-neon_cyberpunk-bg',
+    '#theme-void_singularity-bg',
+    '#theme-quantum_overdrive-bg',
+    '#theme-solar_prominence-bg',
+    '#theme-prism_mythic-bg',
+    '#theme-celestial_nebula-bg',
+    '#theme-abyss_kraken-bg',
+    '#theme-apex_sovereign-bg',
+    '.showcase-theme-canvas'
+  ];
+
+  function updateThemeParallax() {
+    // Smooth lerp interpolation
+    mouseX += (targetX - mouseX) * 0.12;
+    mouseY += (targetY - mouseY) * 0.12;
+
+    const rotX = (-mouseY * 5).toFixed(2);
+    const rotY = (mouseX * 6).toFixed(2);
+
+    THEME_BG_SELECTORS.forEach(sel => {
+      const els = document.querySelectorAll(sel);
+      els.forEach(el => {
+        // Main container 3D perspective tilt
+        if (el.classList.contains('showcase-theme-canvas')) {
+          el.style.transform = `perspective(900px) rotateX(${rotX * 1.5}deg) rotateY(${rotY * 1.5}deg)`;
+        }
+
+        // Depth Layer 1 (Deep Background)
+        const bgLayers = el.querySelectorAll('.temporal-grid, .cyber-highway-grid, .singularity-matter-streams, .quantum-subatomic-grid, .solar-corona-cells, .prism-shards-field, .celestial-star-dust, .abyss-trench-floor, .apex-colonnade-hall');
+        bgLayers.forEach(l => {
+          l.style.transform = `translate3d(${(-mouseX * 12).toFixed(1)}px, ${(-mouseY * 10).toFixed(1)}px, 0)`;
+        });
+
+        // Depth Layer 2 (Midground Centerpieces)
+        const midLayers = el.querySelectorAll('.chronos-astrolabe-3d, .cyber-skyline-parallax, .singularity-core-3d, .quantum-core-lattice, .solar-core-pulsar, .prism-diamond-core-3d, .celestial-dust-cloud, .abyss-caustics-layer, .apex-gilded-portal');
+        midLayers.forEach(l => {
+          l.style.transform = `translate3d(${(mouseX * 22).toFixed(1)}px, ${(mouseY * 18).toFixed(1)}px, 35px)`;
+        });
+
+        // Depth Layer 3 (Foreground Floating Elements)
+        const fgLayers = el.querySelectorAll('.chronos-gear-ring, .cyber-scanlines-depth, .singularity-photon-ring, .quantum-particle-cloud, .solar-prominence-arcs, .prism-refractor-facets, .celestial-meteor-streak, .abyss-kraken-tentacle, .apex-runic-obelisk, .apex-cathedral-beams');
+        fgLayers.forEach(l => {
+          l.style.transform = `translate3d(${(mouseX * 40).toFixed(1)}px, ${(mouseY * 32).toFixed(1)}px, 75px)`;
+        });
+      });
+    });
+
+    animId = requestAnimationFrame(updateThemeParallax);
+  }
+
+  window.addEventListener('pointermove', (e) => {
+    // Normalized screen offset (-1.0 to 1.0)
+    targetX = (e.clientX / window.innerWidth - 0.5) * 2;
+    targetY = (e.clientY / window.innerHeight - 0.5) * 2;
+  }, { passive: true });
+
+  window.addEventListener('pointerleave', () => {
+    targetX = 0;
+    targetY = 0;
+  }, { passive: true });
+
+  animId = requestAnimationFrame(updateThemeParallax);
 })();
 
 

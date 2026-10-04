@@ -1,115 +1,137 @@
 // ---- Battle Pass Module (Season 1: Neon Oblivion) -------------------------
-// Full 20-Tier Progression System with Free Drip-Feed & 10,000 Bux Premium Track
+// Full 100-Tier Progression System with Free Drip-Feed & 5,000 Bux Premium Track
 
 (function() {
   'use strict';
 
-  const BATTLEPASS_PRICE = 10000;
+  const BATTLEPASS_PRICE = 5000;
   const BATTLEPASS_XP_PER_TIER = 500;
-  const BATTLEPASS_MAX_TIER = 20;
+  const BATTLEPASS_MAX_TIER = 100;
 
-  const BATTLEPASS_TIERS = [
-    {
-      tier: 1,
-      free: { kind: 'bux', amount: 250, label: '250 Bux', icon: '💰' },
-      premium: { kind: 'theme', id: 'theme_chronos', name: 'Chronos Horizon', label: 'Theme: Chronos Horizon', icon: '⏳' }
-    },
-    {
-      tier: 2,
-      free: { kind: 'badge', id: 'badge_chronos_gear', name: 'Temporal Gear', label: 'Badge: Temporal Gear', icon: '⚙️' },
-      premium: { kind: 'card', tierNum: 4, name: 'Chronos Sentinel', archetypeId: 'orange_chronos_sentinel', label: 'Apex Unit: Chronos Sentinel', icon: '🃏' }
-    },
-    {
-      tier: 3,
-      free: { kind: 'title', title: 'Temporal Voyager', label: 'Title: Temporal Voyager', icon: '🏷️' },
-      premium: { kind: 'pack', packType: 'chronos', count: 2, name: '2x Chronos Cache', label: '2x Chronos Temporal Cache', icon: '📦' }
-    },
-    {
-      tier: 4,
-      free: { kind: 'bux', amount: 300, label: '300 Bux', icon: '💰' },
-      premium: { kind: 'sleeve', id: 'sleeve_chronos', name: 'Chronos Temporal Weave', label: 'Sleeve: Chronos Weave', icon: '🎴' }
-    },
-    {
-      tier: 5,
-      free: { kind: 'pack', packType: 'booster', count: 1, name: 'Standard Booster', label: '1x Booster Pack', icon: '📦' },
-      premium: { kind: 'bux', amount: 500, label: '500 Bux Cashback', icon: '💎' }
-    },
-    {
-      tier: 6,
-      free: { kind: 'bux', amount: 350, label: '350 Bux', icon: '💰' },
-      premium: { kind: 'victoryAnim', id: 'victoryanim_chronos_blast', name: 'Temporal Time Stop', label: 'Finisher: Time Stop', icon: '💥' }
-    },
-    {
-      tier: 7,
-      free: { kind: 'badge', id: 'badge_cyber_reticle', name: 'Cyber Reticle', label: 'Badge: Cyber Reticle', icon: '🎯' },
-      premium: { kind: 'card', tierNum: 3, name: 'Hyperdrive Drake', archetypeId: 'red_hyperdrive_drake', label: 'Epic Unit: Hyperdrive Drake', icon: '🃏' }
-    },
-    {
-      tier: 8,
-      free: { kind: 'bux', amount: 400, label: '400 Bux', icon: '💰' },
-      premium: { kind: 'pack', packType: 'hyperdrive', count: 2, name: '2x Cyber-Crates', label: '2x Cyber-Crate Packs', icon: '📦' }
-    },
-    {
-      tier: 9,
-      free: { kind: 'title', title: 'Cyber Pioneer', label: 'Title: Cyber Pioneer', icon: '🏷️' },
-      premium: { kind: 'sleeve', id: 'sleeve_hyperdrive', name: 'Neon Grid Holo', label: 'Sleeve: Neon Grid Holo', icon: '🎴' }
-    },
-    {
-      tier: 10,
-      free: { kind: 'bux', amount: 500, label: '500 Bux', icon: '💰' },
-      premium: { kind: 'theme', id: 'theme_neon_cyberpunk', name: 'Hyperdrive Cyber-Grid', label: 'Theme: Cyber-Grid', icon: '🌆' }
-    },
-    {
-      tier: 11,
-      free: { kind: 'pack', packType: 'foil', count: 1, name: 'Foil Booster', label: '1x Foil Booster', icon: '📦' },
-      premium: { kind: 'bux', amount: 1000, label: '1,000 Bux Cashback', icon: '💎' }
-    },
-    {
-      tier: 12,
-      free: { kind: 'bux', amount: 600, label: '600 Bux', icon: '💰' },
-      premium: { kind: 'card', tierNum: 2, name: 'Aether Glider', archetypeId: 'green_aether_glider', label: 'Rare Unit: Aether Glider', icon: '🃏' }
-    },
-    {
-      tier: 13,
-      free: { kind: 'badge', id: 'badge_void_portal', name: 'Void Portal', label: 'Badge: Void Portal', icon: '🌀' },
-      premium: { kind: 'victoryAnim', id: 'victoryanim_hyperdrive_warp', name: 'Hyperdrive Warp', label: 'Finisher: Warp Speed', icon: '🚀' }
-    },
-    {
-      tier: 14,
-      free: { kind: 'bux', amount: 750, label: '750 Bux', icon: '💰' },
-      premium: { kind: 'pack', packType: 'void', count: 2, name: '2x Void Vaults', label: '2x Void Apex Vaults', icon: '📦' }
-    },
-    {
-      tier: 15,
-      free: { kind: 'title', title: 'Void Wanderer', label: 'Title: Void Wanderer', icon: '🏷️' },
-      premium: { kind: 'sleeve', id: 'sleeve_singularity', name: 'Event Horizon Void', label: 'Sleeve: Event Horizon', icon: '🎴' }
-    },
-    {
-      tier: 16,
-      free: { kind: 'bux', amount: 850, label: '850 Bux', icon: '💰' },
-      premium: { kind: 'card', tierNum: 3, name: 'Cyber Valkyrie', archetypeId: 'red_cyber_valkyrie', label: 'Epic Unit: Cyber Valkyrie', icon: '🃏' }
-    },
-    {
-      tier: 17,
-      free: { kind: 'bux', amount: 1000, label: '1,000 Bux', icon: '💰' },
-      premium: { kind: 'bux', amount: 1500, label: '1,500 Bux Cashback', icon: '💎' }
-    },
-    {
-      tier: 18,
-      free: { kind: 'title', title: 'Pass Veteran', label: 'Title: Pass Veteran', icon: '🏷️' },
-      premium: { kind: 'pack', packType: 'void', count: 3, name: '3x Void Vaults', label: '3x Void Apex Vaults', icon: '📦' }
-    },
-    {
-      tier: 19,
-      free: { kind: 'bux', amount: 1200, label: '1,200 Bux', icon: '💰' },
-      premium: { kind: 'card', tierNum: 4, name: 'Singularity Devourer', archetypeId: 'orange_singularity_devourer', label: 'Apex Unit: Devourer', icon: '🃏' }
-    },
-    {
-      tier: 20,
-      free: { kind: 'title', title: 'Neon Oblivion Master', label: 'Title: Neon Master', icon: '🏆' },
-      premium: { kind: 'theme', id: 'theme_void_singularity', name: 'Void Singularity', label: 'Theme: Void Singularity + Badge', icon: '🌌' }
+  function generate100BattlePassTiers() {
+    const baseTiers = [
+      { tier: 1, free: { kind: 'bux', amount: 25, label: '25 Bux', icon: '💰' }, premium: { kind: 'theme', id: 'theme_chronos', name: 'Chronos Horizon', label: 'Theme: Chronos Horizon', icon: '⏳' } },
+      { tier: 2, free: { kind: 'badge', id: 'badge_chronos_gear', name: 'Temporal Gear', label: 'Badge: Temporal Gear', icon: '⚙️' }, premium: { kind: 'card', tierNum: 4, name: 'Chronos Sentinel', archetypeId: 'orange_chronos_sentinel', label: 'Apex Unit: Chronos Sentinel', icon: '🃏' } },
+      { tier: 3, free: { kind: 'title', title: 'Temporal Voyager', label: 'Title: Temporal Voyager', icon: '🏷️' }, premium: { kind: 'pack', packType: 'chronos', count: 1, name: 'Chronos Cache', label: '1x Chronos Temporal Cache', icon: '📦' } },
+      { tier: 4, free: { kind: 'bux', amount: 25, label: '25 Bux', icon: '💰' }, premium: { kind: 'sleeve', id: 'sleeve_chronos', name: 'Chronos Temporal Weave', label: 'Sleeve: Chronos Weave', icon: '🎴' } },
+      { tier: 5, free: { kind: 'pack', packType: 'booster', count: 1, name: 'Standard Booster', label: '1x Booster Pack', icon: '📦' }, premium: { kind: 'pack', packType: 'void', count: 1, name: 'Void Apex Vault', label: '1x Void Apex Vault', icon: '📦' } },
+      { tier: 6, free: { kind: 'bux', amount: 25, label: '25 Bux', icon: '💰' }, premium: { kind: 'victoryAnim', id: 'victoryanim_chronos_blast', name: 'Temporal Time Stop', label: 'Finisher: Time Stop', icon: '💥' } },
+      { tier: 7, free: { kind: 'badge', id: 'badge_cyber_reticle', name: 'Cyber Reticle', label: 'Badge: Cyber Reticle', icon: '🎯' }, premium: { kind: 'card', tierNum: 3, name: 'Hyperdrive Drake', archetypeId: 'red_hyperdrive_drake', label: 'Epic Unit: Hyperdrive Drake', icon: '🃏' } },
+      { tier: 8, free: { kind: 'bux', amount: 25, label: '25 Bux', icon: '💰' }, premium: { kind: 'pack', packType: 'hyperdrive', count: 1, name: 'Cyber-Crate', label: '1x Cyber-Crate Pack', icon: '📦' } },
+      { tier: 9, free: { kind: 'title', title: 'Cyber Pioneer', label: 'Title: Cyber Pioneer', icon: '🏷️' }, premium: { kind: 'sleeve', id: 'sleeve_hyperdrive', name: 'Neon Grid Holo', label: 'Sleeve: Neon Grid Holo', icon: '🎴' } },
+      { tier: 10, free: { kind: 'bux', amount: 38, label: '38 Bux', icon: '💰' }, premium: { kind: 'theme', id: 'theme_neon_cyberpunk', name: 'Hyperdrive Cyber-Grid', label: 'Theme: Cyber-Grid', icon: '🌆' } },
+      { tier: 11, free: { kind: 'pack', packType: 'foil', count: 1, name: 'Foil Booster', label: '1x Foil Booster', icon: '📦' }, premium: { kind: 'pack', packType: 'chronos', count: 1, name: 'Chronos Cache', label: '1x Chronos Cache', icon: '📦' } },
+      { tier: 12, free: { kind: 'bux', amount: 38, label: '38 Bux', icon: '💰' }, premium: { kind: 'card', tierNum: 2, name: 'Aether Glider', archetypeId: 'green_aether_glider', label: 'Rare Unit: Aether Glider', icon: '🃏' } },
+      { tier: 13, free: { kind: 'badge', id: 'badge_void_portal', name: 'Void Portal', label: 'Badge: Void Portal', icon: '🌀' }, premium: { kind: 'victoryAnim', id: 'victoryanim_hyperdrive_warp', name: 'Hyperdrive Warp', label: 'Finisher: Warp Speed', icon: '🚀' } },
+      { tier: 14, free: { kind: 'bux', amount: 38, label: '38 Bux', icon: '💰' }, premium: { kind: 'pack', packType: 'void', count: 1, name: 'Void Vault', label: '1x Void Apex Vault', icon: '📦' } },
+      { tier: 15, free: { kind: 'title', title: 'Void Wanderer', label: 'Title: Void Wanderer', icon: '🏷️' }, premium: { kind: 'sleeve', id: 'sleeve_singularity', name: 'Event Horizon Void', label: 'Sleeve: Event Horizon', icon: '🎴' } },
+      { tier: 16, free: { kind: 'pack', packType: 'booster', count: 1, name: 'Standard Booster', label: '1x Booster Pack', icon: '📦' }, premium: { kind: 'card', tierNum: 3, name: 'Cyber Valkyrie', archetypeId: 'red_cyber_valkyrie', label: 'Epic Unit: Cyber Valkyrie', icon: '🃏' } },
+      { tier: 17, free: { kind: 'bux', amount: 38, label: '38 Bux', icon: '💰' }, premium: { kind: 'pack', packType: 'hyperdrive', count: 1, name: 'Cyber-Crate', label: '1x Cyber-Crate Pack', icon: '📦' } },
+      { tier: 18, free: { kind: 'title', title: 'Pass Veteran', label: 'Title: Pass Veteran', icon: '🏷️' }, premium: { kind: 'pack', packType: 'void', count: 1, name: 'Void Vault', label: '1x Void Apex Vault', icon: '📦' } },
+      { tier: 19, free: { kind: 'pack', packType: 'foil', count: 1, name: 'Foil Booster', label: '1x Foil Booster', icon: '📦' }, premium: { kind: 'card', tierNum: 4, name: 'Singularity Devourer', archetypeId: 'orange_singularity_devourer', label: 'Apex Unit: Devourer', icon: '🃏' } },
+      { tier: 20, free: { kind: 'title', title: 'Neon Oblivion Master', label: 'Title: Neon Master', icon: '🏆' }, premium: { kind: 'theme', id: 'theme_void_singularity', name: 'Void Singularity', label: 'Theme: Void Singularity', icon: '🌌' } }
+    ];
+
+    // Total Free Bux sum across all 100 tiers is capped at exactly 1,500 Bux max (slashed 50%)!
+    const freeBuxTiersMap = {
+      21: 40, 25: 50, 28: 40, 32: 50, 37: 40, 42: 50, 45: 60,
+      50: 75, 54: 50, 58: 50, 60: 75, 64: 50, 68: 50, 72: 60,
+      75: 75, 79: 50, 80: 100, 84: 50, 88: 50, 90: 85, 94: 50,
+      98: 50, 100: 100
+    };
+
+    for (let i = 21; i <= 100; i++) {
+      let freeReward, premiumReward;
+
+      if (i === 25) {
+        freeReward = { kind: 'bux', amount: 50, label: '50 Bux', icon: '💰' };
+        premiumReward = { kind: 'theme', id: 'theme_quantum_overdrive', name: 'Quantum Horizon', label: 'Theme: Quantum Horizon', icon: '⚛️' };
+      } else if (i === 28) {
+        freeReward = { kind: 'badge', id: 'badge_quantum_core', name: 'Quantum Core', label: 'Badge: Quantum Core', icon: '⚛️' };
+        premiumReward = { kind: 'card', tierNum: 4, name: 'Quantum Colossus', archetypeId: 'orange_quantum_behemoth', label: 'Apex Unit: Quantum Colossus', icon: '🃏' };
+      } else if (i === 30) {
+        freeReward = { kind: 'title', title: 'Quantum Explorer', label: 'Title: Quantum Explorer', icon: '🏷️' };
+        premiumReward = { kind: 'sleeve', id: 'sleeve_quantum', name: 'Quantum Grid Sleeves', label: 'Sleeve: Quantum Grid', icon: '🎴' };
+      } else if (i === 32) {
+        freeReward = { kind: 'bux', amount: 50, label: '50 Bux', icon: '💰' };
+        premiumReward = { kind: 'victoryAnim', id: 'victoryanim_quantum_collapse', name: 'Quantum Collapse', label: 'Finisher: Quantum Collapse', icon: '⚛️' };
+      } else if (i === 35) {
+        freeReward = { kind: 'pack', packType: 'foil', count: 1, name: 'Foil Booster', label: '1x Foil Booster', icon: '📦' };
+        premiumReward = { kind: 'theme', id: 'theme_solar_prominence', name: 'Solar Corona', label: 'Theme: Solar Corona', icon: '☀️' };
+      } else if (i === 40) {
+        freeReward = { kind: 'title', title: 'Solar Voyager', label: 'Title: Solar Voyager', icon: '🏷️' };
+        premiumReward = { kind: 'card', tierNum: 3, name: 'Solar Phoenix', archetypeId: 'red_solar_phoenix', label: 'Epic Unit: Solar Phoenix', icon: '🃏' };
+      } else if (i === 45) {
+        freeReward = { kind: 'bux', amount: 60, label: '60 Bux', icon: '💰' };
+        premiumReward = { kind: 'sleeve', id: 'sleeve_solar', name: 'Solar Prominence Sleeves', label: 'Sleeve: Solar Prominence', icon: '🎴' };
+      } else if (i === 48) {
+        freeReward = { kind: 'badge', id: 'badge_solar_crown', name: 'Solar Crown', label: 'Badge: Solar Crown', icon: '☀️' };
+        premiumReward = { kind: 'victoryAnim', id: 'victoryanim_solar_flare', name: 'Solar Flare Eruption', label: 'Finisher: Solar Flare', icon: '☀️' };
+      } else if (i === 50) {
+        freeReward = { kind: 'bux', amount: 75, label: '75 Bux', icon: '💰' };
+        premiumReward = { kind: 'theme', id: 'theme_prism_mythic', name: 'Diamond Refractor', label: 'Theme: Diamond Refractor', icon: '💎' };
+      } else if (i === 55) {
+        freeReward = { kind: 'title', title: 'Titan Slayer', label: 'Title: Titan Slayer', icon: '🏷️' };
+        premiumReward = { kind: 'card', tierNum: 2, name: 'Verdant Titan', archetypeId: 'green_verdant_titan', label: 'Rare Unit: Verdant Titan', icon: '🃏' };
+      } else if (i === 60) {
+        freeReward = { kind: 'bux', amount: 75, label: '75 Bux', icon: '💰' };
+        premiumReward = { kind: 'sleeve', id: 'sleeve_nebula', name: 'Celestial Starfall Sleeves', label: 'Sleeve: Celestial Starfall', icon: '🎴' };
+      } else if (i === 62) {
+        freeReward = { kind: 'badge', id: 'badge_nebula_star', name: 'Nebula Star', label: 'Badge: Nebula Star', icon: '🌠' };
+        premiumReward = { kind: 'victoryAnim', id: 'victoryanim_starlight_shockwave', name: 'Starlight Shockwave', label: 'Finisher: Starlight Shockwave', icon: '🌠' };
+      } else if (i === 65) {
+        freeReward = { kind: 'pack', packType: 'void', count: 1, name: 'Void Vault', label: '1x Void Vault', icon: '📦' };
+        premiumReward = { kind: 'theme', id: 'theme_celestial_nebula', name: 'Celestial Nebula', label: 'Theme: Celestial Nebula', icon: '🌠' };
+      } else if (i === 70) {
+        freeReward = { kind: 'title', title: 'Nebula Conqueror', label: 'Title: Nebula Conqueror', icon: '🏷️' };
+        premiumReward = { kind: 'card', tierNum: 3, name: 'Nebula Valkyrie', archetypeId: 'red_nebula_valkyrie', label: 'Epic Unit: Nebula Valkyrie', icon: '🃏' };
+      } else if (i === 75) {
+        freeReward = { kind: 'bux', amount: 75, label: '75 Bux', icon: '💰' };
+        premiumReward = { kind: 'sleeve', id: 'sleeve_kraken', name: 'Bioluminescent Kraken Sleeves', label: 'Sleeve: Kraken Sleeves', icon: '🎴' };
+      } else if (i === 78) {
+        freeReward = { kind: 'badge', id: 'badge_kraken_eye', name: 'Kraken Eye', label: 'Badge: Kraken Eye', icon: '🦑' };
+        premiumReward = { kind: 'victoryAnim', id: 'victoryanim_kraken_strike', name: 'Kraken Void Strike', label: 'Finisher: Kraken Void Strike', icon: '🦑' };
+      } else if (i === 80) {
+        freeReward = { kind: 'bux', amount: 100, label: '100 Bux', icon: '💰' };
+        premiumReward = { kind: 'theme', id: 'theme_abyss_kraken', name: 'Bioluminescent Kraken Abyss', label: 'Theme: Kraken Abyss', icon: '🦑' };
+      } else if (i === 85) {
+        freeReward = { kind: 'title', title: 'Sovereign Champion', label: 'Title: Sovereign Champion', icon: '🏷️' };
+        premiumReward = { kind: 'card', tierNum: 4, name: 'Apex Sovereign Sentinel', archetypeId: 'orange_apex_sovereign_unit', label: 'Apex Unit: Sovereign Sentinel', icon: '🃏' };
+      } else if (i === 90) {
+        freeReward = { kind: 'bux', amount: 85, label: '85 Bux', icon: '💰' };
+        premiumReward = { kind: 'sleeve', id: 'sleeve_apex_gold', name: '24k Gold Sovereign Sleeves', label: 'Sleeve: 24k Gold Sovereign', icon: '🎴' };
+      } else if (i === 95) {
+        freeReward = { kind: 'badge', id: 'badge_sovereign_crest', name: 'Sovereign Crest', label: 'Badge: Sovereign Crest', icon: '👑' };
+        premiumReward = { kind: 'victoryAnim', id: 'victoryanim_apex_beam', name: 'Apex Sovereign Laser Blast', label: 'Finisher: Apex Laser Blast', icon: '👑' };
+      } else if (i === 100) {
+        freeReward = { kind: 'bux', amount: 100, label: '100 Bux', icon: '💰' };
+        premiumReward = { kind: 'theme', id: 'theme_apex_sovereign', name: 'Apex Sovereign Gold', label: 'Theme: Apex Sovereign Gold', icon: '👑' };
+      } else if (freeBuxTiersMap[i]) {
+        const amt = freeBuxTiersMap[i];
+        freeReward = { kind: 'bux', amount: amt, label: `${amt} Bux`, icon: '💰' };
+        premiumReward = { kind: 'pack', packType: 'chronos', count: 1, name: 'Chronos Cache', label: '1x Chronos Cache', icon: '📦' };
+      } else if (i % 3 === 0) {
+        freeReward = { kind: 'pack', packType: 'booster', count: 1, name: 'Booster Pack', label: '1x Booster Pack', icon: '📦' };
+        premiumReward = { kind: 'pack', packType: 'hyperdrive', count: 1, name: 'Cyber-Crate', label: '1x Cyber-Crate Pack', icon: '📦' };
+      } else {
+        freeReward = { kind: 'pack', packType: 'booster', count: 1, name: 'Booster Pack', label: '1x Booster Pack', icon: '📦' };
+        premiumReward = { kind: 'pack', packType: 'void', count: 1, name: 'Void Vault', label: '1x Void Apex Vault', icon: '📦' };
+      }
+
+      baseTiers.push({
+        tier: i,
+        free: freeReward,
+        premium: premiumReward
+      });
     }
-  ];
+
+    return baseTiers;
+  }
+
+    return baseTiers;
+  }
+
+  const BATTLEPASS_TIERS = generate100BattlePassTiers();
 
   // --- Persistence Accessors ---
   function isBattlePassUnlocked() {
@@ -257,6 +279,76 @@
     updateBattlePassBadge();
   }
 
+  // --- Subtle Vibration Noise for Claiming ---
+  function playSubtleVibrationNoise() {
+    try {
+      if (navigator.vibrate) {
+        navigator.vibrate([40, 25, 50]);
+      }
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const now = ctx.currentTime;
+
+      // Two quick subtle haptic buzzes
+      [0, 0.08].forEach((offset) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(54, now + offset);
+        osc.frequency.exponentialRampToValueAtTime(30, now + offset + 0.07);
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(90, now + offset);
+
+        gain.gain.setValueAtTime(0.08, now + offset);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.07);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now + offset);
+        osc.stop(now + offset + 0.08);
+      });
+
+      setTimeout(() => { try { ctx.close(); } catch (_) {} }, 350);
+    } catch (e) {}
+  }
+
+  // --- Dev Unlock Battle Pass Helper ---
+  function devUnlockBattlePass(claimAll = false) {
+    try {
+      localStorage.setItem('mehrbod-cards-bp-premium', 'true');
+      saveBattlePassXP(BATTLEPASS_MAX_TIER * BATTLEPASS_XP_PER_TIER); // 50,000 XP
+
+      if (claimAll) {
+        const claimedMap = {};
+        for (let i = 1; i <= BATTLEPASS_MAX_TIER; i++) {
+          claimedMap[`${i}_free`] = true;
+          claimedMap[`${i}_premium`] = true;
+          const tierData = BATTLEPASS_TIERS.find(t => t.tier === i);
+          if (tierData) {
+            if (tierData.free) awardItem(tierData.free);
+            if (tierData.premium) awardItem(tierData.premium);
+          }
+        }
+        saveClaimedMap(claimedMap);
+      } else {
+        localStorage.removeItem('mehrbod-cards-bp-claimed');
+      }
+
+      renderBattlePassScreen();
+      updateBattlePassBadge();
+      return true;
+    } catch (e) {
+      console.error('devUnlockBattlePass error:', e);
+      return false;
+    }
+  }
+
   // --- Claim All Eligible Rewards ---
   function claimAllBattlePassRewards() {
     const currentLevel = getBattlePassLevel();
@@ -281,8 +373,8 @@
     }
 
     if (claimedCount > 0) {
-      if (typeof Sound !== 'undefined' && Sound.cashRain) Sound.cashRain();
-      if (typeof showToast === 'function') showToast(`🎁 Claimed ${claimedCount} Battle Pass rewards!`, 3500);
+      playSubtleVibrationNoise();
+      if (typeof showToast === 'function') showToast(`Claimed ${claimedCount} Battle Pass rewards!`, 3500);
       renderBattlePassScreen();
       updateBattlePassBadge();
     } else {
@@ -300,7 +392,7 @@
     const currentBux = typeof loadBux === 'function' ? loadBux() : 0;
     if (currentBux < BATTLEPASS_PRICE) {
       if (typeof showToast === 'function') {
-        showToast(`❌ Insufficient Bux! Premium Pass costs 10,000 Bux (You have ${currentBux.toLocaleString()} Bux).`, 3000);
+        showToast(`Insufficient Bux! Premium Pass costs 10,000 Bux (You have ${currentBux.toLocaleString()} Bux).`, 3000);
       }
       return;
     }
@@ -310,8 +402,8 @@
       localStorage.setItem('mehrbod-cards-bp-premium', 'true');
     } catch (e) {}
 
-    if (typeof Sound !== 'undefined' && Sound.cashRain) Sound.cashRain();
-    if (typeof showToast === 'function') showToast('⚡ PREMIUM BATTLE PASS UNLOCKED! All Premium Track rewards now claimable!', 4000);
+    playSubtleVibrationNoise();
+    if (typeof showToast === 'function') showToast('PREMIUM BATTLE PASS UNLOCKED! All Premium Track rewards now claimable!', 4000);
 
     renderBattlePassScreen();
     updateBattlePassBadge();
@@ -331,13 +423,24 @@
 
   function updateBattlePassBadge() {
     const unclaimedBadge = document.getElementById('bp-claim-indicator');
+    const claimAllBtns = document.querySelectorAll('#bp-claim-all, #btn-bp-claim-all, .bp-claim-all-btn');
+    const hasUnclaimed = hasUnclaimedRewards();
+
     if (unclaimedBadge) {
-      if (hasUnclaimedRewards()) {
+      if (hasUnclaimed) {
         unclaimedBadge.classList.remove('hidden');
       } else {
         unclaimedBadge.classList.add('hidden');
       }
     }
+
+    claimAllBtns.forEach(btn => {
+      if (hasUnclaimed) {
+        btn.classList.add('bp-claim-all-breathing');
+      } else {
+        btn.classList.remove('bp-claim-all-breathing');
+      }
+    });
   }
 
   // --- Render Battle Pass Screen ---
@@ -353,12 +456,12 @@
 
     // Update Header Text
     const levelVal = document.getElementById('bp-level-val');
-    if (levelVal) levelVal.textContent = `TIER ${currentLevel}`;
+    if (levelVal) levelVal.textContent = `TIER ${currentLevel} / 100`;
 
     const progressVal = document.getElementById('bp-xp-val');
     if (progressVal) {
       if (currentLevel >= BATTLEPASS_MAX_TIER) {
-        progressVal.textContent = 'MAX PASS TIER REACHED!';
+        progressVal.textContent = 'MAX PASS TIER 100 REACHED!';
       } else {
         progressVal.textContent = `${xpIntoLevel} / ${BATTLEPASS_XP_PER_TIER} XP to Tier ${currentLevel + 1}`;
       }
@@ -372,7 +475,7 @@
     const passStatusBadge = document.getElementById('bp-pass-status-badge');
     if (passStatusBadge) {
       if (premiumUnlocked) {
-        passStatusBadge.textContent = '⚡ PREMIUM PASS ACTIVE';
+        passStatusBadge.textContent = 'PREMIUM PASS ACTIVE';
         passStatusBadge.className = 'bp-status-pill premium';
       } else {
         passStatusBadge.textContent = 'STANDARD PASS (FREE)';
@@ -387,7 +490,7 @@
         buyBtn.disabled = true;
         buyBtn.classList.add('owned');
       } else {
-        buyBtn.textContent = '⚡ UNLOCK PREMIUM (10,000 BUX)';
+        buyBtn.textContent = 'UNLOCK PREMIUM (10,000 BUX)';
         buyBtn.disabled = false;
         buyBtn.classList.remove('owned');
       }
@@ -397,30 +500,43 @@
     const trackGrid = document.getElementById('bp-track-grid');
     if (trackGrid) {
       trackGrid.innerHTML = '';
+      const lastSeenTier = parseInt(localStorage.getItem('mehrbod-cards-bp-seen-tier') || '1', 10);
+      const isNewTierReached = currentLevel > lastSeenTier;
 
       BATTLEPASS_TIERS.forEach((t) => {
         const isReached = currentLevel >= t.tier;
+        const isNewlyReached = isNewTierReached && t.tier > lastSeenTier && isReached;
         const freeClaimed = isRewardClaimed(t.tier, 'free');
         const premiumClaimed = isRewardClaimed(t.tier, 'premium');
+        const isThemeTier = (t.free && t.free.kind === 'theme') || (t.premium && t.premium.kind === 'theme');
 
+        const isTier100 = t.tier === 100;
         const col = document.createElement('div');
-        col.className = `bp-tier-col ${isReached ? 'reached' : 'locked'}`;
+        col.className = `bp-tier-col ${isReached ? 'reached' : 'locked'} ${isNewlyReached ? 'bp-tier-newly-reached' : ''} ${isThemeTier ? 'theme-tier' : ''} ${isTier100 ? 'bp-tier-100-apex' : ''}`;
 
         // Header
-        let headerHtml = `<div class="bp-tier-header"><span class="bp-tier-num">TIER ${t.tier}</span></div>`;
+        let headerHtml = `
+          <div class="bp-tier-header">
+            <span class="bp-tier-num">TIER ${t.tier}</span>
+            ${isNewlyReached ? '<div class="bp-tier-new-badge">✨ NEW UNLOCK!</div>' : ''}
+            ${isThemeTier ? '<span class="bp-theme-unlock-badge">🎨 THEME UNLOCK</span>' : ''}
+            ${isNewlyReached ? '<div class="bp-tier-burst-ring"></div>' : ''}
+          </div>
+        `;
 
         // Free Card
         let freeBtnStateHtml = '';
         if (freeClaimed) {
           freeBtnStateHtml = `<button type="button" class="bp-claim-btn claimed" disabled>✓ Claimed</button>`;
         } else if (isReached) {
-          freeBtnStateHtml = `<button type="button" class="bp-claim-btn active-free" onclick="claimBattlePassReward(${t.tier}, 'free')">🎁 Claim</button>`;
+          freeBtnStateHtml = `<button type="button" class="bp-claim-btn active-free" onclick="claimBattlePassReward(${t.tier}, 'free')">Claim</button>`;
         } else {
-          freeBtnStateHtml = `<button type="button" class="bp-claim-btn locked" disabled>🔒 Tier ${t.tier}</button>`;
+          freeBtnStateHtml = `<button type="button" class="bp-claim-btn locked" disabled>Tier ${t.tier}</button>`;
         }
 
         let freeCardHtml = `
           <div class="bp-reward-card free-card ${freeClaimed ? 'claimed' : ''}">
+            <div class="bp-card-glare"></div>
             <div class="bp-card-tag">FREE</div>
             <div class="bp-reward-icon">${t.free.icon}</div>
             <div class="bp-reward-title">${t.free.label}</div>
@@ -433,16 +549,42 @@
         if (premiumClaimed) {
           premBtnStateHtml = `<button type="button" class="bp-claim-btn claimed" disabled>✓ Claimed</button>`;
         } else if (!premiumUnlocked) {
-          premBtnStateHtml = `<button type="button" class="bp-claim-btn prem-locked" onclick="purchasePremiumPass()">🔒 10k Bux</button>`;
+          premBtnStateHtml = `<button type="button" class="bp-claim-btn prem-locked" onclick="purchasePremiumPass()">10k Bux</button>`;
         } else if (isReached) {
-          premBtnStateHtml = `<button type="button" class="bp-claim-btn active-prem" onclick="claimBattlePassReward(${t.tier}, 'premium')">⚡ Claim</button>`;
+          premBtnStateHtml = `<button type="button" class="bp-claim-btn active-prem" onclick="claimBattlePassReward(${t.tier}, 'premium')">Claim</button>`;
         } else {
-          premBtnStateHtml = `<button type="button" class="bp-claim-btn locked" disabled>🔒 Tier ${t.tier}</button>`;
+          premBtnStateHtml = `<button type="button" class="bp-claim-btn locked" disabled>Tier ${t.tier}</button>`;
+        }
+
+        let apexAuraHtml = '';
+        if (isTier100) {
+          apexAuraHtml = `
+            <div class="apex-persistent-aura" aria-hidden="true">
+              <div class="apex-aura-glow"></div>
+              <div class="apex-aura-corona"></div>
+              <div class="apex-aura-particles">
+                <span class="apex-p p1">✦</span><span class="apex-p p2">⭐</span><span class="apex-p p3">✨</span>
+                <span class="apex-p p4">👑</span><span class="apex-p p5">✦</span><span class="apex-p p6">💎</span>
+                <span class="apex-p p7">⭐</span><span class="apex-p p8">✨</span>
+              </div>
+            </div>
+            <div class="apex-sovereign-explosion-3d" aria-hidden="true">
+              <div class="apex-exp-ring r1"></div>
+              <div class="apex-exp-ring r2"></div>
+              <div class="apex-exp-ring r3"></div>
+              <div class="apex-exp-shard-cluster">
+                <span class="apex-shard s1"></span><span class="apex-shard s2"></span><span class="apex-shard s3"></span><span class="apex-shard s4"></span>
+                <span class="apex-shard s5"></span><span class="apex-shard s6"></span><span class="apex-shard s7"></span><span class="apex-shard s8"></span>
+              </div>
+            </div>
+          `;
         }
 
         let premCardHtml = `
-          <div class="bp-reward-card prem-card ${premiumClaimed ? 'claimed' : ''} ${premiumUnlocked ? 'unlocked' : ''}">
-            <div class="bp-card-tag prem">PREMIUM</div>
+          <div class="bp-reward-card prem-card ${isTier100 ? 'bp-apex-tier100-card' : ''} ${premiumClaimed ? 'claimed' : ''} ${premiumUnlocked ? 'unlocked' : ''}">
+            ${apexAuraHtml}
+            <div class="bp-card-glare"></div>
+            <div class="bp-card-tag prem">${isTier100 ? '👑 APEX' : 'PREMIUM'}</div>
             <div class="bp-reward-icon">${t.premium.icon}</div>
             <div class="bp-reward-title">${t.premium.label}</div>
             ${premBtnStateHtml}
@@ -450,9 +592,301 @@
         `;
 
         col.innerHTML = headerHtml + freeCardHtml + premCardHtml;
+        col.dataset.tier = t.tier;
         trackGrid.appendChild(col);
       });
+
+      // Update seen tier after marking new ones
+      try {
+        localStorage.setItem('mehrbod-cards-bp-seen-tier', currentLevel.toString());
+      } catch (e) {}
+
+      // Subtle Staggered Entrance Animation via IntersectionObserver
+      if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('bp-tier-in-view');
+            }
+          });
+        }, {
+          root: trackGrid,
+          threshold: 0.15,
+          rootMargin: '0px 60px 0px 60px'
+        });
+
+        trackGrid.querySelectorAll('.bp-tier-col').forEach((colEl, idx) => {
+          colEl.style.setProperty('--col-stagger', `${(idx % 6) * 40}ms`);
+          observer.observe(colEl);
+        });
+      } else {
+        trackGrid.querySelectorAll('.bp-tier-col').forEach(colEl => {
+          colEl.classList.add('bp-tier-in-view');
+        });
+      }
+
+      // Attach 3D Mouse-Follow Parallax Handler & Dynamic Specular Glare
+      setupBattlePassParallax(trackGrid);
+
+      setTimeout(() => {
+        const newReachedCol = trackGrid.querySelector('.bp-tier-col.bp-tier-newly-reached');
+        const activeCol = newReachedCol || trackGrid.querySelector('.bp-tier-col.reached:last-of-type') || trackGrid.querySelector('.bp-tier-col');
+        if (activeCol && typeof activeCol.scrollIntoView === 'function') {
+          activeCol.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+      }, 100);
     }
+    updateBattlePassBadge();
+  }
+
+  // --- Subtle Mouse-Follow 3D Parallax Controller for Battle Pass Tier Cards with Dynamic Specular Glare ---
+  function setupBattlePassParallax(trackGrid) {
+    if (!trackGrid) return;
+
+    let activeCard = null;
+    let activeCol = null;
+
+    const onPointerMove = (e) => {
+      const card = e.target.closest('.bp-reward-card');
+      const col = e.target.closest('.bp-tier-col');
+
+      if (!card && !col) {
+        if (activeCard) resetCardParallax(activeCard);
+        if (activeCol) resetColParallax(activeCol);
+        activeCard = null;
+        activeCol = null;
+        return;
+      }
+
+      // Handle card mouse-follow parallax & dynamic specular highlight
+      if (card) {
+        if (activeCard && activeCard !== card) {
+          resetCardParallax(activeCard);
+        }
+        activeCard = card;
+        applyCardParallax(card, e.clientX, e.clientY);
+      } else if (activeCard) {
+        resetCardParallax(activeCard);
+        activeCard = null;
+      }
+
+      // Handle column mouse-follow parallax
+      if (col) {
+        if (activeCol && activeCol !== col) {
+          resetColParallax(activeCol);
+        }
+        activeCol = col;
+        applyColParallax(col, e.clientX, e.clientY);
+      } else if (activeCol) {
+        resetColParallax(activeCol);
+        activeCol = null;
+      }
+    };
+
+    const onPointerLeave = () => {
+      if (activeCard) resetCardParallax(activeCard);
+      if (activeCol) resetColParallax(activeCol);
+      activeCard = null;
+      activeCol = null;
+    };
+
+    function applyCardParallax(card, clientX, clientY) {
+      const rect = card.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+
+      // Normalized coordinates (-1.0 to 1.0)
+      const normX = Math.max(-1, Math.min(1, (clientX - centerX) / (rect.width / 2)));
+      const normY = Math.max(-1, Math.min(1, (clientY - centerY) / (rect.height / 2)));
+
+      const rotateX = (-normY * 14).toFixed(2);
+      const rotateY = (normX * 16).toFixed(2);
+      const shadowX = (-normX * 12).toFixed(2);
+      const shadowY = (-normY * 12).toFixed(2);
+
+      // Specular glare position (0% - 100%)
+      const glareX = Math.max(0, Math.min(100, (((clientX - rect.left) / rect.width) * 100))).toFixed(1);
+      const glareY = Math.max(0, Math.min(100, (((clientY - rect.top) / rect.height) * 100))).toFixed(1);
+
+      // Card container 3D transform, shadow offset, and dynamic specular highlight
+      card.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateZ(18px) scale(1.03)`;
+      card.style.boxShadow = `${shadowX}px ${shadowY}px 28px rgba(0, 0, 0, 0.65), 0 0 20px rgba(245, 158, 11, 0.35)`;
+      card.style.borderColor = 'rgba(245, 158, 11, 0.85)';
+      card.style.setProperty('--glare-x', `${glareX}%`);
+      card.style.setProperty('--glare-y', `${glareY}%`);
+      card.style.setProperty('--glare-opacity', '1');
+
+      // Sub-layer parallax elements
+      const icon = card.querySelector('.bp-reward-icon');
+      const tag = card.querySelector('.bp-card-tag');
+      const title = card.querySelector('.bp-reward-title');
+      const btn = card.querySelector('.bp-claim-btn');
+
+      if (icon) {
+        icon.style.transform = `translate3d(${(normX * 10).toFixed(1)}px, ${(normY * 10).toFixed(1)}px, 48px) scale(1.15)`;
+      }
+      if (tag) {
+        tag.style.transform = `translate3d(${(-normX * 5).toFixed(1)}px, ${(-normY * 5).toFixed(1)}px, 28px)`;
+      }
+      if (title) {
+        title.style.transform = `translate3d(${(normX * 5).toFixed(1)}px, ${(normY * 5).toFixed(1)}px, 22px)`;
+      }
+      if (btn) {
+        btn.style.transform = `translate3d(${(normX * 3).toFixed(1)}px, ${(normY * 3).toFixed(1)}px, 16px)`;
+      }
+    }
+
+    function resetCardParallax(card) {
+      if (!card) return;
+      card.style.transform = '';
+      card.style.boxShadow = '';
+      card.style.borderColor = '';
+      card.style.setProperty('--glare-opacity', '0');
+
+      const icon = card.querySelector('.bp-reward-icon');
+      const tag = card.querySelector('.bp-card-tag');
+      const title = card.querySelector('.bp-reward-title');
+      const btn = card.querySelector('.bp-claim-btn');
+
+      if (icon) icon.style.transform = '';
+      if (tag) tag.style.transform = '';
+      if (title) title.style.transform = '';
+      if (btn) btn.style.transform = '';
+    }
+
+    function applyColParallax(col, clientX, clientY) {
+      const rect = col.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+
+      const normX = Math.max(-1, Math.min(1, (clientX - centerX) / (rect.width / 2)));
+      const normY = Math.max(-1, Math.min(1, (clientY - centerY) / (rect.height / 2)));
+
+      const rotateX = (-normY * 6).toFixed(2);
+      const rotateY = (normX * 8).toFixed(2);
+
+      col.style.transform = `perspective(900px) translateY(0) scale(1.015) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+      col.style.borderColor = 'rgba(245, 158, 11, 0.65)';
+    }
+
+    function resetColParallax(col) {
+      if (!col) return;
+      col.style.transform = '';
+      col.style.borderColor = '';
+    }
+
+    // Clean up previous event listeners if re-rendering
+    if (trackGrid._parallaxHandler) {
+      trackGrid.removeEventListener('pointermove', trackGrid._parallaxHandler);
+      trackGrid.removeEventListener('pointerleave', trackGrid._parallaxLeaveHandler);
+    }
+
+    trackGrid._parallaxHandler = onPointerMove;
+    trackGrid._parallaxLeaveHandler = onPointerLeave;
+
+    trackGrid.addEventListener('pointermove', onPointerMove, { passive: true });
+    trackGrid.addEventListener('pointerleave', onPointerLeave, { passive: true });
+  }
+
+  // --- 4-Second Hold "Claim All" Handlers with Dark Cinematic Horror Stinger (E Minor) ---
+  let holdStartTime = 0;
+  let holdAnimFrame = null;
+  let holdAudioCtx = null;
+  let holdGain = null;
+  let holdFilter = null;
+  let holdDelay = null;
+  let holdOscs = [];
+
+  function startHoldAudio() {
+    try {
+      if (navigator.vibrate) {
+        navigator.vibrate(40);
+      }
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      holdAudioCtx = new AudioContext();
+      const now = holdAudioCtx.currentTime;
+
+      // Subtle low rumble vibration hum during hold
+      holdGain = holdAudioCtx.createGain();
+      holdGain.gain.setValueAtTime(0.01, now);
+      holdGain.gain.linearRampToValueAtTime(0.04, now + 3.8);
+
+      const rumbleOsc = holdAudioCtx.createOscillator();
+      rumbleOsc.type = 'triangle';
+      rumbleOsc.frequency.setValueAtTime(42, now);
+      rumbleOsc.frequency.linearRampToValueAtTime(48, now + 4.0);
+
+      const rumbleFilter = holdAudioCtx.createBiquadFilter();
+      rumbleFilter.type = 'lowpass';
+      rumbleFilter.frequency.setValueAtTime(70, now);
+
+      rumbleOsc.connect(rumbleFilter);
+      rumbleFilter.connect(holdGain);
+      holdGain.connect(holdAudioCtx.destination);
+
+      rumbleOsc.start(now);
+      holdOscs = [rumbleOsc];
+    } catch (e) {}
+  }
+
+  function stopHoldAudio() {
+    try {
+      if (holdOscs.length) {
+        holdOscs.forEach(o => { try { o.stop(); o.disconnect(); } catch (_) {} });
+        holdOscs = [];
+      }
+      if (holdAudioCtx) {
+        holdAudioCtx.close();
+        holdAudioCtx = null;
+      }
+    } catch (e) {}
+  }
+
+  function startHoldClaimAll(e) {
+    if (e) e.preventDefault();
+    const fillBar = document.getElementById('bp-hold-fill-bar');
+    const btnText = document.getElementById('bp-hold-btn-text');
+
+    holdStartTime = Date.now();
+    startHoldAudio();
+
+    function updateFill() {
+      const elapsed = Date.now() - holdStartTime;
+      const progress = Math.min(100, (elapsed / 4000) * 100);
+
+      if (fillBar) fillBar.style.width = `${progress}%`;
+      if (btnText) {
+        const remainingSec = Math.max(0, (4 - elapsed / 1000)).toFixed(1);
+        btnText.textContent = `HOLD (${remainingSec}s)...`;
+      }
+
+      if (elapsed >= 4000) {
+        stopHoldClaimAll();
+        claimAllBattlePassRewards();
+      } else {
+        holdAnimFrame = requestAnimationFrame(updateFill);
+      }
+    }
+
+    holdAnimFrame = requestAnimationFrame(updateFill);
+  }
+
+  function stopHoldClaimAll(e) {
+    if (holdAnimFrame) {
+      cancelAnimationFrame(holdAnimFrame);
+      holdAnimFrame = null;
+    }
+    stopHoldAudio();
+
+    const fillBar = document.getElementById('bp-hold-fill-bar');
+    const btnText = document.getElementById('bp-hold-btn-text');
+    if (fillBar) fillBar.style.width = '0%';
+    if (btnText) btnText.textContent = 'CLAIM ALL';
   }
 
   // --- Attach Event Listeners ---
@@ -461,7 +895,7 @@
     const overlay = document.getElementById('battlepass-overlay');
     const btnClose = document.getElementById('btn-battlepass-close');
     const btnBuy = document.getElementById('btn-bp-buy-premium');
-    const btnClaimAll = document.getElementById('btn-bp-claim-all');
+    const claimAllBtns = document.querySelectorAll('#bp-claim-all, #btn-bp-claim-all, .bp-claim-all-btn');
 
     if (btnOpen) {
       btnOpen.addEventListener('click', () => {
@@ -485,12 +919,15 @@
       });
     }
 
-    if (btnClaimAll) {
-      btnClaimAll.addEventListener('click', () => {
-        if (typeof Sound !== 'undefined' && Sound.click) Sound.click();
-        claimAllBattlePassRewards();
-      });
-    }
+    claimAllBtns.forEach(btn => {
+      btn.addEventListener('mousedown', startHoldClaimAll);
+      btn.addEventListener('touchstart', startHoldClaimAll, { passive: false });
+
+      btn.addEventListener('mouseup', stopHoldClaimAll);
+      btn.addEventListener('mouseleave', stopHoldClaimAll);
+      btn.addEventListener('touchend', stopHoldClaimAll);
+      btn.addEventListener('touchcancel', stopHoldClaimAll);
+    });
 
     updateBattlePassBadge();
   }
@@ -501,6 +938,8 @@
   window.claimAllBattlePassRewards = claimAllBattlePassRewards;
   window.purchasePremiumPass = purchasePremiumPass;
   window.renderBattlePassScreen = renderBattlePassScreen;
+  window.updateBattlePassBadge = updateBattlePassBadge;
+  window.devUnlockBattlePass = devUnlockBattlePass;
   window.initBattlePassModule = initBattlePassModule;
 
   if (document.readyState === 'loading') {

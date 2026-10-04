@@ -1,5 +1,5 @@
-const CACHE_NAME = 'mehrbod-cards-cache-v10.0';
-const CDN_CACHE_NAME = 'mehrbod-cards-cdn-cache-v10.0';
+const CACHE_NAME = 'mehrbod-cards-cache-v10.2';
+const CDN_CACHE_NAME = 'mehrbod-cards-cdn-cache-v10.2';
 
 // Core application assets to precache immediately on install
 const PRECACHE_ASSETS = [
@@ -13,6 +13,11 @@ const PRECACHE_ASSETS = [
   'js/game.js',
   'js/juice.js',
   'js/main.js',
+  'js/battlepass.js',
+  'js/story-mode.js',
+  'js/theme-templates.js',
+  'js/anti-cheat.js',
+  'js/webxr.js',
   'js/network.js',
   'js/rng.js',
   'js/sound.js',

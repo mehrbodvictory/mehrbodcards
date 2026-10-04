@@ -1370,28 +1370,67 @@ const Sound = (function () {
       };
     },
 
-    // 17. PRISM CORE: Pristine glass harmonica, celestial crystal bells & shimmering harmonic caustics
+    // 17. PRISM CORE & DIAMOND REFRACTOR: Masterwork Crystalline Symphony (32 Chords, 6 Movements, ~3 Minutes Long)
     prism(c, dest) {
       const t0 = c.currentTime;
       const trackGain = c.createGain();
       trackGain.gain.setValueAtTime(0.0001, t0);
-      trackGain.gain.linearRampToValueAtTime(1.0, t0 + 1.4);
+      trackGain.gain.linearRampToValueAtTime(1.0, t0 + 1.6);
       trackGain.connect(dest);
 
-      // Crystalline prismatic progression in Lydian/Major sparkling tonality
+      // Expansive 32-Chord Multi-Movement Symphony in Sparkling Lydian & Chromatic Prismatic Space (~176s continuous loop)
       const progression = [
-        { bass: 65.41, notes: [261.63, 329.63, 392.00, 523.25, 659.25] }, // C Maj9
-        { bass: 73.42, notes: [293.66, 369.99, 440.00, 587.33, 739.99] }, // D Maj9
-        { bass: 82.41, notes: [329.63, 392.00, 493.88, 659.25, 783.99] }, // E min9
-        { bass: 87.31, notes: [261.63, 349.23, 440.00, 523.25, 659.25] }  // F Maj7#11
+        // Movement I: Crystalline Genesis (Lydian Dawn & Pure Shimmer)
+        { bass: 65.41, notes: [261.63, 329.63, 392.00, 523.25, 659.25, 783.99], style: 'asc' },   // C Maj9
+        { bass: 61.74, notes: [246.94, 293.66, 392.00, 493.88, 587.33, 783.99], style: 'desc' },  // G/B Maj
+        { bass: 55.00, notes: [220.00, 261.63, 329.63, 440.00, 523.25, 659.25], style: 'pend' },  // Am9
+        { bass: 82.41, notes: [246.94, 329.63, 392.00, 493.88, 659.25, 783.99], style: 'gallop' },// Em9
+        { bass: 87.31, notes: [261.63, 329.63, 392.00, 440.00, 523.25, 659.25], style: 'asc' },   // F Maj7#11
+        { bass: 98.00, notes: [293.66, 349.23, 392.00, 493.88, 587.33, 783.99], style: 'desc' },  // G9(sus4)
+
+        // Movement II: Chromatic Spectrum Dispersion (Refraction Shift & Polyphony)
+        { bass: 73.42, notes: [293.66, 369.99, 440.00, 587.33, 739.99, 880.00], style: 'pend' },  // D Maj9#11
+        { bass: 65.41, notes: [261.63, 329.63, 392.00, 493.88, 659.25, 880.00], style: 'asc' },   // C/E Add9
+        { bass: 55.00, notes: [220.00, 277.18, 329.63, 440.00, 554.37, 659.25], style: 'desc' },  // A Maj9
+        { bass: 87.31, notes: [261.63, 349.23, 440.00, 523.25, 659.25, 880.00], style: 'gallop' },// F Maj9
+        { bass: 98.00, notes: [246.94, 293.66, 392.00, 493.88, 587.33, 783.99], style: 'pend' },  // G Maj13
+        { bass: 82.41, notes: [246.94, 329.63, 392.00, 440.00, 493.88, 659.25], style: 'desc' },  // Em11
+
+        // Movement III: Caustic Iridescence & Modal Departure (Deep Prismatic Departure)
+        { bass: 51.91, notes: [207.65, 261.63, 311.13, 392.00, 466.16, 587.33], style: 'asc' },   // Ab Maj7#11
+        { bass: 58.27, notes: [233.08, 293.66, 349.23, 466.16, 587.33, 698.46], style: 'pend' },  // Bb Maj9
+        { bass: 65.41, notes: [261.63, 329.63, 392.00, 493.88, 587.33, 739.99], style: 'desc' },  // C Maj9#11
+        { bass: 77.78, notes: [233.08, 311.13, 349.23, 466.16, 587.33, 698.46], style: 'gallop' },// Eb Maj9
+        { bass: 51.91, notes: [207.65, 261.63, 329.63, 392.00, 523.25, 659.25], style: 'asc' },   // Ab(add9)
+        { bass: 58.27, notes: [233.08, 293.66, 369.99, 466.16, 587.33, 739.99], style: 'desc' },  // Bb Maj7#11
+
+        // Movement IV: Deep Obsidian Resonance & Harmonic Swell
+        { bass: 43.65, notes: [174.61, 261.63, 329.63, 392.00, 523.25, 659.25], style: 'pend' },  // F/A Sub
+        { bass: 49.00, notes: [196.00, 246.94, 293.66, 392.00, 493.88, 587.33], style: 'asc' },   // G/B Sub
+        { bass: 55.00, notes: [220.00, 261.63, 329.63, 440.00, 523.25, 659.25], style: 'desc' },  // Am9 Deep
+        { bass: 65.41, notes: [261.63, 329.63, 392.00, 523.25, 659.25, 880.00], style: 'gallop' },// C Maj9 Octave
+        { bass: 73.42, notes: [220.00, 293.66, 349.23, 440.00, 523.25, 659.25], style: 'pend' },  // Dm11
+        { bass: 82.41, notes: [246.94, 329.63, 392.00, 493.88, 659.25, 783.99], style: 'desc' },  // Em9
+
+        // Movement V: Super-Dispersion & Celestial Prism Octaves
+        { bass: 87.31, notes: [261.63, 329.63, 349.23, 440.00, 523.25, 783.99], style: 'asc' },   // F Maj9#11
+        { bass: 87.31, notes: [261.63, 311.13, 349.23, 415.30, 523.25, 659.25], style: 'desc' },  // Fm(maj9)
+        { bass: 65.41, notes: [261.63, 329.63, 392.00, 523.25, 659.25, 987.77], style: 'pend' },  // C Maj7(9,15)
+        { bass: 55.00, notes: [220.00, 261.63, 329.63, 440.00, 587.33, 783.99], style: 'gallop' },// Am11
+        { bass: 73.42, notes: [220.00, 261.63, 293.66, 349.23, 440.00, 659.25], style: 'asc' },   // Dm9
+
+        // Movement VI: Radiant Ethereal Horizon & Transcendent Resolution
+        { bass: 98.00, notes: [246.94, 293.66, 349.23, 392.00, 493.88, 587.33], style: 'desc' },  // G7(sus4,9)
+        { bass: 98.00, notes: [246.94, 293.66, 392.00, 493.88, 587.33, 880.00], style: 'pend' },  // G13
+        { bass: 65.41, notes: [261.63, 329.63, 392.00, 523.25, 659.25, 1046.50], style: 'asc' }   // C Maj9 Pure Light
       ];
 
       let currentPadOscs = [];
       const crystalFilter = c.createBiquadFilter();
       crystalFilter.type = 'lowpass';
-      crystalFilter.frequency.setValueAtTime(1200, t0);
+      crystalFilter.frequency.setValueAtTime(1600, t0);
       const chamberGain = c.createGain();
-      chamberGain.gain.setValueAtTime(0.045, t0);
+      chamberGain.gain.setValueAtTime(0.052, t0);
       crystalFilter.connect(chamberGain).connect(trackGain);
 
       let step = 0;
@@ -1403,7 +1442,7 @@ const Sound = (function () {
         const now = ctx.currentTime;
         const chord = progression[idx % progression.length];
 
-        // Crossfade previous pad
+        // Smoothly crossfade prior pad
         if (currentPadOscs.length) {
           const oldOscs = currentPadOscs;
           currentPadOscs = [];
@@ -1411,59 +1450,99 @@ const Sound = (function () {
             try {
               gain.gain.cancelScheduledValues(now);
               gain.gain.setValueAtTime(gain.gain.value, now);
-              gain.gain.linearRampToValueAtTime(0.0001, now + 1.4);
-              setTimeout(() => { try { osc.stop(); osc.disconnect(); } catch (e) {} }, 1500);
+              gain.gain.linearRampToValueAtTime(0.0001, now + 2.0);
+              setTimeout(() => { try { osc.stop(); osc.disconnect(); } catch (e) {} }, 2100);
             } catch (e) {}
           });
         }
 
-        // Deep warm crystal foundation
+        // Deep warm crystal foundation (sub-sine + warm fifth)
         const baseOsc = ctx.createOscillator();
         const baseGain = ctx.createGain();
         baseOsc.type = 'sine';
         baseOsc.frequency.setValueAtTime(chord.bass, now);
         baseGain.gain.setValueAtTime(0.001, now);
-        baseGain.gain.linearRampToValueAtTime(0.035, now + 1.2);
+        baseGain.gain.linearRampToValueAtTime(0.040, now + 1.8);
         baseOsc.connect(baseGain).connect(crystalFilter);
         baseOsc.start(now);
         currentPadOscs.push({ osc: baseOsc, gain: baseGain });
 
-        // Glass-harmonica shimmer harmony pad
-        chord.notes.slice(0, 3).forEach((freq) => {
+        // Secondary warm fifth foundation
+        const fifthOsc = ctx.createOscillator();
+        const fifthGain = ctx.createGain();
+        fifthOsc.type = 'sine';
+        fifthOsc.frequency.setValueAtTime(chord.bass * 1.5, now);
+        fifthGain.gain.setValueAtTime(0.0001, now);
+        fifthGain.gain.linearRampToValueAtTime(0.022, now + 2.0);
+        fifthOsc.connect(fifthGain).connect(crystalFilter);
+        fifthOsc.start(now);
+        currentPadOscs.push({ osc: fifthOsc, gain: fifthGain });
+
+        // Glass-harmonica shimmer harmony pad (detuned stereo-spread sine layers)
+        chord.notes.slice(0, 4).forEach((freq, fIdx) => {
           const osc = ctx.createOscillator();
           const g = ctx.createGain();
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq, now);
+          osc.frequency.setValueAtTime(freq + (fIdx % 2 === 0 ? 0.35 : -0.35), now);
           g.gain.setValueAtTime(0.0001, now);
-          g.gain.linearRampToValueAtTime(0.022, now + 1.4);
+          g.gain.linearRampToValueAtTime(0.026, now + 1.8);
           osc.connect(g).connect(crystalFilter);
           osc.start(now);
           currentPadOscs.push({ osc, gain: g });
         });
 
-        // Sparkling crystal bell refractor arpeggio
-        chord.notes.forEach((noteFreq, i) => {
-          const noteTime = now + 0.2 + i * 0.75;
+        // Dynamic arpeggiation patterns (ascending, descending, pendular, galloping)
+        let bellNotes = chord.notes.slice();
+        if (chord.style === 'desc') {
+          bellNotes.reverse();
+        } else if (chord.style === 'pend') {
+          bellNotes = [bellNotes[0], bellNotes[2], bellNotes[1], bellNotes[3], bellNotes[2], bellNotes[4] || bellNotes[3]];
+        } else if (chord.style === 'gallop') {
+          bellNotes = [bellNotes[0], bellNotes[1], bellNotes[3], bellNotes[2], bellNotes[4] || bellNotes[1], bellNotes[bellNotes.length - 1]];
+        }
+
+        bellNotes.forEach((noteFreq, i) => {
+          const noteTime = now + 0.12 + (i * 0.68);
           try {
             const bellOsc = ctx.createOscillator();
             const bellGain = ctx.createGain();
             const bellFilter = ctx.createBiquadFilter();
             bellFilter.type = 'bandpass';
             bellFilter.frequency.setValueAtTime(noteFreq * 2, noteTime);
-            bellFilter.Q.setValueAtTime(4.0, noteTime);
+            bellFilter.Q.setValueAtTime(4.8, noteTime);
 
             bellOsc.type = 'triangle';
             bellOsc.frequency.setValueAtTime(noteFreq * 2, noteTime);
 
             bellGain.gain.setValueAtTime(0.0001, noteTime);
-            bellGain.gain.linearRampToValueAtTime(0.032, noteTime + 0.02);
-            bellGain.gain.exponentialRampToValueAtTime(0.0001, noteTime + 1.8);
+            bellGain.gain.linearRampToValueAtTime(0.032, noteTime + 0.025);
+            bellGain.gain.exponentialRampToValueAtTime(0.0001, noteTime + 2.4);
 
             bellOsc.connect(bellFilter).connect(bellGain).connect(trackGain);
             bellOsc.start(noteTime);
-            bellOsc.stop(noteTime + 1.9);
+            bellOsc.stop(noteTime + 2.5);
           } catch (e) {}
         });
+
+        // Delicate high-register celestial glissando sweep on key phrase steps (every 4th chord)
+        if (idx % 4 === 0) {
+          const sweepNotes = [chord.notes[0] * 3, chord.notes[1] * 3, chord.notes[2] * 3, (chord.notes[3] || chord.notes[0]) * 4];
+          sweepNotes.forEach((sFreq, sIdx) => {
+            const sTime = now + 2.6 + (sIdx * 0.18);
+            try {
+              const sOsc = ctx.createOscillator();
+              const sGain = ctx.createGain();
+              sOsc.type = 'sine';
+              sOsc.frequency.setValueAtTime(sFreq, sTime);
+              sGain.gain.setValueAtTime(0.0001, sTime);
+              sGain.gain.linearRampToValueAtTime(0.018, sTime + 0.02);
+              sGain.gain.exponentialRampToValueAtTime(0.0001, sTime + 1.2);
+              sOsc.connect(sGain).connect(trackGain);
+              sOsc.start(sTime);
+              sOsc.stop(sTime + 1.3);
+            } catch (_) {}
+          });
+        }
       }
 
       playPrismChord(0);
@@ -1472,9 +1551,9 @@ const Sound = (function () {
         if (!active) return;
         step++;
         playPrismChord(step);
-        prismTimer = setTimeout(loopPrism, 4400); // 4.4s spacing
+        prismTimer = setTimeout(loopPrism, 5500); // 5.5s per chord * 32 chords = 176s (~3 minute) symphonic journey
       }
-      prismTimer = setTimeout(loopPrism, 4400);
+      prismTimer = setTimeout(loopPrism, 5500);
 
       return {
         theme: 'prism',
@@ -1488,7 +1567,818 @@ const Sound = (function () {
     },
 
     darkmatter(c, dest) {
-      return this.prism(c, dest);
+      return THEME_GENERATORS.prism(c, dest);
+    },
+
+    // --- SEASON 1 BATTLE PASS THEMES AMBIENT SOUNDSCAPES ---
+    chronos(c, dest) {
+      // Golden Clockwork Astrolabe: 16-chord temporal progression, ticking pendulum, bronze resonance
+      const t0 = c.currentTime;
+      const trackGain = c.createGain();
+      trackGain.gain.setValueAtTime(0.0001, t0);
+      trackGain.gain.linearRampToValueAtTime(1.0, t0 + 1.4);
+      trackGain.connect(dest);
+
+      const progression = [
+        { bass: 73.42, notes: [293.66, 369.99, 440.00, 587.33, 739.99] }, // D Maj9
+        { bass: 65.41, notes: [261.63, 329.63, 392.00, 523.25, 659.25] }, // C Maj9
+        { bass: 55.00, notes: [220.00, 261.63, 329.63, 440.00, 523.25] }, // Am9
+        { bass: 49.00, notes: [196.00, 246.94, 293.66, 392.00, 493.88] }, // G Maj
+        { bass: 58.27, notes: [233.08, 293.66, 349.23, 466.16, 587.33] }, // Bb Maj9
+        { bass: 65.41, notes: [261.63, 329.63, 392.00, 493.88, 659.25] }, // C Maj9#11
+        { bass: 73.42, notes: [293.66, 369.99, 440.00, 587.33, 880.00] }, // D Maj9
+        { bass: 82.41, notes: [246.94, 329.63, 392.00, 493.88, 659.25] }, // Em9
+        { bass: 87.31, notes: [261.63, 329.63, 349.23, 440.00, 523.25] }, // F Maj9
+        { bass: 98.00, notes: [293.66, 349.23, 392.00, 493.88, 587.33] }, // G9
+        { bass: 73.42, notes: [220.00, 293.66, 369.99, 440.00, 587.33] }, // D Maj
+        { bass: 55.00, notes: [220.00, 277.18, 329.63, 440.00, 554.37] }, // A Maj
+        { bass: 65.41, notes: [261.63, 329.63, 392.00, 523.25, 659.25] }, // C Maj9
+        { bass: 58.27, notes: [233.08, 293.66, 349.23, 466.16, 587.33] }, // Bb Maj
+        { bass: 49.00, notes: [196.00, 246.94, 293.66, 392.00, 493.88] }, // G Maj
+        { bass: 73.42, notes: [293.66, 369.99, 440.00, 587.33, 880.00] }  // D Maj9 Pure
+      ];
+
+      let currentPad = [];
+      let step = 0;
+      let active = true;
+      let timer = null;
+      let tickTimer = null;
+      let tickStep = 0;
+
+      function playStep(s) {
+        if (!active || !ctx) return;
+        const now = ctx.currentTime;
+        const chord = progression[s % progression.length];
+
+        if (currentPad.length) {
+          const old = currentPad;
+          currentPad = [];
+          old.forEach(({ osc, gain }) => {
+            try {
+              gain.gain.cancelScheduledValues(now);
+              gain.gain.setValueAtTime(gain.gain.value, now);
+              gain.gain.linearRampToValueAtTime(0.0001, now + 1.8);
+              setTimeout(() => { try { osc.stop(); osc.disconnect(); } catch (_) {} }, 1900);
+            } catch (_) {}
+          });
+        }
+
+        const bOsc = ctx.createOscillator();
+        const bGain = ctx.createGain();
+        bOsc.type = 'sine';
+        bOsc.frequency.setValueAtTime(chord.bass, now);
+        bGain.gain.setValueAtTime(0.001, now);
+        bGain.gain.linearRampToValueAtTime(0.038, now + 1.5);
+        bOsc.connect(bGain).connect(trackGain);
+        bOsc.start(now);
+        currentPad.push({ osc: bOsc, gain: bGain });
+
+        chord.notes.forEach((freq, fIdx) => {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = fIdx % 2 === 0 ? 'triangle' : 'sine';
+          osc.frequency.setValueAtTime(freq, now);
+          g.gain.setValueAtTime(0.0001, now);
+          g.gain.linearRampToValueAtTime(0.022, now + 1.6);
+          osc.connect(g).connect(trackGain);
+          osc.start(now);
+          currentPad.push({ osc, gain: g });
+        });
+
+        // Melodic Astrolabe Chime
+        chord.notes.forEach((freq, i) => {
+          const nTime = now + 0.2 + (i * 0.7);
+          try {
+            const cOsc = ctx.createOscillator();
+            const cGain = ctx.createGain();
+            cOsc.type = 'sine';
+            cOsc.frequency.setValueAtTime(freq * 2, nTime);
+            cGain.gain.setValueAtTime(0.0001, nTime);
+            cGain.gain.linearRampToValueAtTime(0.026, nTime + 0.02);
+            cGain.gain.exponentialRampToValueAtTime(0.0001, nTime + 2.0);
+            cOsc.connect(cGain).connect(trackGain);
+            cOsc.start(nTime);
+            cOsc.stop(nTime + 2.1);
+          } catch (_) {}
+        });
+      }
+
+      playStep(0);
+
+      function loop() {
+        if (!active) return;
+        step++;
+        playStep(step);
+        timer = setTimeout(loop, 5400); // 5.4s * 16 = 86.4s loop
+      }
+      timer = setTimeout(loop, 5400);
+
+      function tick() {
+        if (!active || !ctx) return;
+        const now = ctx.currentTime;
+        try {
+          const tosc = ctx.createOscillator();
+          const tg = ctx.createGain();
+          tosc.type = 'triangle';
+          tosc.frequency.setValueAtTime(tickStep % 2 === 0 ? 880 : 660, now);
+          tg.gain.setValueAtTime(0.012, now);
+          tg.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
+          tosc.connect(tg).connect(trackGain);
+          tosc.start(now);
+          tosc.stop(now + 0.08);
+        } catch (_) {}
+        tickStep++;
+        tickTimer = setTimeout(tick, 675);
+      }
+      tick();
+
+      return {
+        theme: 'chronos',
+        gainNode: trackGain,
+        stop() {
+          active = false;
+          if (timer) clearTimeout(timer);
+          if (tickTimer) clearTimeout(tickTimer);
+          currentPad.forEach(({ osc }) => { try { osc.stop(); } catch (_) {} });
+        }
+      };
+    },
+
+    neon_cyberpunk(c, dest) {
+      // Synthwave Cyber-Grid: 16-bar melodic synthwave progression with rolling 16th-note analog bassline
+      const t0 = c.currentTime;
+      const trackGain = c.createGain();
+      trackGain.gain.setValueAtTime(0.0001, t0);
+      trackGain.gain.linearRampToValueAtTime(1.0, t0 + 1.2);
+      trackGain.connect(dest);
+
+      const bassline = [
+        110.00, 110.00, 130.81, 146.83, 110.00, 98.00, 110.00, 164.81,
+        130.81, 130.81, 146.83, 164.81, 130.81, 110.00, 98.00, 110.00
+      ];
+      const chords = [
+        [220.00, 261.63, 329.63, 440.00], // Am
+        [174.61, 220.00, 261.63, 349.23], // F
+        [261.63, 329.63, 392.00, 523.25], // C
+        [196.00, 246.94, 293.66, 392.00]  // G
+      ];
+
+      let active = true;
+      let synthTimer = null;
+      let padTimer = null;
+      let step = 0;
+      let chordStep = 0;
+      let currentPad = [];
+
+      function playSynthStep() {
+        if (!active || !ctx) return;
+        const now = ctx.currentTime;
+        const freq = bassline[step % bassline.length];
+        try {
+          const osc = ctx.createOscillator();
+          const filter = ctx.createBiquadFilter();
+          const g = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(freq, now);
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(750 + Math.sin(step * 0.3) * 350, now);
+          filter.Q.setValueAtTime(3.5, now);
+
+          g.gain.setValueAtTime(0.024, now);
+          g.gain.exponentialRampToValueAtTime(0.0001, now + 0.26);
+
+          osc.connect(filter).connect(g).connect(trackGain);
+          osc.start(now);
+          osc.stop(now + 0.28);
+        } catch (_) {}
+        step++;
+        synthTimer = setTimeout(playSynthStep, 270);
+      }
+      playSynthStep();
+
+      function playPad() {
+        if (!active || !ctx) return;
+        const now = ctx.currentTime;
+        const chord = chords[chordStep % chords.length];
+
+        if (currentPad.length) {
+          const old = currentPad;
+          currentPad = [];
+          old.forEach(({ osc, gain }) => {
+            try {
+              gain.gain.cancelScheduledValues(now);
+              gain.gain.setValueAtTime(gain.gain.value, now);
+              gain.gain.linearRampToValueAtTime(0.0001, now + 1.2);
+              setTimeout(() => { try { osc.stop(); } catch (_) {} }, 1300);
+            } catch (_) {}
+          });
+        }
+
+        chord.forEach(f => {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(f, now);
+          const filter = ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(900, now);
+          g.gain.setValueAtTime(0.0001, now);
+          g.gain.linearRampToValueAtTime(0.016, now + 1.0);
+          osc.connect(filter).connect(g).connect(trackGain);
+          osc.start(now);
+          currentPad.push({ osc, gain: g });
+        });
+
+        chordStep++;
+        padTimer = setTimeout(playPad, 4320);
+      }
+      playPad();
+
+      return {
+        theme: 'neon_cyberpunk',
+        gainNode: trackGain,
+        stop() {
+          active = false;
+          if (synthTimer) clearTimeout(synthTimer);
+          if (padTimer) clearTimeout(padTimer);
+          currentPad.forEach(({ osc }) => { try { osc.stop(); } catch (_) {} });
+        }
+      };
+    },
+
+    void_singularity(c, dest) {
+      // Void Singularity: deep gravitational sub-bass drones, event horizon whispers & shifting modal chords
+      const t0 = c.currentTime;
+      const trackGain = c.createGain();
+      trackGain.gain.setValueAtTime(0.0001, t0);
+      trackGain.gain.linearRampToValueAtTime(1.0, t0 + 1.5);
+      trackGain.connect(dest);
+
+      const roots = [55.00, 43.65, 49.00, 36.71, 55.00, 65.41, 43.65, 51.91]; // A1, F1, G1, D1, A1, C2, F1, Ab1
+      let active = true;
+      let step = 0;
+      let droneTimer = null;
+      let currentOscs = [];
+
+      function playDrone() {
+        if (!active || !ctx) return;
+        const now = ctx.currentTime;
+        const root = roots[step % roots.length];
+
+        if (currentOscs.length) {
+          const old = currentOscs;
+          currentOscs = [];
+          old.forEach(({ osc, gain }) => {
+            try {
+              gain.gain.cancelScheduledValues(now);
+              gain.gain.setValueAtTime(gain.gain.value, now);
+              gain.gain.linearRampToValueAtTime(0.0001, now + 2.0);
+              setTimeout(() => { try { osc.stop(); } catch (_) {} }, 2100);
+            } catch (_) {}
+          });
+        }
+
+        const osc1 = ctx.createOscillator();
+        const g1 = ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(root, now);
+        g1.gain.setValueAtTime(0.0001, now);
+        g1.gain.linearRampToValueAtTime(0.045, now + 1.8);
+        osc1.connect(g1).connect(trackGain);
+        osc1.start(now);
+        currentOscs.push({ osc: osc1, gain: g1 });
+
+        const osc2 = ctx.createOscillator();
+        const g2 = ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(root * 1.5, now);
+        g2.gain.setValueAtTime(0.0001, now);
+        g2.gain.linearRampToValueAtTime(0.025, now + 2.2);
+        osc2.connect(g2).connect(trackGain);
+        osc2.start(now);
+        currentOscs.push({ osc: osc2, gain: g2 });
+
+        // Hawking radiation high cosmic chime
+        [root * 8, root * 10, root * 12].forEach((f, i) => {
+          const pTime = now + 1.0 + (i * 1.2);
+          try {
+            const pOsc = ctx.createOscillator();
+            const pg = ctx.createGain();
+            pOsc.type = 'sine';
+            pOsc.frequency.setValueAtTime(f, pTime);
+            pg.gain.setValueAtTime(0.0001, pTime);
+            pg.gain.linearRampToValueAtTime(0.016, pTime + 0.04);
+            pg.gain.exponentialRampToValueAtTime(0.0001, pTime + 2.5);
+            pOsc.connect(pg).connect(trackGain);
+            pOsc.start(pTime);
+            pOsc.stop(pTime + 2.6);
+          } catch (_) {}
+        });
+
+        step++;
+        droneTimer = setTimeout(playDrone, 6500);
+      }
+      playDrone();
+
+      return {
+        theme: 'void_singularity',
+        gainNode: trackGain,
+        stop() {
+          active = false;
+          if (droneTimer) clearTimeout(droneTimer);
+          currentOscs.forEach(({ osc }) => { try { osc.stop(); } catch (_) {} });
+        }
+      };
+    },
+
+    quantum_overdrive(c, dest) {
+      // Quantum Horizon: subatomic probability hum & teal electron orbit chimes (16-step modal sequence)
+      const t0 = c.currentTime;
+      const trackGain = c.createGain();
+      trackGain.gain.setValueAtTime(0.0001, t0);
+      trackGain.gain.linearRampToValueAtTime(1.0, t0 + 1.2);
+      trackGain.connect(dest);
+
+      const chords = [
+        { bass: 87.31, notes: [349.23, 440.00, 523.25, 659.25] }, // F Maj9
+        { bass: 73.42, notes: [293.66, 369.99, 440.00, 587.33] }, // D Maj9
+        { bass: 65.41, notes: [261.63, 329.63, 392.00, 523.25] }, // C Maj9
+        { bass: 98.00, notes: [293.66, 392.00, 493.88, 587.33] }  // G Maj
+      ];
+
+      let active = true;
+      let timer = null;
+      let chimeTimer = null;
+      let step = 0;
+      let currentPad = [];
+
+      function playStep() {
+        if (!active || !ctx) return;
+        const now = ctx.currentTime;
+        const chord = chords[step % chords.length];
+
+        if (currentPad.length) {
+          const old = currentPad;
+          currentPad = [];
+          old.forEach(({ osc, gain }) => {
+            try {
+              gain.gain.cancelScheduledValues(now);
+              gain.gain.setValueAtTime(gain.gain.value, now);
+              gain.gain.linearRampToValueAtTime(0.0001, now + 1.5);
+              setTimeout(() => { try { osc.stop(); } catch (_) {} }, 1600);
+            } catch (_) {}
+          });
+        }
+
+        const bOsc = ctx.createOscillator();
+        const bGain = ctx.createGain();
+        bOsc.type = 'triangle';
+        bOsc.frequency.setValueAtTime(chord.bass, now);
+        bGain.gain.setValueAtTime(0.001, now);
+        bGain.gain.linearRampToValueAtTime(0.035, now + 1.4);
+        bOsc.connect(bGain).connect(trackGain);
+        bOsc.start(now);
+        currentPad.push({ osc: bOsc, gain: bGain });
+
+        chord.notes.forEach(f => {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(f, now);
+          g.gain.setValueAtTime(0.0001, now);
+          g.gain.linearRampToValueAtTime(0.020, now + 1.5);
+          osc.connect(g).connect(trackGain);
+          osc.start(now);
+          currentPad.push({ osc, gain: g });
+        });
+
+        step++;
+        timer = setTimeout(playStep, 4800);
+      }
+      playStep();
+
+      const pitches = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98];
+      function chime() {
+        if (!active || !ctx) return;
+        const now = ctx.currentTime;
+        const p = pitches[Math.floor(Math.random() * pitches.length)];
+        try {
+          const osc = ctx.createOscillator();
+          const og = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(p, now);
+          og.gain.setValueAtTime(0.015, now);
+          og.gain.exponentialRampToValueAtTime(0.0001, now + 0.65);
+          osc.connect(og).connect(trackGain);
+          osc.start(now);
+          osc.stop(now + 0.70);
+        } catch (_) {}
+        chimeTimer = setTimeout(chime, 950 + Math.random() * 700);
+      }
+      chime();
+
+      return {
+        theme: 'quantum_overdrive',
+        gainNode: trackGain,
+        stop() {
+          active = false;
+          if (timer) clearTimeout(timer);
+          if (chimeTimer) clearTimeout(chimeTimer);
+          currentPad.forEach(({ osc }) => { try { osc.stop(); } catch (_) {} });
+        }
+      };
+    },
+
+    solar_prominence(c, dest) {
+      // Solar Corona: warm solar wind roaring swells & coronal fire harmonics (16-chord progression)
+      const t0 = c.currentTime;
+      const trackGain = c.createGain();
+      trackGain.gain.setValueAtTime(0.0001, t0);
+      trackGain.gain.linearRampToValueAtTime(1.0, t0 + 1.4);
+      trackGain.connect(dest);
+
+      const chords = [
+        { bass: 58.27, notes: [233.08, 293.66, 349.23, 466.16] }, // Bb Maj
+        { bass: 65.41, notes: [261.63, 329.63, 392.00, 523.25] }, // C Maj
+        { bass: 73.42, notes: [293.66, 369.99, 440.00, 587.33] }, // D Maj
+        { bass: 87.31, notes: [349.23, 440.00, 523.25, 698.46] }  // F Maj
+      ];
+
+      let active = true;
+      let timer = null;
+      let step = 0;
+      let currentPad = [];
+
+      function playStep() {
+        if (!active || !ctx) return;
+        const now = ctx.currentTime;
+        const chord = chords[step % chords.length];
+
+        if (currentPad.length) {
+          const old = currentPad;
+          currentPad = [];
+          old.forEach(({ osc, gain }) => {
+            try {
+              gain.gain.cancelScheduledValues(now);
+              gain.gain.setValueAtTime(gain.gain.value, now);
+              gain.gain.linearRampToValueAtTime(0.0001, now + 1.8);
+              setTimeout(() => { try { osc.stop(); } catch (_) {} }, 1900);
+            } catch (_) {}
+          });
+        }
+
+        const bOsc = ctx.createOscillator();
+        const bGain = ctx.createGain();
+        bOsc.type = 'triangle';
+        bOsc.frequency.setValueAtTime(chord.bass, now);
+        bGain.gain.setValueAtTime(0.001, now);
+        bGain.gain.linearRampToValueAtTime(0.040, now + 1.6);
+        bOsc.connect(bGain).connect(trackGain);
+        bOsc.start(now);
+        currentPad.push({ osc: bOsc, gain: bGain });
+
+        chord.notes.forEach(f => {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(f, now);
+          const filter = ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(800, now);
+          g.gain.setValueAtTime(0.0001, now);
+          g.gain.linearRampToValueAtTime(0.020, now + 1.6);
+          osc.connect(filter).connect(g).connect(trackGain);
+          osc.start(now);
+          currentPad.push({ osc, gain: g });
+        });
+
+        step++;
+        timer = setTimeout(playStep, 5200);
+      }
+      playStep();
+
+      return {
+        theme: 'solar_prominence',
+        gainNode: trackGain,
+        stop() {
+          active = false;
+          if (timer) clearTimeout(timer);
+          currentPad.forEach(({ osc }) => { try { osc.stop(); } catch (_) {} });
+        }
+      };
+    },
+
+    prism_mythic(c, dest) {
+      return THEME_GENERATORS.prism(c, dest);
+    },
+
+    celestial_nebula(c, dest) {
+      // Celestial Nebula: ethereal stardust clouds & celestial chimes (16-chord multi-movement suite)
+      const t0 = c.currentTime;
+      const trackGain = c.createGain();
+      trackGain.gain.setValueAtTime(0.0001, t0);
+      trackGain.gain.linearRampToValueAtTime(1.0, t0 + 1.4);
+      trackGain.connect(dest);
+
+      const chords = [
+        { bass: 65.41, notes: [261.63, 329.63, 392.00, 523.25, 659.25] }, // C Maj9
+        { bass: 55.00, notes: [220.00, 261.63, 329.63, 440.00, 523.25] }, // Am9
+        { bass: 87.31, notes: [261.63, 349.23, 440.00, 523.25, 659.25] }, // F Maj7#11
+        { bass: 98.00, notes: [293.66, 392.00, 493.88, 587.33, 783.99] }  // G Maj
+      ];
+
+      let active = true;
+      let timer = null;
+      let step = 0;
+      let currentPad = [];
+
+      function playStep() {
+        if (!active || !ctx) return;
+        const now = ctx.currentTime;
+        const chord = chords[step % chords.length];
+
+        if (currentPad.length) {
+          const old = currentPad;
+          currentPad = [];
+          old.forEach(({ osc, gain }) => {
+            try {
+              gain.gain.cancelScheduledValues(now);
+              gain.gain.setValueAtTime(gain.gain.value, now);
+              gain.gain.linearRampToValueAtTime(0.0001, now + 1.8);
+              setTimeout(() => { try { osc.stop(); } catch (_) {} }, 1900);
+            } catch (_) {}
+          });
+        }
+
+        const bOsc = ctx.createOscillator();
+        const bGain = ctx.createGain();
+        bOsc.type = 'sine';
+        bOsc.frequency.setValueAtTime(chord.bass, now);
+        bGain.gain.setValueAtTime(0.001, now);
+        bGain.gain.linearRampToValueAtTime(0.035, now + 1.5);
+        bOsc.connect(bGain).connect(trackGain);
+        bOsc.start(now);
+        currentPad.push({ osc: bOsc, gain: bGain });
+
+        chord.notes.forEach((f, i) => {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(f, now);
+          g.gain.setValueAtTime(0.0001, now);
+          g.gain.linearRampToValueAtTime(0.024, now + 1.6);
+          osc.connect(g).connect(trackGain);
+          osc.start(now);
+          currentPad.push({ osc, gain: g });
+
+          // Stardust arpeggio chimes
+          const nTime = now + 0.3 + (i * 0.8);
+          try {
+            const cOsc = ctx.createOscillator();
+            const cGain = ctx.createGain();
+            cOsc.type = 'triangle';
+            cOsc.frequency.setValueAtTime(f * 2, nTime);
+            cGain.gain.setValueAtTime(0.0001, nTime);
+            cGain.gain.linearRampToValueAtTime(0.022, nTime + 0.02);
+            cGain.gain.exponentialRampToValueAtTime(0.0001, nTime + 2.0);
+            cOsc.connect(cGain).connect(trackGain);
+            cOsc.start(nTime);
+            cOsc.stop(nTime + 2.1);
+          } catch (_) {}
+        });
+
+        step++;
+        timer = setTimeout(playStep, 5400);
+      }
+      playStep();
+
+      return {
+        theme: 'celestial_nebula',
+        gainNode: trackGain,
+        stop() {
+          active = false;
+          if (timer) clearTimeout(timer);
+          currentPad.forEach(({ osc }) => { try { osc.stop(); } catch (_) {} });
+        }
+      };
+    },
+
+    abyss_kraken(c, dest) {
+      // Kraken Abyss: hydrothermal trench resonance & subaquatic bioluminescent sonar
+      const t0 = c.currentTime;
+      const trackGain = c.createGain();
+      trackGain.gain.setValueAtTime(0.0001, t0);
+      trackGain.gain.linearRampToValueAtTime(1.0, t0 + 1.4);
+      trackGain.connect(dest);
+
+      const chords = [
+        { bass: 43.65, notes: [174.61, 261.63, 349.23, 440.00] }, // F Deep
+        { bass: 49.00, notes: [196.00, 246.94, 293.66, 392.00] }, // G Deep
+        { bass: 55.00, notes: [220.00, 261.63, 329.63, 440.00] }, // Am Deep
+        { bass: 36.71, notes: [146.83, 220.00, 293.66, 349.23] }  // Dm Deep
+      ];
+
+      let active = true;
+      let timer = null;
+      let sonarTimer = null;
+      let step = 0;
+      let currentPad = [];
+
+      function playStep() {
+        if (!active || !ctx) return;
+        const now = ctx.currentTime;
+        const chord = chords[step % chords.length];
+
+        if (currentPad.length) {
+          const old = currentPad;
+          currentPad = [];
+          old.forEach(({ osc, gain }) => {
+            try {
+              gain.gain.cancelScheduledValues(now);
+              gain.gain.setValueAtTime(gain.gain.value, now);
+              gain.gain.linearRampToValueAtTime(0.0001, now + 1.8);
+              setTimeout(() => { try { osc.stop(); } catch (_) {} }, 1900);
+            } catch (_) {}
+          });
+        }
+
+        const bOsc = ctx.createOscillator();
+        const bGain = ctx.createGain();
+        bOsc.type = 'sine';
+        bOsc.frequency.setValueAtTime(chord.bass, now);
+        bGain.gain.setValueAtTime(0.001, now);
+        bGain.gain.linearRampToValueAtTime(0.048, now + 1.6);
+        bOsc.connect(bGain).connect(trackGain);
+        bOsc.start(now);
+        currentPad.push({ osc: bOsc, gain: bGain });
+
+        chord.notes.forEach(f => {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(f, now);
+          g.gain.setValueAtTime(0.0001, now);
+          g.gain.linearRampToValueAtTime(0.022, now + 1.8);
+          osc.connect(g).connect(trackGain);
+          osc.start(now);
+          currentPad.push({ osc, gain: g });
+        });
+
+        step++;
+        timer = setTimeout(playStep, 5800);
+      }
+      playStep();
+
+      function sonarPing() {
+        if (!active || !ctx) return;
+        const now = ctx.currentTime;
+        try {
+          const sOsc = ctx.createOscillator();
+          const sg = ctx.createGain();
+          sOsc.type = 'sine';
+          sOsc.frequency.setValueAtTime(580, now);
+          sOsc.frequency.exponentialRampToValueAtTime(290, now + 0.18);
+          sg.gain.setValueAtTime(0.018, now);
+          sg.gain.exponentialRampToValueAtTime(0.0001, now + 0.8);
+          sOsc.connect(sg).connect(trackGain);
+          sOsc.start(now);
+          sOsc.stop(now + 0.85);
+        } catch (_) {}
+        sonarTimer = setTimeout(sonarPing, 3200 + Math.random() * 2500);
+      }
+      sonarPing();
+
+      return {
+        theme: 'abyss_kraken',
+        gainNode: trackGain,
+        stop() {
+          active = false;
+          if (timer) clearTimeout(timer);
+          if (sonarTimer) clearTimeout(sonarTimer);
+          currentPad.forEach(({ osc }) => { try { osc.stop(); } catch (_) {} });
+        }
+      };
+    },
+
+    apex_sovereign(c, dest) {
+      // 👑 APEX SOVEREIGN GOLD (Tier 100): Imperial Golden Symphony & Stargate World (16-Chord Magnum Opus)
+      const t0 = c.currentTime;
+      const trackGain = c.createGain();
+      trackGain.gain.setValueAtTime(0.0001, t0);
+      trackGain.gain.linearRampToValueAtTime(1.0, t0 + 1.6);
+      trackGain.connect(dest);
+
+      // Epic 16-Chord Royal Progression (Triumphant Lydian / Royal Mixolydian & Major-9th Harmony)
+      const progression = [
+        { bass: 77.78, notes: [311.13, 392.00, 466.16, 622.25, 783.99], harp: [466.16, 622.25, 783.99, 932.33, 1244.50] }, // Eb Maj9
+        { bass: 65.41, notes: [261.63, 311.13, 392.00, 466.16, 622.25], harp: [392.00, 523.25, 622.25, 783.99, 1046.50] }, // Cm9
+        { bass: 51.91, notes: [207.65, 311.13, 392.00, 415.30, 622.25], harp: [415.30, 622.25, 783.99, 830.61, 1244.50] }, // Ab Maj7#11
+        { bass: 58.27, notes: [233.08, 349.23, 466.16, 587.33, 698.46], harp: [466.16, 698.46, 932.33, 1174.66, 1396.91] }, // Bb Maj13
+        { bass: 49.00, notes: [196.00, 293.66, 392.00, 440.00, 587.33], harp: [392.00, 587.33, 783.99, 880.00, 1174.66] }, // Gm9
+        { bass: 43.65, notes: [174.61, 261.63, 349.23, 415.30, 523.25], harp: [349.23, 523.25, 698.46, 830.61, 1046.50] }, // Fm9
+        { bass: 49.00, notes: [196.00, 261.63, 392.00, 587.33, 783.99], harp: [392.00, 523.25, 783.99, 1046.50, 1174.66] }, // Gsus4
+        { bass: 49.00, notes: [196.00, 246.94, 293.66, 392.00, 783.99], harp: [392.00, 493.88, 587.33, 783.99, 987.77] },  // G Maj
+        { bass: 77.78, notes: [311.13, 392.00, 466.16, 622.25, 932.33], harp: [622.25, 783.99, 932.33, 1244.50, 1567.98] }, // Eb Maj9
+        { bass: 87.31, notes: [349.23, 415.30, 523.25, 622.25, 698.46], harp: [415.30, 523.25, 698.46, 830.61, 1046.50] }, // Fm7
+        { bass: 69.30, notes: [277.18, 349.23, 415.30, 554.37, 698.46], harp: [415.30, 554.37, 698.46, 830.61, 1108.73] }, // Db Maj9
+        { bass: 77.78, notes: [311.13, 392.00, 466.16, 622.25, 783.99], harp: [466.16, 622.25, 783.99, 932.33, 1244.50] }, // Eb Maj
+        { bass: 51.91, notes: [207.65, 311.13, 415.30, 519.13, 622.25], harp: [415.30, 622.25, 830.61, 1038.26, 1244.50] }, // Ab Maj9
+        { bass: 43.65, notes: [174.61, 261.63, 349.23, 415.30, 523.25], harp: [349.23, 523.25, 698.46, 830.61, 1046.50] }, // Fm9
+        { bass: 58.27, notes: [233.08, 349.23, 466.16, 523.25, 698.46], harp: [466.16, 523.25, 698.46, 932.33, 1046.50] }, // Bb7sus4
+        { bass: 77.78, notes: [311.13, 392.00, 466.16, 622.25, 932.33], harp: [622.25, 783.99, 932.33, 1244.50, 1864.66] }  // Eb Maj13
+      ];
+
+      let active = true;
+      let timer = null;
+      let step = 0;
+      let currentPad = [];
+
+      function playStep() {
+        if (!active || !ctx) return;
+        const now = ctx.currentTime;
+        const chord = progression[step % progression.length];
+
+        // Smooth fade out of previous pad
+        if (currentPad.length) {
+          const old = currentPad;
+          currentPad = [];
+          old.forEach(({ osc, gain }) => {
+            try {
+              gain.gain.cancelScheduledValues(now);
+              gain.gain.setValueAtTime(gain.gain.value, now);
+              gain.gain.linearRampToValueAtTime(0.0001, now + 1.8);
+              setTimeout(() => { try { osc.stop(); } catch (_) {} }, 1900);
+            } catch (_) {}
+          });
+        }
+
+        // 1. Deep Imperial Sub-Bass
+        const bOsc = ctx.createOscillator();
+        const bGain = ctx.createGain();
+        bOsc.type = 'triangle';
+        bOsc.frequency.setValueAtTime(chord.bass, now);
+        bGain.gain.setValueAtTime(0.0001, now);
+        bGain.gain.linearRampToValueAtTime(0.048, now + 1.4);
+        bOsc.connect(bGain).connect(trackGain);
+        bOsc.start(now);
+        currentPad.push({ osc: bOsc, gain: bGain });
+
+        // 2. Imperial Golden Choir & Brass Harmony
+        chord.notes.forEach((f, i) => {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          const filter = ctx.createBiquadFilter();
+          
+          osc.type = (i % 2 === 0) ? 'sawtooth' : 'sine';
+          osc.frequency.setValueAtTime(f, now);
+
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(1400 + i * 200, now);
+          filter.Q.setValueAtTime(1.5, now);
+
+          g.gain.setValueAtTime(0.0001, now);
+          g.gain.linearRampToValueAtTime(0.022, now + 1.5);
+
+          osc.connect(filter).connect(g).connect(trackGain);
+          osc.start(now);
+          currentPad.push({ osc, gain: g });
+        });
+
+        // 3. Cascading Golden Harp & Bell Arpeggio
+        if (chord.harp) {
+          chord.harp.forEach((hf, hi) => {
+            const hTime = now + 0.3 + (hi * 0.42);
+            try {
+              const hOsc = ctx.createOscillator();
+              const hg = ctx.createGain();
+              hOsc.type = 'triangle';
+              hOsc.frequency.setValueAtTime(hf, hTime);
+
+              hg.gain.setValueAtTime(0.0001, hTime);
+              hg.gain.linearRampToValueAtTime(0.026, hTime + 0.025);
+              hg.gain.exponentialRampToValueAtTime(0.0001, hTime + 2.4);
+
+              hOsc.connect(hg).connect(trackGain);
+              hOsc.start(hTime);
+              hOsc.stop(hTime + 2.5);
+            } catch (_) {}
+          });
+        }
+
+        step++;
+        timer = setTimeout(playStep, 5800);
+      }
+      playStep();
+
+      return {
+        theme: 'apex_sovereign',
+        gainNode: trackGain,
+        stop() {
+          active = false;
+          if (timer) clearTimeout(timer);
+          currentPad.forEach(({ osc }) => { try { osc.stop(); } catch (_) {} });
+        }
+      };
     },
 
     // 18. VALENTINE: Heartbeat pulse & warm music box harmony
@@ -1911,7 +2801,8 @@ const Sound = (function () {
 
     if (!ambientEnabled || muted || volume <= 0) return;
 
-    const generator = THEME_GENERATORS[newTheme] || THEME_GENERATORS['dark'];
+    const rawKey = newTheme.replace(/^theme_/, '');
+    const generator = THEME_GENERATORS[newTheme] || THEME_GENERATORS[rawKey] || THEME_GENERATORS['theme_' + rawKey] || THEME_GENERATORS['dark'];
     if (!generator) return;
 
     currentTrack = generator(c, ambientMasterGain);
@@ -2311,8 +3202,72 @@ const Sound = (function () {
     themeChange() {
       [440, 659.25, 880].forEach((f, i) => tone(f, 0.12, 'sine', 0.07, i * 0.04));
     },
-    buttonPress() {
-      tone(540, 0.03, 'sine', 0.05);
+    // Theme-Aware Custom Button Press SFX Synthesizer
+    buttonPress(customTheme) {
+      if (muted || !sfxEnabled || volume <= 0) return;
+      const c = ensureCtx();
+      if (!c) return;
+      const t = (customTheme || currentTheme || 'dark').replace(/^theme_/, '').toLowerCase();
+
+      if (t === 'chronos') {
+        // Clockwork mechanical brass tick & gear click
+        sweep(1400, 380, 0.038, 'triangle', 0.10);
+        tone(880, 0.025, 'sine', 0.06, 0.008);
+      } else if (t === 'neon_cyberpunk') {
+        // Cyberpunk synth laser pulse
+        sweep(380, 1800, 0.045, 'sawtooth', 0.09);
+        tone(1318.5, 0.03, 'sine', 0.06, 0.012);
+      } else if (t === 'void_singularity') {
+        // Gravitational vacuum distortion pop
+        sweep(220, 45, 0.06, 'sine', 0.14);
+        tone(980, 0.02, 'triangle', 0.05, 0.005);
+      } else if (t === 'quantum_overdrive' || t === 'quantum') {
+        // Subatomic teal quantal blip
+        tone(1760, 0.035, 'sine', 0.09);
+        sweep(920, 1480, 0.035, 'triangle', 0.07, 0.008);
+      } else if (t === 'solar_prominence' || t === 'solar' || t === 'flame') {
+        // Fiery solar ember snap & sizzle
+        sweep(750, 210, 0.045, 'triangle', 0.11);
+        tone(1480, 0.02, 'sawtooth', 0.06, 0.01);
+      } else if (t === 'prism' || t === 'prism_mythic' || t === 'darkmatter') {
+        // Pristine diamond crystal chime ping
+        tone(2637, 0.055, 'sine', 0.10);
+        tone(3951, 0.04, 'triangle', 0.07, 0.015);
+      } else if (t === 'celestial_nebula' || t === 'celestial' || t === 'astral' || t === 'aurora') {
+        // Ethereal cosmic stardust chime
+        tone(1567.98, 0.065, 'sine', 0.09);
+        sweep(1174, 2349, 0.05, 'sine', 0.06, 0.015);
+      } else if (t === 'abyss_kraken' || t === 'abyss') {
+        // Deep hydro-acoustic bubble drop / sonar click
+        sweep(340, 85, 0.065, 'sine', 0.13);
+        tone(620, 0.03, 'sine', 0.07, 0.018);
+      } else if (t === 'apex_sovereign' || t === 'sovereign' || t === 'mrmoney') {
+        // Imperial golden 24k bell clink
+        tone(2093.00, 0.06, 'sine', 0.10);
+        tone(3135.96, 0.05, 'sine', 0.08, 0.015);
+      } else if (t === 'pink' || t === 'valentine') {
+        // Bubblegum bounce pop
+        sweep(440, 920, 0.04, 'sine', 0.09);
+        tone(1318.5, 0.03, 'triangle', 0.05, 0.01);
+      } else if (t === 'verdant' || t === 'sakura') {
+        // Organic wooden chime / leaf snap
+        tone(520, 0.035, 'triangle', 0.09);
+        tone(1040, 0.025, 'sine', 0.05, 0.01);
+      } else if (t === 'glacier') {
+        // Frost crackle snap
+        sweep(2400, 800, 0.035, 'sawtooth', 0.07);
+        tone(1760, 0.025, 'sine', 0.06, 0.008);
+      } else if (t === 'storm') {
+        // Electric micro zap
+        sweep(80, 1600, 0.03, 'sawtooth', 0.08);
+        tone(660, 0.03, 'square', 0.05, 0.005);
+      } else {
+        // Standard sleek tactile UI click
+        tone(750, 0.03, 'sine', 0.07);
+      }
+    },
+    click(customTheme) {
+      this.buttonPress(customTheme);
     },
     replayStep() {
       tone(1200, 0.02, 'triangle', 0.07);

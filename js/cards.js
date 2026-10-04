@@ -109,6 +109,7 @@ const UNIT_ARCHETYPES = {
     { id: 'green_footpad',      name: 'Footpad',       sp: 3, pool: ['green_onplay_stealcard'] },
     { id: 'green_tinkerer',     name: 'Tinkerer',      sp: 4, pool: ['green_onplay_chipslot1'] },
     { id: 'green_aether_glider', name: 'Aether Glider', sp: 3, pool: ['onplay_heal2'] },
+    { id: 'green_verdant_titan', name: 'Verdant Titan', sp: 4, pool: ['green_onplay_selftoughen1'] },
   ],
   3: [ // Red (Scaling 4 - 6 SP)
     { id: 'red_wraith',      name: 'Wraith',      sp: 5, pool: ['onattack_pierce'] },
@@ -121,6 +122,8 @@ const UNIT_ARCHETYPES = {
     { id: 'red_duelist',     name: 'Duelist',     sp: 4, pool: ['red_onattack_doublestrike'] },
     { id: 'red_hyperdrive_drake', name: 'Hyperdrive Drake', sp: 5, pool: ['red_onplay_dmgall1'] },
     { id: 'red_cyber_valkyrie',   name: 'Cyber Valkyrie',   sp: 6, pool: ['red_onplay_buffallies_dmg1'] },
+    { id: 'red_solar_phoenix',    name: 'Solar Phoenix',    sp: 6, pool: ['red_onplay_burn2'] },
+    { id: 'red_nebula_valkyrie',  name: 'Nebula Valkyrie',  sp: 6, pool: ['red_onattack_splash1'] },
   ],
   4: [ // Orange (Scaling 7 - 9 SP, max 9)
     { id: 'orange_colossus',   name: 'Colossus',   sp: 8, pool: ['onplay_dmg2'] },
@@ -133,6 +136,8 @@ const UNIT_ARCHETYPES = {
     { id: 'orange_warlord',    name: 'Warlord',    sp: 9, pool: ['orange_onplay_alphastrike'] },
     { id: 'orange_chronos_sentinel', name: 'Chronos Sentinel', sp: 8, pool: ['orange_onplay_refreshall'] },
     { id: 'orange_singularity_devourer', name: 'Singularity Devourer', sp: 9, pool: ['orange_onplay_execute'] },
+    { id: 'orange_quantum_behemoth', name: 'Quantum Colossus', sp: 9, pool: ['orange_onplay_scaledmg'] },
+    { id: 'orange_apex_sovereign_unit', name: 'Apex Sovereign Sentinel', sp: 9, pool: ['orange_onplay_alphastrike'] },
   ],
 };
 

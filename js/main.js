@@ -428,7 +428,7 @@ function wirePressFeedback(el) {
 }
 
 // ---- Mehrbod Bux (in-app play currency) ------------------------------------
-const STARTING_BUX = 50;
+const STARTING_BUX = 25;
 const WAGER_CAPS = Object.freeze({ Easy: 10, Medium: 25, Hard: 50, Expert: 100, Master: 200 });
 const MAX_MULTIPLAYER_WAGER = 100;
 function loadBux() {
@@ -787,7 +787,7 @@ function findArchetypeById(archetypeId) {
   } catch (e) {}
 })();
 
-const PACK_COST = 20;
+const PACK_COST = 10;
 function buyCardPack() {
   if (!spendBux(PACK_COST)) { showToast("You don't have enough Mehrbod Bux for a pack."); return; }
   if (typeof Sound !== 'undefined' && Sound.packTear) Sound.packTear();
@@ -1388,57 +1388,73 @@ document.getElementById('deck-preset-name-input').addEventListener('keydown', (e
 
 // ---- Cosmetics (v2.0) -------------------------------------------------------
 const COSMETIC_ITEMS = [
-  // THEMES (15 total)
+  // THEMES (21 total)
   { id: 'theme_prism', kind: 'theme',       name: '💎 Prism Core', desc: 'Living diamond crystal refractors with real-time chromatic spectrum dispersion, obsidian glass card framing, and celestial harmonic caustics.', cost: 0, rarity: 'MYTHIC', art: '💎', original: 0, tag: 'COMPLETION' },
   { id: 'theme_chronos',    kind: 'theme',       name: '⏳ Chronos Horizon', desc: 'Time-warping cosmic clockwork theme with golden gear cogs, temporal void waves, and stardust pendulum pulses.', cost: 0, rarity: 'MYTHIC', art: '⏳', original: 0, tag: 'SEASON 1' },
   { id: 'theme_neon_cyberpunk', kind: 'theme',   name: '🌆 Hyperdrive Cyber-Grid', desc: 'Vaporwave synthwave grid with retro horizon rays, neon cyan pulses, and high-speed particle streams.', cost: 0, rarity: 'MYTHIC', art: '🌆', original: 0, tag: 'SEASON 1' },
   { id: 'theme_void_singularity', kind: 'theme', name: '🌌 Void Singularity', desc: 'Deep cosmic event horizon with swirling purple accretion disks, hawking radiation, and void pulses.', cost: 0, rarity: 'MYTHIC', art: '🌌', original: 0, tag: 'SEASON 1 APEX' },
-  { id: 'theme_mrmoney',    kind: 'theme',       name: '🤑 Mr Money Theme', desc: 'Green money-rain theme for the whole app.', cost: 1000, rarity: 'MYTHIC', art: '💸', original: 1500, tag: 'FEATURED' },
-  { id: 'theme_cyberneon',  kind: 'theme',       name: '🌆 Cyber Neon Theme', desc: 'Neon-lit cyberpunk grid with drifting glyph particles.', cost: 1200, rarity: 'EPIC', art: '🌆', original: 1600, tag: 'CYBER' },
-  { id: 'theme_abyss',      kind: 'theme',       name: '🌊 Abyss Theme', desc: 'Bioluminescent deep-sea vault with drifting jellyfish glow.', cost: 1200, rarity: 'EPIC', art: '🌊', original: 1600, tag: 'DEEP SEA' },
-  { id: 'theme_magma',      kind: 'theme',       name: '🌋 Magma Theme', desc: 'Living volcanic core with undulating lava, fire embers, and magma fissures.', cost: 1200, rarity: 'MYTHIC', art: '🌋', original: 1600, tag: 'HOT' },
-  { id: 'theme_synthwave',  kind: 'theme',       name: '⚡ Synthwave Theme', desc: 'Retro outrun grid with chrome horizon and synth wave pulses.', cost: 950, rarity: 'EPIC', art: '⚡', original: 1300, tag: 'RETRO' },
-  { id: 'theme_matrix',     kind: 'theme',       name: '🟢 Digital Matrix Theme', desc: 'Cascading digital rain and tactical emerald terminal styling.', cost: 1100, rarity: 'EPIC', art: '🟢', original: 1400, tag: 'SPECIAL' },
-  { id: 'theme_sakura',     kind: 'theme',       name: '🌸 Sakura Blossom Theme', desc: 'Serene Japanese zen garden with floating pink cherry blossom petals.', cost: 1100, rarity: 'EPIC', art: '🌸', original: 1400, tag: 'ZEN' },
-  { id: 'theme_inferno',    kind: 'theme',       name: '🔥 Solar Inferno Theme', desc: 'Blazing solar flares, golden corona rays, and molten solar wind.', cost: 1300, rarity: 'MYTHIC', art: '🔥', original: 1700, tag: 'SOLAR' },
-  { id: 'theme_aurora',     kind: 'theme',       name: '🌌 Northern Aurora Theme', desc: 'Curving arctic aurora borealis light curtains and shimmering stars.', cost: 1050, rarity: 'EPIC', art: '🌌', original: 1350, tag: 'ARCTIC' },
-  { id: 'theme_steampunk',  kind: 'theme',       name: '⚙️ Brass Steampunk Theme', desc: 'Victorian brass clockwork gears, pressure gauges, and copper steam plumes.', cost: 950, rarity: 'RARE', art: '⚙️', original: 1200, tag: 'VINTAGE' },
-  { id: 'theme_galaxy',     kind: 'theme',       name: '✨ Deep Space Galaxy Theme', desc: 'Swirling spiral nebulae, distant star clusters, and cosmic dust clouds.', cost: 1250, rarity: 'LEGENDARY', art: '✨', original: 1650, tag: 'COSMIC' },
+  { id: 'theme_quantum_overdrive', kind: 'theme', name: '⚛️ Quantum Horizon Theme', desc: 'Glowing subatomic particle lattice with teal energy pulses.', cost: 0, rarity: 'MYTHIC', art: '⚛️', original: 0, tag: 'SEASON 1 T25' },
+  { id: 'theme_solar_prominence', kind: 'theme', name: '☀️ Solar Corona Theme', desc: 'Molten solar flare arcs with golden coronal ray bursts.', cost: 0, rarity: 'MYTHIC', art: '☀️', original: 0, tag: 'SEASON 1 T35' },
+  { id: 'theme_prism_mythic', kind: 'theme', name: '💎 Diamond Refractor Theme', desc: 'Radiant crystal spectrum refraction with celestial harmonic caustics.', cost: 0, rarity: 'MYTHIC', art: '💎', original: 0, tag: 'SEASON 1 T50' },
+  { id: 'theme_celestial_nebula', kind: 'theme', name: '🌠 Celestial Nebula Theme', desc: 'Ethereal stardust clouds with swirling interstellar nebulae.', cost: 0, rarity: 'MYTHIC', art: '🌠', original: 0, tag: 'SEASON 1 T65' },
+  { id: 'theme_abyss_kraken', kind: 'theme', name: '🦑 Bioluminescent Kraken Abyss', desc: 'Deep ocean trenches with glowing bioluminescent kraken pulse waves.', cost: 0, rarity: 'MYTHIC', art: '🦑', original: 0, tag: 'SEASON 1 T80' },
+  { id: 'theme_apex_sovereign', kind: 'theme', name: '👑 Apex Sovereign Gold Theme', desc: 'Imperial 24k gold throne room with royal crown flares and golden aura.', cost: 0, rarity: 'MYTHIC', art: '👑', original: 0, tag: 'SEASON 1 T100' },
+  { id: 'theme_mrmoney',    kind: 'theme',       name: '🤑 Mr Money Theme', desc: 'Green money-rain theme for the whole app.', cost: 500, rarity: 'MYTHIC', art: '💸', original: 750, tag: 'FEATURED' },
+  { id: 'theme_cyberneon',  kind: 'theme',       name: '🌆 Cyber Neon Theme', desc: 'Neon-lit cyberpunk grid with drifting glyph particles.', cost: 600, rarity: 'EPIC', art: '🌆', original: 800, tag: 'CYBER' },
+  { id: 'theme_abyss',      kind: 'theme',       name: '🌊 Abyss Theme', desc: 'Bioluminescent deep-sea vault with drifting jellyfish glow.', cost: 600, rarity: 'EPIC', art: '🌊', original: 800, tag: 'DEEP SEA' },
+  { id: 'theme_magma',      kind: 'theme',       name: '🌋 Magma Theme', desc: 'Living volcanic core with undulating lava, fire embers, and magma fissures.', cost: 600, rarity: 'MYTHIC', art: '🌋', original: 800, tag: 'HOT' },
+  { id: 'theme_synthwave',  kind: 'theme',       name: '⚡ Synthwave Theme', desc: 'Retro outrun grid with chrome horizon and synth wave pulses.', cost: 475, rarity: 'EPIC', art: '⚡', original: 650, tag: 'RETRO' },
+  { id: 'theme_matrix',     kind: 'theme',       name: '🟢 Digital Matrix Theme', desc: 'Cascading digital rain and tactical emerald terminal styling.', cost: 550, rarity: 'EPIC', art: '🟢', original: 700, tag: 'SPECIAL' },
+  { id: 'theme_sakura',     kind: 'theme',       name: '🌸 Sakura Blossom Theme', desc: 'Serene Japanese zen garden with floating pink cherry blossom petals.', cost: 550, rarity: 'EPIC', art: '🌸', original: 700, tag: 'ZEN' },
+  { id: 'theme_inferno',    kind: 'theme',       name: '🔥 Solar Inferno Theme', desc: 'Blazing solar flares, golden corona rays, and molten solar wind.', cost: 650, rarity: 'MYTHIC', art: '🔥', original: 850, tag: 'SOLAR' },
+  { id: 'theme_aurora',     kind: 'theme',       name: '🌌 Northern Aurora Theme', desc: 'Curving arctic aurora borealis light curtains and shimmering stars.', cost: 525, rarity: 'EPIC', art: '🌌', original: 675, tag: 'ARCTIC' },
+  { id: 'theme_steampunk',  kind: 'theme',       name: '⚙️ Brass Steampunk Theme', desc: 'Victorian brass clockwork gears, pressure gauges, and copper steam plumes.', cost: 475, rarity: 'RARE', art: '⚙️', original: 600, tag: 'VINTAGE' },
+  { id: 'theme_galaxy',     kind: 'theme',       name: '✨ Deep Space Galaxy Theme', desc: 'Swirling spiral nebulae, distant star clusters, and cosmic dust clouds.', cost: 625, rarity: 'LEGENDARY', art: '✨', original: 825, tag: 'COSMIC' },
 
-  // SLEEVES (13 total)
-  { id: 'sleeve_holo',      kind: 'sleeve',      name: '🌈 Holographic Sleeves', desc: 'Shimmering rainbow card outlines with dynamic refraction.', cost: 400, rarity: 'RARE', art: '✦', original: 0, tag: 'SHIMMER' },
+  // SLEEVES (18 total)
+  { id: 'sleeve_holo',      kind: 'sleeve',      name: '🌈 Holographic Sleeves', desc: 'Shimmering rainbow card outlines with dynamic refraction.', cost: 200, rarity: 'RARE', art: '✦', original: 0, tag: 'SHIMMER' },
   { id: 'sleeve_chronos',   kind: 'sleeve',      name: '⏳ Chronos Temporal Weave', desc: 'Animated golden gear dial sleeve with shifting temporal rings.', cost: 0, rarity: 'MYTHIC', art: '⏳', original: 0, tag: 'SEASON 1' },
   { id: 'sleeve_hyperdrive', kind: 'sleeve',     name: '🌆 Neon Grid Holo', desc: 'Glowing magenta and cyan holographic grid sleeve with laser trace edges.', cost: 0, rarity: 'EPIC', art: '⚡', original: 0, tag: 'SEASON 1' },
   { id: 'sleeve_singularity', kind: 'sleeve',    name: '🌌 Event Horizon Void', desc: 'Swirling black hole sleeve with pulsing violet event horizon glow.', cost: 0, rarity: 'MYTHIC', art: '🌌', original: 0, tag: 'SEASON 1' },
-  { id: 'sleeve_gold',      kind: 'sleeve',      name: '✨ Gold Sleeves', desc: 'Gilded 24k card outlines with a warm pulsing royal glow.', cost: 600, rarity: 'EPIC', art: '✨', original: 800, tag: 'ROYAL' },
-  { id: 'sleeve_prismatic', kind: 'sleeve',      name: '🌈 Prismatic Sleeves', desc: 'A shifting spectrum chromatic frame around every card.', cost: 800, rarity: 'LEGENDARY', art: '🌈', original: 1000, tag: 'CHROMATIC' },
-  { id: 'sleeve_void',      kind: 'sleeve',      name: '🕳️ Void Sleeves', desc: 'Deep-space cosmic void frames with a pulsing violet singularity glow.', cost: 1200, rarity: 'MYTHIC', art: '◈', original: 1500, tag: 'VOID' },
-  { id: 'sleeve_crimson',   kind: 'sleeve',      name: '🩸 Crimson Core Sleeves', desc: 'High-intensity ruby red glowing combat edges for cards.', cost: 550, rarity: 'RARE', art: '🩸', original: 700, tag: 'COMBAT' },
-  { id: 'sleeve_cyber',     kind: 'sleeve',      name: '⚡ Cyber Circuit Sleeves', desc: 'Glowing neon cyan circuit trace lines pulsing around card edges.', cost: 500, rarity: 'RARE', art: '⚡', original: 650, tag: 'CYBER' },
-  { id: 'sleeve_frost',     kind: 'sleeve',      name: '❄️ Glacial Frost Sleeves', desc: 'Crystalline ice borders with floating frost particle shimmer.', cost: 650, rarity: 'EPIC', art: '❄️', original: 850, tag: 'FROST' },
-  { id: 'sleeve_phoenix',   kind: 'sleeve',      name: '🔥 Phoenix Ember Sleeves', desc: 'Radiant fiery flame borders shedding glowing phoenix sparks.', cost: 850, rarity: 'LEGENDARY', art: '🔥', original: 1100, tag: 'INFERNO' },
-  { id: 'sleeve_emerald',   kind: 'sleeve',      name: '❇️ Emerald Empress Sleeves', desc: 'Luminous jade emerald gemstone borders with gilded corner accents.', cost: 700, rarity: 'EPIC', art: '❇️', original: 900, tag: 'GEM' },
-  { id: 'sleeve_obsidian',  kind: 'sleeve',      name: '🖤 Tactical Obsidian Sleeves', desc: 'Sleek stealth carbon obsidian frames with crimson laser edging.', cost: 1000, rarity: 'MYTHIC', art: '🖤', original: 1300, tag: 'STEALTH' },
+  { id: 'sleeve_quantum',   kind: 'sleeve',      name: '⚛️ Quantum Grid Sleeves', desc: 'Subatomic particle trace frames with glowing teal circuit paths.', cost: 0, rarity: 'MYTHIC', art: '⚛️', original: 0, tag: 'SEASON 1 T30' },
+  { id: 'sleeve_solar',     kind: 'sleeve',      name: '☀️ Solar Prominence Sleeves', desc: 'Coronal flare flame borders with golden solar ray bursts.', cost: 0, rarity: 'MYTHIC', art: '☀️', original: 0, tag: 'SEASON 1 T45' },
+  { id: 'sleeve_nebula',    kind: 'sleeve',      name: '🌠 Celestial Starfall Sleeves', desc: 'Starlight nebula frames with drifting cosmic glitter.', cost: 0, rarity: 'MYTHIC', art: '🌠', original: 0, tag: 'SEASON 1 T60' },
+  { id: 'sleeve_kraken',    kind: 'sleeve',      name: '🦑 Bioluminescent Kraken Sleeves', desc: 'Abyssal deep sea frames with glowing kraken tentacles.', cost: 0, rarity: 'MYTHIC', art: '🦑', original: 0, tag: 'SEASON 1 T75' },
+  { id: 'sleeve_apex_gold', kind: 'sleeve',      name: '👑 24k Gold Sovereign Sleeves', desc: 'Imperial gilded 24k gold borders with crown crest cornering.', cost: 0, rarity: 'MYTHIC', art: '👑', original: 0, tag: 'SEASON 1 T90' },
+  { id: 'sleeve_gold',      kind: 'sleeve',      name: '✨ Gold Sleeves', desc: 'Gilded 24k card outlines with a warm pulsing royal glow.', cost: 300, rarity: 'EPIC', art: '✨', original: 400, tag: 'ROYAL' },
+  { id: 'sleeve_prismatic', kind: 'sleeve',      name: '🌈 Prismatic Sleeves', desc: 'A shifting spectrum chromatic frame around every card.', cost: 400, rarity: 'LEGENDARY', art: '🌈', original: 500, tag: 'CHROMATIC' },
+  { id: 'sleeve_void',      kind: 'sleeve',      name: '🕳️ Void Sleeves', desc: 'Deep-space cosmic void frames with a pulsing violet singularity glow.', cost: 600, rarity: 'MYTHIC', art: '◈', original: 750, tag: 'VOID' },
+  { id: 'sleeve_crimson',   kind: 'sleeve',      name: '🩸 Crimson Core Sleeves', desc: 'High-intensity ruby red glowing combat edges for cards.', cost: 275, rarity: 'RARE', art: '🩸', original: 350, tag: 'COMBAT' },
+  { id: 'sleeve_cyber',     kind: 'sleeve',      name: '⚡ Cyber Circuit Sleeves', desc: 'Glowing neon cyan circuit trace lines pulsing around card edges.', cost: 250, rarity: 'RARE', art: '⚡', original: 325, tag: 'CYBER' },
+  { id: 'sleeve_frost',     kind: 'sleeve',      name: '❄️ Glacial Frost Sleeves', desc: 'Crystalline ice borders with floating frost particle shimmer.', cost: 325, rarity: 'EPIC', art: '❄️', original: 425, tag: 'FROST' },
+  { id: 'sleeve_phoenix',   kind: 'sleeve',      name: '🔥 Phoenix Ember Sleeves', desc: 'Radiant fiery flame borders shedding glowing phoenix sparks.', cost: 425, rarity: 'LEGENDARY', art: '🔥', original: 550, tag: 'INFERNO' },
+  { id: 'sleeve_emerald',   kind: 'sleeve',      name: '❇️ Emerald Empress Sleeves', desc: 'Luminous jade emerald gemstone borders with gilded corner accents.', cost: 350, rarity: 'EPIC', art: '❇️', original: 450, tag: 'GEM' },
+  { id: 'sleeve_obsidian',  kind: 'sleeve',      name: '🖤 Tactical Obsidian Sleeves', desc: 'Sleek stealth carbon obsidian frames with crimson laser edging.', cost: 500, rarity: 'MYTHIC', art: '🖤', original: 650, tag: 'STEALTH' },
 
   // VICTORY EFFECTS (7 total)
-  { id: 'effect_confetti',  kind: 'effect',      name: '🎉 Confetti+ Celebration', desc: 'Denser, longer-lasting victory confetti burst.', cost: 250, rarity: 'RARE', art: '🎉', original: 0, tag: 'CELEBRATE' },
-  { id: 'effect_victoryburst', kind: 'effect',   name: '✨ Victory Starburst', desc: 'Expansive golden starburst shockwave rings upon victory.', cost: 350, rarity: 'EPIC', art: '✧', original: 500, tag: 'BURST' },
-  { id: 'effect_fireworks', kind: 'effect',      name: '🎆 Fireworks Spectacular', desc: 'Multiple bursting colorful sky fireworks on match victory.', cost: 400, rarity: 'EPIC', art: '🎆', original: 550, tag: 'PYRO' },
-  { id: 'effect_cashrain',  kind: 'effect',      name: '💸 Bux Cash Rain', desc: 'Cascading golden coins and dollar bills falling across the victory banner.', cost: 450, rarity: 'EPIC', art: '💸', original: 600, tag: 'LOOT' },
-  { id: 'effect_lightning', kind: 'effect',      name: '⚡ Thunder Shockwave', desc: 'Crackling electric lightning bolts striking the victory podium.', cost: 380, rarity: 'RARE', art: '⚡', original: 500, tag: 'SHOCK' },
-  { id: 'effect_starfountain', kind: 'effect',   name: '🌟 Golden Star Fountain', desc: 'A erupting fountain of spinning golden stars and glitter particles.', cost: 300, rarity: 'RARE', art: '🌟', original: 420, tag: 'GLOW' },
-  { id: 'effect_dragonflame', kind: 'effect',    name: '🐉 Dragon Flame Aura', desc: 'A roaring dragon fire vortex swirling around your victory rank.', cost: 600, rarity: 'LEGENDARY', art: '🐉', original: 800, tag: 'DRAGON' },
+  { id: 'effect_confetti',  kind: 'effect',      name: '🎉 Confetti+ Celebration', desc: 'Denser, longer-lasting victory confetti burst.', cost: 125, rarity: 'RARE', art: '🎉', original: 0, tag: 'CELEBRATE' },
+  { id: 'effect_victoryburst', kind: 'effect',   name: '✨ Victory Starburst', desc: 'Expansive golden starburst shockwave rings upon victory.', cost: 175, rarity: 'EPIC', art: '✧', original: 250, tag: 'BURST' },
+  { id: 'effect_fireworks', kind: 'effect',      name: '🎆 Fireworks Spectacular', desc: 'Multiple bursting colorful sky fireworks on match victory.', cost: 200, rarity: 'EPIC', art: '🎆', original: 275, tag: 'PYRO' },
+  { id: 'effect_cashrain',  kind: 'effect',      name: '💸 Bux Cash Rain', desc: 'Cascading golden coins and dollar bills falling across the victory banner.', cost: 225, rarity: 'EPIC', art: '💸', original: 300, tag: 'LOOT' },
+  { id: 'effect_lightning', kind: 'effect',      name: '⚡ Thunder Shockwave', desc: 'Crackling electric lightning bolts striking the victory podium.', cost: 190, rarity: 'RARE', art: '⚡', original: 250, tag: 'SHOCK' },
+  { id: 'effect_starfountain', kind: 'effect',   name: '🌟 Golden Star Fountain', desc: 'A erupting fountain of spinning golden stars and glitter particles.', cost: 150, rarity: 'RARE', art: '🌟', original: 210, tag: 'GLOW' },
+  { id: 'effect_dragonflame', kind: 'effect',    name: '🐉 Dragon Flame Aura', desc: 'A roaring dragon fire vortex swirling around your victory rank.', cost: 300, rarity: 'LEGENDARY', art: '🐉', original: 400, tag: 'DRAGON' },
 
-  // VICTORY FINISHER ANIMATIONS (9 total)
+  // VICTORY FINISHER ANIMATIONS (14 total)
   { id: 'victoryanim_chronos_blast', kind: 'victoryAnim', name: '⏳ Temporal Time Stop', desc: 'Time freezes instantly and erupts into golden clockwork gears upon match victory.', cost: 0, rarity: 'MYTHIC', art: '⏳', original: 0, tag: 'SEASON 1' },
   { id: 'victoryanim_hyperdrive_warp', kind: 'victoryAnim', name: '🚀 Hyperdrive Warp Speed', desc: 'Warp speed star lines engulf the victory banner in a blinding hyperspace burst.', cost: 0, rarity: 'LEGENDARY', art: '🚀', original: 0, tag: 'SEASON 1' },
-  { id: 'victoryanim_meteor', kind: 'victoryAnim', name: '☄️ Meteor Shower Victory', desc: "Blazing meteor shower streaks down and erupts in shockwaves when you win.", cost: 500, rarity: 'MYTHIC', art: '☄️', original: 750, tag: 'FINISHER' },
-  { id: 'victoryanim_supernova', kind: 'victoryAnim', name: '🌌 Cosmic Supernova', desc: 'Blinding stellar explosion and supernova shockwave across the screen.', cost: 650, rarity: 'LEGENDARY', art: '🌌', original: 850, tag: 'STELLAR' },
-  { id: 'victoryanim_blackhole', kind: 'victoryAnim', name: '🕳️ Singularity Black Hole', desc: 'A swirling black hole devours the battlefield upon your ultimate win.', cost: 750, rarity: 'MYTHIC', art: '🕳️', original: 1000, tag: 'VOID' },
-  { id: 'victoryanim_orbital', kind: 'victoryAnim', name: '🛰️ Orbital Laser Strike', desc: 'A massive satellite laser beam blasts down with screen-shaking impact.', cost: 700, rarity: 'LEGENDARY', art: '🛰️', original: 900, tag: 'ORBITAL' },
-  { id: 'victoryanim_blizzard', kind: 'victoryAnim', name: '❄️ Subzero Frost Shatter', desc: 'Flash-freezes the arena into solid ice before shattering into crystalline shards.', cost: 550, rarity: 'EPIC', art: '❄️', original: 750, tag: 'SubZero' },
-  { id: 'victoryanim_nuke', kind: 'victoryAnim', name: '☢️ Tactical Nuke Blast', desc: 'A dramatic nuclear countdown mushroom cloud shockwave across the UI.', cost: 800, rarity: 'MYTHIC', art: '☢️', original: 1100, tag: 'NUKE' },
-  { id: 'victoryanim_phoenix', kind: 'victoryAnim', name: '🦅 Phoenix Rebirth Finisher', desc: 'A magnificent flaming phoenix spreads its wings in golden fire.', cost: 650, rarity: 'LEGENDARY', art: '🦅', original: 850, tag: 'PHOENIX' },
+  { id: 'victoryanim_quantum_collapse', kind: 'victoryAnim', name: '⚛️ Quantum Collapse Finisher', desc: 'Subatomic particle implosion collapsing into a teal shockwave burst.', cost: 0, rarity: 'MYTHIC', art: '⚛️', original: 0, tag: 'SEASON 1 T32' },
+  { id: 'victoryanim_solar_flare', kind: 'victoryAnim', name: '☀️ Solar Prominence Eruption', desc: 'A blinding golden coronal flare eruption engulfing the victory arena.', cost: 0, rarity: 'MYTHIC', art: '☀️', original: 0, tag: 'SEASON 1 T48' },
+  { id: 'victoryanim_starlight_shockwave', kind: 'victoryAnim', name: '🌠 Starlight Shockwave Finisher', desc: 'A celestial stardust supernova shockwave washing across the screen.', cost: 0, rarity: 'MYTHIC', art: '🌠', original: 0, tag: 'SEASON 1 T62' },
+  { id: 'victoryanim_kraken_strike', kind: 'victoryAnim', name: '🦑 Kraken Void Strike', desc: 'Bioluminescent abyssal kraken tentacles slamming down on victory.', cost: 0, rarity: 'MYTHIC', art: '🦑', original: 0, tag: 'SEASON 1 T78' },
+  { id: 'victoryanim_apex_beam', kind: 'victoryAnim', name: '👑 Apex Sovereign Laser Blast', desc: 'Imperial golden satellite laser beam obliterating the battlefield in gold.', cost: 0, rarity: 'MYTHIC', art: '👑', original: 0, tag: 'SEASON 1 T95' },
+  { id: 'victoryanim_meteor', kind: 'victoryAnim', name: '☄️ Meteor Shower Victory', desc: "Blazing meteor shower streaks down and erupts in shockwaves when you win.", cost: 250, rarity: 'MYTHIC', art: '☄️', original: 375, tag: 'FINISHER' },
+  { id: 'victoryanim_supernova', kind: 'victoryAnim', name: '🌌 Cosmic Supernova', desc: 'Blinding stellar explosion and supernova shockwave across the screen.', cost: 325, rarity: 'LEGENDARY', art: '🌌', original: 425, tag: 'STELLAR' },
+  { id: 'victoryanim_blackhole', kind: 'victoryAnim', name: '🕳️ Singularity Black Hole', desc: 'A swirling black hole devours the battlefield upon your ultimate win.', cost: 375, rarity: 'MYTHIC', art: '🕳️', original: 500, tag: 'VOID' },
+  { id: 'victoryanim_orbital', kind: 'victoryAnim', name: '🛰️ Orbital Laser Strike', desc: 'A massive satellite laser beam blasts down with screen-shaking impact.', cost: 350, rarity: 'LEGENDARY', art: '🛰️', original: 450, tag: 'ORBITAL' },
+  { id: 'victoryanim_blizzard', kind: 'victoryAnim', name: '❄️ Subzero Frost Shatter', desc: 'Flash-freezes the arena into solid ice before shattering into crystalline shards.', cost: 275, rarity: 'EPIC', art: '❄️', original: 375, tag: 'SubZero' },
+  { id: 'victoryanim_nuke', kind: 'victoryAnim', name: '☢️ Tactical Nuke Blast', desc: 'A dramatic nuclear countdown mushroom cloud shockwave across the UI.', cost: 400, rarity: 'MYTHIC', art: '☢️', original: 550, tag: 'NUKE' },
+  { id: 'victoryanim_phoenix', kind: 'victoryAnim', name: '🦅 Phoenix Rebirth Finisher', desc: 'A magnificent flaming phoenix spreads its wings in golden fire.', cost: 325, rarity: 'LEGENDARY', art: '🦅', original: 425, tag: 'PHOENIX' },
 ];
 
 function unlockCosmetic(id) {
@@ -1459,6 +1475,15 @@ function loadOwnedCosmetics() {
 }
 function saveOwnedCosmetics(list) {
   const valid = new Set(COSMETIC_ITEMS.map(c => c.id));
+  if (typeof THEME_DATA_REGISTRY !== 'undefined') {
+    THEME_DATA_REGISTRY.forEach(t => { valid.add(t.id); valid.add('theme_' + t.id); });
+  }
+  if (typeof SLEEVE_DATA_REGISTRY !== 'undefined') {
+    SLEEVE_DATA_REGISTRY.forEach(s => valid.add(s.id));
+  }
+  if (typeof VICTORY_DATA_REGISTRY !== 'undefined') {
+    VICTORY_DATA_REGISTRY.forEach(v => valid.add(v.id));
+  }
   const normalized = [...new Set((Array.isArray(list) ? list : []).filter(id => valid.has(id)))];
   try { localStorage.setItem('mehrbod-cards-owned-cosmetics', JSON.stringify(normalized)); } catch (e) {}
   queueMicrotask(() => { try { saveInventoryBackup(); } catch (e) {} });
@@ -1605,21 +1630,21 @@ function renderCosmeticsShop() {
   const balance = loadBux();
 
   const items = [
-    { id:'theme_mrmoney', kind:'theme', name:'Mr Money Theme', desc:'Turn the whole game into a money-soaked neon vault.', cost:1000, tag:'FEATURED', art:'💸', original:1500 },
-    { id:'theme_cyberneon', kind:'theme', name:'Cyber Neon Theme', desc:'A neon cyberpunk grid with drifting glyph particles and scanlines.', cost:1200, tag:'NEW', art:'🌆', original:1600 },
-    { id:'theme_abyss', kind:'theme', name:'Abyss Theme', desc:'A bioluminescent deep-sea vault - drifting jellyfish glow and rising bubbles.', cost:1200, tag:'NEW', art:'🌊', original:1600 },
-    { id:'theme_magma', kind:'theme', name:'Magma Theme', desc:'A living volcanic core — undulating molten lava, rising fire embers, pulsing magma fissures, and seismic heat surges.', cost:1200, tag:'NEW', art:'🌋', original:1600 },
-    { id:'victoryanim_meteor', kind:'victoryAnim', name:'Meteor Shower Victory', desc:'A blazing meteor shower streaks across the screen the instant you win - your opponent sees it too.', cost:500, tag:'NEW', art:'☄️', original:0 },
-    { id:'sleeve_prismatic', kind:'sleeve', name:'Prismatic Sleeves', desc:'Animated spectrum borders for every card.', cost:800, tag:'', art:'🌈', original:1000 },
-    { id:'sleeve_void', kind:'sleeve', name:'Void Sleeves', desc:'A dark cosmic frame with a violet glow.', cost:1200, tag:'RARE', art:'◈', original:1500 },
-    { id:'sleeve_holo', kind:'sleeve', name:'Holographic Sleeves', desc:'Rainbow holographic card edges.', cost:400, tag:'', art:'✦', original:0 },
-    { id:'sleeve_gold', kind:'sleeve', name:'Gold Sleeves', desc:'Gilded card outlines with a soft pulse.', cost:600, tag:'', art:'◆', original:0 },
-    { id:'effect_victoryburst', kind:'effect', name:'Victory Burst', desc:'A bigger celebration when you win.', cost:350, tag:'', art:'✧', original:0 },
-    { id:'effect_confetti', kind:'effect', name:'Confetti+', desc:'Longer, louder victory confetti.', cost:250, tag:'', art:'🎉', original:0 },
+    { id:'theme_mrmoney', kind:'theme', name:'Mr Money Theme', desc:'Turn the whole game into a money-soaked neon vault.', cost:500, tag:'FEATURED', art:'💸', original:750 },
+    { id:'theme_cyberneon', kind:'theme', name:'Cyber Neon Theme', desc:'A neon cyberpunk grid with drifting glyph particles and scanlines.', cost:600, tag:'NEW', art:'🌆', original:800 },
+    { id:'theme_abyss', kind:'theme', name:'Abyss Theme', desc:'A bioluminescent deep-sea vault - drifting jellyfish glow and rising bubbles.', cost:600, tag:'NEW', art:'🌊', original:800 },
+    { id:'theme_magma', kind:'theme', name:'Magma Theme', desc:'A living volcanic core — undulating molten lava, rising fire embers, pulsing magma fissures, and seismic heat surges.', cost:600, tag:'NEW', art:'🌋', original:800 },
+    { id:'victoryanim_meteor', kind:'victoryAnim', name:'Meteor Shower Victory', desc:'A blazing meteor shower streaks across the screen the instant you win - your opponent sees it too.', cost:250, tag:'NEW', art:'☄️', original:0 },
+    { id:'sleeve_prismatic', kind:'sleeve', name:'Prismatic Sleeves', desc:'Animated spectrum borders for every card.', cost:400, tag:'', art:'🌈', original:500 },
+    { id:'sleeve_void', kind:'sleeve', name:'Void Sleeves', desc:'A dark cosmic frame with a violet glow.', cost:600, tag:'RARE', art:'◈', original:750 },
+    { id:'sleeve_holo', kind:'sleeve', name:'Holographic Sleeves', desc:'Rainbow holographic card edges.', cost:200, tag:'', art:'✦', original:0 },
+    { id:'sleeve_gold', kind:'sleeve', name:'Gold Sleeves', desc:'Gilded card outlines with a soft pulse.', cost:300, tag:'', art:'◆', original:0 },
+    { id:'effect_victoryburst', kind:'effect', name:'Victory Burst', desc:'A bigger celebration when you win.', cost:175, tag:'', art:'✧', original:0 },
+    { id:'effect_confetti', kind:'effect', name:'Confetti+', desc:'Longer, louder victory confetti.', cost:125, tag:'', art:'🎉', original:0 },
   ];
 
   const cardPack = {
-    id:'card-pack', kind:'pack', name:'Card Pack', desc:'Unlock 2 new spells or chips for your collection.', cost:20,
+    id:'card-pack', kind:'pack', name:'Card Pack', desc:'Unlock 2 new spells or chips for your collection.', cost:10,
     tag:'DAILY VALUE', art:'🎁', original:0
   };
 
@@ -1720,7 +1745,7 @@ function renderCosmeticsShop() {
           <h1>MR MONEY</h1>
           <p>Bring the vault with you. A premium theme with money-rain effects, green neon lighting, and a completely different atmosphere.</p>
           <button class="modern-shop-hero-button" data-shop-buy="theme_mrmoney">
-            ${ownsCosmetic('theme_mrmoney') ? 'VIEW OWNED ITEM' : 'GET FOR 1,000 BUX'}
+            ${ownsCosmetic('theme_mrmoney') ? 'VIEW OWNED ITEM' : 'GET FOR 500 BUX'}
           </button>
         </div>
         <div class="modern-shop-hero-art">
@@ -1959,9 +1984,9 @@ function recordBattleResult(win, wager = 0, payout = 0) {
 
     // Win Streak Milestone notification and rewards system
     const streakMilestones = {
-      5: { title: "🔥 ON FIRE! (5x Streak)", desc: "A fiery 5-game winning streak has set your player board ablaze!", icon: "🔥", bonus: 50, pill: "HOT STREAK REACHED" },
-      10: { title: "⚡ UNSTOPPABLE! (10x Streak)", desc: "Phenomenal performance! You are dominating the arena with a 10-game streak!", icon: "⚡", bonus: 150, pill: "SUPER STREAK REACHED" },
-      20: { title: "👑 GODLIKE! (20x Streak)", desc: "Unbelievable mastery! A legendary 20-game win streak has been achieved!", icon: "👑", bonus: 500, pill: "GODLIKE STREAK REACHED" }
+      5: { title: "🔥 ON FIRE! (5x Streak)", desc: "A fiery 5-game winning streak has set your player board ablaze!", icon: "🔥", bonus: 25, pill: "HOT STREAK REACHED" },
+      10: { title: "⚡ UNSTOPPABLE! (10x Streak)", desc: "Phenomenal performance! You are dominating the arena with a 10-game streak!", icon: "⚡", bonus: 75, pill: "SUPER STREAK REACHED" },
+      20: { title: "👑 GODLIKE! (20x Streak)", desc: "Unbelievable mastery! A legendary 20-game win streak has been achieved!", icon: "👑", bonus: 250, pill: "GODLIKE STREAK REACHED" }
     };
     if (streakMilestones[s.streak]) {
       const ms = streakMilestones[s.streak];
@@ -2244,7 +2269,7 @@ const DAILY_CHALLENGE_POOL = [
   { id: 'defend5',  type: 'defend', target: 5,  desc: 'Successfully defend against 5 attacks.' },
 ];
 const DAILY_CHALLENGE_KEY = 'mehrbod_daily_challenge_v2';
-const DAILY_REROLL_COST = 10;
+const DAILY_REROLL_COST = 5;
 
 function todayKey() {
   const d = new Date();
@@ -2274,7 +2299,7 @@ function getDailyChallengeDef() {
   return DAILY_CHALLENGE_POOL.find(c => c.id === s.challenge) || DAILY_CHALLENGE_POOL[0];
 }
 function dailyChallengeReward(streak) {
-  return Math.min(60, 30 + streak * 5);
+  return Math.min(30, 15 + Math.floor(streak * 2.5));
 }
 // Called from wherever the underlying action already happens (dispatch/
 // applyActionAndRender/gameover). No-ops quietly if today's challenge is a
@@ -2367,14 +2392,14 @@ function rerollDailyChallenge() {
    ============================================================ */
 const CAREER_MILESTONES_KEY = 'mehrbod_career_milestones_v1';
 const CAREER_MILESTONES = [
-  { id: 'm1', title: 'Arena Novice', desc: 'Win 5 matches in the arena', icon: '⚔️', goal: 5, reward: '+50 Bux', rewardBux: 50, rewardXP: 40, getProgress: () => (getBattleStats().wins || 0) },
-  { id: 'm2', title: 'Arena Veteran', desc: 'Win 25 matches in the arena', icon: '🛡️', goal: 25, reward: '+200 Bux', rewardBux: 200, rewardXP: 100, getProgress: () => (getBattleStats().wins || 0) },
-  { id: 'm3', title: 'Arena Legend', desc: 'Win 100 matches in the arena', icon: '👑', goal: 100, reward: '+1,000 Bux', rewardBux: 1000, rewardXP: 300, getProgress: () => (getBattleStats().wins || 0) },
-  { id: 'm4', title: 'Tower Challenger', desc: 'Conquer Trial Tower Floor 10', icon: '🗼', goal: 10, reward: '+150 Bux', rewardBux: 150, rewardXP: 80, getProgress: () => ((typeof loadTrialTowerState === 'function' ? loadTrialTowerState() : { best: 0 }).best || 0) },
-  { id: 'm5', title: 'Tower Grandmaster', desc: 'Conquer Trial Tower Floor 30', icon: '🏰', goal: 30, reward: '+500 Bux', rewardBux: 500, rewardXP: 200, getProgress: () => ((typeof loadTrialTowerState === 'function' ? loadTrialTowerState() : { best: 0 }).best || 0) },
-  { id: 'm6', title: 'Set Master', desc: 'Complete 3 full card set bonuses', icon: '🧩', goal: 3, reward: '+250 Bux', rewardBux: 250, rewardXP: 120, getProgress: () => ((typeof loadSetBonusState === 'function' ? loadSetBonusState() : { claimed: [] }).claimed || []).length },
-  { id: 'm7', title: 'Streak Champion', desc: 'Achieve a 5-win streak', icon: '🔥', goal: 5, reward: '+300 Bux', rewardBux: 300, rewardXP: 150, getProgress: () => (getBattleStats().bestStreak || 0) },
-  { id: 'm8', title: 'Prestige Pioneer', desc: 'Perform a Prestige reset', icon: '✦', goal: 1, reward: '+500 Bux', rewardBux: 500, rewardXP: 250, getProgress: () => ((typeof loadPrestigeState === 'function' ? loadPrestigeState() : { count: 0 }).count || 0) }
+  { id: 'm1', title: 'Arena Novice', desc: 'Win 5 matches in the arena', icon: '⚔️', goal: 5, reward: '+25 Bux', rewardBux: 25, rewardXP: 40, getProgress: () => (getBattleStats().wins || 0) },
+  { id: 'm2', title: 'Arena Veteran', desc: 'Win 25 matches in the arena', icon: '🛡️', goal: 25, reward: '+100 Bux', rewardBux: 100, rewardXP: 100, getProgress: () => (getBattleStats().wins || 0) },
+  { id: 'm3', title: 'Arena Legend', desc: 'Win 100 matches in the arena', icon: '👑', goal: 100, reward: '+500 Bux', rewardBux: 500, rewardXP: 300, getProgress: () => (getBattleStats().wins || 0) },
+  { id: 'm4', title: 'Tower Challenger', desc: 'Conquer Trial Tower Floor 10', icon: '🗼', goal: 10, reward: '+75 Bux', rewardBux: 75, rewardXP: 80, getProgress: () => ((typeof loadTrialTowerState === 'function' ? loadTrialTowerState() : { best: 0 }).best || 0) },
+  { id: 'm5', title: 'Tower Grandmaster', desc: 'Conquer Trial Tower Floor 30', icon: '🏰', goal: 30, reward: '+250 Bux', rewardBux: 250, rewardXP: 200, getProgress: () => ((typeof loadTrialTowerState === 'function' ? loadTrialTowerState() : { best: 0 }).best || 0) },
+  { id: 'm6', title: 'Set Master', desc: 'Complete 3 full card set bonuses', icon: '🧩', goal: 3, reward: '+125 Bux', rewardBux: 125, rewardXP: 120, getProgress: () => ((typeof loadSetBonusState === 'function' ? loadSetBonusState() : { claimed: [] }).claimed || []).length },
+  { id: 'm7', title: 'Streak Champion', desc: 'Achieve a 5-win streak', icon: '🔥', goal: 5, reward: '+150 Bux', rewardBux: 150, rewardXP: 150, getProgress: () => (getBattleStats().bestStreak || 0) },
+  { id: 'm8', title: 'Prestige Pioneer', desc: 'Perform a Prestige reset', icon: '✦', goal: 1, reward: '+250 Bux', rewardBux: 250, rewardXP: 250, getProgress: () => ((typeof loadPrestigeState === 'function' ? loadPrestigeState() : { count: 0 }).count || 0) }
 ];
 
 function loadUnlockedCareerMilestones() {
@@ -2553,18 +2578,18 @@ function unlockCareerMilestone(id) {
 }
 
 const ACHIEVEMENTS = [
-  { id: 'first_merge',     name: 'First Fusion',       desc: 'Perform your first merge.', icon: '🔗', reward: 15 },
-  { id: 'first_orange',    name: 'Peak Tier',          desc: 'Create your first Orange card.', icon: '🔶', reward: 30 },
-  { id: 'first_win',       name: 'First Blood',        desc: 'Win your first match.', icon: '🏅', reward: 20 },
-  { id: 'win_master',      name: 'Master Slayer',      desc: 'Beat the Master difficulty bot.', icon: '👑', reward: 75 },
-  { id: 'win_10',          name: 'Seasoned Duelist',   desc: 'Win 10 matches total.', icon: '⚔️', reward: 50 },
-  { id: 'win_streak_3',    name: 'On a Roll',          desc: 'Win 3 matches in a row.', icon: '🔥', reward: 40 },
-  { id: 'wager_win',       name: 'High Roller',        desc: 'Win a wagered match.', icon: '💰', reward: 25 },
-  { id: 'all_diffs',       name: 'Undisputed',         desc: 'Beat every bot difficulty at least once.', icon: '🏆', reward: 100 },
-  { id: 'full_collection', name: 'Completionist',      desc: 'Collect every card in the game.', icon: '💠', reward: 150 },
-  { id: 'bux_500',         name: 'Vault Keeper',       desc: 'Hold 500 Mehrbod Bux at once.', icon: '🏦', reward: 20 },
-  { id: 'daily_streak_3',  name: 'Creature of Habit',  desc: 'Complete the Daily Challenge 3 days in a row.', icon: '📅', reward: 30 },
-  { id: 'mega_fusion',     name: 'Mega Fusion',        desc: 'Merge 3 or more cards together in a single fusion.', icon: '💥', reward: 25 },
+  { id: 'first_merge',     name: 'First Fusion',       desc: 'Perform your first merge.', icon: '🔗', reward: 8 },
+  { id: 'first_orange',    name: 'Peak Tier',          desc: 'Create your first Orange card.', icon: '🔶', reward: 15 },
+  { id: 'first_win',       name: 'First Blood',        desc: 'Win your first match.', icon: '🏅', reward: 10 },
+  { id: 'win_master',      name: 'Master Slayer',      desc: 'Beat the Master difficulty bot.', icon: '👑', reward: 38 },
+  { id: 'win_10',          name: 'Seasoned Duelist',   desc: 'Win 10 matches total.', icon: '⚔️', reward: 25 },
+  { id: 'win_streak_3',    name: 'On a Roll',          desc: 'Win 3 matches in a row.', icon: '🔥', reward: 20 },
+  { id: 'wager_win',       name: 'High Roller',        desc: 'Win a wagered match.', icon: '💰', reward: 13 },
+  { id: 'all_diffs',       name: 'Undisputed',         desc: 'Beat every bot difficulty at least once.', icon: '🏆', reward: 50 },
+  { id: 'full_collection', name: 'Completionist',      desc: 'Collect every card in the game.', icon: '💠', reward: 75 },
+  { id: 'bux_500',         name: 'Vault Keeper',       desc: 'Hold 250 Mehrbod Bux at once.', icon: '🏦', reward: 10 },
+  { id: 'daily_streak_3',  name: 'Creature of Habit',  desc: 'Complete the Daily Challenge 3 days in a row.', icon: '📅', reward: 15 },
+  { id: 'mega_fusion',     name: 'Mega Fusion',        desc: 'Merge 3 or more cards together in a single fusion.', icon: '💥', reward: 12 },
 ];
 const ACHIEVEMENTS_KEY = 'mehrbod_achievements_v1';
 function loadUnlockedAchievements() {
@@ -2609,7 +2634,7 @@ function checkAchievements() {
   if (beaten.includes('Master')) unlockAchievement('win_master');
   if (isAllDiffsUnlocked(beaten)) unlockAchievement('all_diffs');
   if (isCollectionComplete()) unlockAchievement('full_collection');
-  if (loadBux() >= 500) unlockAchievement('bux_500');
+  if (loadBux() >= 250) unlockAchievement('bux_500');
   if ((daily.streak || 0) >= 3) unlockAchievement('daily_streak_3');
 }
 
@@ -4869,6 +4894,11 @@ document.getElementById('btn-resume-match')?.addEventListener('click', () => {
 
 document.getElementById('btn-options').addEventListener('click', () => openOptions());
 document.getElementById('btn-open-settings-menu').addEventListener('click', () => openOptions());
+document.getElementById('btn-settings-dev-unlock')?.addEventListener('click', () => {
+  if (typeof window.devUnlockAll === 'function') {
+    window.devUnlockAll();
+  }
+});
 document.getElementById('btn-options-close').addEventListener('click', () => {
   document.getElementById('options-overlay').classList.add('hidden');
   if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
@@ -7079,13 +7109,30 @@ function isCelestialThemeUnlocked() {
   return false;
 }
 
+function isBpThemeClaimed(id, tierNum) {
+  try {
+    if (localStorage.getItem(id + '_unlocked') === 'true') return true;
+    if (localStorage.getItem('theme_' + id + '_unlocked') === 'true') return true;
+    const claimedMap = JSON.parse(localStorage.getItem('mehrbod-cards-bp-claimed') || '{}');
+    if (claimedMap[`${tierNum}_premium`] || claimedMap[`${tierNum}-premium`]) return true;
+  } catch (_) {}
+  return false;
+}
+
 function themeDisplayName(t) {
+  if (!t) return 'Dark';
+  if (t.startsWith('theme_')) t = t.replace(/^theme_/, '');
   return {
     dark: 'Dark', light: 'Light', verdant: 'Verdant', pink: 'Pink', storm: 'Storm',
     aurora: 'Aurora', sovereign: 'Sovereign', flame: 'Flame', mrmoney: 'Mr Money',
     cyberneon: 'Cyber Neon', abyss: 'Abyss', magma: 'Magma', quantum: 'Quantum Flux',
     glacier: 'Glacial Frost', astral: 'Astral Void', celestial: 'Celestial Divinity',
-    prism: 'Prism Core', darkmatter: 'Prism Core'
+    prism: 'Prism Core', darkmatter: 'Prism Core',
+    chronos: 'Chronos Horizon', neon_cyberpunk: 'Hyperdrive Cyber-Grid',
+    void_singularity: 'Void Singularity', quantum_overdrive: 'Quantum Horizon',
+    solar_prominence: 'Solar Corona', prism_mythic: 'Diamond Refractor',
+    celestial_nebula: 'Celestial Nebula', abyss_kraken: 'Kraken Abyss',
+    apex_sovereign: 'Apex Sovereign Gold'
   }[t] || t;
 }
 function isCollectionComplete() {
@@ -7126,6 +7173,24 @@ Object.assign(THEME_UNLOCK_CHECK, {
   solar: () => isAllThemesUnlocked() || ownsCosmetic('theme_solar') || localStorage.getItem('theme_solar_unlocked') === 'true',
   steampunk: () => isAllThemesUnlocked() || ownsCosmetic('theme_steampunk') || localStorage.getItem('theme_steampunk_unlocked') === 'true',
   galaxy: () => isAllThemesUnlocked() || ownsCosmetic('theme_galaxy') || localStorage.getItem('theme_galaxy_unlocked') === 'true',
+  chronos: () => isAllThemesUnlocked() || ownsCosmetic('theme_chronos') || ownsCosmetic('chronos') || isBpThemeClaimed('chronos', 1),
+  theme_chronos: () => THEME_UNLOCK_CHECK.chronos(),
+  neon_cyberpunk: () => isAllThemesUnlocked() || ownsCosmetic('theme_neon_cyberpunk') || ownsCosmetic('neon_cyberpunk') || isBpThemeClaimed('neon_cyberpunk', 10),
+  theme_neon_cyberpunk: () => THEME_UNLOCK_CHECK.neon_cyberpunk(),
+  void_singularity: () => isAllThemesUnlocked() || ownsCosmetic('theme_void_singularity') || ownsCosmetic('void_singularity') || isBpThemeClaimed('void_singularity', 20),
+  theme_void_singularity: () => THEME_UNLOCK_CHECK.void_singularity(),
+  quantum_overdrive: () => isAllThemesUnlocked() || ownsCosmetic('theme_quantum_overdrive') || ownsCosmetic('quantum_overdrive') || isBpThemeClaimed('quantum_overdrive', 25),
+  theme_quantum_overdrive: () => THEME_UNLOCK_CHECK.quantum_overdrive(),
+  solar_prominence: () => isAllThemesUnlocked() || ownsCosmetic('theme_solar_prominence') || ownsCosmetic('solar_prominence') || isBpThemeClaimed('solar_prominence', 35),
+  theme_solar_prominence: () => THEME_UNLOCK_CHECK.solar_prominence(),
+  prism_mythic: () => isAllThemesUnlocked() || ownsCosmetic('theme_prism_mythic') || ownsCosmetic('prism_mythic') || isBpThemeClaimed('prism_mythic', 50),
+  theme_prism_mythic: () => THEME_UNLOCK_CHECK.prism_mythic(),
+  celestial_nebula: () => isAllThemesUnlocked() || ownsCosmetic('theme_celestial_nebula') || ownsCosmetic('celestial_nebula') || isBpThemeClaimed('celestial_nebula', 65),
+  theme_celestial_nebula: () => THEME_UNLOCK_CHECK.celestial_nebula(),
+  abyss_kraken: () => isAllThemesUnlocked() || ownsCosmetic('theme_abyss_kraken') || ownsCosmetic('abyss_kraken') || isBpThemeClaimed('abyss_kraken', 80),
+  theme_abyss_kraken: () => THEME_UNLOCK_CHECK.abyss_kraken(),
+  apex_sovereign: () => isAllThemesUnlocked() || ownsCosmetic('theme_apex_sovereign') || ownsCosmetic('apex_sovereign') || isBpThemeClaimed('apex_sovereign', 100),
+  theme_apex_sovereign: () => THEME_UNLOCK_CHECK.apex_sovereign(),
 });
 Object.assign(THEME_LOCK_MESSAGE, {
   verdant: '🔒 Beat Easy difficulty to unlock the Verdant theme!',
@@ -7150,17 +7215,30 @@ Object.assign(THEME_LOCK_MESSAGE, {
   solar: '🔒 Unlocked in Mehrbod Shop or Trial Tower!',
   steampunk: '🔒 Unlocked in Mehrbod Shop or Master Quests!',
   galaxy: '🔒 Unlocked in Mehrbod Shop or Cosmic Quests!',
+  chronos: '🔒 Unlock in Season 1 Battle Pass Tier 1!',
+  neon_cyberpunk: '🔒 Unlock in Season 1 Battle Pass Tier 10!',
+  void_singularity: '🔒 Unlock in Season 1 Battle Pass Tier 20!',
+  quantum_overdrive: '🔒 Unlock in Season 1 Battle Pass Tier 25!',
+  solar_prominence: '🔒 Unlock in Season 1 Battle Pass Tier 35!',
+  prism_mythic: '🔒 Unlock in Season 1 Battle Pass Tier 50!',
+  celestial_nebula: '🔒 Unlock in Season 1 Battle Pass Tier 65!',
+  abyss_kraken: '🔒 Unlock in Season 1 Battle Pass Tier 80!',
+  apex_sovereign: '🔒 Unlock in Season 1 Battle Pass Tier 100!',
 });
 const ALL_THEME_NAMES = [
   'dark', 'light', 'verdant', 'pink', 'flame', 'aurora', 'sovereign', 'storm',
   'mrmoney', 'cyberneon', 'abyss', 'magma', 'quantum', 'glacier', 'astral',
-  'celestial', 'prism', 'darkmatter', 'valentine', 'sakura', 'solar', 'steampunk', 'galaxy'
+  'celestial', 'prism', 'darkmatter', 'valentine', 'sakura', 'solar', 'steampunk', 'galaxy',
+  'chronos', 'neon_cyberpunk', 'void_singularity', 'quantum_overdrive', 'solar_prominence',
+  'prism_mythic', 'celestial_nebula', 'abyss_kraken', 'apex_sovereign'
 ];
 function isThemeUnlocked(theme) {
+  if (!theme) return false;
+  if (theme.startsWith('theme_')) theme = theme.replace(/^theme_/, '');
   if (theme === 'collector' || theme === 'darkmatter') theme = 'prism';
   if (typeof isAllThemesUnlocked === 'function' && isAllThemesUnlocked()) return true;
-  if (!theme || theme === 'dark' || theme === 'light') return true;
-  if (THEME_UNLOCK_CHECK[theme]) return THEME_UNLOCK_CHECK[theme]();
+  if (theme === 'dark' || theme === 'light') return true;
+  if (THEME_UNLOCK_CHECK[theme] && THEME_UNLOCK_CHECK[theme]()) return true;
   if (typeof ownsCosmetic === 'function') {
     if (ownsCosmetic('theme_' + theme) || ownsCosmetic(theme)) return true;
   }
@@ -7170,6 +7248,8 @@ function isThemeUnlocked(theme) {
 function loadTheme() {
   try {
     let saved = localStorage.getItem('mehrbod-cards-theme');
+    if (!saved) return 'dark';
+    if (saved.startsWith('theme_')) saved = saved.replace(/^theme_/, '');
     if (saved === 'collector' || saved === 'darkmatter') {
       try {
         if (localStorage.getItem('theme_collector_unlocked') === 'true' || localStorage.getItem('theme_darkmatter_unlocked') === 'true') {
@@ -7179,16 +7259,16 @@ function loadTheme() {
       } catch (e) {}
       saved = 'prism';
     }
-    if (saved && THEME_UNLOCK_CHECK[saved] && !THEME_UNLOCK_CHECK[saved]()) return 'dark';
-    if (saved && THEME_UNLOCK_CHECK[saved]) return saved;
+    if (isThemeUnlocked(saved)) return saved;
   } catch (e) {}
   return 'dark';
 }
 let currentTheme = loadTheme();
 function applyTheme(theme) {
+  if (!theme) theme = 'dark';
+  if (theme.startsWith('theme_')) theme = theme.replace(/^theme_/, '');
   if (theme === 'collector' || theme === 'darkmatter') theme = 'prism';
-  const check = THEME_UNLOCK_CHECK[theme];
-  if (!check || !check()) {
+  if (!isThemeUnlocked(theme)) {
     showToast(THEME_LOCK_MESSAGE[theme] || "This theme isn't unlocked yet.");
     return;
   }
@@ -7206,11 +7286,8 @@ function applyTheme(theme) {
   const container = document.getElementById('theme-bg-container');
   if (container) {
     container.setAttribute('data-theme', theme);
-    if (window.THEME_TEMPLATES && window.THEME_TEMPLATES[theme]) {
-      container.innerHTML = window.THEME_TEMPLATES[theme];
-    } else {
-      container.innerHTML = '';
-    }
+    const templateHtml = (window.THEME_TEMPLATES && (window.THEME_TEMPLATES[theme] || window.THEME_TEMPLATES['theme_' + theme])) || '';
+    container.innerHTML = templateHtml;
   }
 
   try { localStorage.setItem('mehrbod-cards-theme', theme); } catch (e) {}
@@ -7231,11 +7308,10 @@ function applyTheme(theme) {
 }
 function updateThemeButtons() {
   const beaten = loadBeatenDifficulties();
-  ALL_THEME_NAMES.forEach(t => {
-    const btn = document.getElementById('theme-btn-' + t);
-    if (!btn) return;
+  document.querySelectorAll('.theme-btn[data-theme]').forEach(btn => {
+    const t = btn.dataset.theme;
     btn.classList.toggle('active', currentTheme === t);
-    if (THEME_UNLOCK_CHECK[t]) btn.classList.toggle('locked', !THEME_UNLOCK_CHECK[t]());
+    btn.classList.toggle('locked', !isThemeUnlocked(t));
   });
   QUEST_DEFS.forEach(q => {
     const badge = document.getElementById(q.badgeId);
@@ -7334,11 +7410,28 @@ const THEME_DATA_REGISTRY = [
   { id: 'celestial', name: 'Celestial', emblem: '☀️', rarity: 'TRIAL TOWER', rarityClass: 'mythic', desc: 'Radiant golden divine solar flares from the throne of the stars.', unlockHint: 'Unlocked by conquering Floor 50 in the Trial Tower', primary: '#fde047', panel: '#593c06', bg: '#261a04' },
   { id: 'prism', name: 'Prism Core', emblem: '💎', rarity: 'COMPLETION', rarityClass: 'mythic', desc: 'Living diamond crystal refractors with real-time chromatic spectrum dispersion, multi-faceted obsidian glass card framing, and celestial harmonic caustics.', unlockHint: 'Unlocked when 100% of all cards, spells, and chips are collected', primary: '#00f0ff', panel: '#040d1a', bg: '#020610' },
   { id: 'valentine', name: 'Valentine', emblem: '💘', rarity: 'SECRET', rarityClass: 'exotic', desc: 'Sweetheart confectionery theme filled with romantic rose petals.', unlockHint: 'Unlocked with secret code: LOVE', primary: '#fb7185', panel: '#881337', bg: '#4c0519' },
+  { id: 'chronos', name: 'Chronos Horizon', emblem: '⏳', rarity: 'SEASON 1', rarityClass: 'mythic', desc: 'Time-warping clockwork theme with golden gear cogs, temporal void waves, and stardust pendulum pulses.', unlockHint: 'Unlocked in Season 1 Battle Pass Tier 1', primary: '#f59e0b', panel: '#1e1535', bg: '#0d091e' },
+  { id: 'neon_cyberpunk', name: 'Hyperdrive Cyber-Grid', emblem: '🌆', rarity: 'SEASON 1', rarityClass: 'mythic', desc: 'Vaporwave synthwave grid with retro horizon rays, neon cyan pulses, and high-speed particle streams.', unlockHint: 'Unlocked in Season 1 Battle Pass Tier 10', primary: '#00f0ff', panel: '#17092c', bg: '#090314' },
+  { id: 'void_singularity', name: 'Void Singularity', emblem: '🌌', rarity: 'SEASON 1', rarityClass: 'mythic', desc: 'Deep cosmic event horizon with swirling purple accretion disks and hawking radiation.', unlockHint: 'Unlocked in Season 1 Battle Pass Tier 20', primary: '#a855f7', panel: '#0c021a', bg: '#05010a' },
+  { id: 'quantum_overdrive', name: 'Quantum Horizon', emblem: '⚛️', rarity: 'SEASON 1 T25', rarityClass: 'mythic', desc: 'Glowing subatomic particle lattice with teal energy pulses.', unlockHint: 'Unlocked at Season 1 Battle Pass Tier 25', primary: '#14b8a6', panel: '#042f2e', bg: '#021e1d' },
+  { id: 'solar_prominence', name: 'Solar Corona', emblem: '☀️', rarity: 'SEASON 1 T35', rarityClass: 'mythic', desc: 'Molten solar flare arcs with golden coronal ray bursts.', unlockHint: 'Unlocked at Season 1 Battle Pass Tier 35', primary: '#f59e0b', panel: '#451a03', bg: '#290e02' },
+  { id: 'prism_mythic', name: 'Diamond Refractor', emblem: '💎', rarity: 'SEASON 1 T50', rarityClass: 'mythic', desc: 'Radiant crystal spectrum refraction with celestial harmonic caustics.', unlockHint: 'Unlocked at Season 1 Battle Pass Tier 50', primary: '#38bdf8', panel: '#0c4a6e', bg: '#032030' },
+  { id: 'celestial_nebula', name: 'Celestial Nebula', emblem: '🌠', rarity: 'SEASON 1 T65', rarityClass: 'mythic', desc: 'Ethereal stardust clouds with swirling interstellar nebulae.', unlockHint: 'Unlocked at Season 1 Battle Pass Tier 65', primary: '#c084fc', panel: '#2e1065', bg: '#170736' },
+  { id: 'abyss_kraken', name: 'Kraken Abyss', emblem: '庫', rarity: 'SEASON 1 T80', rarityClass: 'mythic', desc: 'Deep ocean trenches with glowing bioluminescent kraken pulse waves.', unlockHint: 'Unlocked at Season 1 Battle Pass Tier 80', primary: '#06b6d4', panel: '#083344', bg: '#021824' },
+  { id: 'apex_sovereign', name: 'Apex Sovereign Gold', emblem: '👑', rarity: 'SEASON 1 T100', rarityClass: 'mythic', desc: 'Imperial 24k gold throne room with royal crown flares and golden aura.', unlockHint: 'Unlocked at Season 1 Battle Pass Tier 100', primary: '#eab308', panel: '#451a03', bg: '#230a01' },
 ];
 
 const SLEEVE_DATA_REGISTRY = [
   { id: 'none', name: 'Standard Sleek', rarity: 'COMMON', rarityClass: 'rare', desc: 'Standard clean titanium card border.', cost: 0, sleeveClass: 'sleeve-none' },
   { id: 'sleeve_holo', name: 'Holographic Sleeves', rarity: 'RARE', rarityClass: 'rare', desc: 'Dynamic shimmering rainbow iridescent sheen that glides across cards.', cost: 400, sleeveClass: 'sleeve-holo' },
+  { id: 'sleeve_chronos', name: 'Chronos Temporal Weave', rarity: 'MYTHIC', rarityClass: 'mythic', desc: 'Animated golden gear dial sleeve with shifting temporal rings.', cost: 0, sleeveClass: 'sleeve-chronos' },
+  { id: 'sleeve_hyperdrive', name: 'Neon Grid Holo', rarity: 'EPIC', rarityClass: 'epic', desc: 'Glowing magenta and cyan holographic grid sleeve with laser trace edges.', cost: 0, sleeveClass: 'sleeve-hyperdrive' },
+  { id: 'sleeve_singularity', name: 'Event Horizon Void', rarity: 'MYTHIC', rarityClass: 'mythic', desc: 'Swirling black hole sleeve with pulsing violet event horizon glow.', cost: 0, sleeveClass: 'sleeve-singularity' },
+  { id: 'sleeve_quantum', name: 'Quantum Grid Sleeves', rarity: 'MYTHIC', rarityClass: 'mythic', desc: 'Subatomic particle trace frames with glowing teal circuit paths.', cost: 0, sleeveClass: 'sleeve-quantum' },
+  { id: 'sleeve_solar', name: 'Solar Prominence Sleeves', rarity: 'MYTHIC', rarityClass: 'mythic', desc: 'Coronal flare flame borders with golden solar ray bursts.', cost: 0, sleeveClass: 'sleeve-solar' },
+  { id: 'sleeve_nebula', name: 'Celestial Starfall Sleeves', rarity: 'MYTHIC', rarityClass: 'mythic', desc: 'Starlight nebula frames with drifting cosmic glitter.', cost: 0, sleeveClass: 'sleeve-nebula' },
+  { id: 'sleeve_kraken', name: 'Bioluminescent Kraken Sleeves', rarity: 'MYTHIC', rarityClass: 'mythic', desc: 'Abyssal deep sea frames with glowing kraken tentacles.', cost: 0, sleeveClass: 'sleeve-kraken' },
+  { id: 'sleeve_apex_gold', name: '24k Gold Sovereign Sleeves', rarity: 'MYTHIC', rarityClass: 'mythic', desc: 'Imperial gilded 24k gold borders with crown crest cornering.', cost: 0, sleeveClass: 'sleeve-apex-gold' },
   { id: 'sleeve_gold', name: 'Gold Sleeves', rarity: 'EPIC', rarityClass: 'epic', desc: 'Gilded 24k gold card borders with a warm pulsing royal glow.', cost: 600, sleeveClass: 'sleeve-gold' },
   { id: 'sleeve_crimson', name: 'Crimson Core Sleeves', rarity: 'RARE', rarityClass: 'rare', desc: 'High-intensity ruby red glowing combat edges for cards.', cost: 550, sleeveClass: 'sleeve-crimson' },
   { id: 'sleeve_prismatic', name: 'Prismatic Sleeves', rarity: 'LEGENDARY', rarityClass: 'legendary', desc: 'A continuously shifting spectrum frame rotating through chromatic colors.', cost: 800, sleeveClass: 'sleeve-prismatic' },
@@ -7352,6 +7445,13 @@ const SLEEVE_DATA_REGISTRY = [
 
 const VICTORY_DATA_REGISTRY = [
   { id: 'default_confetti', name: 'Classic Victory Confetti', rarity: 'STANDARD', rarityClass: 'rare', glyph: '🎊', desc: 'Festive multicolored confetti burst upon securing victory.', cost: 0, animType: 'confetti' },
+  { id: 'victoryanim_chronos_blast', name: 'Temporal Time Stop', rarity: 'MYTHIC', rarityClass: 'mythic', glyph: '⏳', desc: 'Time freezes instantly and erupts into golden clockwork gears upon match victory.', cost: 0, animType: 'chronos' },
+  { id: 'victoryanim_hyperdrive_warp', name: 'Hyperdrive Warp Speed', rarity: 'LEGENDARY', rarityClass: 'legendary', glyph: '🚀', desc: 'Warp speed star lines engulf the victory banner in a blinding hyperspace burst.', cost: 0, animType: 'warp' },
+  { id: 'victoryanim_quantum_collapse', name: 'Quantum Collapse Finisher', rarity: 'MYTHIC', rarityClass: 'mythic', glyph: '⚛️', desc: 'Subatomic particle implosion collapsing into a teal shockwave burst.', cost: 0, animType: 'quantum' },
+  { id: 'victoryanim_solar_flare', name: 'Solar Flare Eruption', rarity: 'MYTHIC', rarityClass: 'mythic', glyph: '☀️', desc: 'A blinding golden coronal flare eruption engulfing the victory arena.', cost: 0, animType: 'solar' },
+  { id: 'victoryanim_starlight_shockwave', name: 'Starlight Shockwave Finisher', rarity: 'MYTHIC', rarityClass: 'mythic', glyph: '🌠', desc: 'A celestial stardust supernova shockwave washing across the screen.', cost: 0, animType: 'starlight' },
+  { id: 'victoryanim_kraken_strike', name: 'Kraken Void Strike', rarity: 'MYTHIC', rarityClass: 'mythic', glyph: '🦑', desc: 'Bioluminescent abyssal kraken tentacles slamming down on victory.', cost: 0, animType: 'kraken' },
+  { id: 'victoryanim_apex_beam', name: 'Apex Sovereign Laser Blast', rarity: 'MYTHIC', rarityClass: 'mythic', glyph: '👑', desc: 'Imperial golden satellite laser beam obliterating the battlefield in gold.', cost: 0, animType: 'apex' },
   { id: 'victoryanim_meteor', name: 'Meteor Shower Victory', rarity: 'MYTHIC', rarityClass: 'mythic', glyph: '☄️', desc: 'A blazing storm of meteors streaks down and erupts in explosive shockwaves when you win!', cost: 500, animType: 'meteor' },
   { id: 'effect_confetti', name: 'Confetti+ Celebration', rarity: 'RARE', rarityClass: 'rare', glyph: '🎉', desc: 'Denser, longer-lasting celebration confetti with enhanced gravity physics.', cost: 250, animType: 'confetti_plus' },
   { id: 'effect_victoryburst', name: 'Victory Starburst', rarity: 'EPIC', rarityClass: 'epic', glyph: '🌟', desc: 'A blazing central starburst explosion with shimmering golden shockwave rings.', cost: 350, animType: 'burst' },
@@ -7452,6 +7552,13 @@ function startVictoryPreviewCanvas(effectIdOrType) {
   else if (raw.includes('firework')) mode = 'fireworks';
   else if (raw.includes('starburst') || (raw.includes('burst') && !raw.includes('plus'))) mode = 'starburst';
   else if (raw.includes('meteor')) mode = 'meteor';
+  else if (raw.includes('quantum') || raw.includes('collapse')) mode = 'quantum';
+  else if (raw.includes('solar') || raw.includes('corona')) mode = 'solar';
+  else if (raw.includes('starlight') || raw.includes('starfall') || raw.includes('nebula')) mode = 'starlight';
+  else if (raw.includes('kraken')) mode = 'kraken';
+  else if (raw.includes('apex') || raw.includes('beam')) mode = 'apex';
+  else if (raw.includes('chronos') || raw.includes('time')) mode = 'chronos';
+  else if (raw.includes('warp') || raw.includes('hyperdrive')) mode = 'warp';
   else if (raw.includes('plus') || raw.includes('effect_confetti')) mode = 'confetti_plus';
 
   const particles = [];
@@ -7459,7 +7566,78 @@ function startVictoryPreviewCanvas(effectIdOrType) {
   const shockwaves = [];
   let timer = 0;
 
-  if (mode === 'meteor') {
+  if (mode === 'quantum') {
+    for (let i = 0; i < 40; i++) {
+      particles.push({
+        angle: (i / 40) * Math.PI * 2,
+        dist: 10 + Math.random() * 80,
+        speed: 1.2 + Math.random() * 2,
+        color: ['#14b8a6', '#2dd4bf', '#a855f7', '#ffffff'][i % 4],
+        size: 2 + Math.random() * 2.5
+      });
+    }
+  } else if (mode === 'solar') {
+    for (let i = 0; i < 45; i++) {
+      particles.push({
+        angle: Math.random() * Math.PI * 2,
+        speed: 2 + Math.random() * 3.5,
+        color: ['#f59e0b', '#fbbf24', '#ef4444', '#ffffff'][i % 4],
+        size: 2.5 + Math.random() * 3
+      });
+    }
+  } else if (mode === 'starlight') {
+    for (let i = 0; i < 50; i++) {
+      particles.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 2,
+        vy: (Math.random() - 0.5) * 2,
+        color: ['#c084fc', '#e879f9', '#38bdf8', '#ffffff'][i % 4],
+        size: 1.5 + Math.random() * 2.5
+      });
+    }
+  } else if (mode === 'kraken') {
+    for (let i = 0; i < 40; i++) {
+      particles.push({
+        x: Math.random() * w,
+        y: h + 10,
+        vy: -(1.5 + Math.random() * 3),
+        vx: Math.sin(i) * 1.5,
+        color: ['#06b6d4', '#22d3ee', '#38bdf8', '#ffffff'][i % 4],
+        size: 2.5 + Math.random() * 3.5
+      });
+    }
+  } else if (mode === 'apex') {
+    for (let i = 0; i < 50; i++) {
+      particles.push({
+        x: w / 2 + (Math.random() - 0.5) * 30,
+        y: -10,
+        vy: 6 + Math.random() * 4,
+        color: ['#eab308', '#facc15', '#fef08a', '#ffffff'][i % 4],
+        size: 3 + Math.random() * 3
+      });
+    }
+  } else if (mode === 'chronos') {
+    for (let i = 0; i < 35; i++) {
+      particles.push({
+        angle: (i / 35) * Math.PI * 2,
+        dist: 20 + (i % 3) * 25,
+        speed: 0.5 + Math.random() * 0.8,
+        color: ['#f59e0b', '#d97706', '#fbbf24', '#ffffff'][i % 4],
+        size: 2.5 + Math.random() * 3
+      });
+    }
+  } else if (mode === 'warp') {
+    for (let i = 0; i < 45; i++) {
+      particles.push({
+        angle: Math.random() * Math.PI * 2,
+        dist: Math.random() * 10,
+        speed: 3 + Math.random() * 5,
+        color: ['#00f0ff', '#f43f5e', '#a855f7', '#ffffff'][i % 4],
+        size: 1.5 + Math.random() * 2.5
+      });
+    }
+  } else if (mode === 'meteor') {
     for (let i = 0; i < 5; i++) {
       particles.push({
         x: Math.random() * w * 0.9 - w * 0.1,
@@ -8252,17 +8430,42 @@ function inspectLockerItem(item, animate = false) {
     if (showcaseTitle) showcaseTitle.style.display = 'none';
     if (showcaseStats) showcaseStats.style.display = 'none';
 
-    const isCurrent = currentTheme === item.id;
+    const rawId = (item.id || '').replace(/^theme_/, '');
+    const isCurrent = currentTheme === rawId || currentTheme === item.id;
     const isUnlocked = isThemeUnlocked(item.id);
 
     // Get live animated background effects for this theme if available in templates or DOM
-    const bgEffectsHtml = (window.THEME_TEMPLATES && window.THEME_TEMPLATES[item.id])
-      ? window.THEME_TEMPLATES[item.id]
-      : (document.getElementById('theme-' + item.id + '-bg') ? document.getElementById('theme-' + item.id + '-bg').innerHTML : '');
+    const bgEffectsHtml = (window.THEME_TEMPLATES && (window.THEME_TEMPLATES[rawId] || window.THEME_TEMPLATES[item.id] || window.THEME_TEMPLATES['theme_' + rawId]))
+      ? (window.THEME_TEMPLATES[rawId] || window.THEME_TEMPLATES[item.id] || window.THEME_TEMPLATES['theme_' + rawId])
+      : (document.getElementById('theme-' + rawId + '-bg') ? document.getElementById('theme-' + rawId + '-bg').innerHTML : '');
+
+    const isApex = rawId === 'apex_sovereign' || rawId === 'apex' || item.id === 'theme_apex_sovereign';
+    const apexAuraHtml = isApex ? `
+      <div class="apex-persistent-aura" aria-hidden="true" style="inset: -10px;">
+        <div class="apex-aura-glow"></div>
+        <div class="apex-aura-corona"></div>
+        <div class="apex-aura-particles">
+          <span class="apex-p p1">✦</span><span class="apex-p p2">⭐</span><span class="apex-p p3">✨</span>
+          <span class="apex-p p4">👑</span><span class="apex-p p5">✦</span><span class="apex-p p6">💎</span>
+        </div>
+      </div>
+      <div class="apex-sovereign-explosion-3d" aria-hidden="true">
+        <div class="apex-exp-ring r1"></div>
+        <div class="apex-exp-ring r2"></div>
+        <div class="apex-exp-shard-cluster">
+          <span class="apex-shard s1"></span><span class="apex-shard s2"></span><span class="apex-shard s3"></span><span class="apex-shard s4"></span>
+        </div>
+      </div>
+    ` : '';
 
     showcaseStage.innerHTML = `
-      <div class="showcase-theme-canvas theme-${item.id}" style="background: ${item.bg}; border-color: ${item.primary}; box-shadow: 0 16px 40px ${item.primary}40;">
+      <div class="showcase-theme-canvas theme-${rawId} ${isApex ? 'bp-apex-tier100-card' : ''}" style="background: ${item.bg}; border-color: ${item.primary}; box-shadow: 0 16px 40px ${item.primary}40;">
+        ${apexAuraHtml}
         <div class="showcase-theme-bg-layer">${bgEffectsHtml}</div>
+        <div class="showcase-theme-badge">
+          <span class="showcase-theme-badge-emblem">${item.emblem || '🎨'}</span>
+          <span class="showcase-theme-badge-title" style="color:${item.primary}">${item.name}</span>
+        </div>
       </div>`;
 
     if (showcaseDesc) {
@@ -8285,16 +8488,27 @@ function inspectLockerItem(item, animate = false) {
         equipBtn.textContent = 'EQUIP THEME';
         equipBtn.className = 'locker-action-btn primary';
         equipBtn.onclick = () => {
-          applyTheme(item.id);
+          applyTheme(rawId);
           renderCollectionScreen(currentLockerTopTab);
           inspectLockerItem({ ...item, equipped: true });
         };
       } else {
-        equipBtn.textContent = '🔒 LOCKED THEME';
-        equipBtn.className = 'locker-action-btn secondary';
-        equipBtn.onclick = () => {
-          if (typeof Sound !== 'undefined' && Sound.error) Sound.error();
-        };
+        const isBP = !item.cost || (item.unlockHint && item.unlockHint.includes('Battle Pass')) || (item.tag && item.tag.includes('SEASON'));
+        if (isBP) {
+          equipBtn.textContent = '⚡ UNLOCK IN BATTLE PASS';
+          equipBtn.className = 'locker-action-btn primary';
+          equipBtn.onclick = () => {
+            closeCollectionBook();
+            const btnBp = document.getElementById('btn-open-battlepass');
+            if (btnBp) btnBp.click();
+          };
+        } else {
+          equipBtn.textContent = '🔒 LOCKED THEME';
+          equipBtn.className = 'locker-action-btn secondary';
+          equipBtn.onclick = () => {
+            if (typeof Sound !== 'undefined' && Sound.error) Sound.error();
+          };
+        }
       }
     }
 
@@ -8320,7 +8534,7 @@ function inspectLockerItem(item, animate = false) {
     if (showcaseDesc) {
       showcaseDesc.innerHTML = `
         <div style="margin-bottom:6px;">${item.desc}</div>
-        <div style="font-weight:800; color:#38bdf8;">✦ Cost: ${item.cost ? `${item.cost} Bux in Shop` : 'Default Free'}</div>
+        <div style="font-weight:800; color:#38bdf8;">✦ unlock: ${!item.cost ? 'Unlocked in Season 1 Battle Pass' : `${item.cost} Bux in Shop`}</div>
       `;
     }
 
@@ -8342,12 +8556,24 @@ function inspectLockerItem(item, animate = false) {
           inspectLockerItem({ ...item, equipped: true });
         };
       } else {
-        equipBtn.textContent = `🛒 UNLOCK (${item.cost} BUX)`;
-        equipBtn.className = 'locker-action-btn secondary';
-        equipBtn.onclick = () => {
-          const btnShop = document.getElementById('btn-shop');
-          if (btnShop) btnShop.click();
-        };
+        const isBP = !item.cost || (item.tag && item.tag.includes('SEASON'));
+        if (isBP) {
+          equipBtn.textContent = '⚡ UNLOCK IN BATTLE PASS';
+          equipBtn.className = 'locker-action-btn primary';
+          equipBtn.onclick = () => {
+            closeCollectionBook();
+            const btnBp = document.getElementById('btn-open-battlepass');
+            if (btnBp) btnBp.click();
+          };
+        } else {
+          equipBtn.textContent = `🛒 UNLOCK (${item.cost} BUX)`;
+          equipBtn.className = 'locker-action-btn secondary';
+          equipBtn.onclick = () => {
+            closeCollectionBook();
+            const btnShop = document.getElementById('btn-shop');
+            if (btnShop) btnShop.click();
+          };
+        }
       }
     }
 
@@ -8371,7 +8597,7 @@ function inspectLockerItem(item, animate = false) {
     if (showcaseDesc) {
       showcaseDesc.innerHTML = `
         <div style="margin-bottom:6px;">${item.desc}</div>
-        <div style="font-weight:800; color:#facc15;">✦ Celebration: Triggers with sound upon securing match victory.</div>
+        <div style="font-weight:800; color:#facc15;">✦ Celebration: ${!item.cost ? 'Unlocked in Season 1 Battle Pass' : 'Triggers with sound upon securing match victory.'}</div>
       `;
     }
 
@@ -8406,12 +8632,24 @@ function inspectLockerItem(item, animate = false) {
           inspectLockerItem({ ...item, equipped: true });
         };
       } else {
-        equipBtn.textContent = `🛒 UNLOCK (${item.cost} BUX)`;
-        equipBtn.className = 'locker-action-btn secondary';
-        equipBtn.onclick = () => {
-          const btnShop = document.getElementById('btn-shop');
-          if (btnShop) btnShop.click();
-        };
+        const isBP = !item.cost || (item.tag && item.tag.includes('SEASON'));
+        if (isBP) {
+          equipBtn.textContent = '⚡ UNLOCK IN BATTLE PASS';
+          equipBtn.className = 'locker-action-btn primary';
+          equipBtn.onclick = () => {
+            closeCollectionBook();
+            const btnBp = document.getElementById('btn-open-battlepass');
+            if (btnBp) btnBp.click();
+          };
+        } else {
+          equipBtn.textContent = `🛒 UNLOCK (${item.cost} BUX)`;
+          equipBtn.className = 'locker-action-btn secondary';
+          equipBtn.onclick = () => {
+            closeCollectionBook();
+            const btnShop = document.getElementById('btn-shop');
+            if (btnShop) btnShop.click();
+          };
+        }
       }
     }
   }
@@ -9441,8 +9679,189 @@ document.getElementById('btn-copy-code').addEventListener('click', async () => {
 });
 
 // ---- Patch notes --------------------------------------------------------
-const CURRENT_VERSION = '7.65';
+const CURRENT_VERSION = '7.85';
 const PATCH_NOTES = [
+  {
+    version: '7.85',
+    date: '2026-10-03',
+    title: '50% Global Economy Rebalance (Costs Slashed & Rewards Rebalanced)',
+    notes: [
+      "50% SLASH TO ALL SHOP & STORE PRICES: Every item across the Mehrbod Shop (themes, card sleeves, victory finisher animations, visual celebration effects), individual card purchases, sized card packs, daily rerolls, and the Season 1 Battle Pass premium unlock now costs 50% less Bux.",
+      "50% REDUCTION IN BUX GAINS & REWARDS: In-game Bux payouts across daily bounties, daily login streaks, battle pass tiers, career milestones, achievements, level-up bonuses, arena rank promotions, story mode chapters, weekly vault tiers, trial tower floors, prestige payouts, and secret redeem codes have been balanced with a 50% adjustment to maintain a healthy and rewarding economy."
+    ],
+  },
+  {
+    version: '7.84',
+    date: '2026-10-03',
+    title: 'Apex Sovereign 3D Explosion & Aura, Title Bounce & Dev Menu Fix',
+    notes: [
+      "TIER 100 APEX SOVEREIGN 3D EXPLOSION & AURA: Implemented high-fidelity 3D explosion rings and persistent orbiting ambient particle auras (gold crowns, stars, and diamond runes) around the Tier 100 Apex Sovereign Battle Pass card and Locker preview.",
+      "TITLE LETTER BOUNCE RESTORED: Fixed the interactive physical bounce animation and vibrant gradient glow on the main menu 'MEHRBOD CARDS' title letters across all pointer, touch, and click events.",
+      "DEV TERMINAL 'M' SPAM TRIGGER RESTORED: Fixed the secret classified developer terminal activation — spamming the 'M' letter in the title or pressing 'M' 5 times from any menu reliably opens the Developer Terminal."
+    ],
+  },
+  {
+    version: '7.83',
+    date: '2026-10-03',
+    title: 'Universal Card 3D Parallax, Specular Glare, Theme Parallax & Tier Celebration',
+    notes: [
+      "UNIVERSAL CARD 3D PARALLAX & GLARE: Cards across all menus (Deckbuilder, Collection, Shop, Fusion/Merge, Bounties, Milestones) and in active matches (Board slots, Player hand, Spells & Chips) now feature tactile 3D mouse-follow parallax tilt and dynamic holographic specular glare reflections that track the cursor in real time.",
+      "3D BATTLE PASS THEMES MULTI-PLANE PARALLAX: All 9 Season 1 Battle Pass themes now feature reactive multi-plane parallax depth. Moving the cursor tilts the 3D perspective camera and shifts foreground geometries, midground structures, and deep void backgrounds independently.",
+      "DYNAMIC SPECULAR HIGHLIGHT: Battle Pass tier cards now feature real-time specular highlights that trace across card surfaces to simulate metallic, foil, and glass reflections.",
+      "NEW TIER REACHED CELEBRATION ANIMATION: Reaching a new Battle Pass tier triggers a celebration animation featuring a golden burst shockwave ring, radiant box-shadow glow pulse, and a '✨ NEW UNLOCK!' beacon badge."
+    ],
+  },
+  {
+    version: '7.82',
+    date: '2026-10-03',
+    title: 'Battle Pass Mouse-Follow 3D Parallax & Depth Layers',
+    notes: [
+      "MOUSE-FOLLOW 3D PARALLAX DEPTH: Implemented a responsive 3D mouse-follow parallax tilt effect across all Battle Pass tier cards and columns.",
+      "DYNAMIC LAYER DISPLACEMENT: Card icons, tags, titles, and buttons shift dynamically along individual Z-plane vectors as the cursor moves over them, emphasizing depth, perspective, and tactile feel as cards scroll into view."
+    ],
+  },
+  {
+    version: '7.81',
+    date: '2026-10-03',
+    title: 'Prism Extended Symphonic Opus & Battle Pass 3D/2.5D Themes',
+    notes: [
+      "PRISM CORE EXTENDED OPUS: Expanded the Prism Core and Diamond Refractor musical soundscape into a sprawling 32-chord multi-movement crystalline symphony spanning nearly 3 minutes of evolving Lydian harmonies, cascading arpeggios, glass bell overtones, and sub-bass resonance before seamlessly looping.",
+      "BATTLE PASS 3D & 2.5D THEMES: Fully fleshed out all 9 Season 1 Battle Pass themes (Chronos Horizon, Hyperdrive Cyber-Grid, Void Singularity, Quantum Horizon, Solar Corona, Diamond Refractor, Celestial Nebula, Kraken Abyss, Apex Sovereign Gold) as fully playable, immersive 3D/2.5D experiences with custom perspective layers, revolving 3D artifacts, animated depth particles, and matching live locker previews.",
+      "DIRECT THEME SELECTION & USABILITY: Battle Pass themes are now selectable from both the in-game Theme Picker modal and the Collection Book/Locker, preventing themes from defaulting back to dark mode."
+    ],
+  },
+  {
+    version: '7.80',
+    date: '2026-10-03',
+    title: 'Claim All Breathing Effect, Subtle Vibration Noise, Dev Unlock & PWA White Bar Fix',
+    notes: [
+      "CLAIM ALL BREATHING ANIMATION: The #bp-claim-all button now pulses with a subtle, fluid breathing animation (scale 1.0 to 1.05) whenever unclaimed rewards are ready in the Battle Pass.",
+      "SUBTLE VIBRATION NOISE: Removed previous loud musical stingers and guitar riffs from claim-all, replacing with a gentle low-frequency dual-pulse tactile vibration noise.",
+      "DEV UNLOCK ALL FIX: Clicking the dev unlock button instantly unlocks 100% of all cards, chips, spells, difficulty modes, all themes, all cosmetics, activates the Premium Battle Pass, and grants Max Tier 100 with all 100 tiers available to view or claim.",
+      "PWA HOME SCREEN WHITE BAR FIX: Added a dedicated top safe-area dark notch guard (#pwa-top-safe-guard), dark color-scheme meta tags for light and dark appearance, overscroll-behavior locks, and standalone display background enforcement to permanently eliminate the white top bar on mobile home screen web apps."
+    ],
+  },
+  {
+    version: '7.79',
+    date: '2026-10-03',
+    title: 'Claim All Breathing Animation & Subtle Vibration Audio',
+    notes: [
+      "CLAIM ALL BREATHING EFFECT: The #bp-claim-all button now pulses with a subtle breathing effect (scale 1.0 to 1.05) whenever unclaimed rewards are available in the Battle Pass.",
+      "SUBTLE VIBRATION NOISE: Replaced the claim audio with a subtle low-frequency haptic vibration noise and device vibration pulse.",
+      "COMPLETE DEV UNLOCK: Fixed the Classified Developer Terminal's unlock all features to fully unlock all cards, cosmetics, premium battle pass, max tier 100, and claim states."
+    ],
+  },
+  {
+    version: '7.78',
+    date: '2026-10-03',
+    title: 'PWA Full Web App Standalone Mode & Dev Unlock All Battle Pass',
+    notes: [
+      "DEV UNLOCK ALL BATTLE PASS: Clicking unlock all in the Classified Developer Terminal now automatically unlocks the Premium Battle Pass and advances XP to Max Tier 100.",
+      "PWA STANDALONE & WHITE TOP BAR FIX: Configured standalone display mode, black-translucent status bar style, and viewport-fit=cover safe-area padding to eliminate the white top bar when launched from the home screen."
+    ],
+  },
+  {
+    version: '7.77',
+    date: '2026-10-03',
+    title: 'Shop Filter & Locker Battle Pass Direct Redirect',
+    notes: [
+      "EXCLUSIVE BATTLE PASS COSMETICS IN SHOP: Excluded all Season 1 Battle Pass themes, sleeves, and victory anims from appearing in the daily rotating Cosmetics Shop.",
+      "DIRECT BATTLE PASS REDIRECTION: Updated the Locker inspector for all locked Battle Pass items so clicking '⚡ UNLOCK IN BATTLE PASS' directly closes the Locker and opens the Battle Pass overlay."
+    ],
+  },
+  {
+    version: '7.76',
+    date: '2026-10-03',
+    title: 'Unique Cosmetic Previews & Finisher Animations',
+    notes: [
+      "EXCLUSIVE SLEEVE STYLES: Created 8 unique sleeve classes (.sleeve-chronos, .sleeve-hyperdrive, .sleeve-singularity, .sleeve-quantum, .sleeve-solar, .sleeve-nebula, .sleeve-kraken, .sleeve-apex-gold) with distinct glow outlines and particle aura effects.",
+      "UNIQUE VICTORY EFFECT PREVIEWS: Implemented custom particle canvas generators for all Season 1 victory anims (Quantum Implosion, Coronal Solar Eruption, Starlight Supernova, Bioluminescent Kraken Strike, Apex Orbital Laser, Chronos Time Stop, Hyperdrive Warp Speed)."
+    ],
+  },
+  {
+    version: '7.75',
+    date: '2026-10-03',
+    title: 'Theme Tier Highlighting & 3,000 Max Free Bux Cap',
+    notes: [
+      "THEME TIER HIGHLIGHTS: Battle Pass tiers awarding themes (Tiers 1, 10, 20, 25, 35, 50, 65, 80, 100) are now specifically highlighted with golden amber headers, radiant glowing borders, and '🎨 THEME UNLOCK' badges.",
+      "3,000 BUX FREE TRACK CAP: Rebalanced the Free Track Bux payouts across all 100 tiers so players earn exactly 3,000 Bux total upon completing Tier 100."
+    ],
+  },
+  {
+    version: '7.74',
+    date: '2026-10-03',
+    title: 'Audio Volume Level Attenuation',
+    notes: [
+      "BALANCED AUDIO GAIN: Attenuated the peak volume levels for both the 4-second hold stinger and the electric guitar lightning strike riff down to comfortable, ambient levels."
+    ],
+  },
+  {
+    version: '7.73',
+    date: '2026-10-03',
+    title: 'Electric Guitar Lightning Strike Claim Riff',
+    notes: [
+      "ELECTRIC GUITAR LIGHTNING STRIKE: Synthesized an overdrive electric guitar power-chord strum (E5 power chord with rapid strum offset and whammy dive) that fires like lightning upon holding the CLAIM ALL button to completion.",
+      "CLEAN STINGER HOLD: Removed the extra high note at the end of the stinger sequence so the G4 -> Bb4 -> A4 progression flows seamlessly into the electric guitar blast."
+    ],
+  },
+  {
+    version: '7.72',
+    date: '2026-10-03',
+    title: 'Sustained High D5 Stinger Audio Finish',
+    notes: [
+      "HIGH D5 STATED AUDIO CLIMAX: Removed the low sub-bass notes at the end of the CLAIM ALL stinger, allowing the progression to soar into and sustain the high D5 climax note (587.33 Hz) with cathedral reverb feedback decay."
+    ],
+  },
+  {
+    version: '7.70',
+    date: '2026-10-03',
+    title: 'Zero Cashback Enforcement & Dark Horror Stinger Audio',
+    notes: [
+      "ZERO CASHBACK ENFORCEMENT: Completely removed all remaining Bux cashback rewards across all 100 Premium Tiers (including Tiers 5, 11, 17, 100), replacing them with 1x card packs and unique cosmetics.",
+      "DARK CINEMATIC HORROR STINGER: Implemented a custom 4-second Web Audio synthesis (E Minor: G4 -> Bb4 -> A4 resolving down to a deep E2/D2 sub-bass drone with cathedral reverb feedback delay) during the CLAIM ALL hold."
+    ],
+  },
+  {
+    version: '7.69',
+    date: '2026-10-03',
+    title: 'Locker Theme Integration & Pass UI Polish',
+    notes: [
+      "FULL LOCKER & THEME PICKER INTEGRATION: Registered all 9 Season 1 themes, 8 custom sleeves, and 7 victory anims into THEME_DATA_REGISTRY, SLEEVE_DATA_REGISTRY, and VICTORY_DATA_REGISTRY so unlocked cosmetics immediately show up in the Locker, Collection Book, and Theme Picker.",
+      "REMOVED ALL CASHBACK REWARDS: Replaced all cashback/Bux rewards in the Premium Track with solid 1x card packs and exclusive cosmetics.",
+      "STRICT 1X PACKS: Guaranteed that every pack reward throughout all 100 tiers yields exactly 1 pack.",
+      "CENTERED PASS S1 BUTTON: Moved PASS S1 button in the main menu footer to sit cleanly centered between Quests and Settings.",
+      "HIGH-TECH NEON BUTTON & SVG ICON: Upgraded the Pass button with a sleek cyan/purple/pink glowing glass squircle and a high-definition lightning bolt SVG icon."
+    ],
+  },
+  {
+    version: '7.68',
+    date: '2026-10-03',
+    title: 'Even Tier 1-100 Reward Distribution & Audio Polish',
+    notes: [
+      "EVEN REWARD DISTRIBUTION (TIERS 21-100): Spread 6 new interactive themes (Quantum Horizon, Solar Corona, Diamond Refractor, Celestial Nebula, Kraken Abyss, Apex Sovereign Gold), 5 new unit cards, 5 custom sleeves, and 5 victory finishers across Tiers 21-100.",
+      "WARM ORCHESTRAL HOLD SOUND: Replaced the high-pitched sound with a warm C-Major orchestral triadic chord swell (130Hz - 260Hz) with lowpass filter sweeps during the 4-second hold.",
+      "CLEAN CLAIM ALL BUTTON: Updated button label to clean 'CLAIM ALL' without emojis."
+    ],
+  },
+  {
+    version: '7.67',
+    date: '2026-10-03',
+    title: '100-Tier Battle Pass & 4-Second Hold Claiming',
+    notes: [
+      "EXPANDED TO TIER 100: Extended the Season 1 Battle Pass track to 100 full tiers packed with Bux payouts, Void Vaults, Epic Cards, and the ultimate Tier 100 God title & 10,000 Bux cashback.",
+      "4-SECOND HOLD CLAIM ALL: Transformed 'Claim All Rewards' into an interactive 4-second hold button with a live gradient fill bar and real-time audio pitch escalation."
+    ],
+  },
+  {
+    version: '7.66',
+    date: '2026-10-03',
+    title: 'Mobile Battle Pass Optimization',
+    notes: [
+      "RESPONSIVE MOBILE BATTLE PASS: Fully optimized the Battle Pass modal layout for touchscreens and mobile viewports (<768px & <480px).",
+      "COMPACT DUAL TRACKS: Scaled reward cards, icons, and action buttons to fit mobile screens perfectly without double scrollbars or text clipping.",
+      "TOUCH SNAP SCROLLING & AUTO-JUMP: Integrated CSS scroll-snap points (`scroll-snap-type: x mandatory`) and automatic smooth scrolling to your current active tier column upon opening."
+    ],
+  },
   {
     version: '7.65',
     date: '2026-10-03',
