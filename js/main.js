@@ -4040,6 +4040,15 @@ async function beginMatchmaking(deckConfig) {
       mode = 'mp'; localKey = 'guest'; remoteKey = 'host';
       pendingGuestDeckConfig = deckConfig;
       
+      let isTransitioningToHost = false;
+      const fallbackToHost = async () => {
+        if (isMatchmakingCancelled || isTransitioningToHost) return;
+        isTransitioningToHost = true;
+        document.getElementById('matchmaking-status').textContent = 'Matched lobby unreachable. Creating fresh public lobby...';
+        if (net) { net.destroy(); net = null; }
+        await startHostingMatchmaking(deckConfig);
+      };
+
       net = new NetSession({
         onInit: (data) => {
           if (isMatchmakingCancelled) return;
@@ -4072,9 +4081,7 @@ async function beginMatchmaking(deckConfig) {
         onPeerError: (err) => {
           if (isMatchmakingCancelled) return;
           console.warn('Guest connection failed, transitioning to host fallback...', err);
-          document.getElementById('matchmaking-status').textContent = 'Matched lobby went offline. Creating fresh lobby...';
-          if (net) { net.destroy(); net = null; }
-          startHostingMatchmaking(deckConfig);
+          fallbackToHost();
         },
         onForfeit: () => handleOpponentForfeit(),
         onPing: (latency) => updatePingUI(latency),
@@ -4088,8 +4095,7 @@ async function beginMatchmaking(deckConfig) {
       } catch (err) {
         if (isMatchmakingCancelled) return;
         console.warn('joinGame failed, falling back to host lobby:', err);
-        if (net) { net.destroy(); net = null; }
-        await startHostingMatchmaking(deckConfig);
+        fallbackToHost();
       }
     } else {
       await startHostingMatchmaking(deckConfig);

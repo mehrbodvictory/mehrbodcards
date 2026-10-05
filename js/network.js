@@ -33,13 +33,16 @@ function getIceConfig() {
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
     { urls: 'stun:stun.cloudflare.com:3478' }
   ];
 
-  // OpenRelay by Metered is a free public TURN server that provides TURN and STUN relay on ports 80 and 443.
-  // This bypasses firewall blockages and symmetric NATs on mobile/cellular data.
+  // OpenRelay by Metered provides TURN/TURNS and STUN relay on ports 80 and 443 over TCP and UDP.
+  // This bypasses firewall blockages, school wifi proxies, and symmetric NATs.
   const freeTurn = {
     urls: [
+      'turns:openrelay.metered.ca:443',
       'turn:openrelay.metered.ca:80',
       'turn:openrelay.metered.ca:443',
       'turn:openrelay.metered.ca:443?transport=tcp',
@@ -50,7 +53,37 @@ function getIceConfig() {
     credential: 'openrelayproject'
   };
 
-  return { iceServers: [...defaultStun, freeTurn] };
+  return {
+    iceServers: [...defaultStun, freeTurn],
+    iceCandidatePoolSize: 10,
+    iceTransportPolicy: 'all'
+  };
+}
+
+function formatPeerErrorMessage(err) {
+  if (!err) return "Connection failed. Please check your network.";
+  if (typeof err === 'string') {
+    if (err.includes('server-error')) return "Signaling server busy/blocked by VPN. Retrying connection...";
+    return err;
+  }
+  const type = err.type || '';
+  const msg = err.message || '';
+  if (type === 'server-error' || type === 'socket-error' || type === 'socket-closed') {
+    return "Signaling server connection interrupted by VPN/firewall. Re-establishing secure TLS relay...";
+  }
+  if (type === 'peer-unavailable') {
+    return "Host room not found or opponent went offline. Retrying...";
+  }
+  if (type === 'unavailable-id') {
+    return "Lobby code already in use. Generating a fresh room code...";
+  }
+  if (type === 'network' || type === 'disconnected') {
+    return "Network connection dropped. Attempting automatic reconnection...";
+  }
+  if (type === 'browser-incompatible') {
+    return "Browser WebRTC feature unavailable.";
+  }
+  return msg || `Connection issue (${type || 'network'})`;
 }
 
 const CONNECT_TIMEOUT_MS = 20000;
@@ -64,7 +97,11 @@ class NetSession {
     this.onInit = onInit;
     this.onApplied = onApplied;   // (action) => void — apply it locally
     this.onStatus = onStatus || (() => {});
-    this.onPeerError = onPeerError || (() => {});
+    this.onPeerError = (err) => {
+      const formatted = formatPeerErrorMessage(err);
+      const errObj = (typeof err === 'object' && err !== null) ? { ...err, message: formatted } : { message: formatted };
+      if (onPeerError) onPeerError(errObj);
+    };
     this.onGuestConfig = onGuestConfig || (() => {}); // host-only: (deckConfig) => void
     this.onForfeit = onForfeit || (() => {}); // fires when the other side quits or disconnects mid-match
     this.onEmote = onEmote || (() => {});
@@ -102,8 +139,8 @@ class NetSession {
     const peerId = 'cardbattler-' + code;
     this.onStatus('connecting');
     return new Promise((resolve, reject) => {
+      const iceConfig = getIceConfig();
       try {
-        const iceConfig = getIceConfig();
         this.peer = new Peer(peerId, { debug: 1, config: iceConfig });
       } catch (err) {
         try {
@@ -115,45 +152,64 @@ class NetSession {
       }
 
       this.peer.on('open', () => { this.onStatus('waiting'); resolve(code); });
-      this.peer.on('error', err => { this.onPeerError(err); reject(err); });
+      this.peer.on('error', err => {
+        if (err && (err.type === 'server-error' || err.type === 'socket-error') && !this._triedHostFallback) {
+          this._triedHostFallback = true;
+          console.warn('[PeerJS Host] Primary signaling error, attempting fallback host init...');
+          try {
+            if (this.peer) this.peer.destroy();
+            this.peer = new Peer(peerId, { host: '0.peerjs.com', port: 443, secure: true, path: '/', debug: 1, config: iceConfig });
+            this.peer.on('open', () => { this.onStatus('waiting'); resolve(code); });
+            this.peer.on('error', err2 => { this.onPeerError(err2); reject(err2); });
+            this.peer.on('connection', conn => this._handleIncomingHostConn(conn));
+            return;
+          } catch (eFallback) {
+            this.onPeerError(eFallback);
+            return reject(eFallback);
+          }
+        }
+        this.onPeerError(err);
+        reject(err);
+      });
       this.peer.on('disconnected', () => {
         console.warn('[PeerJS] Disconnected from signaling server, attempting reconnect...');
         this.peer.reconnect();
       });
-      this.peer.on('connection', conn => {
-        // If we are currently reconnecting, or we had an open connection that died, replace it!
-        if (this.isReconnecting || (this.conn && !this.conn.open)) {
-          if (this.reconnectTimeout) {
-            clearTimeout(this.reconnectTimeout);
-            this.reconnectTimeout = null;
-          }
-          this.conn = conn;
-          this._wireHostConn();
-          conn.on('open', () => {
-            this.isReconnecting = false;
-            this.onStatus('connected');
-            this.startPingHeartbeat();
-            this._send({ type: 'reconnect_sync' });
-          });
-          return;
-        }
+      this.peer.on('connection', conn => this._handleIncomingHostConn(conn));
+    });
+  }
 
-        this.conn = conn;
-        this._wireHostConn();
-        const timeout = setTimeout(() => {
-          if (!conn.open) this.onPeerError({ type: 'connection-timeout', message: TIMEOUT_MESSAGE });
-        }, CONNECT_TIMEOUT_MS);
-        conn.on('open', () => {
-          clearTimeout(timeout);
-          // Don't send init yet - wait for the guest's deck config first
-          // (see _wireHostConn) so init can carry a fully-formed match.
-          this.onStatus('connected');
-          this.startPingHeartbeat();
-        });
-        conn.on('error', err => {
-          this.onPeerError(err);
-        });
+  _handleIncomingHostConn(conn) {
+    // If we are currently reconnecting, or we had an open connection that died, replace it!
+    if (this.isReconnecting || (this.conn && !this.conn.open)) {
+      if (this.reconnectTimeout) {
+        clearTimeout(this.reconnectTimeout);
+        this.reconnectTimeout = null;
+      }
+      this.conn = conn;
+      this._wireHostConn();
+      conn.on('open', () => {
+        this.isReconnecting = false;
+        this.onStatus('connected');
+        this.startPingHeartbeat();
+        this._send({ type: 'reconnect_sync' });
       });
+      return;
+    }
+
+    this.conn = conn;
+    this._wireHostConn();
+    const timeout = setTimeout(() => {
+      if (!conn.open) this.onPeerError({ type: 'connection-timeout', message: TIMEOUT_MESSAGE });
+    }, CONNECT_TIMEOUT_MS);
+    conn.on('open', () => {
+      clearTimeout(timeout);
+      // Don't send init yet - wait for the guest's deck config first
+      this.onStatus('connected');
+      this.startPingHeartbeat();
+    });
+    conn.on('error', err => {
+      this.onPeerError(err);
     });
   }
 
@@ -170,8 +226,8 @@ class NetSession {
     this.roomCode = cleanCode;
     this.onStatus('connecting');
     return new Promise((resolve, reject) => {
+      const iceConfig = getIceConfig();
       try {
-        const iceConfig = getIceConfig();
         this.peer = new Peer({ debug: 1, config: iceConfig });
       } catch (err) {
         try {
@@ -183,28 +239,61 @@ class NetSession {
       }
 
       this.peer.on('open', () => {
-        try {
-          this.conn = this.peer.connect('cardbattler-' + cleanCode, { reliable: true });
-          this._wireGuestConn();
-          const timeout = setTimeout(() => {
-            if (!this.conn || !this.conn.open) this.onPeerError({ type: 'connection-timeout', message: TIMEOUT_MESSAGE });
-          }, CONNECT_TIMEOUT_MS);
-          this.conn.on('open', () => {
-            clearTimeout(timeout);
-            this._send({ type: 'guestConfig', deckConfig: this.guestDeckConfig });
-            this.onStatus('connected');
-            this.startPingHeartbeat();
-            resolve();
-          });
-          this.conn.on('error', err => {
-            this.onPeerError(err);
-            reject(err);
-          });
-        } catch (connErr) {
-          this.onPeerError(connErr);
-          reject(connErr);
-        }
+        let attempts = 0;
+        const maxAttempts = 5;
+
+        const tryConnect = () => {
+          attempts++;
+          if (this.conn) {
+            try { this.conn.close(); } catch (_) {}
+          }
+          try {
+            this.conn = this.peer.connect('cardbattler-' + cleanCode, { reliable: true });
+            this._wireGuestConn();
+
+            const timeout = setTimeout(() => {
+              if (!this.conn || !this.conn.open) {
+                if (attempts < maxAttempts) {
+                  console.warn(`[PeerJS Join] Connect attempt ${attempts} timed out, retrying...`);
+                  tryConnect();
+                } else {
+                  this.onPeerError({ type: 'connection-timeout', message: TIMEOUT_MESSAGE });
+                  reject(new Error(TIMEOUT_MESSAGE));
+                }
+              }
+            }, 3500);
+
+            this.conn.on('open', () => {
+              clearTimeout(timeout);
+              this._send({ type: 'guestConfig', deckConfig: this.guestDeckConfig });
+              this.onStatus('connected');
+              this.startPingHeartbeat();
+              resolve();
+            });
+
+            this.conn.on('error', err => {
+              clearTimeout(timeout);
+              if (err && (err.type === 'peer-unavailable' || err.type === 'server-error') && attempts < maxAttempts) {
+                console.warn(`[PeerJS Join] Attempt ${attempts} failed (${err.type}), retrying in 1.2s...`);
+                setTimeout(tryConnect, 1200);
+              } else {
+                this.onPeerError(err);
+                reject(err);
+              }
+            });
+          } catch (connErr) {
+            if (attempts < maxAttempts) {
+              setTimeout(tryConnect, 1200);
+            } else {
+              this.onPeerError(connErr);
+              reject(connErr);
+            }
+          }
+        };
+
+        tryConnect();
       });
+
       this.peer.on('error', err => { this.onPeerError(err); reject(err); });
       this.peer.on('disconnected', () => {
         console.warn('[PeerJS] Disconnected from signaling server, attempting reconnect...');
