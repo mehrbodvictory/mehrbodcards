@@ -133,6 +133,12 @@ const Sound = (function () {
       gain.gain.setValueAtTime(safeVol, t0);
       gain.gain.exponentialRampToValueAtTime(0.0001, t0 + safeDur);
       osc.connect(gain).connect(c.destination);
+      osc.onended = () => {
+        try {
+          osc.disconnect();
+          gain.disconnect();
+        } catch (_) {}
+      };
       osc.start(t0);
       osc.stop(t0 + safeDur + 0.02);
     } catch (_) {}
@@ -156,6 +162,12 @@ const Sound = (function () {
       gain.gain.setValueAtTime(safeVol, t0);
       gain.gain.exponentialRampToValueAtTime(0.0001, t0 + safeDur);
       osc.connect(gain).connect(c.destination);
+      osc.onended = () => {
+        try {
+          osc.disconnect();
+          gain.disconnect();
+        } catch (_) {}
+      };
       osc.start(t0);
       osc.stop(t0 + safeDur + 0.02);
     } catch (_) {}

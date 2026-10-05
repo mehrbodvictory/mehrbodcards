@@ -3372,11 +3372,15 @@ function profileAvatarColors(name) {
 }
 
 function getActiveProfileGradient(name) {
-  const custom = loadProfileGradient();
-  if (custom) {
-    return { ...custom, isCustom: true };
+  const localName = (typeof loadPlayerName === 'function' ? loadPlayerName() : '') || 'Player';
+  // Only apply local saved custom gradient if querying the local player
+  if (!name || name === localName || name === 'You' || name === 'Player') {
+    const custom = loadProfileGradient();
+    if (custom) {
+      return { ...custom, isCustom: true };
+    }
   }
-  const defaultColors = profileAvatarColors(name || loadPlayerName() || 'Player');
+  const defaultColors = profileAvatarColors(name || 'Player');
   return {
     c1: defaultColors.hex1 || '#8b5cf6',
     c2: defaultColors.hex2 || '#06b6d4',
@@ -3385,7 +3389,13 @@ function getActiveProfileGradient(name) {
   };
 }
 
-function getProfileAvatarGradientCss(name) {
+function getProfileAvatarGradientCss(name, customGrad) {
+  if (customGrad && customGrad.c1 && customGrad.c2) {
+    return `linear-gradient(${customGrad.angle || 135}deg, ${customGrad.c1}, ${customGrad.c2})`;
+  }
+  if (typeof customGrad === 'string' && customGrad.startsWith('linear-gradient')) {
+    return customGrad;
+  }
   const grad = getActiveProfileGradient(name);
   return `linear-gradient(${grad.angle || 135}deg, ${grad.c1}, ${grad.c2})`;
 }
@@ -6575,7 +6585,11 @@ window.playSkeletonStaffAnimation = playSkeletonStaffAnimation;
 
   function updateThemeParallax() {
     if (!isTabActive || document.hidden) {
-      animId = requestAnimationFrame(updateThemeParallax);
+      setTimeout(() => {
+        if (isTabActive && !document.hidden) {
+          animId = requestAnimationFrame(updateThemeParallax);
+        }
+      }, 500);
       return;
     }
 
@@ -6585,7 +6599,10 @@ window.playSkeletonStaffAnimation = playSkeletonStaffAnimation;
     }
 
     if (activeBgsCache.length === 0) {
-      animId = requestAnimationFrame(updateThemeParallax);
+      setTimeout(() => {
+        refreshActiveBgsCache();
+        animId = requestAnimationFrame(updateThemeParallax);
+      }, 400);
       return;
     }
 

@@ -37,6 +37,18 @@ app.all('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });
 });
 
+app.all('/api/matchmaking', (req, res) => {
+  res.json({ status: 'ok', waiting: waitingLobbies.length, timestamp: Date.now() });
+});
+
+app.all('/api/matchmaking/health', (req, res) => {
+  res.json({ status: 'ok', waiting: waitingLobbies.length, timestamp: Date.now() });
+});
+
+app.all('/api/relay', (req, res) => {
+  res.json({ status: 'ok', timestamp: Date.now(), activeRooms: relayRooms.size });
+});
+
 app.all('/api/relay/health', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now(), activeRooms: relayRooms.size });
 });

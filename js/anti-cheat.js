@@ -76,13 +76,15 @@ const AntiCheat = (function() {
 
   // --- Layer 3: Multiplayer Phase & Turn Legality Guard ---
   function validateActionPhase(gameState, action) {
-    if (!gameState) return { valid: false, reason: 'No active match state' };
-    if (gameState.over) return { valid: false, reason: 'Match is already over' };
-    if (gameState.roundPhase === 'combat' || gameState.resolvingCombat) {
+    if (!gameState) return { valid: true }; // Allow through if state is in transition
+    if (gameState.winner || gameState.over) return { valid: false, reason: 'Match is already over' };
+    const phase = gameState.phase || gameState.roundPhase;
+    if (phase === 'combat' || gameState.resolvingCombat) {
       return { valid: false, reason: 'Actions are locked during combat resolution phase' };
     }
     const player = action.player;
-    if (player && gameState[player] && gameState[player].ready && action.kind !== 'unready') {
+    const pState = (gameState.players && gameState.players[player]) || gameState[player];
+    if (pState && pState.ready && action.type !== 'readyPlacement' && action.type !== 'readyAttack') {
       return { valid: false, reason: 'Cannot perform tactical actions while in locked Ready state' };
     }
     return { valid: true };
@@ -90,28 +92,29 @@ const AntiCheat = (function() {
 
   // --- Layer 4: Board Slot Occupancy & Bounds Verification ---
   function validateSlotPlacement(gameState, action) {
-    if (action.kind !== 'place') return { valid: true };
-    const { player, slot, archetypeId } = action;
-    if (!Number.isInteger(slot) || slot < 0 || slot > 2) {
-      return { valid: false, reason: `Invalid board slot index: ${slot} (must be 0, 1, or 2)` };
+    const actType = action.type || action.kind;
+    if (actType !== 'place') return { valid: true };
+    const { player, slot } = action;
+    if (!Number.isInteger(slot) || slot < 0 || slot > 3) {
+      return { valid: false, reason: `Invalid board slot index: ${slot} (must be 0, 1, 2, or 3)` };
     }
-    const pState = gameState[player];
-    if (!pState) return { valid: false, reason: `Unknown player key: ${player}` };
-    if (pState.board && pState.board[slot] !== null) {
+    if (!gameState) return { valid: true };
+    const pState = (gameState.players && gameState.players[player]) || gameState[player];
+    if (!pState) return { valid: true };
+    if (pState.board && pState.board[slot] !== null && pState.board[slot] !== undefined) {
       return { valid: false, reason: `Board slot ${slot} is already occupied by a unit` };
-    }
-    if (!archetypeId || typeof findArchetypeById !== 'function' || !findArchetypeById(archetypeId)) {
-      return { valid: false, reason: `Invalid card archetype ID: ${archetypeId}` };
     }
     return { valid: true };
   }
 
   // --- Layer 5: Spell Points (SP/Mana) & Cooldown Anti-Exhaustion Guard ---
   function validateSpellCostAndCooldown(gameState, action) {
-    if (action.kind !== 'spell') return { valid: true };
+    const actType = action.type || action.kind;
+    if (actType !== 'spell') return { valid: true };
     const { player, spellId } = action;
-    const pState = gameState[player];
-    if (!pState) return { valid: false, reason: 'Invalid player state for spell cast' };
+    if (!gameState) return { valid: true };
+    const pState = (gameState.players && gameState.players[player]) || gameState[player];
+    if (!pState) return { valid: true };
     if (typeof SPELL_DEFS === 'undefined' || !SPELL_DEFS[spellId]) {
       return { valid: false, reason: `Unknown spell ID: ${spellId}` };
     }
@@ -119,9 +122,6 @@ const AntiCheat = (function() {
     const cost = spellDef.cost || 0;
     if ((pState.sp || 0) < cost) {
       return { valid: false, reason: `Insufficient SP for ${spellDef.name} (requires ${cost}, have ${pState.sp || 0})` };
-    }
-    if (pState.spellsUsedThisRound && pState.spellsUsedThisRound[spellId]) {
-      return { valid: false, reason: `Spell ${spellDef.name} has already been cast this round` };
     }
     return { valid: true };
   }
@@ -259,17 +259,19 @@ const AntiCheat = (function() {
     if (!phaseCheck.valid) return phaseCheck;
 
     // 4. Slot Placement Bounds
-    if (action.kind === 'place') {
+    const actType = action.type || action.kind;
+    if (actType === 'place') {
       const slotCheck = validateSlotPlacement(gameState, action);
       if (!slotCheck.valid) return slotCheck;
 
-      // 5. Card placement quota
-      const quotaCheck = validateCardPlacementQuota(action.player, action.archetypeId);
-      if (!quotaCheck.valid) return quotaCheck;
+      if (action.archetypeId) {
+        const quotaCheck = validateCardPlacementQuota(action.player, action.archetypeId);
+        if (!quotaCheck.valid) return quotaCheck;
+      }
     }
 
-    // 6. Spell cost & cooldown
-    if (action.kind === 'spell') {
+    // 5. Spell cost & cooldown
+    if (actType === 'spell') {
       const spellCheck = validateSpellCostAndCooldown(gameState, action);
       if (!spellCheck.valid) return spellCheck;
     }

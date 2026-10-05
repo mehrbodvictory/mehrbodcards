@@ -8,6 +8,10 @@ let botRng = null;
 let botActedKey = null;
 let net = null;
 let pendingGuestDeckConfig = null; // deck config picked in the deck builder before joining a host
+let remotePlayerName = '';
+let remotePlayerAvatar = '';
+let remotePlayerGradient = null;
+let remotePlayerLevel = 1;
 
 let selMode = null;        // 'defend' | 'merge' | 'spell' | 'chip' | null
 let selHandIdx = null;
@@ -908,6 +912,19 @@ function defaultDeckBuilderSelection() {
   dbSelectedChips = col.chips.slice(0, REQUIRED_CHIP_COUNT);
 }
 
+function decorateDeckConfigWithPlayerProfile(config) {
+  if (!config) config = {};
+  const pName = (typeof loadPlayerName === 'function' ? loadPlayerName() : '') || (localStorage.getItem('mehrbod-cards-player-name') || '').trim() || 'Player';
+  const pAvatar = (pName ? pName.charAt(0).toUpperCase() : 'P');
+  const pGrad = (typeof loadProfileGradient === 'function' ? loadProfileGradient() : null) || (typeof profileAvatarColors === 'function' ? profileAvatarColors(pName) : null);
+  const pLvl = (typeof playerXP !== 'undefined' && typeof getLevel === 'function') ? getLevel(playerXP) : 1;
+  config.playerName = pName;
+  config.playerAvatar = pAvatar;
+  config.playerGradient = pGrad;
+  config.playerLevel = pLvl;
+  return config;
+}
+
 function buildDefaultDeckConfig() {
   const col = loadCollection();
   const ownedGreen = UNIT_ARCHETYPES[2].filter(a => col.units.includes(a.id));
@@ -922,7 +939,8 @@ function buildDefaultDeckConfig() {
   }
   const spellIds = col.spells.slice(0, REQUIRED_SPELL_COUNT);
   const chipIds = col.chips.slice(0, REQUIRED_CHIP_COUNT);
-  return { unitIds, spellIds, chipIds, victoryAnim: typeof loadEquippedVictoryAnim === 'function' ? loadEquippedVictoryAnim() : null };
+  const baseConfig = { unitIds, spellIds, chipIds, victoryAnim: typeof loadEquippedVictoryAnim === 'function' ? loadEquippedVictoryAnim() : null };
+  return decorateDeckConfigWithPlayerProfile(baseConfig);
 }
 
 function dbTotalUnits() {
@@ -1316,7 +1334,8 @@ document.getElementById('btn-deck-builder-confirm').addEventListener('click', ()
   if (totalUnits !== REQUIRED_UNIT_COUNT || dbSelectedSpells.length !== REQUIRED_SPELL_COUNT || dbSelectedChips.length !== REQUIRED_CHIP_COUNT) return;
   const unitIds = [];
   Object.entries(dbUnitCounts).forEach(([id, count]) => { for (let i = 0; i < count; i++) unitIds.push(id); });
-  const config = { unitIds, spellIds: dbSelectedSpells.slice(), chipIds: dbSelectedChips.slice(), victoryAnim: loadEquippedVictoryAnim() };
+  const rawConfig = { unitIds, spellIds: dbSelectedSpells.slice(), chipIds: dbSelectedChips.slice(), victoryAnim: loadEquippedVictoryAnim() };
+  const config = decorateDeckConfigWithPlayerProfile(rawConfig);
   const cb = dbOnConfirm;
   dbOnConfirm = null;
   if (cb) cb(config);
@@ -3741,6 +3760,11 @@ async function beginHost(wagerAmount, hostDeckConfig) {
   currentWager = wagerAmount || 0;
   showScreen('screen-host');
   const seed = makeSeed();
+  if (!hostDeckConfig) {
+    hostDeckConfig = (typeof buildDefaultDeckConfig === 'function') ? buildDefaultDeckConfig() : null;
+  }
+  hostDeckConfig = decorateDeckConfigWithPlayerProfile(hostDeckConfig);
+
   net = new NetSession({
     onInit: () => {},
     onApplied: (action) => applyActionAndRender(action),
@@ -3751,6 +3775,11 @@ async function beginHost(wagerAmount, hostDeckConfig) {
         status === 'disconnected' ? 'Opponent disconnected.' : 'Connecting…';
     },
     onGuestConfig: (guestDeckConfig) => {
+      remotePlayerName = guestDeckConfig?.playerName || 'Guest Player';
+      remotePlayerAvatar = guestDeckConfig?.playerAvatar || (remotePlayerName ? remotePlayerName.charAt(0).toUpperCase() : '⚔️');
+      remotePlayerGradient = guestDeckConfig?.playerGradient || null;
+      remotePlayerLevel = guestDeckConfig?.playerLevel || 1;
+
       gameOverAnnounced = false;
       meteorShowerDone = false;
       epicVictoryDone = false;
@@ -3790,9 +3819,16 @@ document.getElementById('btn-join-confirm').addEventListener('click', async () =
   if (!pendingGuestDeckConfig) {
     pendingGuestDeckConfig = buildDefaultDeckConfig();
   }
+  pendingGuestDeckConfig = decorateDeckConfigWithPlayerProfile(pendingGuestDeckConfig);
+
   mode = 'mp'; localKey = 'guest'; remoteKey = 'host';
   net = new NetSession({
     onInit: (data) => {
+      remotePlayerName = data.hostDeckConfig?.playerName || 'Host Player';
+      remotePlayerAvatar = data.hostDeckConfig?.playerAvatar || (remotePlayerName ? remotePlayerName.charAt(0).toUpperCase() : '⚔️');
+      remotePlayerGradient = data.hostDeckConfig?.playerGradient || null;
+      remotePlayerLevel = data.hostDeckConfig?.playerLevel || 1;
+
       document.getElementById('gameover-overlay').classList.add('hidden');
       document.getElementById('gameover-card').querySelectorAll('.confetti-piece').forEach(el => el.remove());
       gameOverAnnounced = false;
@@ -4000,24 +4036,48 @@ function updateOpponentFoundUI(remoteData) {
   const remoteStatus = document.getElementById('mm-remote-status');
   const remoteDeck = document.getElementById('mm-remote-deck');
 
-  if (remoteCard) remoteCard.className = 'mm-player-card mm-card-remote ready';
+  if (remoteCard) {
+    remoteCard.classList.remove('searching');
+    remoteCard.classList.add('ready');
+  }
   if (remoteAvatar) {
-    remoteAvatar.className = 'mm-card-avatar';
-    remoteAvatar.textContent = (remoteData && remoteData.art) ? remoteData.art : '🛡️';
+    remoteAvatar.classList.remove('pulse-avatar');
+    remoteAvatar.classList.add('ready-avatar');
+    const oppName = (remoteData && remoteData.name) ? remoteData.name : 'Player';
+    const oppArt = (remoteData && remoteData.art) ? remoteData.art : (oppName ? oppName.charAt(0).toUpperCase() : '⚔️');
+    remoteAvatar.textContent = oppArt;
+    if (typeof getProfileAvatarGradientCss === 'function') {
+      remoteAvatar.style.background = getProfileAvatarGradientCss(oppName, remoteData?.gradient);
+      remoteAvatar.style.borderRadius = '50%';
+      remoteAvatar.style.width = '68px';
+      remoteAvatar.style.height = '68px';
+      remoteAvatar.style.display = 'flex';
+      remoteAvatar.style.alignItems = 'center';
+      remoteAvatar.style.justifyContent = 'center';
+      remoteAvatar.style.color = '#ffffff';
+      remoteAvatar.style.fontWeight = '800';
+      remoteAvatar.style.fontSize = '2rem';
+      remoteAvatar.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.25)';
+    }
   }
   if (remoteName) {
-    remoteName.className = 'mm-card-name';
-    remoteName.textContent = (remoteData && remoteData.name) ? remoteData.name : 'CHALLENGER';
+    remoteName.classList.remove('searching-text');
+    remoteName.classList.add('ready-name');
+    remoteName.textContent = (remoteData && remoteData.name) ? remoteData.name : 'PLAYER';
   }
   if (remoteLevel) {
-    remoteLevel.className = 'mm-card-badge';
-    remoteLevel.textContent = (remoteData && remoteData.level) ? `LVL ${remoteData.level}` : 'RIVAL';
+    remoteLevel.classList.remove('searching-badge');
+    remoteLevel.classList.add('ready-badge');
+    const rawLvl = remoteData && remoteData.level ? remoteData.level : 1;
+    remoteLevel.textContent = String(rawLvl).startsWith('LVL') ? rawLvl : `LVL ${rawLvl}`;
   }
   if (remoteDeck) remoteDeck.textContent = (remoteData && remoteData.deckName) ? remoteData.deckName : 'Battle Deck';
   if (remoteStatus) {
     remoteStatus.className = 'mm-card-status ready';
     remoteStatus.innerHTML = '<span class="status-pulse-dot"></span> CONNECTED';
   }
+  const vsLightning = document.querySelector('.mm-vs-lightning');
+  if (vsLightning) vsLightning.textContent = '⚔️';
 }
 
 async function beginMatchmaking(deckConfig) {
@@ -4025,6 +4085,8 @@ async function beginMatchmaking(deckConfig) {
   if (!deckConfig) {
     deckConfig = (typeof buildDefaultDeckConfig === 'function') ? buildDefaultDeckConfig() : null;
   }
+  deckConfig = decorateDeckConfigWithPlayerProfile(deckConfig);
+
   showScreen('screen-matchmaking');
   startMatchmakingTimer(deckConfig);
   document.getElementById('matchmaking-status').textContent = 'Connecting to matchmaking server...';
@@ -4070,7 +4132,6 @@ async function beginMatchmaking(deckConfig) {
 
     if (matchedLobby && matchedLobby.roomCode) {
       document.getElementById('matchmaking-status').textContent = 'Match found! Connecting to battle...';
-      updateOpponentFoundUI({ name: 'Arena Challenger', level: 'VS', art: '⚡', deckName: 'Public Lobby' });
       matchmakingRoomCode = matchedLobby.roomCode;
       matchmakingIsHost = false;
       
@@ -4090,6 +4151,19 @@ async function beginMatchmaking(deckConfig) {
         onInit: (data) => {
           if (isMatchmakingCancelled) return;
           stopMatchmakingTimer();
+          remotePlayerName = data.hostDeckConfig?.playerName || 'Host Player';
+          remotePlayerAvatar = data.hostDeckConfig?.playerAvatar || (remotePlayerName ? remotePlayerName.charAt(0).toUpperCase() : '⚔️');
+          remotePlayerGradient = data.hostDeckConfig?.playerGradient || null;
+          remotePlayerLevel = data.hostDeckConfig?.playerLevel || 1;
+
+          updateOpponentFoundUI({
+            name: remotePlayerName,
+            level: remotePlayerLevel,
+            art: remotePlayerAvatar,
+            gradient: remotePlayerGradient,
+            deckName: data.hostDeckConfig?.deckName || 'Public Match Deck'
+          });
+
           document.getElementById('gameover-overlay').classList.add('hidden');
           document.getElementById('gameover-card').querySelectorAll('.confetti-piece').forEach(el => el.remove());
           gameOverAnnounced = false;
@@ -4147,6 +4221,8 @@ async function startHostingMatchmaking(deckConfig) {
   if (!deckConfig) {
     deckConfig = (typeof buildDefaultDeckConfig === 'function') ? buildDefaultDeckConfig() : null;
   }
+  deckConfig = decorateDeckConfigWithPlayerProfile(deckConfig);
+
   document.getElementById('matchmaking-status').textContent = 'Creating public lobby...';
   matchmakingIsHost = true;
   mode = 'mp'; localKey = 'host'; remoteKey = 'guest';
@@ -4170,11 +4246,17 @@ async function startHostingMatchmaking(deckConfig) {
         matchmakingLobbyHeartbeat = null;
       }
       stopMatchmakingTimer();
+      remotePlayerName = guestDeckConfig?.playerName || 'Guest Player';
+      remotePlayerAvatar = guestDeckConfig?.playerAvatar || (remotePlayerName ? remotePlayerName.charAt(0).toUpperCase() : '⚔️');
+      remotePlayerGradient = guestDeckConfig?.playerGradient || null;
+      remotePlayerLevel = guestDeckConfig?.playerLevel || 1;
+
       updateOpponentFoundUI({
-        name: guestDeckConfig?.name ? `${guestDeckConfig.name} Player` : 'Opponent',
-        level: guestDeckConfig?.level || 'VS',
-        art: guestDeckConfig?.art || '⚔️',
-        deckName: guestDeckConfig?.name || 'Custom Deck'
+        name: remotePlayerName,
+        level: remotePlayerLevel,
+        art: remotePlayerAvatar,
+        gradient: remotePlayerGradient,
+        deckName: guestDeckConfig?.deckName || 'Custom Deck'
       });
       gameOverAnnounced = false;
       meteorShowerDone = false;
@@ -5634,8 +5716,14 @@ function render() {
       oppAvatarInner.textContent = '🤖';
       oppAvatarInner.style.background = 'linear-gradient(135deg, #1e293b, #0f172a)';
     } else {
-      oppAvatarInner.textContent = 'O';
-      oppAvatarInner.style.background = 'linear-gradient(135deg, #475569, #334155)';
+      const remName = (typeof remotePlayerName !== 'undefined' && remotePlayerName) ? remotePlayerName : 'Opponent';
+      const remLetter = (typeof remotePlayerAvatar !== 'undefined' && remotePlayerAvatar) ? remotePlayerAvatar : (remName.charAt(0).toUpperCase() || 'O');
+      oppAvatarInner.textContent = remLetter;
+      if (typeof getProfileAvatarGradientCss === 'function') {
+        oppAvatarInner.style.background = getProfileAvatarGradientCss(remName, typeof remotePlayerGradient !== 'undefined' ? remotePlayerGradient : null);
+      } else {
+        oppAvatarInner.style.background = 'linear-gradient(135deg, #475569, #334155)';
+      }
     }
   }
   if (oppBadge) oppBadge.classList.toggle('ready', oppReady);

@@ -3732,6 +3732,17 @@ function updateXRHandTrackingAndGestures() {
 
 // ---- Main Render Frame Loop ----------------------------------------------
 function animateXR() {
+  // Heavy optimization: Do not run 3D raycasting, matrix calculations, and rendering passes
+  // when the browser tab is hidden or when the 3D screen is not currently open/active
+  if (typeof document !== 'undefined' && document.hidden) return;
+  const isPresenting = Boolean(xrRenderer && xrRenderer.xr && xrRenderer.xr.isPresenting);
+  if (!isPresenting) {
+    const xrScreen = typeof document !== 'undefined' ? document.getElementById('screen-webxr-arena') : null;
+    if (!xrScreen || xrScreen.classList.contains('hidden') || xrScreen.style.display === 'none') {
+      return;
+    }
+  }
+
   const time = Date.now();
 
   // Update non-VR mobile joystick & keyboard movement
