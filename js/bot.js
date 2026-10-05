@@ -1,8 +1,8 @@
 
 // Difficulty affects: how good target selection is, whether it merges
 // proactively, and whether it uses spells/chips/defense intelligently.
-// Master sits above Expert: it merges more eagerly, heals sooner, and
-// defends any card that still can (only Blue/Green now that Red can't).
+// Master sits above Expert: it merges more eagerly, heals sooner, coordinates
+// focus fire, bypasses defending shields, and casts tactical attack-phase spells.
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard', 'Expert', 'Master'];
 
 function emptySlots(board) {
@@ -14,47 +14,20 @@ function filledSlots(board) {
 
 function runBotPlacement(state, botKey, difficulty, rng) {
   const p = state.players[botKey];
-  const enemyKey = state.order.find(k => k !== botKey);
-  const enemy = state.players[enemyKey];
   const level = DIFFICULTIES.indexOf(difficulty);
 
   // 1. Place cards from the deck into empty slots, resolving forced
-  // Blue-merges as soon as they come up (the bot has no UI to show a "must
-  // merge" banner, so it just clears the condition immediately and keeps
-  // going). Only Blue cards can ever be placed - any higher-tier
-  // "blueprint" cards sitting in the deck just wait there for a matching
-  // merge to consume them, same as for a human player. v3.0: there's no
-  // hand/draw cap anymore - the bot just keeps placing every Blue card it
-  // has until the board (6 slots) is full or it runs out of Blues.
+  // Blue-merges as soon as they come up.
   while (emptySlots(p.board).length > 0 && !isForced(state, botKey)) {
     const blueDeckIdx = p.deck.findIndex(c => c.tier === 1);
-    if (blueDeckIdx === -1) break; // nothing placeable left in the deck right now
+    if (blueDeckIdx === -1) break; // nothing placeable left in deck
     const slot = level >= 2 ? bestEmptySlot(p.board) : rng.pick(emptySlots(p.board));
     placeCard(state, botKey, blueDeckIdx, slot);
     if (isForced(state, botKey)) autoResolveForcedMerges(state, botKey);
   }
   autoResolveForcedMerges(state, botKey); // safety net
 
-  // 2. Merge proactively to build stronger cards. Any merge that would
-  // consume a matching-tier blueprint sitting in the deck happens first
-  // and at every difficulty - otherwise a non-Blue card the bot drew can
-  // clog development for the rest of the match. Only after that does the
-  // existing difficulty-gated opportunistic merging kick in: Hard/Expert
-  // only merge further when the board is crowded (or occasionally on
-  // Expert); Master is far more eager to fuse up even with room to spare,
-  // since bigger cards beat more numerous small ones in the long run.
-  // v4.0: both helpers below can now combine 2-4 cards in one merge (e.g.
-  // four Blues straight to Orange), not just pairs, and every candidate
-  // combo still needs a blueprint actually present in the deck - see
-  // mergeCards in game.js.
-  // v3.12: bots now use up to the same MAX_MERGES_PER_ROUND cap (shared
-  // with the player, defined in game.js) as anyone else - previously this
-  // only ever attempted a single merge per round no matter how many the
-  // rules engine actually allowed, so the bot never used a second merge
-  // even when it clearly should have. Each cycle tries a blueprint-backed
-  // merge first (every difficulty), falling back to the difficulty-gated
-  // strategic merge; the loop stops as soon as a cycle finds nothing left
-  // worth merging, so weaker bots still won't force through the full cap.
+  // 2. Merge proactively using blueprints up to MAX_MERGES_PER_ROUND.
   let botMergesThisCycle = 0;
   while (botMergesThisCycle < MAX_MERGES_PER_ROUND) {
     let merged = tryBlueprintMerge(state, botKey);
@@ -69,13 +42,12 @@ function runBotPlacement(state, botKey, difficulty, rng) {
     botMergesThisCycle++;
   }
 
-  // 3. Cast spells/attach chips on Medium+ if a good kill/heal is available.
-  if (level >= 1) {
-    maybeUseSpellsAndChips(state, botKey, enemyKey, rng, level);
+  // 3. Attach chips on Medium+ to high-tier units with available SP slots.
+  if (level >= 1 && p.chips.length > 0) {
+    attachSmartChips(state, botKey);
   }
 
-  // 4. Assign defense on Expert+ (protect the strongest low-hp card that's
-  // actually still capable of defending - Red/Orange no longer can).
+  // 4. Assign defense on Expert+ (protect valuable low-HP cards that can actually defend).
   if (level >= 3) {
     assignSmartDefense(state, botKey, rng, level);
   }
@@ -89,14 +61,6 @@ function bestEmptySlot(board) {
   return slots[0];
 }
 
-// v4.0: any non-Blue card in the deck ("blueprint") can never be placed -
-// it just waits for a merge that lands on its exact tier. This now checks
-// every 2-4 card combination on the board (not just pairs) for one that
-// would land on a blueprint tier the bot is already holding, preferring
-// the LARGEST combination available (consuming more low-tier cards at
-// once is usually a tempo win - it clears more board clutter per
-// blueprint spent). Returns true if it found and made such a merge, so
-// the caller can skip its normal difficulty-gated merge logic this cycle.
 function tryBlueprintMerge(state, botKey) {
   const p = state.players[botKey];
   const blueprintTiers = new Set(p.deck.filter(c => c.tier !== 1).map(c => c.tier));
@@ -119,18 +83,11 @@ function tryStrategicMerge(state, botKey, rng, level) {
   const filled = filledSlots(p.board).filter(i => p.board[i].tier !== 4);
   if (filled.length < 2) return false;
   const boardCrowded = emptySlots(p.board).length <= 1;
-  // Master (level 4) fuses up aggressively even with room on the board;
-  // Expert (level 3) does so sometimes; Hard (level 2) only when crowded.
   const shouldMerge = boardCrowded
-    || (level === 4 && rng.next() < 0.7)
-    || (level === 3 && rng.next() < 0.4);
+    || (level === 4 && rng.next() < 0.75)
+    || (level === 3 && rng.next() < 0.45);
   if (!shouldMerge) return false;
-  // Find any legal combo (2-4 cards, none Orange, tier sum lands on a real
-  // tier AND a matching blueprint is actually available in the deck),
-  // preferring the LARGEST combination available on Master/Expert (a
-  // single bigger fusion is usually a stronger tempo play than the same
-  // total board space spent on a smaller one), and the smallest (pair)
-  // combination on Hard, to keep its play simple and predictable.
+
   const sizesToTry = level >= 3 ? [4, 3, 2] : [2, 3, 4];
   for (const size of sizesToTry) {
     if (filled.length < size) continue;
@@ -146,43 +103,16 @@ function tryStrategicMerge(state, botKey, rng, level) {
   return false;
 }
 
-function maybeUseSpellsAndChips(state, botKey, enemyKey, rng, level) {
+function attachSmartChips(state, botKey) {
   const p = state.players[botKey];
-  const enemy = state.players[enemyKey];
-  // Use a damage spell to secure a kill if possible.
-  const enemyFilled = filledSlots(enemy.board);
-  for (const spell of p.spells.slice()) {
-    if (spell.dmg) {
-      const killTarget = enemyFilled.find(slot => enemy.board[slot].hp <= spell.dmg);
-      if (killTarget !== undefined && (level >= 2 || rng.next() < 0.5)) {
-        castSpell(state, botKey, spell.id, enemyKey, killTarget);
-        return; // one action per cycle keeps bot readable & fair
-      }
-    }
-  }
-  // Heal the most damaged ally if it's in danger. Expert waits until it's
-  // quite hurt (<=40% hp) to conserve spells; Master heals a bit sooner
-  // (<=55%) since it plans further ahead and hates losing tempo cards.
-  if (level >= 3) {
-    const healThreshold = level === 4 ? 0.55 : 0.4;
-    const myFilled = filledSlots(p.board);
-    const hurt = myFilled.filter(s => p.board[s].hp < p.board[s].maxHp)
-      .sort((a, b) => (p.board[a].hp / p.board[a].maxHp) - (p.board[b].hp / p.board[b].maxHp))[0];
-    if (hurt !== undefined) {
-      const healSpell = p.spells.find(s => s.heal);
-      if (healSpell && p.board[hurt].hp <= p.board[hurt].maxHp * healThreshold) {
-        castSpell(state, botKey, healSpell.id, botKey, hurt);
-        return;
-      }
-    }
-  }
-  // Attach a chip to the strongest card with a free slot.
-  if (p.chips.length > 0) {
+  while (p.chips.length > 0) {
+    const chip = p.chips[0];
     const myFilled = filledSlots(p.board).filter(s => hasFreeChipSlot(p.board[s]));
-    if (myFilled.length > 0) {
-      const target = myFilled.sort((a, b) => p.board[b].tier - p.board[a].tier)[0];
-      attachChip(state, botKey, p.chips[0].id, botKey, target);
-    }
+    if (myFilled.length === 0) break;
+    // Prefer highest tier unit for chip enhancement
+    const target = myFilled.sort((a, b) => p.board[b].tier - p.board[a].tier)[0];
+    const res = attachChip(state, botKey, chip.id, botKey, target);
+    if (!res || !res.ok) break;
   }
 }
 
@@ -194,10 +124,6 @@ function hasFreeChipSlot(card) {
 function assignSmartDefense(state, botKey, rng, level) {
   const p = state.players[botKey];
   const filled = filledSlots(p.board);
-  // Only cards that can actually still defend (their tier has charges left,
-  // and Blues need to have merged up at least once this match) are
-  // candidates - Red and Orange can never defend anymore, so they're
-  // skipped entirely.
   const hpThreshold = level === 4 ? 3 : 2;
   const fragile = filled.filter(s => {
     const card = p.board[s];
@@ -205,14 +131,6 @@ function assignSmartDefense(state, botKey, rng, level) {
     if (tierInfo.defends <= 0) return false;
     if (card.hp > hpThreshold) return false;
     if (card.tier === 1 && !p.everMergedUp) return false;
-    // BUGFIX: Blue has unlimited (Infinity) defend charges by design, which
-    // used to mean the bot would turtle forever behind Blue cards once its
-    // board was all-Blue, never attacking, effectively defending infinitely
-    // for the rest of the match. Once the bot has no non-Blue blueprints
-    // left anywhere in its deck (hasRemainingBlueprints), it can never merge
-    // those Blues into anything stronger or make further progress - so at
-    // that point Blue should stop being treated as defend-eligible, the
-    // same way it stops being able to merge or regenerate.
     if (card.tier === 1 && !hasRemainingBlueprints(p)) return false;
     const bonus = card.bonusDefendCharge || 0;
     const chargesLeft = tierInfo.defends === Infinity ? Infinity : (tierInfo.defends + bonus) - card.defendChargesUsed;
@@ -221,51 +139,149 @@ function assignSmartDefense(state, botKey, rng, level) {
   fragile.forEach(slot => setDefend(state, botKey, slot));
 }
 
+// ----------------------------------------------------------------------------
+// Attack Phase AI: Tactical Spell Casting, Shield Avoidance & Focus Fire
+// ----------------------------------------------------------------------------
 function runBotAttack(state, botKey, difficulty, rng) {
   const p = state.players[botKey];
   const enemyKey = state.order.find(k => k !== botKey);
   const enemy = state.players[enemyKey];
   const level = DIFFICULTIES.indexOf(difficulty);
+
+  // 1. Cast attack-phase spells intelligently (finishers, threat removals, heals, revives)
+  if (level >= 1) {
+    executeSmartAttackSpells(state, botKey, enemyKey, rng, level);
+  }
+
+  // 2. Assign attacks with focus fire, avoiding invulnerable/defending shields
   const attackers = filledSlots(p.board).filter(s => !p.defendingSlots[s]);
   const enemyFilled = filledSlots(enemy.board);
 
+  if (enemyFilled.length === 0 || attackers.length === 0) {
+    readyAttack(state, botKey);
+    return;
+  }
+
+  // Identify undefended enemy slots vs defending shields
+  const undefendedSlots = enemyFilled.filter(s => !enemy.defendingSlots[s]);
+  // Fallback to all slots if enemy has defended all cards
+  const candidateTargets = undefendedSlots.length > 0 ? undefendedSlots : enemyFilled;
+
+  // Track simulated damage across attack assignments to coordinate lethal focus fire
+  const pendingDamageOnTarget = {};
+  enemyFilled.forEach(s => { pendingDamageOnTarget[s] = 0; });
+
   attackers.forEach(slot => {
-    if (enemyFilled.length === 0) return;
+    const attackerCard = p.board[slot];
+    if (!attackerCard) return;
+    const atkDmg = attackerCard.dmg || 1;
     let targetSlot;
+
     if (level === 0) {
       targetSlot = rng.pick(enemyFilled);
     } else if (level === 1) {
-      // Prefer lowest-hp target, otherwise random.
-      targetSlot = rng.next() < 0.6
-        ? enemyFilled.slice().sort((a, b) => enemy.board[a].hp - enemy.board[b].hp)[0]
-        : rng.pick(enemyFilled);
+      // Medium: Prefer undefended lowest-hp target
+      targetSlot = rng.next() < 0.7
+        ? candidateTargets.slice().sort((a, b) => enemy.board[a].hp - enemy.board[b].hp)[0]
+        : rng.pick(candidateTargets);
     } else if (level <= 3) {
-      // Hard/Expert: prioritize a guaranteed kill, else weakest, else highest threat (dmg).
-      const attackerDmg = p.board[slot].dmg;
-      const killable = enemyFilled.filter(s => enemy.board[s].hp <= attackerDmg && !enemy.defendingSlots[s]);
+      // Hard/Expert: Focus fire on undefended targets, prioritize finishing kills, else highest threat
+      // Look for a target where current attacker finishes off remaining HP
+      const killable = candidateTargets.filter(s => {
+        const remainingHp = enemy.board[s].hp - (pendingDamageOnTarget[s] || 0);
+        return remainingHp > 0 && remainingHp <= atkDmg;
+      });
+
       if (killable.length > 0) {
+        // Kill highest tier first
         targetSlot = killable.sort((a, b) => enemy.board[b].tier - enemy.board[a].tier)[0];
       } else {
-        targetSlot = enemyFilled.slice().sort((a, b) => (enemy.board[b].dmg - enemy.board[a].dmg) || (enemy.board[a].hp - enemy.board[b].hp))[0];
+        // Pick undefended target with highest damage threat (Red/Orange glass cannons)
+        const unkilled = candidateTargets.filter(s => (enemy.board[s].hp - (pendingDamageOnTarget[s] || 0)) > 0);
+        const pool = unkilled.length > 0 ? unkilled : candidateTargets;
+        targetSlot = pool.slice().sort((a, b) => {
+          const threatA = enemy.board[a].dmg * 2 + enemy.board[a].tier;
+          const threatB = enemy.board[b].dmg * 2 + enemy.board[b].tier;
+          return threatB - threatA;
+        })[0];
       }
     } else {
-      // Master: same guaranteed-kill priority as Expert, but among
-      // non-lethal options it weighs both threat (dmg) and tier value
-      // together instead of dmg alone, so it doesn't ignore a dangerous
-      // low-dmg-but-high-tier card sitting next to a bigger glass cannon.
-      const attackerDmg = p.board[slot].dmg;
-      const killable = enemyFilled.filter(s => enemy.board[s].hp <= attackerDmg && !enemy.defendingSlots[s]);
+      // Master: Optimal lethal math & coordinated focus fire
+      // Check for clean kills
+      const killable = candidateTargets.filter(s => {
+        const remainingHp = enemy.board[s].hp - (pendingDamageOnTarget[s] || 0);
+        return remainingHp > 0 && remainingHp <= atkDmg;
+      });
+
       if (killable.length > 0) {
-        targetSlot = killable.sort((a, b) => enemy.board[b].tier - enemy.board[a].tier)[0];
+        targetSlot = killable.sort((a, b) => (enemy.board[b].tier * 2 + enemy.board[b].dmg) - (enemy.board[a].tier * 2 + enemy.board[a].dmg))[0];
       } else {
-        targetSlot = enemyFilled.slice().sort((a, b) => {
-          const scoreA = enemy.board[a].dmg * 2 + enemy.board[a].tier - enemy.board[a].hp * 0.5;
-          const scoreB = enemy.board[b].dmg * 2 + enemy.board[b].tier - enemy.board[b].hp * 0.5;
+        // Focus fire the highest-threat undefended card to bring down high-HP units together
+        const unkilled = candidateTargets.filter(s => (enemy.board[s].hp - (pendingDamageOnTarget[s] || 0)) > 0);
+        const pool = unkilled.length > 0 ? unkilled : candidateTargets;
+        targetSlot = pool.slice().sort((a, b) => {
+          // Weight damage threat, tier, and remaining HP for optimal tactical trade
+          const scoreA = enemy.board[a].dmg * 3 + enemy.board[a].tier * 2 - enemy.board[a].hp * 0.5;
+          const scoreB = enemy.board[b].dmg * 3 + enemy.board[b].tier * 2 - enemy.board[b].hp * 0.5;
           return scoreB - scoreA;
         })[0];
       }
     }
-    setAttack(state, botKey, slot, enemyKey, targetSlot);
+
+    if (targetSlot !== undefined) {
+      pendingDamageOnTarget[targetSlot] = (pendingDamageOnTarget[targetSlot] || 0) + atkDmg;
+      setAttack(state, botKey, slot, enemyKey, targetSlot);
+    }
   });
+
   readyAttack(state, botKey);
+}
+
+function executeSmartAttackSpells(state, botKey, enemyKey, rng, level) {
+  const p = state.players[botKey];
+  const enemy = state.players[enemyKey];
+  const enemyFilled = filledSlots(enemy.board);
+
+  for (const spell of p.spells.slice()) {
+    // 1. Damage spells: execute undefended or killable enemies
+    if (spell.dmg && enemyFilled.length > 0) {
+      // Prefer killable high-tier target
+      const killTargets = enemyFilled.filter(s => enemy.board[s].hp <= spell.dmg && !enemy.defendingSlots[s]);
+      if (killTargets.length > 0 && (level >= 2 || rng.next() < 0.6)) {
+        const bestTarget = killTargets.sort((a, b) => enemy.board[b].tier - enemy.board[a].tier)[0];
+        const res = castSpell(state, botKey, spell.id, enemyKey, bestTarget);
+        if (res && res.ok) return;
+      }
+      // If Hard/Master and enemy has a huge threat (Tier 3/4), soften them up with damage spell
+      if (level >= 3) {
+        const bigThreats = enemyFilled.filter(s => enemy.board[s].tier >= 3 && !enemy.defendingSlots[s]);
+        if (bigThreats.length > 0) {
+          const res = castSpell(state, botKey, spell.id, enemyKey, bigThreats[0]);
+          if (res && res.ok) return;
+        }
+      }
+    }
+
+    // 2. Heal spells: restore heavily damaged ally (<=50% HP)
+    if (spell.heal) {
+      const myFilled = filledSlots(p.board);
+      const hurtAllies = myFilled
+        .filter(s => p.board[s].hp <= p.board[s].maxHp * 0.5)
+        .sort((a, b) => (p.board[a].hp / p.board[a].maxHp) - (p.board[b].hp / p.board[b].maxHp));
+      if (hurtAllies.length > 0) {
+        const res = castSpell(state, botKey, spell.id, botKey, hurtAllies[0]);
+        if (res && res.ok) return;
+      }
+    }
+
+    // 3. Revive spell: revive dead high-tier card into empty slot
+    const isRevive = !!(spell.reviveSpell || spell.defId === 'revivespell');
+    if (isRevive && p.graveyard && p.graveyard.length > 0) {
+      const empty = emptySlots(p.board);
+      if (empty.length > 0) {
+        const res = castSpell(state, botKey, spell.id, botKey, empty[0]);
+        if (res && res.ok) return;
+      }
+    }
+  }
 }

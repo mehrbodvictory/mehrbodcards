@@ -403,12 +403,22 @@ function showScreen(id) {
   if (topLeftHud) topLeftHud.classList.toggle('hidden', id === 'screen-game' || id === 'screen-matchmaking');
   
   // Hide top-bar brand on main menu, but keep visible in matches and other screens
+  const topBar = document.getElementById('top-bar');
   const topBrand = document.querySelector('#top-bar .brand');
+  const isMenu = (id === 'screen-menu');
+  if (topBar) {
+    topBar.style.display = isMenu ? 'none' : 'flex';
+  }
   if (topBrand) {
-    const isMenu = (id === 'screen-menu');
     topBrand.style.visibility = isMenu ? 'hidden' : 'visible';
     topBrand.style.opacity = isMenu ? '0' : '1';
     topBrand.style.pointerEvents = isMenu ? 'none' : 'auto';
+  }
+  if (id === 'screen-menu' && typeof window.setupTitleLetters === 'function') {
+    window.setupTitleLetters();
+  }
+  if (typeof window.__triggerThemeParallaxCheck === 'function') {
+    window.__triggerThemeParallaxCheck();
   }
   if (typeof updatePingBadgeVisibility === 'function') {
     updatePingBadgeVisibility();
@@ -437,6 +447,9 @@ const STARTING_BUX = 25;
 const WAGER_CAPS = Object.freeze({ Easy: 10, Medium: 25, Hard: 50, Expert: 100, Master: 200 });
 const MAX_MULTIPLAYER_WAGER = 100;
 function loadBux() {
+  if (typeof AntiCheat !== 'undefined' && typeof AntiCheat.verifyAndLoadBux === 'function') {
+    return AntiCheat.verifyAndLoadBux(STARTING_BUX);
+  }
   try {
     const raw = localStorage.getItem('mehrbod-cards-bux');
     if (raw === null) { saveBux(STARTING_BUX); return STARTING_BUX; }
@@ -445,7 +458,11 @@ function loadBux() {
   } catch (e) { return STARTING_BUX; }
 }
 function saveBux(n) {
-  try { localStorage.setItem('mehrbod-cards-bux', String(Math.max(0, Math.floor(n)))); } catch (e) {}
+  const cleanVal = Math.max(0, Math.floor(n));
+  if (typeof AntiCheat !== 'undefined' && typeof AntiCheat.signBuxAmount === 'function') {
+    AntiCheat.signBuxAmount(cleanVal, 'game_transact');
+  }
+  try { localStorage.setItem('mehrbod-cards-bux', String(cleanVal)); } catch (e) {}
   queueMicrotask(() => { try { saveInventoryBackup(); } catch (e) {} });
 }
 function addBux(delta) {
@@ -846,37 +863,41 @@ function findArchetypeById(archetypeId) {
 
 const PACK_COST = 10;
 function buyCardPack() {
-  if (!spendBux(PACK_COST)) { showToast("You don't have enough Mehrbod Bux for a pack."); return; }
-  if (typeof Sound !== 'undefined' && Sound.packTear) Sound.packTear();
-  const col = loadCollection();
-  const unownedUnits = ALL_NONBLUE_UNIT_IDS.filter(id => !col.units.includes(id));
-  const unownedSpells = ALL_SPELL_IDS.filter(id => !col.spells.includes(id));
-  const unownedChips = ALL_CHIP_IDS.filter(id => !col.chips.includes(id));
-  const pool = shuffleArray(
-    unownedUnits.map(id => ({ id, kind: 'unit' }))
-      .concat(unownedSpells.map(id => ({ id, kind: 'spell' })))
-      .concat(unownedChips.map(id => ({ id, kind: 'chip' })))
-  );
-  if (pool.length === 0) {
-    addBux(PACK_COST);
-    showToast('🎉 Your collection is already complete! Refunded your Bux.', 2800);
-    return;
+  if (typeof buyCardPackSized === 'function') {
+    buyCardPackSized(2, PACK_COST, 'Card Pack');
+  } else {
+    if (!spendBux(PACK_COST)) { showToast("You don't have enough Mehrbod Bux for a pack."); return; }
+    if (typeof Sound !== 'undefined' && Sound.packTear) Sound.packTear();
+    const col = loadCollection();
+    const unownedUnits = ALL_NONBLUE_UNIT_IDS.filter(id => !col.units.includes(id));
+    const unownedSpells = ALL_SPELL_IDS.filter(id => !col.spells.includes(id));
+    const unownedChips = ALL_CHIP_IDS.filter(id => !col.chips.includes(id));
+    const pool = shuffleArray(
+      unownedUnits.map(id => ({ id, kind: 'unit' }))
+        .concat(unownedSpells.map(id => ({ id, kind: 'spell' })))
+        .concat(unownedChips.map(id => ({ id, kind: 'chip' })))
+    );
+    if (pool.length === 0) {
+      addBux(PACK_COST);
+      showToast('🎉 Your collection is already complete! Refunded your Bux.', 2800);
+      return;
+    }
+    const granted = pool.slice(0, 2);
+    granted.forEach(g => {
+      if (g.kind === 'unit') col.units.push(g.id);
+      else if (g.kind === 'spell') col.spells.push(g.id);
+      else col.chips.push(g.id);
+    });
+    saveCollection(col);
+    updateThemeButtons();
+    checkMilestones();
+    if (typeof Sound !== 'undefined' && Sound.packCardFlip) Sound.packCardFlip();
+    const names = granted.map(g => {
+      if (g.kind === 'unit') return findArchetypeById(g.id).name;
+      return (g.kind === 'spell' ? SPELL_DEFS : CHIP_DEFS).find(d => d.id === g.id).name;
+    });
+    showToast(`🎁 Pack opened: ${names.join(', ')}!`, 3200);
   }
-  const granted = pool.slice(0, 2);
-  granted.forEach(g => {
-    if (g.kind === 'unit') col.units.push(g.id);
-    else if (g.kind === 'spell') col.spells.push(g.id);
-    else col.chips.push(g.id);
-  });
-  saveCollection(col);
-  updateThemeButtons();
-  checkMilestones();
-  if (typeof Sound !== 'undefined' && Sound.packCardFlip) Sound.packCardFlip();
-  const names = granted.map(g => {
-    if (g.kind === 'unit') return findArchetypeById(g.id).name;
-    return (g.kind === 'spell' ? SPELL_DEFS : CHIP_DEFS).find(d => d.id === g.id).name;
-  });
-  showToast(`🎁 Pack opened: ${names.join(', ')}!`, 3200);
 }
 
 // ---- Deck Builder (restoration) --------------------------------------------
@@ -918,14 +939,48 @@ function decorateDeckConfigWithPlayerProfile(config) {
   const pAvatar = (pName ? pName.charAt(0).toUpperCase() : 'P');
   const pGrad = (typeof loadProfileGradient === 'function' ? loadProfileGradient() : null) || (typeof profileAvatarColors === 'function' ? profileAvatarColors(pName) : null);
   const pLvl = (typeof playerXP !== 'undefined' && typeof getLevel === 'function') ? getLevel(playerXP) : 1;
+  const pParticle = (typeof ParticleAvatarEngine !== 'undefined') ? ParticleAvatarEngine.getActiveAvatarId() : 'cosmic-singularity';
   config.playerName = pName;
   config.playerAvatar = pAvatar;
   config.playerGradient = pGrad;
   config.playerLevel = pLvl;
+  config.particleAvatar = pParticle;
   return config;
 }
 
+const ACTIVE_DECK_KEY = 'mehrbod_active_deck_v1';
+
+function saveActiveDeck(config) {
+  try {
+    localStorage.setItem(ACTIVE_DECK_KEY, JSON.stringify(config));
+  } catch (e) {}
+}
+
+function loadActiveDeck() {
+  try {
+    const raw = localStorage.getItem(ACTIVE_DECK_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 function buildDefaultDeckConfig() {
+  const saved = loadActiveDeck();
+  if (saved && Array.isArray(saved.unitIds) && saved.unitIds.length === REQUIRED_UNIT_COUNT) {
+    const col = loadCollection();
+    const validUnits = saved.unitIds.every(uid => isUnitArchetypeOwned(uid));
+    const validSpells = (saved.spellIds || []).every(sid => col.spells.includes(sid));
+    const validChips = (saved.chipIds || []).every(cid => col.chips.includes(cid));
+    if (validUnits && validSpells && validChips) {
+      return decorateDeckConfigWithPlayerProfile({
+        unitIds: saved.unitIds.slice(),
+        spellIds: (saved.spellIds || []).slice(0, REQUIRED_SPELL_COUNT),
+        chipIds: (saved.chipIds || []).slice(0, REQUIRED_CHIP_COUNT),
+        victoryAnim: typeof loadEquippedVictoryAnim === 'function' ? loadEquippedVictoryAnim() : null
+      });
+    }
+  }
   const col = loadCollection();
   const ownedGreen = UNIT_ARCHETYPES[2].filter(a => col.units.includes(a.id));
   const ownedRed = UNIT_ARCHETYPES[3].filter(a => col.units.includes(a.id));
@@ -957,7 +1012,28 @@ function openDeckBuilder(onConfirm, returnScreen) {
   } else if (currentVisible && currentVisible.id && currentVisible.id !== 'screen-deck-builder') {
     dbReturnScreen = currentVisible.id;
   }
-  defaultDeckBuilderSelection();
+
+  // Restore the player's saved active deck if available and valid
+  const saved = loadActiveDeck();
+  const col = loadCollection();
+  if (saved && Array.isArray(saved.unitIds) && saved.unitIds.length) {
+    dbUnitCounts = {};
+    saved.unitIds.filter(uid => isUnitArchetypeOwned(uid)).forEach(uid => {
+      dbUnitCounts[uid] = (dbUnitCounts[uid] || 0) + 1;
+    });
+    dbSelectedSpells = (saved.spellIds || []).filter(sid => col.spells.includes(sid)).slice(0, REQUIRED_SPELL_COUNT);
+    dbSelectedChips = (saved.chipIds || []).filter(cid => col.chips.includes(cid)).slice(0, REQUIRED_CHIP_COUNT);
+  } else {
+    defaultDeckBuilderSelection();
+  }
+
+  ['db-loadouts-panel', 'db-synergy-panel', 'db-guide-panel'].forEach(id => {
+    document.getElementById(id)?.classList.add('hidden');
+  });
+  ['btn-db-toggle-loadouts', 'btn-db-toggle-synergy', 'btn-db-toggle-guide'].forEach(id => {
+    document.getElementById(id)?.classList.remove('active');
+  });
+
   renderDeckBuilder();
   renderDeckPresets();
   showScreen('screen-deck-builder');
@@ -1062,6 +1138,135 @@ function initDeckBuilderTabs() {
       }
     });
   });
+
+  // Wire utility slide panels toggles
+  function togglePanel(panelId, btnId) {
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+    const isHidden = panel.classList.contains('hidden');
+    ['db-loadouts-panel', 'db-synergy-panel', 'db-guide-panel'].forEach(id => {
+      document.getElementById(id)?.classList.add('hidden');
+    });
+    ['btn-db-toggle-loadouts', 'btn-db-toggle-synergy', 'btn-db-toggle-guide'].forEach(id => {
+      document.getElementById(id)?.classList.remove('active');
+    });
+    if (isHidden) {
+      panel.classList.remove('hidden');
+      document.getElementById(btnId)?.classList.add('active');
+      if (typeof Sound !== 'undefined' && Sound.modalOpen) Sound.modalOpen();
+    } else {
+      if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
+    }
+  }
+
+  document.getElementById('btn-db-toggle-loadouts')?.addEventListener('click', () => {
+    togglePanel('db-loadouts-panel', 'btn-db-toggle-loadouts');
+  });
+  document.getElementById('btn-close-loadouts')?.addEventListener('click', () => {
+    document.getElementById('db-loadouts-panel')?.classList.add('hidden');
+    document.getElementById('btn-db-toggle-loadouts')?.classList.remove('active');
+    if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
+  });
+
+  document.getElementById('btn-db-toggle-synergy')?.addEventListener('click', () => {
+    togglePanel('db-synergy-panel', 'btn-db-toggle-synergy');
+  });
+  document.getElementById('btn-close-synergy')?.addEventListener('click', () => {
+    document.getElementById('db-synergy-panel')?.classList.add('hidden');
+    document.getElementById('btn-db-toggle-synergy')?.classList.remove('active');
+    if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
+  });
+
+  document.getElementById('btn-db-toggle-guide')?.addEventListener('click', () => {
+    togglePanel('db-guide-panel', 'btn-db-toggle-guide');
+  });
+  document.getElementById('btn-close-guide')?.addEventListener('click', () => {
+    document.getElementById('db-guide-panel')?.classList.add('hidden');
+    document.getElementById('btn-db-toggle-guide')?.classList.remove('active');
+    if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
+  });
+}
+
+function renderActiveDeckTray() {
+  const container = document.getElementById('active-deck-chips-list');
+  const breakdown = document.getElementById('active-deck-breakdown');
+  if (!container) return;
+
+  const totalUnits = dbTotalUnits();
+  if (breakdown) {
+    breakdown.textContent = `${totalUnits}/${REQUIRED_UNIT_COUNT} Units · ${dbSelectedSpells.length}/${REQUIRED_SPELL_COUNT} Spells · ${dbSelectedChips.length}/${REQUIRED_CHIP_COUNT} Chips`;
+  }
+
+  const hasAnyCards = totalUnits > 0 || dbSelectedSpells.length > 0 || dbSelectedChips.length > 0;
+  if (!hasAnyCards) {
+    container.innerHTML = '<span class="active-deck-empty-hint">Deck is empty. Pick cards below or click Auto-Fill.</span>';
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+
+  // 1. Units
+  Object.entries(dbUnitCounts).forEach(([archId, count]) => {
+    if (count <= 0) return;
+    const arch = findArchetypeById(archId);
+    if (!arch) return;
+    const tier = arch.tier;
+    const chip = document.createElement('div');
+    chip.className = `active-tray-chip tier${tier}`;
+    chip.title = `Click to remove 1 ${arch.name}`;
+    chip.innerHTML = `
+      <span class="active-tray-dot tier${tier}"></span>
+      <span class="active-tray-name">${arch.name}</span>
+      <span class="active-tray-qty">x${count}</span>
+      <span class="active-tray-remove">X</span>
+    `;
+    chip.addEventListener('click', () => {
+      dbAdjustUnit(archId, -1);
+    });
+    frag.appendChild(chip);
+  });
+
+  // 2. Spells
+  const spellCounts = {};
+  dbSelectedSpells.forEach(sid => { spellCounts[sid] = (spellCounts[sid] || 0) + 1; });
+  Object.entries(spellCounts).forEach(([sid, count]) => {
+    const sDef = SPELL_DEFS.find(s => s.id === sid);
+    const sName = sDef ? sDef.name : sid;
+    const chip = document.createElement('div');
+    chip.className = 'active-tray-chip spell';
+    chip.title = `Click to remove 1 ${sName}`;
+    chip.innerHTML = `
+      <span class="active-tray-dot spell"></span>
+      <span class="active-tray-name">${sName}</span>
+      ${count > 1 ? `<span class="active-tray-qty">x${count}</span>` : ''}
+      <span class="active-tray-remove">X</span>
+    `;
+    chip.addEventListener('click', () => {
+      dbAdjustSpell(sid, -1);
+    });
+    frag.appendChild(chip);
+  });
+
+  // 3. Chips
+  dbSelectedChips.forEach(cid => {
+    const cDef = CHIP_DEFS.find(c => c.id === cid);
+    const cName = cDef ? cDef.name : cid;
+    const chip = document.createElement('div');
+    chip.className = 'active-tray-chip chip';
+    chip.title = `Click to remove ${cName}`;
+    chip.innerHTML = `
+      <span class="active-tray-dot chip"></span>
+      <span class="active-tray-name">${cName}</span>
+      <span class="active-tray-remove">X</span>
+    `;
+    chip.addEventListener('click', () => {
+      dbToggleChip(cid);
+    });
+    frag.appendChild(chip);
+  });
+
+  container.innerHTML = '';
+  container.appendChild(frag);
 }
 
 function renderDeckBuilder() {
@@ -1079,13 +1284,13 @@ function renderDeckBuilder() {
   unitsContainer.innerHTML = '';
   const unitsFrag = document.createDocumentFragment();
   [1, 2, 3, 4].forEach(tier => {
-    // Append a beautiful divider header for each tier
+    // Append divider header for each tier
     const dividerEl = document.createElement('div');
     dividerEl.className = 'tier-separator';
     dividerEl.dataset.tierDivider = String(tier);
     dividerEl.innerHTML = `
       <div class="tier-separator-line"></div>
-      <div class="tier-separator-text tier${tier}">${TIERS[tier].name} Cards (Tier ${tier})</div>
+      <div class="tier-separator-text tier${tier}">${TIERS[tier].name} Cards</div>
       <div class="tier-separator-line"></div>
     `;
     unitsFrag.appendChild(dividerEl);
@@ -1098,37 +1303,25 @@ function renderDeckBuilder() {
       el.dataset.unitName = a.name;
       el.dataset.unitTier = String(tier);
       const abilityText = a.pool[0] === 'none' ? 'No special ability' : (ABILITIES[a.pool[0]] ? ABILITIES[a.pool[0]].label : 'Unique ability');
-      
-      const particleClasses = {
-        1: 'particle-blue',
-        2: 'particle-green',
-        3: 'particle-red',
-        4: 'particle-orange',
-      };
-      const pClass = particleClasses[tier] || 'particle-blue';
 
       el.innerHTML = `
-        <div class="dcard-rarity-glow tier${tier}"></div>
-        <div class="dcard-particles ${pClass}">
-          <span class="dcard-p-dot p1"></span>
-          <span class="dcard-p-dot p2"></span>
-          <span class="dcard-p-dot p3"></span>
+        <div class="dcard-top-bar">
+          ${count > 0 ? `<span class="dcard-count-badge">x${count}</span>` : '<span></span>'}
         </div>
         <div class="dcard-name">${a.name}</div>
         <div class="dcard-text">${abilityText}</div>
-        ${count > 0 ? `<span class="dcard-count-badge">x${count}</span>` : ''}
         ${owned
           ? `<div class="dcard-stepper" onclick="event.stopPropagation()">
-               <button type="button" class="stepper-btn" data-unit-dec="${a.id}" ${count <= 0 ? 'disabled' : ''}>−</button>
+               <button type="button" class="stepper-btn" data-unit-dec="${a.id}" ${count <= 0 ? 'disabled' : ''}>-</button>
                <span class="stepper-count">${count}</span>
                <button type="button" class="stepper-btn" data-unit-inc="${a.id}" ${atUnitCap ? 'disabled' : ''}>+</button>
              </div>`
-          : `<div class="dcard-lock">🔒 Unlock via Card Packs in the Shop</div>`}
+          : `<div class="dcard-lock">Locked (Shop Pack)</div>`}
       `;
       if (owned) {
         el.addEventListener('click', () => {
           if (!atUnitCap) dbAdjustUnit(a.id, 1);
-          else showToast("Unit slots are full! Use the minus (−) button on card steppers to remove.", 1500);
+          else showToast("Unit slots are full (12/12)! Use the minus (-) button on a card to remove.", 1500);
         });
       }
       unitsFrag.appendChild(el);
@@ -1155,17 +1348,19 @@ function renderDeckBuilder() {
     el.className = `dcard spell-dcard ${owned ? '' : 'locked'} ${selected ? 'selected' : ''}`;
     el.dataset.spellName = s.name;
     el.innerHTML = `
-      <div class="dcard-rarity-glow spell"></div>
+      <div class="dcard-top-bar">
+        <span class="dcard-tier-tag spell">Spell</span>
+        ${count > 0 ? `<span class="dcard-count-badge spell">x${count}</span>` : ''}
+      </div>
       <div class="dcard-name">${s.name}</div>
       <div class="dcard-text">${s.text}</div>
-      ${count > 0 ? `<span class="dcard-count-badge spell">x${count}</span>` : ''}
       ${owned
-        ? `<div class="dcard-stepper" style="margin-top: 8px;" onclick="event.stopPropagation()">
-             <button type="button" class="stepper-btn" data-spell-dec="${s.id}" ${count <= 0 ? 'disabled' : ''}>−</button>
+        ? `<div class="dcard-stepper" onclick="event.stopPropagation()">
+             <button type="button" class="stepper-btn" data-spell-dec="${s.id}" ${count <= 0 ? 'disabled' : ''}>-</button>
              <span class="stepper-count">${count}</span>
              <button type="button" class="stepper-btn" data-spell-inc="${s.id}" ${atSpellCap ? 'disabled' : ''}>+</button>
            </div>`
-        : '<div class="dcard-lock">🔒 Locked</div>'}
+        : '<div class="dcard-lock">Locked</div>'}
     `;
     if (owned) {
       el.querySelector('[data-spell-inc]')?.addEventListener('click', (e) => { e.stopPropagation(); dbAdjustSpell(s.id, 1); });
@@ -1189,10 +1384,15 @@ function renderDeckBuilder() {
     el.className = `dcard chip-dcard ${owned ? '' : 'locked'} ${selected ? 'selected' : ''}`;
     el.dataset.chipName = c.name;
     el.innerHTML = `
-      <div class="dcard-rarity-glow chip"></div>
+      <div class="dcard-top-bar">
+        <span class="dcard-tier-tag chip">CHIP</span>
+        ${selected ? '<span class="dcard-count-badge chip">Equipped</span>' : ''}
+      </div>
       <div class="dcard-name">${c.name}</div>
       <div class="dcard-text">${c.text}</div>
-      ${owned ? '' : '<div class="dcard-lock">🔒 Locked</div>'}
+      ${owned
+        ? `<div class="dcard-chip-action ${selected ? 'equipped' : ''}">${selected ? 'Equipped' : '+ Equip Chip'}</div>`
+        : '<div class="dcard-lock">Locked</div>'}
     `;
     if (owned) {
       el.addEventListener('click', () => dbToggleChip(c.id));
@@ -1220,12 +1420,17 @@ function renderDeckBuilder() {
   const complete = totalUnits === REQUIRED_UNIT_COUNT && dbSelectedSpells.length === REQUIRED_SPELL_COUNT && dbSelectedChips.length === REQUIRED_CHIP_COUNT;
   const hint = document.getElementById('deck-completeness-hint');
   if (hint) {
-    hint.textContent = complete ? 'DECK READY' : `${totalUnits}/${REQUIRED_UNIT_COUNT} CARDS`;
+    hint.textContent = `${totalUnits}/${REQUIRED_UNIT_COUNT} CARDS`;
     hint.classList.toggle('complete', complete);
   }
   const confirmBtn = document.getElementById('btn-deck-builder-confirm');
-  if (confirmBtn) confirmBtn.disabled = !complete;
+  if (confirmBtn) {
+    confirmBtn.disabled = !complete;
+    confirmBtn.textContent = dbOnConfirm ? 'Confirm Deck' : 'Save & Close';
+    confirmBtn.classList.toggle('ready-pulse', complete);
+  }
   renderDeckSynergyAnalytics();
+  renderActiveDeckTray();
   applyDeckBuilderFilter();
 }
 
@@ -1247,20 +1452,20 @@ function renderDeckSynergyAnalytics() {
   const spellsCount = dbSelectedSpells.length;
   const chipsCount = dbSelectedChips.length;
 
-  let rating = '🛡️ Balanced Hybrid';
+  let rating = 'Balanced Hybrid';
   let advice = 'Good mix of deployable Blue units and higher-tier merge blueprints.';
 
   if (t1 >= 4 && (t3 >= 2 || t4 >= 1) && spellsCount >= 3) {
-    rating = '⚔️ S-Tier Master Synergy';
+    rating = 'S-Tier Master Synergy';
     advice = 'Optimal deployment engine! Ample Blue board presence backed by high-yield fusion blueprints and heavy spell burst.';
   } else if (t1 === 0 && totalUnits > 0) {
-    rating = '⚠️ Missing Deployment Base';
+    rating = 'Missing Deployment Base';
     advice = 'Warning: Blue (Tier 1) units are required to deploy onto the board! Without Blue units, you cannot initiate merges.';
   } else if (t1 >= 8) {
-    rating = '⚡ Aggro Swarm Rush';
+    rating = 'Aggro Swarm Rush';
     advice = 'High Blue density allows fast board flooding, but add Green/Red blueprints to scale into late-game HP.';
   } else if (t4 >= 3) {
-    rating = '🔥 Apex Titan Deck';
+    rating = 'Apex Titan Deck';
     advice = 'Heavy Orange blueprint concentration allows devastating apex transformations!';
   }
 
@@ -1281,10 +1486,10 @@ function renderDeckSynergyAnalytics() {
       <div class="dsw-bar t4" style="width: ${p4}%" title="Orange Tier 4: ${t4}"></div>
     </div>
     <div class="dsw-legend">
-      <span>🔵 Blue (T1): ${t1}</span>
-      <span>🟢 Green (T2): ${t2}</span>
-      <span>🔴 Red (T3): ${t3}</span>
-      <span>🟠 Orange (T4): ${t4}</span>
+      <span>Blue (T1): ${t1}</span>
+      <span>Green (T2): ${t2}</span>
+      <span>Red (T3): ${t3}</span>
+      <span>Orange (T4): ${t4}</span>
     </div>
     <div class="dsw-advice">${advice}</div>
   `;
@@ -1335,10 +1540,19 @@ document.getElementById('btn-deck-builder-confirm').addEventListener('click', ()
   const unitIds = [];
   Object.entries(dbUnitCounts).forEach(([id, count]) => { for (let i = 0; i < count; i++) unitIds.push(id); });
   const rawConfig = { unitIds, spellIds: dbSelectedSpells.slice(), chipIds: dbSelectedChips.slice(), victoryAnim: loadEquippedVictoryAnim() };
+  
+  // Persist as the active deck
+  saveActiveDeck(rawConfig);
+
   const config = decorateDeckConfigWithPlayerProfile(rawConfig);
   const cb = dbOnConfirm;
   dbOnConfirm = null;
-  if (cb) cb(config);
+  if (cb) {
+    cb(config);
+  } else {
+    showToast('Deck saved to your active loadout!', 2000);
+    showScreen(dbReturnScreen || 'screen-menu');
+  }
 });
 
 // ---- NEW FEATURE: Auto-Fill Remaining Deck Slots ---------------------------
@@ -1367,9 +1581,26 @@ function autoFillDeck() {
     dbSelectedChips.push(remainingChips.splice(i, 1)[0]);
   }
   renderDeckBuilder();
-  showToast('🎲 Filled the remaining deck slots randomly', 1800);
+  showToast('Filled the remaining deck slots randomly', 1800);
 }
 document.getElementById('btn-autofill-deck').addEventListener('click', autoFillDeck);
+
+function clearDeck() {
+  if (typeof Sound !== 'undefined' && Sound.shuffle) Sound.shuffle();
+  dbUnitCounts = {};
+  dbSelectedSpells = [];
+  dbSelectedChips = [];
+  renderDeckBuilder();
+  showToast('Deck cleared. Choose new cards or click Auto-Fill.', 2200);
+}
+document.getElementById('btn-clear-deck')?.addEventListener('click', clearDeck);
+
+document.getElementById('btn-sp-deck-builder')?.addEventListener('click', () => {
+  openDeckBuilder(null, 'screen-single-player');
+});
+document.getElementById('btn-locker-deckbuilder')?.addEventListener('click', () => {
+  openDeckBuilder(null, 'screen-collection');
+});
 
 // ---- NEW FEATURE: Deck Presets ---------------------------------------------
 // Building a full 12/4/2 deck from scratch every single match is tedious
@@ -1416,7 +1647,7 @@ function saveCurrentDeckAsPreset() {
   saveDeckPresetsList(presets);
   if (nameInput) nameInput.value = '';
   if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
-  showToast(`💾 Saved deck "${name}"`, 2200);
+  showToast(`Saved deck "${name}"`, 2200);
   renderDeckPresets();
 }
 
@@ -1437,9 +1668,9 @@ function loadDeckPreset(id) {
   renderDeckBuilder();
   const totalUnits = dbTotalUnits();
   if (totalUnits < REQUIRED_UNIT_COUNT) {
-    showToast(`📂 Loaded "${preset.name}" — some cards from it are no longer owned, so it's short ${REQUIRED_UNIT_COUNT - totalUnits} unit(s).`, 3200);
+    showToast(`Loaded "${preset.name}" — some cards from it are no longer owned, so it's short ${REQUIRED_UNIT_COUNT - totalUnits} unit(s).`, 3200);
   } else {
-    showToast(`📂 Loaded deck "${preset.name}"`, 2000);
+    showToast(`Loaded deck "${preset.name}"`, 2000);
   }
 }
 
@@ -1458,7 +1689,7 @@ function renderDeckPresets() {
     ? presets.map(p => `
       <div class="deck-preset-chip">
         <button type="button" class="deck-preset-load" data-load-preset="${p.id}">${p.name}</button>
-        <button type="button" class="deck-preset-delete" data-delete-preset="${p.id}" title="Delete this deck" aria-label="Delete ${p.name}">✕</button>
+        <button type="button" class="deck-preset-delete" data-delete-preset="${p.id}" title="Delete this deck" aria-label="Delete ${p.name}">X</button>
       </div>`).join('')
     : '<p class="sub small">No saved decks yet — build one below, then save it here for next time.</p>';
   list.querySelectorAll('[data-load-preset]').forEach(btn => {
@@ -2146,9 +2377,51 @@ function getMatchHistory() {
 }
 function recordMatchHistory(entry) {
   const items = getMatchHistory();
+  if (typeof matchReplayData !== 'undefined' && matchReplayData) {
+    entry.replay = { ...matchReplayData };
+  }
   items.unshift({ ...entry, at: Date.now() });
-  localStorage.setItem(MATCH_HISTORY_KEY, JSON.stringify(items.slice(0, 20)));
+  localStorage.setItem(MATCH_HISTORY_KEY, JSON.stringify(items.slice(0, 10)));
 }
+
+function runMatchReplayDirect(data) {
+  if (!data || !data.actions || data.actions.length === 0) {
+    showToast("Invalid replay data!");
+    return;
+  }
+  
+  mode = 'replay';
+  tutorialActive = false;
+  currentWager = 0;
+  _lowHpWarned.clear();
+  resetMatchCardStats();
+  lastPlacement = null;
+  if (typeof cancelBotThinking === 'function') cancelBotThinking();
+  cancelReplay();
+  
+  currentReplayData = data;
+  currentReplayIndex = 0;
+  isReplayPlaying = true;
+  
+  const speedInput = document.getElementById('replay-speed');
+  if (speedInput) {
+    replaySpeed = parseFloat(speedInput.value) || 1;
+  } else {
+    replaySpeed = 1;
+  }
+  
+  localKey = data.p1id || 'host';
+  remoteKey = data.p2id || 'guest';
+  
+  resetSelections();
+  showScreen('screen-game');
+  setMatchInfo('▶ Match Replay', '▶ Replay');
+  renderReplayControls();
+  
+  buildReplayState(0);
+  replayInterval = setTimeout(() => stepReplayForward(true), 1000 / replaySpeed);
+}
+window.runMatchReplayDirect = runMatchReplayDirect;
 
 // ---- Player Stats panel -----------------------------------------------
 // Combines what used to be three separate feature-strip popups (Battle
@@ -4012,9 +4285,6 @@ function startMatchmakingTimer(deckConfig) {
     // If searching takes longer than 7 seconds, display the diagnostic prompt banner
     if (elapsedSec >= 7 && slowAlert && slowAlert.classList.contains('hidden')) {
       slowAlert.classList.remove('hidden');
-      if (typeof NetworkDiagnostics !== 'undefined') {
-        NetworkDiagnostics.log(`Matchmaking search in progress (${elapsedSec}s). Probing background network health...`, 'info');
-      }
     }
   }, 1000);
 }
@@ -4036,6 +4306,12 @@ function updateOpponentFoundUI(remoteData) {
   const remoteStatus = document.getElementById('mm-remote-status');
   const remoteDeck = document.getElementById('mm-remote-deck');
 
+  const localName = (typeof loadPlayerName === 'function' ? loadPlayerName() : '') || 'Player';
+  let oppName = (remoteData && remoteData.name) ? remoteData.name : 'Player';
+  if (oppName === localName && localName !== 'Player') {
+    oppName = `${oppName} (Adversary)`;
+  }
+
   if (remoteCard) {
     remoteCard.classList.remove('searching');
     remoteCard.classList.add('ready');
@@ -4043,11 +4319,17 @@ function updateOpponentFoundUI(remoteData) {
   if (remoteAvatar) {
     remoteAvatar.classList.remove('pulse-avatar');
     remoteAvatar.classList.add('ready-avatar');
-    const oppName = (remoteData && remoteData.name) ? remoteData.name : 'Player';
-    const oppArt = (remoteData && remoteData.art) ? remoteData.art : (oppName ? oppName.charAt(0).toUpperCase() : '⚔️');
+    let oppArt = (remoteData && remoteData.art) ? remoteData.art : '';
+    if (!oppArt) {
+      if (oppName && oppName !== localName && oppName !== 'Player') {
+        oppArt = oppName.trim().charAt(0).toUpperCase();
+      } else {
+        oppArt = '⚔️';
+      }
+    }
     remoteAvatar.textContent = oppArt;
     if (typeof getProfileAvatarGradientCss === 'function') {
-      remoteAvatar.style.background = getProfileAvatarGradientCss(oppName, remoteData?.gradient);
+      remoteAvatar.style.background = getProfileAvatarGradientCss(oppName, remoteData?.gradient, false);
       remoteAvatar.style.borderRadius = '50%';
       remoteAvatar.style.width = '68px';
       remoteAvatar.style.height = '68px';
@@ -4057,13 +4339,13 @@ function updateOpponentFoundUI(remoteData) {
       remoteAvatar.style.color = '#ffffff';
       remoteAvatar.style.fontWeight = '800';
       remoteAvatar.style.fontSize = '2rem';
-      remoteAvatar.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.25)';
+      remoteAvatar.style.boxShadow = '0 0 20px rgba(236, 72, 153, 0.5)';
     }
   }
   if (remoteName) {
     remoteName.classList.remove('searching-text');
     remoteName.classList.add('ready-name');
-    remoteName.textContent = (remoteData && remoteData.name) ? remoteData.name : 'PLAYER';
+    remoteName.textContent = oppName.toUpperCase();
   }
   if (remoteLevel) {
     remoteLevel.classList.remove('searching-badge');
@@ -4102,7 +4384,7 @@ async function beginMatchmaking(deckConfig) {
       try {
         if (isMatchmakingCancelled) return;
         document.getElementById('matchmaking-status').textContent = 'Searching for open public matches...';
-        matchedLobby = await FirebaseMatchmaking.findAndClaimLobby();
+        matchedLobby = await FirebaseMatchmaking.findAndClaimLobby(deckConfig);
       } catch (fbErr) {
         console.warn('[Firebase Matchmaking] Search notice, checking local fallback:', fbErr);
       }
@@ -4115,12 +4397,21 @@ async function beginMatchmaking(deckConfig) {
       try {
         const joinRes = await fetch('/api/matchmaking/join', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            guestInfo: {
+              playerName: deckConfig.playerName,
+              playerAvatar: deckConfig.playerAvatar,
+              playerGradient: deckConfig.playerGradient,
+              playerLevel: deckConfig.playerLevel,
+              deckName: deckConfig.deckName
+            }
+          })
         });
         if (joinRes.ok) {
           const joinData = await joinRes.json();
           if (joinData && joinData.matchFound && joinData.roomCode) {
-            matchedLobby = { roomCode: joinData.roomCode };
+            matchedLobby = { roomCode: joinData.roomCode, hostInfo: joinData.hostInfo || null };
           }
         }
       } catch (apiErr) {
@@ -4137,6 +4428,21 @@ async function beginMatchmaking(deckConfig) {
       
       mode = 'mp'; localKey = 'guest'; remoteKey = 'host';
       pendingGuestDeckConfig = deckConfig;
+
+      if (matchedLobby.hostInfo) {
+        const hInfo = matchedLobby.hostInfo;
+        remotePlayerName = hInfo.playerName || 'Host Player';
+        remotePlayerAvatar = hInfo.playerAvatar || (remotePlayerName !== 'Player' ? remotePlayerName.charAt(0).toUpperCase() : '⚔️');
+        remotePlayerGradient = hInfo.playerGradient || null;
+        remotePlayerLevel = hInfo.playerLevel || 1;
+        updateOpponentFoundUI({
+          name: remotePlayerName,
+          level: remotePlayerLevel,
+          art: remotePlayerAvatar,
+          gradient: remotePlayerGradient,
+          deckName: hInfo.deckName || 'Public Match Deck'
+        });
+      }
       
       let isTransitioningToHost = false;
       const fallbackToHost = async () => {
@@ -4151,36 +4457,45 @@ async function beginMatchmaking(deckConfig) {
         onInit: (data) => {
           if (isMatchmakingCancelled) return;
           stopMatchmakingTimer();
-          remotePlayerName = data.hostDeckConfig?.playerName || 'Host Player';
-          remotePlayerAvatar = data.hostDeckConfig?.playerAvatar || (remotePlayerName ? remotePlayerName.charAt(0).toUpperCase() : '⚔️');
-          remotePlayerGradient = data.hostDeckConfig?.playerGradient || null;
-          remotePlayerLevel = data.hostDeckConfig?.playerLevel || 1;
+          const localName = (typeof loadPlayerName === 'function' ? loadPlayerName() : '') || 'Player';
+          remotePlayerName = data.hostDeckConfig?.playerName || remotePlayerName || 'Opponent';
+          if (remotePlayerName === localName && localName !== 'Player') {
+            remotePlayerName = `${remotePlayerName} (Adversary)`;
+          }
+          remotePlayerAvatar = data.hostDeckConfig?.playerAvatar || remotePlayerAvatar || (remotePlayerName !== 'Player' ? remotePlayerName.charAt(0).toUpperCase() : '⚔️');
+          remotePlayerGradient = data.hostDeckConfig?.playerGradient || remotePlayerGradient || null;
+          remotePlayerLevel = data.hostDeckConfig?.playerLevel || remotePlayerLevel || 1;
 
-          updateOpponentFoundUI({
+          const oppData = {
             name: remotePlayerName,
             level: remotePlayerLevel,
             art: remotePlayerAvatar,
             gradient: remotePlayerGradient,
             deckName: data.hostDeckConfig?.deckName || 'Public Match Deck'
-          });
+          };
 
-          document.getElementById('gameover-overlay').classList.add('hidden');
-          document.getElementById('gameover-card').querySelectorAll('.confetti-piece').forEach(el => el.remove());
-          gameOverAnnounced = false;
-          meteorShowerDone = false;
-          epicVictoryDone = false;
-          matchVictoryAnims = { host: data.hostDeckConfig?.victoryAnim || null, guest: pendingGuestDeckConfig?.victoryAnim || null };
-          matchStartTime = Date.now();
-          currentWager = 0;
-          _lowHpWarned.clear();
-          resetMatchCardStats();
-          lastPlacement = null;
-          state = createMatch(data.seed, 'host', 'guest', { host: data.hostDeckConfig, guest: pendingGuestDeckConfig });
-          initReplayLog(data.seed, 'host', 'guest', { host: data.hostDeckConfig, guest: pendingGuestDeckConfig });
-          resetSelections();
-          showScreen('screen-game');
-          setMatchInfo('Multiplayer · Public Match', 'Public Match');
-          render();
+          updateOpponentFoundUI(oppData);
+
+          triggerMatchmakingLockIn(oppData, () => {
+            if (isMatchmakingCancelled) return;
+            document.getElementById('gameover-overlay').classList.add('hidden');
+            document.getElementById('gameover-card').querySelectorAll('.confetti-piece').forEach(el => el.remove());
+            gameOverAnnounced = false;
+            meteorShowerDone = false;
+            epicVictoryDone = false;
+            matchVictoryAnims = { host: data.hostDeckConfig?.victoryAnim || null, guest: pendingGuestDeckConfig?.victoryAnim || null };
+            matchStartTime = Date.now();
+            currentWager = 0;
+            _lowHpWarned.clear();
+            resetMatchCardStats();
+            lastPlacement = null;
+            state = createMatch(data.seed, 'host', 'guest', { host: data.hostDeckConfig, guest: pendingGuestDeckConfig });
+            initReplayLog(data.seed, 'host', 'guest', { host: data.hostDeckConfig, guest: pendingGuestDeckConfig });
+            resetSelections();
+            showScreen('screen-game');
+            setMatchInfo('Multiplayer · Public Match', 'Public Match');
+            render();
+          });
         },
         onApplied: (action) => applyActionAndRender(action),
         onStatus: (status) => {
@@ -4246,33 +4561,43 @@ async function startHostingMatchmaking(deckConfig) {
         matchmakingLobbyHeartbeat = null;
       }
       stopMatchmakingTimer();
-      remotePlayerName = guestDeckConfig?.playerName || 'Guest Player';
-      remotePlayerAvatar = guestDeckConfig?.playerAvatar || (remotePlayerName ? remotePlayerName.charAt(0).toUpperCase() : '⚔️');
+      const localName = (typeof loadPlayerName === 'function' ? loadPlayerName() : '') || 'Player';
+      remotePlayerName = guestDeckConfig?.playerName || 'Opponent';
+      if (remotePlayerName === localName && localName !== 'Player') {
+        remotePlayerName = `${remotePlayerName} (Adversary)`;
+      }
+      remotePlayerAvatar = guestDeckConfig?.playerAvatar || (remotePlayerName !== 'Player' ? remotePlayerName.charAt(0).toUpperCase() : '⚔️');
       remotePlayerGradient = guestDeckConfig?.playerGradient || null;
       remotePlayerLevel = guestDeckConfig?.playerLevel || 1;
 
-      updateOpponentFoundUI({
+      const oppData = {
         name: remotePlayerName,
         level: remotePlayerLevel,
         art: remotePlayerAvatar,
         gradient: remotePlayerGradient,
         deckName: guestDeckConfig?.deckName || 'Custom Deck'
+      };
+
+      updateOpponentFoundUI(oppData);
+
+      triggerMatchmakingLockIn(oppData, () => {
+        if (isMatchmakingCancelled) return;
+        gameOverAnnounced = false;
+        meteorShowerDone = false;
+        epicVictoryDone = false;
+        matchVictoryAnims = { host: guestDeckConfig?.victoryAnim || null, guest: deckConfig?.victoryAnim || null };
+        matchStartTime = Date.now();
+        _lowHpWarned.clear();
+        resetMatchCardStats();
+        lastPlacement = null;
+        state = createMatch(seed, 'host', 'guest', { host: guestDeckConfig, guest: deckConfig });
+        initReplayLog(seed, 'host', 'guest', { host: guestDeckConfig, guest: deckConfig });
+        resetSelections();
+        showScreen('screen-game');
+        setMatchInfo('Multiplayer · Public Match', 'Public Match');
+        render();
+        net.sendInit();
       });
-      gameOverAnnounced = false;
-      meteorShowerDone = false;
-      epicVictoryDone = false;
-      matchVictoryAnims = { host: deckConfig?.victoryAnim || null, guest: guestDeckConfig?.victoryAnim || null };
-      matchStartTime = Date.now();
-      _lowHpWarned.clear();
-      resetMatchCardStats();
-      lastPlacement = null;
-      state = createMatch(seed, 'host', 'guest', { host: deckConfig, guest: guestDeckConfig });
-      initReplayLog(seed, 'host', 'guest', { host: deckConfig, guest: guestDeckConfig });
-      resetSelections();
-      showScreen('screen-game');
-      setMatchInfo('Multiplayer · Public Match', 'Public Match');
-      render();
-      net.sendInit();
 
       // Deregister from discovery registries
       if (typeof FirebaseMatchmaking !== 'undefined' && matchmakingRoomCode) {
@@ -4307,7 +4632,7 @@ async function startHostingMatchmaking(deckConfig) {
     // Register in Firebase Firestore
     if (typeof FirebaseMatchmaking !== 'undefined' && FirebaseMatchmaking.isAvailable()) {
       try {
-        await FirebaseMatchmaking.registerLobby(code);
+        await FirebaseMatchmaking.registerLobby(code, deckConfig);
       } catch (fbErr) {
         console.warn('[Firebase Matchmaking] Notice on register:', fbErr);
       }
@@ -4318,7 +4643,16 @@ async function startHostingMatchmaking(deckConfig) {
       await fetch('/api/matchmaking/host', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roomCode: code })
+        body: JSON.stringify({
+          roomCode: code,
+          hostInfo: {
+            playerName: deckConfig.playerName,
+            playerAvatar: deckConfig.playerAvatar,
+            playerGradient: deckConfig.playerGradient,
+            playerLevel: deckConfig.playerLevel,
+            deckName: deckConfig.deckName
+          }
+        })
       });
     } catch (apiErr) {
       // Non-critical if Firebase is active
@@ -4380,23 +4714,6 @@ function cancelMatchmaking() {
     }).catch(() => {});
   }
 }
-
-// ---- Network Diagnostics Tool Event Wiring ----------------------------------
-document.getElementById('btn-settings-open-diagnostics')?.addEventListener('click', () => {
-  if (typeof NetworkDiagnostics !== 'undefined') NetworkDiagnostics.openModal();
-});
-document.getElementById('btn-diag-close')?.addEventListener('click', () => {
-  if (typeof NetworkDiagnostics !== 'undefined') NetworkDiagnostics.closeModal();
-});
-document.getElementById('btn-diag-footer-close')?.addEventListener('click', () => {
-  if (typeof NetworkDiagnostics !== 'undefined') NetworkDiagnostics.closeModal();
-});
-document.getElementById('btn-diag-run-test')?.addEventListener('click', () => {
-  if (typeof NetworkDiagnostics !== 'undefined') NetworkDiagnostics.runFullDiagnostic();
-});
-document.getElementById('btn-diag-copy-report')?.addEventListener('click', () => {
-  if (typeof NetworkDiagnostics !== 'undefined') NetworkDiagnostics.copyReport();
-});
 
 // ---- Action dispatch --------------------------------------------------------
 function dispatch(action) {
@@ -5048,13 +5365,21 @@ function openOptions(defaultTab = null) {
         roundTextEl.textContent = state && state.round ? `Round ${state.round}` : 'In-Match';
       }
       if (playerHpEl) {
-        playerHpEl.textContent = `${state && state.player ? state.player.hp : 20} HP`;
+        const myLeft = state && state.players && state.players[localKey]
+          ? (state.players[localKey].board.filter(Boolean).length + (state.players[localKey].deck ? state.players[localKey].deck.length : 0))
+          : 0;
+        playerHpEl.textContent = `${myLeft} Cards Left`;
       }
       if (oppNameEl) {
-        oppNameEl.textContent = state && state.opponent ? (state.opponent.name || 'Opponent') : 'Opponent';
+        const oppKey = other(state, localKey);
+        oppNameEl.textContent = state && state.players && state.players[oppKey] ? (state.players[oppKey].playerName || 'Opponent') : 'Opponent';
       }
       if (oppHpEl) {
-        oppHpEl.textContent = `${state && state.opponent ? state.opponent.hp : 20} HP`;
+        const oppKey = other(state, localKey);
+        const oppLeft = state && state.players && state.players[oppKey]
+          ? (state.players[oppKey].board.filter(Boolean).length + (state.players[oppKey].deck ? state.players[oppKey].deck.length : 0))
+          : 0;
+        oppHpEl.textContent = `${oppLeft} Cards Left`;
       }
       if (quitBtn) {
         if (isReplay) {
@@ -5315,6 +5640,10 @@ document.getElementById('screen-game').addEventListener('click', (e) => {
   }
 
   if (spellEl) {
+    if (state && state.phase !== 'attack') {
+      showToast('⚡ Spells can only be cast during the attack phase!');
+      return;
+    }
     const id = spellEl.dataset.spellId;
     resetSelections();
     selSpellId = id;
@@ -5480,7 +5809,14 @@ function openSacrificeSpellModal({ spellName, availableSpells, onSelect }) {
     }
     if (selHandIdx !== null) {
       if (!isMine || card) { showToast('Choose an empty slot on your own board.'); return; }
-      dispatch({ type: 'place', handIndex: selHandIdx, slot });
+      const placedCard = state.players[localKey]?.deck[selHandIdx];
+      dispatch({
+        type: 'place',
+        handIndex: selHandIdx,
+        slot,
+        cardId: placedCard?.id || null,
+        archetypeId: placedCard?.archetypeId || null
+      });
       resetSelections(); render(); return;
     }
     if (state.phase === 'attack') {
@@ -5705,7 +6041,7 @@ function render() {
   if (youAvatarInner) {
     youAvatarInner.textContent = playerLetter;
     if (typeof getProfileAvatarGradientCss === 'function') {
-      youAvatarInner.style.background = getProfileAvatarGradientCss(playerName);
+      youAvatarInner.style.background = getProfileAvatarGradientCss(playerName, null, true);
     }
   }
   if (youBadge) youBadge.classList.toggle('ready', youReady);
@@ -5717,10 +6053,13 @@ function render() {
       oppAvatarInner.style.background = 'linear-gradient(135deg, #1e293b, #0f172a)';
     } else {
       const remName = (typeof remotePlayerName !== 'undefined' && remotePlayerName) ? remotePlayerName : 'Opponent';
-      const remLetter = (typeof remotePlayerAvatar !== 'undefined' && remotePlayerAvatar) ? remotePlayerAvatar : (remName.charAt(0).toUpperCase() || 'O');
+      let remLetter = (typeof remotePlayerAvatar !== 'undefined' && remotePlayerAvatar) ? remotePlayerAvatar : '';
+      if (!remLetter) {
+        remLetter = (remName && remName !== playerName && remName !== 'Player') ? remName.charAt(0).toUpperCase() : '⚔️';
+      }
       oppAvatarInner.textContent = remLetter;
       if (typeof getProfileAvatarGradientCss === 'function') {
-        oppAvatarInner.style.background = getProfileAvatarGradientCss(remName, typeof remotePlayerGradient !== 'undefined' ? remotePlayerGradient : null);
+        oppAvatarInner.style.background = getProfileAvatarGradientCss(remName, typeof remotePlayerGradient !== 'undefined' ? remotePlayerGradient : null, false);
       } else {
         oppAvatarInner.style.background = 'linear-gradient(135deg, #475569, #334155)';
       }
@@ -6414,7 +6753,14 @@ function handleDragEndCommon(clientX, clientY) {
           if (typeof vibrate === 'function') vibrate(15);
         }
       } else if (dragState.kind === 'place' && !hasCard) {
-        dispatch({ type: 'place', handIndex: dragState.sourceHandIdx, slot: targetSlot });
+        const placedCard = state.players[localKey]?.deck[dragState.sourceHandIdx];
+        dispatch({
+          type: 'place',
+          handIndex: dragState.sourceHandIdx,
+          slot: targetSlot,
+          cardId: placedCard?.id || null,
+          archetypeId: placedCard?.archetypeId || null
+        });
         if (typeof vibrate === 'function') vibrate(12);
       }
     }
@@ -9934,15 +10280,93 @@ document.getElementById('btn-copy-code').addEventListener('click', async () => {
 });
 
 // ---- Patch notes --------------------------------------------------------
-const CURRENT_VERSION = '7.85';
+const CURRENT_VERSION = '7.92';
 const PATCH_NOTES = [
+  {
+    version: '7.92',
+    date: '2026-10-05',
+    title: 'Main Menu Header Clean Isolation & Battle Pass Exit Button Z-Index Fix',
+    notes: [
+      "MAIN MENU HEADER ISOLATION: Completely suppressed top-bar header rendering on the main menu, removing any overlapping text behind the title letter 'M'.",
+      "BATTLE PASS EXIT BUTTON & HUD FIX: Automatically hides top HUD elements when the Battle Pass overlay opens and elevates the close button (✕) z-index to guarantee reliable exiting on all screen scales."
+    ],
+  },
+  {
+    version: '7.91',
+    date: '2026-10-05',
+    title: 'Pack Opening Jumping Shakes, Tap-to-Reveal & Continue Gating',
+    notes: [
+      "SHAKING & JUMPING CARD AURA: Face-down pack cards shake, hop, and pulse with glowing auras and 'TAP TO REVEAL' prompts signaling they are ready to be pressed.",
+      "INTERACTIVE MANUAL TAP REVEAL: Each card stays face-down until clicked, executing a 3D flip with custom tier chimes and burst particles.",
+      "CONTINUE BUTTON GATING: The Continue button appears once all cards in the pack have been pressed and flipped."
+    ],
+  },
+  {
+    version: '7.90',
+    date: '2026-10-05',
+    title: 'Dev 50K Bux Injection & Currency Cryptographic Anti-Cheat Guard',
+    notes: [
+      "DEV TERMINAL 50K BUX COMMAND: Added a dedicated '💰 Grant +50,000 Mehrbod Bux' executive action inside the secret developer terminal.",
+      "LAYER 11 CURRENCY ANTI-SPOOFING SUITE: Implemented cryptographic envelope checksums and signature verification across Mehrbod Bux storage, preventing console/devtools currency spoofing while allowing authorized executive dev grants."
+    ],
+  },
+  {
+    version: '7.89',
+    date: '2026-10-05',
+    title: 'Attack Phase Spell Timing, Smart Bot Combat AI & HP Elimination',
+    notes: [
+      "ATTACK PHASE SPELL CASTING: Spells are now strictly castable during the Attack Phase, preventing instant placement blowouts and adding deep tactical timing.",
+      "SMART BOT COMBAT AI: Redesigned the Bot AI to cast attack-phase spells, avoid wasting swings into defending shields, and coordinate lethal focus fire against high-threat units.",
+      "PURE CARD-ELIMINATION WIN CONDITION: Cleaned up all legacy player HP displays, focusing combat victory and pause telemetry purely on board and deck card counts."
+    ],
+  },
+  {
+    version: '7.88',
+    date: '2026-10-05',
+    title: 'Performance Optimization & Background Loop Cleanup',
+    notes: [
+      "BACKGROUND LOOP OPTIMIZATION: Eliminated recurring unneeded setInterval loops, replacing them with event-driven and screen-lifecycle triggers.",
+      "SMART 3D PARALLAX SLEEP: Optimized the 3D multiplane theme parallax engine to sleep when non-3D themes are active and automatically wake on theme selection.",
+      "STREAMLINED DOM & EVENT HOOKS: Streamlined title letter interaction listeners and decoupled idle timers for lighter memory footprint and smoother frame rates."
+    ],
+  },
+  {
+    version: '7.87',
+    date: '2026-10-05',
+    title: 'Title Fluid Rainbow Gradient & Wave Movement Restored, Diagnostics Purged',
+    notes: [
+      "FLUID TITLE GRADIENT RESTORED: Fixed the animated iridescence and continuous color sliding gradient across the main menu 'MEHRBOD CARDS' title letters, removing the conflicting static text-fill mask.",
+      "TITLE WAVE BOBBING RESTORED: Restored physical floating wave bobbing and bounce animation rippling seamlessly across each letter of MEHRBOD CARDS.",
+      "PURGED USELESS TELEMETRY TOOL: Cleanly removed the redundant connection diagnostics probe modal and telemetry stream from settings and codebase, streamlining system overhead."
+    ],
+  },
+  {
+    version: '7.86',
+    date: '2026-10-05',
+    title: 'Deck Builder & Selector Simplistic UI Overhaul',
+    notes: [
+      "SIMPLISTIC DECK BUILDER UI: Completely decluttered and redesigned the Deck Builder / Selector screen with a modern, spacious, distraction-free interface built for rapid loadout crafting.",
+      "ACTIVE DECK TRAY: Introduced a persistent loadout tray showing your equipped cards, spells, and chips in real time with single-tap removal and instant count badges.",
+      "ON-DEMAND UTILITY PANELS: Replaced permanent accordions with clean slide-down panels for Saved Loadouts, Mana Curve Synergy Analytics, and Fusion Blueprint Rules.",
+      "MINIMALIST CARD TILES: Redesigned pool cards with crisp tier indicators, streamlined ability descriptions, responsive stepper buttons, and glowing equipped states.",
+      "TYPOGRAPHIC & CLEANUP POLISH: Stripped out all extraneous emojis across the deck builder, removed tier labels from unit card faces, changed chip badges to concise 'CHIP' tags, and eliminated redundant header badge text."
+    ],
+  },
   {
     version: '7.85',
     date: '2026-10-03',
     title: '50% Global Economy Rebalance (Costs Slashed & Rewards Rebalanced)',
     notes: [
       "50% SLASH TO ALL SHOP & STORE PRICES: Every item across the Mehrbod Shop (themes, card sleeves, victory finisher animations, visual celebration effects), individual card purchases, sized card packs, daily rerolls, and the Season 1 Battle Pass premium unlock now costs 50% less Bux.",
-      "50% REDUCTION IN BUX GAINS & REWARDS: In-game Bux payouts across daily bounties, daily login streaks, battle pass tiers, career milestones, achievements, level-up bonuses, arena rank promotions, story mode chapters, weekly vault tiers, trial tower floors, prestige payouts, and secret redeem codes have been balanced with a 50% adjustment to maintain a healthy and rewarding economy."
+      "50% REDUCTION IN BUX GAINS & REWARDS: In-game Bux payouts across daily bounties, daily login streaks, battle pass tiers, career milestones, achievements, level-up bonuses, arena rank promotions, story mode chapters, weekly vault tiers, trial tower floors, prestige payouts, and secret redeem codes have been balanced with a 50% adjustment to maintain a healthy and rewarding economy.",
+      "CARD PACK UNBOXINGS RESTORED: Fixed card pack openings across all shop categories to consistently trigger the glorious animated card unboxing reveal sequence, letting you flip and claim your new units, spells, and chips with full visual and sound effects.",
+      "BATTLE PASS PACK CLAIMS FIXED: Claiming card pack rewards from the Battle Pass track now properly triggers the animated card opening experience and adds the newly gained cards directly to your collection book.",
+      "MOBILE SHOP VISIBILITY POLISH: Redesigned and compacted shop cards on mobile and small screens, scaling down the icons, paddings, and font sizes so that prices, purchase buttons, and cosmetic footer details are beautifully structured and fully visible.",
+      "MULTIPLAYER ARENA MATCHMAKING STABILITY: Resolved several matchmaking and connection synchronization errors, ensuring that card placements, player decks, and opponent profiles are mirrored seamlessly on both screens during online play.",
+      "HUD BRAND OVERLAP POLISH: Relocated and shifted the main header's 'MEHRBOD CARDS' branding text slightly to the right to permanently prevent the top-left profile avatar button from covering or overlapping the title on narrower viewports.",
+      "STYLIZED BUTTONS OVERHAUL: Replaced all unstyled default secondary/back buttons across the game (such as the Deck Builder's back button) with a gorgeous, high-polish dark glassmorphic style featuring glowing border outlines, tactile hover states, and smooth click scaling.",
+      "PERSISTENT ACTIVE DECK: Your customized card loadout is now permanently saved and remembered across all matches and game sessions! You no longer have your deck reset to starter cards when starting a new game.",
+      "STANDALONE DECK BUILDER & CLEAR DECK: Access the Deck Builder at any time directly from the Single Player hub and the Card Locker without needing to start a match. Plus, use the new '🗑️ Clear Deck' button to wipe all slots and start crafting fresh with a single click."
     ],
   },
   {
@@ -11643,45 +12067,95 @@ document.addEventListener('DOMContentLoaded', () => {
   function triggerMatchmakingLockIn(opponentData, onComplete) {
     const radar = document.querySelector('.mm-center-radar');
     const remoteCard = document.getElementById('mm-remote-card');
+    const vsLightning = document.querySelector('.mm-vs-lightning');
+    const statusEl = document.getElementById('matchmaking-status');
+    const oppName = (opponentData && opponentData.name) ? opponentData.name : (remotePlayerName || 'Opponent');
     
-    // Play metallic click sound
-    if (typeof Sound !== 'undefined' && typeof Sound.metallicClick === 'function') {
-      Sound.metallicClick();
+    // Play metallic click & ready sound
+    if (typeof Sound !== 'undefined') {
+      if (typeof Sound.metallicClick === 'function') Sound.metallicClick();
+      if (typeof Sound.ready === 'function') Sound.ready();
     }
 
     if (radar) {
       radar.classList.add('locked-in');
     }
 
-    if (remoteCard) {
-      if (opponentData) {
-        const nameEl = remoteCard.querySelector('.mm-card-name');
-        const deckEl = remoteCard.querySelector('.mm-card-deck');
-        const badgeEl = remoteCard.querySelector('.mm-card-badge');
-        if (nameEl) nameEl.textContent = opponentData.name || 'Opponent Challenger';
-        if (deckEl) deckEl.textContent = opponentData.deck || 'Battle Deck';
-        if (badgeEl) {
-          badgeEl.textContent = 'OPPONENT LOCKED';
-          badgeEl.classList.remove('searching-badge');
-        }
-      }
-      remoteCard.classList.add('locked-in');
+    if (vsLightning) {
+      vsLightning.textContent = '⚔️';
     }
 
-    // After 1.25 seconds of lock-in visual presentation, proceed to match start
+    if (statusEl) {
+      statusEl.textContent = `Match locked with ${oppName}! Entering arena...`;
+    }
+
+    if (remoteCard) {
+      remoteCard.classList.remove('searching');
+      remoteCard.classList.add('ready');
+      remoteCard.classList.add('locked-in');
+      
+      const nameEl = remoteCard.querySelector('.mm-card-name');
+      const deckEl = remoteCard.querySelector('.mm-card-deck');
+      const badgeEl = remoteCard.querySelector('.mm-card-badge');
+      const avatarEl = remoteCard.querySelector('.mm-card-avatar');
+      const statusCardEl = remoteCard.querySelector('.mm-card-status');
+      
+      if (nameEl) {
+        nameEl.classList.remove('searching-text');
+        nameEl.classList.add('ready-name');
+        nameEl.textContent = oppName.toUpperCase();
+      }
+      if (deckEl) {
+        deckEl.textContent = (opponentData && (opponentData.deckName || opponentData.deck)) ? (opponentData.deckName || opponentData.deck) : 'Battle Deck';
+      }
+      if (badgeEl) {
+        badgeEl.classList.remove('searching-badge');
+        badgeEl.classList.add('ready-badge');
+        const lvl = (opponentData && opponentData.level) ? opponentData.level : (typeof remotePlayerLevel !== 'undefined' ? remotePlayerLevel : 1);
+        badgeEl.textContent = String(lvl).startsWith('LVL') ? lvl : `LVL ${lvl}`;
+      }
+      if (statusCardEl) {
+        statusCardEl.className = 'mm-card-status ready';
+        statusCardEl.innerHTML = '<span class="status-pulse-dot"></span> OPPONENT LOCKED';
+      }
+      if (avatarEl) {
+        avatarEl.classList.remove('pulse-avatar');
+        avatarEl.classList.add('ready-avatar');
+        const localName = (typeof loadPlayerName === 'function' ? loadPlayerName() : '') || 'Player';
+        let oppArt = (opponentData && opponentData.art) ? opponentData.art : '';
+        if (!oppArt) {
+          if (oppName && oppName !== localName && oppName !== 'Player') {
+            oppArt = oppName.trim().charAt(0).toUpperCase();
+          } else {
+            oppArt = '⚔️';
+          }
+        }
+        avatarEl.textContent = oppArt;
+        if (typeof getProfileAvatarGradientCss === 'function') {
+          avatarEl.style.background = getProfileAvatarGradientCss(oppName, opponentData?.gradient, false);
+          avatarEl.style.borderRadius = '50%';
+          avatarEl.style.width = '68px';
+          avatarEl.style.height = '68px';
+          avatarEl.style.display = 'flex';
+          avatarEl.style.alignItems = 'center';
+          avatarEl.style.justifyContent = 'center';
+          avatarEl.style.color = '#ffffff';
+          avatarEl.style.fontWeight = '800';
+          avatarEl.style.fontSize = '2rem';
+          avatarEl.style.boxShadow = '0 0 25px rgba(16, 185, 129, 0.65)';
+        }
+      }
+    }
+
+    // 1.25 seconds of visual lock-in presentation before transitioning into the battle board
     setTimeout(() => {
       if (typeof onComplete === 'function') {
         onComplete();
       }
-      // Reset lock-in classes for future matchmaking sessions
+      // Reset lock-in classes for subsequent matchmaking sessions
       if (radar) radar.classList.remove('locked-in');
       if (remoteCard) {
         remoteCard.classList.remove('locked-in');
-        const badgeEl = remoteCard.querySelector('.mm-card-badge');
-        if (badgeEl) {
-          badgeEl.textContent = 'SEARCHING...';
-          badgeEl.classList.add('searching-badge');
-        }
       }
     }, 1250);
   }

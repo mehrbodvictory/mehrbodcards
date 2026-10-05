@@ -273,6 +273,18 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </div>
       </button>
+      <button class="menu-card" id="btn-sp-deck-builder">
+        <div class="menu-icon-pod">
+          <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path><path d="M2 22l6-6"></path></svg>
+        </div>
+        <div class="menu-card-body">
+          <span class="menu-card-title">Deck Builder</span>
+          <span class="menu-card-sub">Craft &amp; manage loadouts</span>
+        </div>
+        <div class="menu-card-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+      </button>
     </div>
     <div class="screen-sub-actions">
       <button class="link-btn glass-pill-btn" id="btn-how-to-play">
@@ -669,62 +681,104 @@
 
   <!-- ===== DECK BUILDER ===== -->
   <section id="screen-deck-builder" class="screen hidden">
-    <div class="db-header-row">
-      <h2>Build Your Deck</h2>
-      <span id="deck-completeness-hint" class="deck-completeness-hint">0/12 UNITS</span>
-    </div>
-
-    <!-- Interactive Deck Synergy & Curve Analytics Widget -->
-    <div id="deck-synergy-analytics" class="deck-synergy-widget"></div>
-
-    <details class="db-guide-details">
-      <summary class="db-guide-summary">📋 Deck Building Guide & Rules</summary>
-      <div class="db-guide-content">
-        <p>Any rarity can go in your deck, but only Blue can ever be placed directly onto the board. A higher-tier pick becomes a "blueprint" — merging 2-4 Blues (or a mix of tiers, including already-fused ones) requires a matching blueprint still sitting unused in your deck, and consumes it to flavor the result. You can fuse straight from Blue to Orange in one go if you have the cards for it and an Orange blueprint. No blueprint for a tier in your deck means you can never merge into that tier, so pick some Green/Red/Orange cards if you want to fuse up. Everything you pick is visible and available from round 1 - there's no draw step.</p>
+    <!-- Simplistic Modern Header Bar -->
+    <div class="db-simple-header">
+      <div class="db-simple-title-group">
+        <h2 class="db-simple-title">Battle Loadout</h2>
+        <div id="deck-completeness-hint" class="deck-completeness-hint">0/12 CARDS</div>
       </div>
-    </details>
-
-    <div class="db-top-controls">
-      <button type="button" class="primary-btn auto-fill-btn" id="btn-autofill-deck">🎲 Auto-Fill Remaining Slots</button>
-    </div>
-
-    <div class="deck-builder-section db-presets-panel">
-      <div class="deck-builder-heading"><span>Saved Loadouts</span> <span id="deck-presets-count">0/3</span></div>
-      <div id="deck-presets-list" class="deck-presets-list"></div>
-      <div class="deck-presets-save-row">
-        <input type="text" id="deck-preset-name-input" maxlength="20" placeholder="Name this loadout...">
-        <button type="button" class="primary-btn small" id="btn-save-deck-preset">💾 Save Loadout</button>
+      <div class="db-simple-actions">
+        <button type="button" class="db-action-pill" id="btn-autofill-deck" title="Auto-fill missing slots">Auto-Fill</button>
+        <button type="button" class="db-action-pill" id="btn-clear-deck" title="Clear all cards">Clear</button>
+        <button type="button" class="db-action-pill" id="btn-db-toggle-loadouts" title="Saved Loadouts">Loadouts (<span id="deck-presets-count">0/3</span>)</button>
+        <button type="button" class="db-action-pill" id="btn-db-toggle-synergy" title="Synergy &amp; Curve Analytics">Synergy</button>
+        <button type="button" class="db-action-pill" id="btn-db-toggle-guide" title="Fusion Guide Rules">Guide</button>
       </div>
     </div>
 
-    <!-- Categorized Card Pool Selector with Search & Filtering -->
-    <div class="deck-pool-section">
-      <div class="pool-category-tabs">
-        <button type="button" class="pool-tab-btn active" data-db-tab="units">
-          <span class="tab-icon">👾</span> Cards (<span id="pool-tab-units-count">0/12</span>)
-        </button>
-        <button type="button" class="pool-tab-btn" data-db-tab="spells">
-          <span class="tab-icon">⚡</span> Spells (<span id="pool-tab-spells-count">0/4</span>)
-        </button>
-        <button type="button" class="pool-tab-btn" data-db-tab="chips">
-          <span class="tab-icon">⚙️</span> Chips (<span id="pool-tab-chips-count">0/2</span>)
-        </button>
+    <!-- On-Demand Slide Panels for Loadouts, Synergy & Guide -->
+    <div id="db-loadouts-panel" class="db-slide-panel hidden">
+      <div class="db-slide-panel-header">
+        <div class="db-slide-panel-title">Saved Loadouts</div>
+        <button type="button" class="db-slide-panel-close" id="btn-close-loadouts" aria-label="Close loadouts">X</button>
       </div>
-
-      <div class="collection-tools" id="deck-builder-tools">
-        <div class="search-input-wrap">
-          <span class="search-icon">🔍</span>
-          <input id="deck-builder-search" type="search" placeholder="Search cards, abilities..." aria-label="Search cards">
+      <div class="db-presets-panel">
+        <div id="deck-presets-list" class="deck-presets-list"></div>
+        <div class="deck-presets-save-row">
+          <input type="text" id="deck-preset-name-input" maxlength="20" placeholder="Loadout name (e.g. Rush Deck)...">
+          <button type="button" class="primary-btn small" id="btn-save-deck-preset">Save</button>
         </div>
-        <div class="filter-select-wrap" id="tier-filter-wrapper">
-          <span class="filter-icon">🏅</span>
-          <select id="deck-builder-tier-filter" aria-label="Filter by tier">
-            <option value="all">All Tiers</option>
-            <option value="1">Blue (Tier 1)</option>
-            <option value="2">Green (Tier 2)</option>
-            <option value="3">Red (Tier 3)</option>
-            <option value="4">Orange (Tier 4)</option>
-          </select>
+      </div>
+    </div>
+
+    <div id="db-synergy-panel" class="db-slide-panel hidden">
+      <div class="db-slide-panel-header">
+        <div class="db-slide-panel-title">Synergy &amp; Mana Curve</div>
+        <button type="button" class="db-slide-panel-close" id="btn-close-synergy" aria-label="Close synergy">X</button>
+      </div>
+      <div class="db-slide-panel-body">
+        <div id="deck-synergy-analytics" class="deck-synergy-widget"></div>
+      </div>
+    </div>
+
+    <div id="db-guide-panel" class="db-slide-panel hidden">
+      <div class="db-slide-panel-header">
+        <div class="db-slide-panel-title">Fusion Rules &amp; Blueprints</div>
+        <button type="button" class="db-slide-panel-close" id="btn-close-guide" aria-label="Close guide">X</button>
+      </div>
+      <div class="db-slide-panel-body db-guide-body-text">
+        <p>- <b>Blue (Tier 1) Units:</b> The only units you can place directly onto the battlefield from your hand.</p>
+        <p>- <b>Green / Red / Orange Blueprints:</b> When you merge matching units on the board, having a matching higher-tier card in your deck unlocks that fusion transformation.</p>
+        <p>- <b>Deck Requirements:</b> Exactly <b>12 Units</b>, <b>4 Spells</b>, and <b>2 Chips</b> are required to enter battle.</p>
+      </div>
+    </div>
+
+    <!-- Active Deck Tray (Instant visual feedback of equipped cards) -->
+    <div class="active-deck-tray-wrapper" id="active-deck-tray-wrapper">
+      <div class="active-deck-tray-header">
+        <div class="active-deck-tray-label">
+          <span class="active-deck-dot"></span>
+          <span>CURRENT LOADOUT</span>
+          <span class="active-deck-breakdown" id="active-deck-breakdown">0 Units · 0 Spells · 0 Chips</span>
+        </div>
+        <span class="active-deck-tray-tip">Tap any card in tray to remove</span>
+      </div>
+      <div class="active-deck-chips-scroll" id="active-deck-chips-list">
+        <span class="active-deck-empty-hint">Deck is empty. Pick cards below or click Auto-Fill.</span>
+      </div>
+    </div>
+
+    <!-- Main Card Selector Workspace -->
+    <div class="deck-pool-section">
+      <!-- Streamlined Categories & Tools Toolbar -->
+      <div class="db-controls-bar">
+        <div class="pool-category-tabs">
+          <button type="button" class="pool-tab-btn active" data-db-tab="units">
+            Cards (<span id="pool-tab-units-count">0/12</span>)
+          </button>
+          <button type="button" class="pool-tab-btn" data-db-tab="spells">
+            Spells (<span id="pool-tab-spells-count">0/4</span>)
+          </button>
+          <button type="button" class="pool-tab-btn" data-db-tab="chips">
+            Chips (<span id="pool-tab-chips-count">0/2</span>)
+          </button>
+        </div>
+
+        <div class="collection-tools" id="deck-builder-tools">
+          <div class="search-input-wrap">
+            <svg class="search-icon-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input id="deck-builder-search" type="search" placeholder="Search cards, abilities..." aria-label="Search cards">
+          </div>
+          <div class="filter-select-wrap" id="tier-filter-wrapper">
+            <svg class="filter-icon-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+            <select id="deck-builder-tier-filter" aria-label="Filter by tier">
+              <option value="all">All Tiers</option>
+              <option value="1">Blue (Tier 1)</option>
+              <option value="2">Green (Tier 2)</option>
+              <option value="3">Red (Tier 3)</option>
+              <option value="4">Orange (Tier 4)</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -735,9 +789,10 @@
       </div>
     </div>
 
+    <!-- Sticky Docked Footer Bar -->
     <div class="db-footer-row">
-      <button class="primary-btn" id="btn-deck-builder-confirm" disabled>Confirm Deck</button>
-      <button class="secondary-btn back-btn">← Back</button>
+      <button type="button" class="secondary-btn back-btn">Back</button>
+      <button type="button" class="primary-btn" id="btn-deck-builder-confirm" disabled>Confirm Deck</button>
     </div>
   </section>
 
@@ -766,7 +821,11 @@
           <span>Sleeves</span>
         </button>
       </div>
-      <div class="locker-header-actions">
+      <div class="locker-header-actions" style="display: flex; gap: 8px; align-items: center;">
+        <button type="button" class="glass-pill-btn" id="btn-locker-deckbuilder" style="background: rgba(2, 132, 199, 0.25); border-color: rgba(56, 189, 248, 0.4); color: #38bdf8; font-weight: 700;">
+          <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path><path d="M2 22l6-6"></path></svg>
+          <span>Deck Builder</span>
+        </button>
         <button type="button" class="locker-back-btn back-btn glass-pill-btn">
           <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
           <span>Back to Menu</span>
@@ -1403,12 +1462,12 @@
         <div class="match-pause-stats" id="match-pause-stats-row">
           <div class="pause-stat-item you">
             <span class="stat-label">You</span>
-            <span class="stat-val" id="match-pause-player-hp">20 HP</span>
+            <span class="stat-val" id="match-pause-player-hp">-- Cards</span>
           </div>
           <span class="pause-stat-vs">VS</span>
           <div class="pause-stat-item opp">
             <span class="stat-label" id="match-pause-opp-name">Opponent</span>
-            <span class="stat-val" id="match-pause-opp-hp">20 HP</span>
+            <span class="stat-val" id="match-pause-opp-hp">-- Cards</span>
           </div>
         </div>
         <div class="match-pause-actions">
@@ -1614,19 +1673,6 @@
                 <button type="button" class="settings-pill-toggle mode-btn" id="btn-ping-toggle">📶 Ping Indicator: Off</button>
               </div>
             </div>
-
-            <!-- Connection Diagnostics & Network Health -->
-            <div class="settings-card-item highlight-card">
-              <div class="settings-item-main">
-                <div class="settings-item-info">
-                  <div class="settings-item-title">
-                    <span class="item-icon">🛰️</span> Connection Diagnostics
-                  </div>
-                  <div class="settings-item-desc">Live telemetry score, firewall inspection &amp; multi-transport connectivity test</div>
-                </div>
-                <button type="button" class="primary-btn small" id="btn-settings-open-diagnostics">🛰️ Run Test</button>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -1718,6 +1764,15 @@
             <div class="cmd-info">
               <span class="cmd-title" style="color: #38bdf8;">⚡ Master Unlock All (Cards, BP Tiers &amp; Cosmetics)</span>
               <span class="cmd-subtitle">Instantly unlock 100% cards, Battle Pass Max Tier 100, Premium Pass &amp; all cosmetics</span>
+            </div>
+            <div class="cmd-arrow">➔</div>
+          </button>
+
+          <button type="button" id="btn-secret-grant-bux" class="secret-cmd-card" style="border: 1.5px solid #facc15; background: rgba(250, 204, 21, 0.12);">
+            <div class="cmd-icon-box" style="color: #facc15;">💰</div>
+            <div class="cmd-info">
+              <span class="cmd-title" style="color: #facc15;">💰 Grant +50,000 Mehrbod Bux</span>
+              <span class="cmd-subtitle">Instantly credit 50K verified Mehrbod Bux to wallet with executive anti-cheat authorization signature</span>
             </div>
             <div class="cmd-arrow">➔</div>
           </button>
@@ -1869,84 +1924,6 @@
     </div>
   </div>
 
-  <!-- ===== CONNECTIVITY HEALTH & NETWORK DIAGNOSTICS MODAL ===== -->
-  <div id="modal-network-diagnostics" class="hidden" role="dialog" aria-modal="true" aria-labelledby="diag-modal-title">
-    <div class="diag-modal-card">
-      <!-- Modal Header -->
-      <div class="diag-modal-header">
-        <div class="diag-header-title-box">
-          <span class="diag-header-icon">🛰️</span>
-          <div>
-            <h2 id="diag-modal-title" class="diag-header-title">Connection Diagnostics</h2>
-            <div class="diag-header-sub">Live Telemetry, Firewall Inspection &amp; Multi-Transport Status</div>
-          </div>
-        </div>
-        <button type="button" id="btn-diag-close" class="modal-close" aria-label="Close Diagnostics">✕</button>
-      </div>
-
-      <!-- Modal Body -->
-      <div class="diag-modal-body">
-        <!-- Health Gauge Card -->
-        <div class="diag-gauge-row">
-          <div class="diag-radial-container">
-            <svg class="diag-radial-svg" viewBox="0 0 100 100">
-              <circle class="diag-radial-bg" cx="50" cy="50" r="42" />
-              <circle id="diag-score-circle" class="diag-radial-prog" cx="50" cy="50" r="42" />
-            </svg>
-            <div class="diag-gauge-center" id="diag-score-val">--%</div>
-          </div>
-          <div class="diag-gauge-meta">
-            <span class="diag-gauge-kicker">Connectivity Health</span>
-            <span id="diag-score-rating" class="diag-gauge-rating">ANALYZING...</span>
-            <span class="diag-gauge-desc">Multi-channel probe testing Firestore cluster, HTTP Ingress Relay &amp; WebRTC UDP firewall traversal.</span>
-          </div>
-        </div>
-
-        <!-- Probes Breakdown List -->
-        <div class="diag-probe-list" id="diag-probe-list">
-          <!-- Populated by NetworkDiagnostics engine -->
-        </div>
-
-        <!-- Actionable Fixes & Firewall Detections -->
-        <div class="diag-tips-box">
-          <div class="diag-tips-title">💡 Network Analysis &amp; Firewall Insights</div>
-          <div id="diag-tips-body">
-            <div class="diag-tip-line">Running diagnostic probes across all transport protocols...</div>
-          </div>
-        </div>
-
-        <!-- Live Telemetry & Error Console Stream -->
-        <div class="diag-logs-section">
-          <div class="diag-logs-header">
-            <span>Detailed Telemetry Log Stream</span>
-            <span style="font-size: 0.65rem; color: #94a3b8;">Auto-scroll</span>
-          </div>
-          <div class="diag-logs-container" id="diag-logs-container">
-            <div class="diag-log-line log-info">
-              <span class="diag-log-time">[INIT]</span>
-              <span class="diag-log-msg">Ready to analyze network telemetry.</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Modal Footer Action Bar -->
-      <div class="diag-modal-footer">
-        <button type="button" class="diag-btn secondary" id="btn-diag-copy-report">
-          <span>📋 Copy Report</span>
-        </button>
-        <div style="display: flex; gap: 8px;">
-          <button type="button" class="diag-btn primary" id="btn-diag-run-test">
-            <span>🔄 Re-test Network</span>
-          </button>
-          <button type="button" class="diag-btn secondary" id="btn-diag-footer-close">
-            <span>Close</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- Offline Network Status Indicator Banner -->
   <div id="offline-indicator" class="hidden">
     <span class="offline-pulse"></span> Offline Mode — Running on local cached assets.
@@ -2035,7 +2012,6 @@
 <script src="js/game.js?v=12.1.0"></script>
 <script src="js/bot.js?v=12.1.0"></script>
 <script src="js/network.js?v=12.1.0"></script>
-<script src="js/network-diagnostics.js?v=12.1.0"></script>
 <script src="js/ui.js?v=12.1.0"></script>
 <script src="js/sound.js?v=12.1.0"></script>
 <script src="js/theme-templates.js?v=12.1.0"></script>

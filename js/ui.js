@@ -164,12 +164,13 @@ function renderHand(container, playerState, selectedHandIdx) {
 function renderSpellsChips(container, playerState, selection) {
   container.innerHTML = '';
   const frag = document.createDocumentFragment();
+  const isAttackPhase = (typeof state !== 'undefined' && state && state.phase === 'attack');
   const isPlacementPhase = (typeof state !== 'undefined' && state && state.phase === 'placement');
 
   playerState.spells.forEach(spell => {
     const el = document.createElement('div');
     const isFresh = isFreshCard('spell', spell.id);
-    const isPlayable = isPlacementPhase;
+    const isPlayable = isAttackPhase;
     el.className = 'sc-card spell' + (isFresh ? ' pop-in' : '') + (isPlayable ? ' playable-spell-glow' : '');
     el.dataset.role = 'spell'; el.dataset.spellId = spell.id;
     if (selection && selection.mode === 'spell' && selection.id === spell.id) el.classList.add('selected');

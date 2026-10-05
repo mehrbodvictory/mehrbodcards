@@ -523,6 +523,9 @@ class NetSession {
     if (!action.id) {
       action.id = 'act_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
     }
+    if (this.isHost) {
+      this.onApplied(action);
+    }
     if (this.firebaseSession) {
       this.firebaseSession.submitAction(action);
     }

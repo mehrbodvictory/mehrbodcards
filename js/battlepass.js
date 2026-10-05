@@ -372,7 +372,21 @@
       } catch (e) {}
       if (typeof showToast === 'function') showToast(`🃏 Unlocked Card: ${item.name}!`, 3500);
     } else if (item.kind === 'pack') {
-      if (typeof showToast === 'function') showToast(`📦 Received ${item.count}x ${item.name}!`, 3000);
+      try {
+        let cardCount = 3;
+        if (item.packType === 'void') cardCount = 5;
+        else if (item.packType === 'chronos') cardCount = 4;
+        else if (item.packType === 'foil') cardCount = 3;
+        
+        const countToGrant = (item.count || 1) * cardCount;
+        if (typeof buyCardPackSized === 'function') {
+          buyCardPackSized(countToGrant, 0, item.name || 'Card Pack');
+        } else if (typeof buyCardPack === 'function') {
+          buyCardPack();
+        }
+      } catch (e) {
+        if (typeof showToast === 'function') showToast(`📦 Received ${item.count}x ${item.name}!`, 3000);
+      }
     }
   }
 
@@ -1046,20 +1060,44 @@
     const btnBuy = document.getElementById('btn-bp-buy-premium');
     const claimAllBtns = document.querySelectorAll('#bp-claim-all, #btn-bp-claim-all, .bp-claim-all-btn');
 
+    function openBattlePassModal() {
+      if (typeof Sound !== 'undefined' && Sound.click) Sound.click();
+      renderBattlePassScreen();
+      if (overlay) overlay.classList.remove('hidden');
+      const buxHud = document.getElementById('top-right-hud');
+      if (buxHud) buxHud.classList.add('hidden');
+    }
+
+    function closeBattlePassModal() {
+      if (typeof Sound !== 'undefined' && Sound.click) Sound.click();
+      if (overlay) overlay.classList.add('hidden');
+      const buxHud = document.getElementById('top-right-hud');
+      const currentScreen = document.querySelector('.screen.active-screen');
+      const isGame = currentScreen && currentScreen.id === 'screen-game';
+      if (buxHud && !isGame) buxHud.classList.remove('hidden');
+    }
+
     if (btnOpen) {
-      btnOpen.addEventListener('click', () => {
-        if (typeof Sound !== 'undefined' && Sound.click) Sound.click();
-        renderBattlePassScreen();
-        if (overlay) overlay.classList.remove('hidden');
-      });
+      btnOpen.addEventListener('click', openBattlePassModal);
     }
 
     if (btnClose && overlay) {
-      btnClose.addEventListener('click', () => {
-        if (typeof Sound !== 'undefined' && Sound.click) Sound.click();
-        overlay.classList.add('hidden');
+      btnClose.addEventListener('click', closeBattlePassModal);
+    }
+
+    if (overlay) {
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+          closeBattlePassModal();
+        }
       });
     }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && overlay && !overlay.classList.contains('hidden')) {
+        closeBattlePassModal();
+      }
+    });
 
     if (btnBuy) {
       btnBuy.addEventListener('click', () => {

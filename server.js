@@ -82,14 +82,14 @@ function getOrCreateRelayRoom(roomCode) {
 }
 
 app.post('/api/matchmaking/host', (req, res) => {
-  const { roomCode } = req.body || {};
+  const { roomCode, hostInfo } = req.body || {};
   if (!roomCode) return res.status(400).json({ error: 'Missing roomCode' });
   const cleanCode = String(roomCode).toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (!cleanCode) return res.status(400).json({ error: 'Invalid roomCode' });
   
   // Clean up stale lobbies (older than 40 seconds)
   waitingLobbies = waitingLobbies.filter(l => Date.now() - l.timestamp < 40000 && l.roomCode !== cleanCode);
-  waitingLobbies.push({ roomCode: cleanCode, timestamp: Date.now() });
+  waitingLobbies.push({ roomCode: cleanCode, timestamp: Date.now(), hostInfo: hostInfo || null });
   res.json({ success: true });
 });
 
@@ -100,7 +100,7 @@ app.post('/api/matchmaking/join', (req, res) => {
   if (waitingLobbies.length > 0) {
     // Pick the oldest active lobby
     const matchedLobby = waitingLobbies.shift();
-    res.json({ matchFound: true, roomCode: matchedLobby.roomCode });
+    res.json({ matchFound: true, roomCode: matchedLobby.roomCode, hostInfo: matchedLobby.hostInfo || null });
   } else {
     res.json({ matchFound: false });
   }

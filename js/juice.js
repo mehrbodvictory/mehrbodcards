@@ -65,19 +65,55 @@ function playPackOpeningEffect(cards, onDone) {
     }, 450);
   }
 
+  function checkAllFlipped() {
+    const cardElements = cardsRow.querySelectorAll('.packopen-card');
+    const flippedCount = cardsRow.querySelectorAll('.packopen-card.flipped').length;
+    if (cardElements.length > 0 && flippedCount === cardElements.length && !allFlipped) {
+      allFlipped = true;
+      continueBtn.classList.remove('hidden');
+      if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
+      if (typeof vibrate === 'function') vibrate([20, 30]);
+    }
+  }
+
+  function flipSingleCard(el, c) {
+    if (!el || el.classList.contains('flipped')) return;
+    el.classList.add('flipped');
+
+    if (typeof Sound !== 'undefined') {
+      if (c.kind === 'spell') {
+        if (Sound.spellChime) Sound.spellChime();
+        if (Sound.packCardFlip) Sound.packCardFlip();
+      } else if (c.kind === 'chip') {
+        if (Sound.chipChime) Sound.chipChime();
+        if (Sound.packCardFlip) Sound.packCardFlip();
+      } else {
+        if (Sound.tierChime) Sound.tierChime(c.tier || 1);
+        if (c.tier === 4) {
+          if (Sound.packRareFlip) Sound.packRareFlip();
+        } else {
+          if (Sound.packCardFlip) Sound.packCardFlip();
+        }
+      }
+    }
+    if (typeof vibrate === 'function') vibrate(15);
+    const burst = document.createElement('div');
+    burst.className = 'packopen-burst';
+    el.appendChild(burst);
+    setTimeout(() => burst.remove(), 700);
+
+    checkAllFlipped();
+  }
+
   function finishRevealInstantly() {
     if (allFlipped) return;
-    allFlipped = true;
-    flipTimers.forEach(t => clearTimeout(t));
-    flipTimers.length = 0;
-
-    const cardElements = cardsRow.querySelectorAll('.packopen-card');
-    cardElements.forEach(el => {
-      el.classList.add('landed', 'flipped');
+    const cardElements = cardsRow.querySelectorAll('.packopen-card:not(.flipped)');
+    cardElements.forEach((el, idx) => {
+      const c = cards[idx] || {};
+      setTimeout(() => {
+        flipSingleCard(el, c);
+      }, idx * 100);
     });
-    continueBtn.classList.remove('hidden');
-    Sound.sparkle();
-    if (typeof vibrate === 'function') vibrate(20);
   }
 
   function revealCards() {
@@ -88,51 +124,31 @@ function playPackOpeningEffect(cards, onDone) {
     cards.forEach((c, i) => {
       const el = document.createElement('div');
       el.className = `packopen-card ${tierClass(c)}`;
+      const glyph = c.kind === 'unit' ? (typeof TIER_GLYPHS !== 'undefined' && TIER_GLYPHS[c.tier] ? TIER_GLYPHS[c.tier] : '●') : (c.kind === 'spell' ? '⚡' : '💎');
+      const statsHTML = c.kind === 'unit'
+        ? `<div class="packopen-card-stats"><span>${c.hp || 1}❤</span><span>${c.dmg || 1}⚔</span><span>${c.sp || 1}⛃</span></div>`
+        : '';
       el.innerHTML = `
         <div class="packopen-card-inner">
           <div class="packopen-card-back"><span>?</span></div>
           <div class="packopen-card-front">
+            <div class="packopen-card-glyph">${glyph}</div>
             <div class="packopen-card-name">${c.name}</div>
             <div class="packopen-card-sub">${tierName(c)}</div>
+            ${statsHTML}
           </div>
         </div>`;
       cardsRow.appendChild(el);
+
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        flipSingleCard(el, c);
+      });
       
-      const landTimer = setTimeout(() => { el.classList.add('landed'); }, 40 * i);
-      flipTimers.push(landTimer);
-
-      const flipDelay = 360 + i * 400;
-      const flipTimer = setTimeout(() => {
-        if (allFlipped) return;
-        el.classList.add('flipped');
-        if (typeof Sound !== 'undefined') {
-          if (c.kind === 'spell') {
-            if (Sound.spellChime) Sound.spellChime();
-            Sound.packCardFlip();
-          } else if (c.kind === 'chip') {
-            if (Sound.chipChime) Sound.chipChime();
-            Sound.packCardFlip();
-          } else {
-            if (Sound.tierChime) Sound.tierChime(c.tier || 1);
-            if (c.tier === 4) Sound.packRareFlip(); else Sound.packCardFlip();
-          }
-        }
-        if (typeof vibrate === 'function') vibrate(15);
-        const burst = document.createElement('div');
-        burst.className = 'packopen-burst';
-        el.appendChild(burst);
-        setTimeout(() => burst.remove(), 700);
-      }, flipDelay);
-      flipTimers.push(flipTimer);
+      setTimeout(() => {
+        el.classList.add('landed');
+      }, 50 * i);
     });
-
-    const totalDelay = 360 + cards.length * 400 + 200;
-    const finalTimer = setTimeout(() => {
-      allFlipped = true;
-      continueBtn.classList.remove('hidden');
-      Sound.sparkle();
-    }, totalDelay);
-    flipTimers.push(finalTimer);
   }
 
   pack.addEventListener('click', tearPack);
@@ -3371,32 +3387,46 @@ function profileAvatarColors(name) {
   };
 }
 
-function getActiveProfileGradient(name) {
+function getActiveProfileGradient(name, isLocal = false) {
   const localName = (typeof loadPlayerName === 'function' ? loadPlayerName() : '') || 'Player';
-  // Only apply local saved custom gradient if querying the local player
-  if (!name || name === localName || name === 'You' || name === 'Player') {
+  
+  // Only apply local player's saved custom gradient if this is explicitly the local player
+  if (isLocal || name === 'You') {
     const custom = loadProfileGradient();
     if (custom) {
       return { ...custom, isCustom: true };
     }
+    const myColors = profileAvatarColors(localName);
+    return {
+      c1: myColors.hex1 || '#8b5cf6',
+      c2: myColors.hex2 || '#06b6d4',
+      angle: 150,
+      isCustom: false
+    };
   }
-  const defaultColors = profileAvatarColors(name || 'Player');
+
+  // Remote player / opponent profile gradient:
+  const targetName = String(name || 'Opponent');
+  // If remote player name is identical to local player's name, add a deterministic offset
+  // so the opponent never has the exact same visual colors as the local user
+  const effectiveName = (targetName === localName || targetName === 'Player') ? (targetName + '_opp_p2') : targetName;
+  const defaultColors = profileAvatarColors(effectiveName);
   return {
-    c1: defaultColors.hex1 || '#8b5cf6',
-    c2: defaultColors.hex2 || '#06b6d4',
-    angle: 150,
+    c1: defaultColors.hex1 || '#ec4899',
+    c2: defaultColors.hex2 || '#f59e0b',
+    angle: 135,
     isCustom: false
   };
 }
 
-function getProfileAvatarGradientCss(name, customGrad) {
+function getProfileAvatarGradientCss(name, customGrad, isLocal = false) {
   if (customGrad && customGrad.c1 && customGrad.c2) {
     return `linear-gradient(${customGrad.angle || 135}deg, ${customGrad.c1}, ${customGrad.c2})`;
   }
   if (typeof customGrad === 'string' && customGrad.startsWith('linear-gradient')) {
     return customGrad;
   }
-  const grad = getActiveProfileGradient(name);
+  const grad = getActiveProfileGradient(name, isLocal);
   return `linear-gradient(${grad.angle || 135}deg, ${grad.c1}, ${grad.c2})`;
 }
 
@@ -3467,7 +3497,7 @@ function updateProfileAvatar() {
   const name = loadPlayerName() || 'Player';
   const letter = name.trim().charAt(0).toUpperCase() || 'P';
   letterEl.textContent = letter;
-  btn.style.background = getProfileAvatarGradientCss(name);
+  btn.style.background = getProfileAvatarGradientCss(name, null, true);
   if (badge) badge.classList.toggle('hidden', !canPrestigeNow());
 
   const hudCanvas = document.getElementById('hud-profile-particle-canvas');
@@ -4390,13 +4420,17 @@ function openProfilePanel() {
             <div id="sim-result-feedback" style="font-size: 0.68rem; color: #7dd3fc; margin-top: 8px; text-align: center; min-height: 16px;"></div>
           </div>
 
-          <div class="profile-section-heading">📜 Match History Log</div>
+          <div class="profile-section-heading">📜 Match History Log (Last 10 Battles)</div>
           <div class="ledger-list">
-            ${historyItems.length ? historyItems.slice(0, 10).map(x => `
+            ${historyItems.length ? historyItems.slice(0, 10).map((x, idx) => `
               <div class="${x.result === 'Win' ? 'gain' : (x.result === 'Loss' ? 'loss' : '')}">
-                <b>${x.result === 'Win' ? '🏆 Win' : x.result === 'Loss' ? '💀 Loss' : '🤝 Draw'}</b>
-                <span>${escapePresetText(x.mode)} · ${x.rounds} round${x.rounds === 1 ? '' : 's'} · ${formatDuration(x.duration)}</span>
-                <small>${new Date(x.at).toLocaleString()}</small>
+                <div>
+                  <b>${x.result === 'Win' ? '🏆 Win' : x.result === 'Loss' ? '💀 Loss' : '🤝 Draw'}</b>
+                  <div style="font-size: 0.72rem; color: var(--muted); margin-top: 2px;">
+                    ${escapePresetText(x.mode)} · ${x.rounds} round${x.rounds === 1 ? '' : 's'} · ${formatDuration(x.duration)}
+                  </div>
+                  <small style="display: block; margin-top: 2px;">${new Date(x.at).toLocaleString()}</small>
+                </div>
               </div>`).join('') : '<p class="activity-empty">Finish a match to start building your history.</p>'}
           </div>
         </div>
@@ -4823,6 +4857,7 @@ window.addEventListener('load', ensureProfileHud);
   const stageAuth = document.getElementById('secret-stage-auth');
   const stageUnlocked = document.getElementById('secret-stage-unlocked');
   const unlockAllMasterBtn = document.getElementById('btn-secret-unlock-all');
+  const grantBuxBtn = document.getElementById('btn-secret-grant-bux');
   const unlockAllCardsBtn = document.getElementById('btn-secret-unlock-all-cards');
   const launch3DHubBtn = document.getElementById('btn-secret-launch-3d-hub');
   const unlockAllCosmeticsBtn = document.getElementById('btn-secret-unlock-all-cosmetics') || document.getElementById('btn-secret-unlock-all-themes');
@@ -4989,6 +5024,26 @@ window.addEventListener('load', ensureProfileHud);
 
   unlockAllMasterBtn?.addEventListener('click', () => {
     window.devUnlockAll();
+  });
+
+  grantBuxBtn?.addEventListener('click', () => {
+    let newTotal = 50000;
+    if (typeof AntiCheat !== 'undefined' && typeof AntiCheat.grantAuthorizedDevBux === 'function') {
+      newTotal = AntiCheat.grantAuthorizedDevBux(50000);
+    } else if (typeof addBux === 'function') {
+      newTotal = addBux(50000);
+    }
+    if (typeof updateBuxDisplay === 'function') updateBuxDisplay();
+    if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
+    if (typeof fireConfetti === 'function') fireConfetti();
+    if (typeof showToast === 'function') {
+      showToast(`💰 Granted +50,000 Mehrbod Bux! Total: ${newTotal.toLocaleString()} Bux`, 4000);
+    }
+    if (execResult) {
+      execResult.textContent = `✔ SUCCESS: +50,000 Mehrbod Bux injected with executive anti-cheat verification! Total Balance: ${newTotal.toLocaleString()} Bux`;
+      execResult.className = 'secret-exec-result success';
+      execResult.classList.remove('hidden');
+    }
   });
 
   unlockAllCardsBtn?.addEventListener('click', () => {
@@ -5750,13 +5805,12 @@ window.showSingleCardReveal = showSingleCardReveal;
     try { if (typeof Sound !== 'undefined' && Sound && Sound.tap) Sound.tap(); } catch (_) {}
   });
 
+  window.setupTitleLetters = setupLetters;
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setupLetters);
+    document.addEventListener('DOMContentLoaded', setupLetters, { once: true });
   } else {
     setupLetters();
   }
-  // Periodic check in case title was re-rendered
-  setInterval(setupLetters, 1500);
 })();
 
 function playEpicVictoryAnimation(difficulty, onDone) {
@@ -6599,10 +6653,7 @@ window.playSkeletonStaffAnimation = playSkeletonStaffAnimation;
     }
 
     if (activeBgsCache.length === 0) {
-      setTimeout(() => {
-        refreshActiveBgsCache();
-        animId = requestAnimationFrame(updateThemeParallax);
-      }, 400);
+      animId = null;
       return;
     }
 
@@ -6680,12 +6731,18 @@ window.playSkeletonStaffAnimation = playSkeletonStaffAnimation;
   document.addEventListener('visibilitychange', () => {
     isTabActive = !document.hidden;
     if (isTabActive) {
-      refreshActiveBgsCache();
+      window.__triggerThemeParallaxCheck();
     }
   });
 
-  refreshActiveBgsCache();
-  animId = requestAnimationFrame(updateThemeParallax);
+  window.__triggerThemeParallaxCheck = function() {
+    refreshActiveBgsCache();
+    if (activeBgsCache.length > 0 && !animId && isTabActive && !document.hidden) {
+      animId = requestAnimationFrame(updateThemeParallax);
+    }
+  };
+
+  window.__triggerThemeParallaxCheck();
 })();
 
 

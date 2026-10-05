@@ -21,7 +21,7 @@ function pushFx(state, evt) { if (state._fx) state._fx.push(evt); }
 // blueprint (if Green/Red/Orange) from the very first round - nothing is
 // hidden or drawn progressively. `everMergedUp` still tracks whether this
 // player has ever completed a merge (used to unlock Blue defending).
-function newPlayerState(deck) {
+function newPlayerState(deck, config = {}) {
   return {
     deck: deck.units,
     board: Array(BOARD_SIZE).fill(null),
@@ -34,6 +34,11 @@ function newPlayerState(deck) {
     defendingSlots: {},     // slotIndex -> true : this card is defending itself this round
     everMergedUp: false,    // true forever, from the moment this player's first merge creates a non-Blue card
     mergesThisRound: 0,     // NEW: at most MAX_MERGES_PER_ROUND merges are allowed per player per round - reset every placement phase
+    playerName: config.playerName || 'Player',
+    playerAvatar: config.playerAvatar || 'P',
+    playerGradient: config.playerGradient || null,
+    playerLevel: config.playerLevel || 1,
+    particleAvatar: config.particleAvatar || 'cosmic-singularity',
   };
 }
 
@@ -48,7 +53,10 @@ function createMatch(seed, p1id = 'p1', p2id = 'p2', deckConfigs = {}) {
     seed, rngCalls: rng.calls,
     round: 1,
     phase: 'placement',
-    players: { [p1id]: newPlayerState(deck1), [p2id]: newPlayerState(deck2) },
+    players: { 
+      [p1id]: newPlayerState(deck1, deckConfigs[p1id]), 
+      [p2id]: newPlayerState(deck2, deckConfigs[p2id]) 
+    },
     order: [p1id, p2id],
     pendingQueuedAttacks: [],
     log: [],
@@ -403,19 +411,38 @@ function forcedBlock(state, playerKey) {
 // pass through whatever index the player picked) - there's no hand
 // anymore, so this always indexes directly into the player's deck, the
 // single pool every card lives in from the start of the match.
-function placeCard(state, playerKey, deckIndex, slot) {
+// Added robust cardId resolution and tier-1 fallback to eliminate network desync.
+function placeCard(state, playerKey, deckIndex, slot, cardId) {
   const blocked = forcedBlock(state, playerKey);
   if (blocked) return blocked;
   const p = state.players[playerKey];
+  if (!p) return { ok: false, error: 'unknown player' };
   if (state.phase !== 'placement') return { ok: false, error: 'not placement phase' };
-  if (deckIndex < 0 || deckIndex >= p.deck.length) return { ok: false, error: 'bad card index' };
-  if (p.board[slot] !== null) return { ok: false, error: 'slot occupied' };
-  // v2.0: nothing above Blue can ever be placed directly - Green/Red/Orange
-  // only ever come into being by merging Blues (and their fusions) upward.
-  if (p.deck[deckIndex].tier !== 1) {
-    return { ok: false, error: 'Only Blue cards can be placed directly - merge your way up to anything higher.' };
+  if (slot == null || slot < 0 || slot >= BOARD_SIZE) return { ok: false, error: 'invalid board slot' };
+  if (p.board[slot] !== null && p.board[slot] !== undefined) return { ok: false, error: 'slot occupied' };
+
+  // Locate the target card in the player's deck pool:
+  let targetIdx = -1;
+  // 1. Try exact cardId matching if provided
+  if (cardId) {
+    targetIdx = p.deck.findIndex(c => c && c.id === cardId);
   }
-  const card = p.deck.splice(deckIndex, 1)[0];
+  // 2. Try deckIndex if valid and points to a Tier 1 card
+  if (targetIdx === -1 && typeof deckIndex === 'number' && deckIndex >= 0 && deckIndex < p.deck.length) {
+    if (p.deck[deckIndex] && p.deck[deckIndex].tier === 1) {
+      targetIdx = deckIndex;
+    }
+  }
+  // 3. Fallback: Find the first available Tier 1 (Blue) unit in player's deck
+  if (targetIdx === -1) {
+    targetIdx = p.deck.findIndex(c => c && c.tier === 1);
+  }
+
+  if (targetIdx === -1 || !p.deck[targetIdx]) {
+    return { ok: false, error: 'No placeable Blue cards left in deck' };
+  }
+
+  const card = p.deck.splice(targetIdx, 1)[0];
   p.board[slot] = card;
   pushFx(state, { type: 'place', owner: playerKey, slot });
   abilityTrigger(state, playerKey, card, 'onplay', slot);
@@ -563,6 +590,9 @@ function autoResolveForcedMerges(state, playerKey) {
 }
 
 function castSpell(state, playerKey, spellInstanceId, targetOwnerKey, targetSlot) {
+  if (state.phase !== 'attack') {
+    return { ok: false, error: 'Spells can only be cast during the attack phase' };
+  }
   const blocked = forcedBlock(state, playerKey);
   if (blocked) return blocked;
   const p = state.players[playerKey];
@@ -1126,7 +1156,7 @@ function applyAction(state, action) {
   state._fx = [];
   let result;
   switch (action.type) {
-    case 'place': result = placeCard(state, action.player, action.handIndex, action.slot); break;
+    case 'place': result = placeCard(state, action.player, action.handIndex, action.slot, action.cardId); break;
     case 'merge': {
       // Accepts either the current { slots: [...] } (2-4 cards) format or
       // the older { slotA, slotB } pair format, for any caller that hasn't

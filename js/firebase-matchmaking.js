@@ -23,7 +23,7 @@ const FirebaseMatchmaking = {
     return Boolean(bridge && bridge.db);
   },
 
-  async findAndClaimLobby() {
+  async findAndClaimLobby(guestConfig = null) {
     const bridge = getBridge();
     if (!bridge || !bridge.db) return null;
     const { db, collection, query, where, getDocs, doc, runTransaction } = bridge;
@@ -56,7 +56,12 @@ const FirebaseMatchmaking = {
             txn.update(docRef, {
               status: 'matched',
               guestJoined: true,
-              matchedAt: Date.now()
+              matchedAt: Date.now(),
+              guestPlayerName: guestConfig?.playerName || 'Player',
+              guestPlayerAvatar: guestConfig?.playerAvatar || '⚔️',
+              guestPlayerGradient: guestConfig?.playerGradient || null,
+              guestPlayerLevel: guestConfig?.playerLevel || 1,
+              guestDeckName: guestConfig?.deckName || 'Battle Deck'
             });
             return data;
           });
@@ -64,7 +69,14 @@ const FirebaseMatchmaking = {
           if (claimed && claimed.roomCode) {
             return {
               roomCode: claimed.roomCode,
-              hostPeerId: 'cardbattler-' + claimed.roomCode
+              hostPeerId: 'cardbattler-' + claimed.roomCode,
+              hostInfo: {
+                playerName: claimed.hostPlayerName || 'Host Player',
+                playerAvatar: claimed.hostPlayerAvatar || '⚔️',
+                playerGradient: claimed.hostPlayerGradient || null,
+                playerLevel: claimed.hostPlayerLevel || 1,
+                deckName: claimed.hostDeckName || 'Battle Deck'
+              }
             };
           }
         } catch (txnErr) {
@@ -77,7 +89,7 @@ const FirebaseMatchmaking = {
     return null;
   },
 
-  async registerLobby(roomCode) {
+  async registerLobby(roomCode, hostConfig = null) {
     const bridge = getBridge();
     if (!bridge || !bridge.db) return null;
     const { db, doc, setDoc } = bridge;
@@ -92,7 +104,12 @@ const FirebaseMatchmaking = {
         hostPeerId: 'cardbattler-' + cleanCode,
         status: 'waiting',
         createdAt: Date.now(),
-        guestJoined: false
+        guestJoined: false,
+        hostPlayerName: hostConfig?.playerName || 'Host Player',
+        hostPlayerAvatar: hostConfig?.playerAvatar || '⚔️',
+        hostPlayerGradient: hostConfig?.playerGradient || null,
+        hostPlayerLevel: hostConfig?.playerLevel || 1,
+        hostDeckName: hostConfig?.deckName || 'Battle Deck'
       });
       return docRef;
     } catch (err) {
