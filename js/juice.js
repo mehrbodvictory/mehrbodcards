@@ -2943,6 +2943,28 @@ function redeemShopCode(rawCode) {
     recordRecentActivity('Redeemed a secret code — +350 Bux + 80 XP + 25 Vault Pts');
     showToast('✨ Celestial boon granted! +350 Bux, 80 Player XP & 25 Vault Points.', 3800);
     Sound.sparkle();
+  } else if (code === 'capitaloffrance') {
+    const owned = loadOwnedCosmetics();
+    const alreadyOwned = owned.includes('theme_verity') || owned.includes('verity');
+    if (!alreadyOwned) {
+      owned.push('theme_verity');
+      saveOwnedCosmetics(owned);
+    }
+    try { localStorage.setItem('theme_verity_unlocked', 'true'); } catch (e) {}
+    if (typeof updateThemeButtons === 'function') updateThemeButtons();
+    if (typeof renderCollectionScreen === 'function') renderCollectionScreen(currentLockerTopTab);
+    if (typeof applyTheme === 'function') applyTheme('verity');
+
+    if (alreadyOwned) {
+      addBux(1000);
+      recordEconomyChange(1000, 'Redeemed code: CAPITALOFFRANCE (+1,000 Bux bonus)');
+      recordRecentActivity('Redeemed code "CAPITALOFFRANCE" — equipped Verity theme + 1,000 Bux bonus');
+      showToast('😊 Verity theme equipped! You already owned it, so here is +1,000 Bux!', 4000);
+    } else {
+      recordRecentActivity('Redeemed code "CAPITALOFFRANCE" — unlocked secret 😊 Verity theme');
+      showToast('😊 Secret Code Correct! 😊 Verity theme unlocked & equipped!', 4200);
+    }
+    Sound.sparkle();
   } else {
     showToast("That code isn't valid.");
     return; // don't burn an attempt on a code that never worked
@@ -5642,36 +5664,27 @@ window.showSingleCardReveal = showSingleCardReveal;
     letters.forEach((letter, idx) => {
       const fraction = idx / (letters.length - 1 || 1);
 
-      const triggerLetterBounce = () => {
+      const triggerLetterBounce = (e) => {
+        if (e && e.type === 'click' && e.detail === 0) return; // ignore synthetic
+        
         const col = getLiveGradientColor(fraction);
         letter.style.setProperty('--live-glow', col.rgb);
 
-        if (letter._currentAnim) {
-          try { letter._currentAnim.cancel(); } catch (_) {}
-          letter._currentAnim = null;
-        }
+        letter.classList.remove('letter-pop');
+        void letter.offsetWidth; // force DOM reflow to restart animation seamlessly
+        letter.classList.add('letter-pop');
 
-        letter._currentAnim = letter.animate([
-          { transform: 'scale(1) translateY(0)', filter: `drop-shadow(0 0 10px ${col.glow1}) drop-shadow(0 0 20px ${col.glow2}) brightness(1.2)` },
-          { transform: 'scale(1.42) translateY(-16px) rotate(-4deg)', filter: `drop-shadow(0 0 28px ${col.glow1}) drop-shadow(0 0 50px ${col.glow2}) drop-shadow(0 0 80px ${col.subtle}) brightness(1.85)`, offset: 0.28 },
-          { transform: 'scale(0.85) translateY(5px) rotate(2deg)', filter: `drop-shadow(0 0 18px ${col.glow1}) brightness(1.3)`, offset: 0.60 },
-          { transform: 'scale(1.12) translateY(-3px)', filter: `drop-shadow(0 0 14px ${col.glow2})`, offset: 0.82 },
-          { transform: 'scale(1) translateY(0) rotate(0deg)', filter: 'none' }
-        ], {
-          duration: 420,
-          easing: 'cubic-bezier(0.175, 0.885, 0.32, 1.35)',
-          fill: 'none'
-        });
-
-        letter._currentAnim.onfinish = () => {
-          letter._currentAnim = null;
-        };
+        if (letter._popTimer) clearTimeout(letter._popTimer);
+        letter._popTimer = setTimeout(() => {
+          letter.classList.remove('letter-pop');
+          letter._popTimer = null;
+        }, 450);
 
         try {
           if (typeof Sound !== 'undefined' && Sound && typeof Sound.tap === 'function') {
             Sound.tap();
           }
-        } catch (e) {}
+        } catch (err) {}
       };
 
       letter.addEventListener('pointerenter', () => {
@@ -5682,7 +5695,6 @@ window.showSingleCardReveal = showSingleCardReveal;
       if (!letter.dataset.bounceBound) {
         letter.dataset.bounceBound = 'true';
         letter.addEventListener('pointerdown', triggerLetterBounce);
-        letter.addEventListener('click', triggerLetterBounce);
       }
     });
   };
@@ -5691,17 +5703,23 @@ window.showSingleCardReveal = showSingleCardReveal;
   document.addEventListener('click', (e) => {
     const letter = e.target.closest('.game-title .title-letter');
     if (!letter) return;
+    
     const letters = Array.from(document.querySelectorAll('.game-title .title-letter'));
     const idx = letters.indexOf(letter);
     const fraction = (idx >= 0 ? idx : 0) / (letters.length - 1 || 1);
     const col = getLiveGradientColor(fraction);
     letter.style.setProperty('--live-glow', col.rgb);
-    letter.animate([
-      { transform: 'scale(1) translateY(0)', filter: `drop-shadow(0 0 10px ${col.glow1}) brightness(1.2)` },
-      { transform: 'scale(1.42) translateY(-16px) rotate(-4deg)', filter: `drop-shadow(0 0 28px ${col.glow1}) drop-shadow(0 0 50px ${col.glow2}) brightness(1.85)`, offset: 0.28 },
-      { transform: 'scale(0.85) translateY(5px) rotate(2deg)', filter: `drop-shadow(0 0 18px ${col.glow1}) brightness(1.3)`, offset: 0.60 },
-      { transform: 'scale(1) translateY(0) rotate(0deg)', filter: 'none' }
-    ], { duration: 420, easing: 'cubic-bezier(0.175, 0.885, 0.32, 1.35)' });
+
+    letter.classList.remove('letter-pop');
+    void letter.offsetWidth;
+    letter.classList.add('letter-pop');
+
+    if (letter._popTimer) clearTimeout(letter._popTimer);
+    letter._popTimer = setTimeout(() => {
+      letter.classList.remove('letter-pop');
+      letter._popTimer = null;
+    }, 450);
+
     try { if (typeof Sound !== 'undefined' && Sound && Sound.tap) Sound.tap(); } catch (_) {}
   });
 
@@ -6515,6 +6533,7 @@ window.playSkeletonStaffAnimation = playSkeletonStaffAnimation;
     '#theme-celestial_nebula-bg',
     '#theme-abyss_kraken-bg',
     '#theme-apex_sovereign-bg',
+    '#theme-verity-bg',
     '.showcase-theme-canvas'
   ];
 
@@ -6528,9 +6547,9 @@ window.playSkeletonStaffAnimation = playSkeletonStaffAnimation;
           activeBgsCache.push({
             el: el,
             isCanvas: el.classList.contains('showcase-theme-canvas'),
-            bgLayers: el.querySelectorAll('.temporal-grid, .cyber-highway-grid, .singularity-matter-streams, .quantum-subatomic-grid, .solar-corona-cells, .prism-shards-field, .celestial-star-dust, .abyss-trench-floor, .apex-colonnade-hall'),
-            midLayers: el.querySelectorAll('.chronos-astrolabe-3d, .cyber-skyline-parallax, .singularity-core-3d, .quantum-core-lattice, .solar-core-pulsar, .prism-diamond-core-3d, .celestial-dust-cloud, .abyss-caustics-layer, .apex-gilded-portal'),
-            fgLayers: el.querySelectorAll('.chronos-gear-ring, .cyber-scanlines-depth, .singularity-photon-ring, .quantum-particle-cloud, .solar-prominence-arcs, .prism-refractor-facets, .celestial-meteor-streak, .abyss-kraken-tentacle, .apex-runic-obelisk, .apex-cathedral-beams')
+            bgLayers: el.querySelectorAll('.temporal-grid, .cyber-highway-grid, .singularity-matter-streams, .quantum-subatomic-grid, .solar-corona-cells, .prism-shards-field, .celestial-star-dust, .abyss-trench-floor, .apex-colonnade-hall, .chronos-temporal-grid, .chronos-deep-void, .sovereign-celestial-void, .sovereign-3d-floor-grid'),
+            midLayers: el.querySelectorAll('.chronos-astrolabe-3d, .cyber-skyline-parallax, .singularity-core-3d, .quantum-core-lattice, .solar-core-pulsar, .prism-diamond-core-3d, .celestial-dust-cloud, .abyss-caustics-layer, .apex-gilded-portal, .chronos-3d-stage, .chronos-celestial-rings-back, .chronos-dial-center, .sovereign-stargate-3d, .sovereign-3d-colonnade, .gilded-column'),
+            fgLayers: el.querySelectorAll('.chronos-gear-ring, .cyber-scanlines-depth, .singularity-photon-ring, .quantum-particle-cloud, .solar-prominence-arcs, .prism-refractor-facets, .celestial-meteor-streak, .abyss-kraken-tentacle, .apex-runic-obelisk, .apex-cathedral-beams, .chronos-3d-pendulum, .chronos-hourglass-stream, .chronos-gear-clockwork, .chronos-stardust, .sovereign-3d-crown-stage, .sovereign-monolith-orbit, .sovereign-god-rays, .sovereign-gold-flakes')
           });
         }
       });
@@ -6557,36 +6576,57 @@ window.playSkeletonStaffAnimation = playSkeletonStaffAnimation;
     mouseX += (targetX - mouseX) * 0.12;
     mouseY += (targetY - mouseY) * 0.12;
 
-    const rotX = (-mouseY * 5).toFixed(2);
-    const rotY = (mouseX * 6).toFixed(2);
+    const rotX = (-mouseY * 3.0).toFixed(2);
+    const rotY = (mouseX * 3.5).toFixed(2);
 
-    const mX12 = (-mouseX * 12).toFixed(1);
-    const mY10 = (-mouseY * 10).toFixed(1);
-    const mX22 = (mouseX * 22).toFixed(1);
-    const mY18 = (mouseY * 18).toFixed(1);
-    const mX40 = (mouseX * 40).toFixed(1);
-    const mY32 = (mouseY * 32).toFixed(1);
+    const mXBg = '0';
+    const mYBg = '0';
+    const mXMid = (mouseX * 10).toFixed(1);
+    const mYMid = (mouseY * 8).toFixed(1);
+    const mxFg = (mouseX * 18).toFixed(1);
+    const myFg = (mouseY * 14).toFixed(1);
 
     activeBgsCache.forEach(cache => {
-      // Main container 3D perspective tilt
-      if (cache.isCanvas) {
-        cache.el.style.transform = `perspective(900px) rotateX(${rotX * 1.5}deg) rotateY(${rotY * 1.5}deg)`;
+      // Main 3D Scene Perspective Tilt & Multi-Plane Individual Layer Displacement
+      if (cache.el) {
+        if (cache.el.id === 'theme-verity-bg') {
+          // Secret Verity theme: absolutely no parallax or perspective tilt
+          cache.el.style.transform = 'none';
+          cache.el.style.setProperty('--px-bg', '0px');
+          cache.el.style.setProperty('--py-bg', '0px');
+          cache.el.style.setProperty('--px-mid', '0px');
+          cache.el.style.setProperty('--py-mid', '0px');
+          cache.el.style.setProperty('--px-fg', '0px');
+          cache.el.style.setProperty('--py-fg', '0px');
+          return;
+        }
+
+        if (cache.el.id === 'theme-apex_sovereign-bg') {
+          // Tier 100: Background stays static (0px bg offset, no stage rotation), floating elements above move with full parallax
+          cache.el.style.transform = 'none';
+          cache.el.style.setProperty('--px-bg', '0px');
+          cache.el.style.setProperty('--py-bg', '0px');
+          cache.el.style.setProperty('--px-mid', mXMid + 'px');
+          cache.el.style.setProperty('--py-mid', mYMid + 'px');
+          cache.el.style.setProperty('--px-fg', mxFg + 'px');
+          cache.el.style.setProperty('--py-fg', myFg + 'px');
+          return;
+        }
+
+        if (cache.isCanvas) {
+          cache.el.style.transform = `perspective(900px) rotateX(${(rotX * 1.5).toFixed(2)}deg) rotateY(${(rotY * 1.5).toFixed(2)}deg)`;
+        } else {
+          cache.el.style.transform = `perspective(1000px) rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+        }
+
+        // Set multi-plane individual element displacement custom properties
+        cache.el.style.setProperty('--px-bg', mXBg + 'px');
+        cache.el.style.setProperty('--py-bg', mYBg + 'px');
+        cache.el.style.setProperty('--px-mid', mXMid + 'px');
+        cache.el.style.setProperty('--py-mid', mYMid + 'px');
+        cache.el.style.setProperty('--px-fg', mxFg + 'px');
+        cache.el.style.setProperty('--py-fg', myFg + 'px');
       }
-
-      // Depth Layer 1 (Deep Background)
-      cache.bgLayers.forEach(l => {
-        l.style.transform = `translate3d(${mX12}px, ${mY10}px, 0)`;
-      });
-
-      // Depth Layer 2 (Midground Centerpieces)
-      cache.midLayers.forEach(l => {
-        l.style.transform = `translate3d(${mX22}px, ${mY18}px, 35px)`;
-      });
-
-      // Depth Layer 3 (Foreground Floating Elements)
-      cache.fgLayers.forEach(l => {
-        l.style.transform = `translate3d(${mX40}px, ${mY32}px, 75px)`;
-      });
     });
 
     animId = requestAnimationFrame(updateThemeParallax);

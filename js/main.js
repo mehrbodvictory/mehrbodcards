@@ -7277,18 +7277,25 @@ Object.assign(THEME_LOCK_MESSAGE, {
   celestial_nebula: '🔒 Unlock in Season 1 Battle Pass Tier 65!',
   abyss_kraken: '🔒 Unlock in Season 1 Battle Pass Tier 80!',
   apex_sovereign: '🔒 Unlock in Season 1 Battle Pass Tier 100!',
+  verity: '🔒 Secret code required in Mehrbod Shop!',
 });
 const ALL_THEME_NAMES = [
   'dark', 'light', 'verdant', 'pink', 'flame', 'aurora', 'sovereign', 'storm',
   'mrmoney', 'cyberneon', 'abyss', 'magma', 'quantum', 'glacier', 'astral',
   'celestial', 'prism', 'darkmatter', 'valentine', 'sakura', 'solar', 'steampunk', 'galaxy',
   'chronos', 'neon_cyberpunk', 'void_singularity', 'quantum_overdrive', 'solar_prominence',
-  'prism_mythic', 'celestial_nebula', 'abyss_kraken', 'apex_sovereign'
+  'prism_mythic', 'celestial_nebula', 'abyss_kraken', 'apex_sovereign', 'verity'
 ];
 function isThemeUnlocked(theme) {
   if (!theme) return false;
   if (theme.startsWith('theme_')) theme = theme.replace(/^theme_/, '');
   if (theme === 'collector' || theme === 'darkmatter') theme = 'prism';
+  if (theme === 'verity') {
+    try {
+      if (localStorage.getItem('theme_verity_unlocked') === 'true') return true;
+      if (typeof loadRedeemedCodes === 'function' && loadRedeemedCodes().includes('capitaloffrance')) return true;
+    } catch (e) {}
+  }
   if (typeof isAllThemesUnlocked === 'function' && isAllThemesUnlocked()) return true;
   if (theme === 'dark' || theme === 'light') return true;
   if (THEME_UNLOCK_CHECK[theme] && THEME_UNLOCK_CHECK[theme]()) return true;
@@ -7360,6 +7367,28 @@ function applyTheme(theme) {
   }
 }
 function updateThemeButtons() {
+  const optionsGrid = document.getElementById('theme-options');
+  if (optionsGrid) {
+    let verityBtn = document.getElementById('theme-btn-verity');
+    if (isThemeUnlocked('verity')) {
+      if (!verityBtn) {
+        verityBtn = document.createElement('button');
+        verityBtn.className = 'theme-btn';
+        verityBtn.id = 'theme-btn-verity';
+        verityBtn.dataset.theme = 'verity';
+        verityBtn.title = 'Verity - Smiling Yellow Face Theme!';
+        verityBtn.innerHTML = '<svg class="verity-btn-svg verity-keep-svg" viewBox="0 0 100 100" style="width:22px;height:22px;display:inline-block;vertical-align:middle;margin-right:6px;"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg><span>Verity</span>';
+        verityBtn.addEventListener('click', () => {
+          if (typeof Sound !== 'undefined' && Sound.themeChange) Sound.themeChange();
+          applyTheme('verity');
+        });
+        optionsGrid.appendChild(verityBtn);
+      }
+    } else if (verityBtn) {
+      verityBtn.remove();
+    }
+  }
+
   const beaten = loadBeatenDifficulties();
   document.querySelectorAll('.theme-btn[data-theme]').forEach(btn => {
     const t = btn.dataset.theme;
@@ -7472,6 +7501,7 @@ const THEME_DATA_REGISTRY = [
   { id: 'celestial_nebula', name: 'Celestial Nebula', emblem: '🌠', rarity: 'SEASON 1 T65', rarityClass: 'mythic', desc: 'Ethereal stardust clouds with swirling interstellar nebulae.', unlockHint: 'Unlocked at Season 1 Battle Pass Tier 65', primary: '#c084fc', panel: '#2e1065', bg: '#170736' },
   { id: 'abyss_kraken', name: 'Kraken Abyss', emblem: '庫', rarity: 'SEASON 1 T80', rarityClass: 'mythic', desc: 'Deep ocean trenches with glowing bioluminescent kraken pulse waves.', unlockHint: 'Unlocked at Season 1 Battle Pass Tier 80', primary: '#06b6d4', panel: '#083344', bg: '#021824' },
   { id: 'apex_sovereign', name: 'Apex Sovereign Gold', emblem: '👑', rarity: 'SEASON 1 T100', rarityClass: 'mythic', desc: 'Imperial 24k gold throne room with royal crown flares and golden aura.', unlockHint: 'Unlocked at Season 1 Battle Pass Tier 100', primary: '#eab308', panel: '#451a03', bg: '#230a01' },
+  { id: 'verity', name: 'Verity', emblem: '<svg class="verity-tile-svg verity-keep-svg" viewBox="0 0 100 100" style="width:28px;height:28px;display:inline-block;vertical-align:middle;"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>', rarity: 'SECRET', rarityClass: 'exotic', desc: 'Smiling yellow faces for EVERYTHING! Overflowing cheery joy.', unlockHint: 'Unlocked with secret code: capitaloffrance', primary: '#ffff00', panel: '#78350f', bg: '#3f1a02' },
 ];
 
 const SLEEVE_DATA_REGISTRY = [
@@ -9063,11 +9093,12 @@ function renderCollectionScreen(activeTopTab = 'cards') {
     if (badgeLabel) badgeLabel.textContent = 'THEMES';
     const themesGrid = document.getElementById('collection-themes');
     if (themesGrid) {
-      const totalThemes = THEME_DATA_REGISTRY.length;
-      const unlockedThemes = THEME_DATA_REGISTRY.filter(t => isThemeUnlocked(t.id)).length;
+      const visibleThemesList = THEME_DATA_REGISTRY.filter(t => (t.id !== 'verity' && t.id !== 'valentine') || isThemeUnlocked(t.id));
+      const totalThemes = visibleThemesList.length;
+      const unlockedThemes = visibleThemesList.filter(t => isThemeUnlocked(t.id)).length;
       if (totalCountEl) totalCountEl.textContent = `${unlockedThemes}/${totalThemes} (${Math.round((unlockedThemes / totalThemes) * 100)}%)`;
 
-      const sortedThemes = getSortedList(THEME_DATA_REGISTRY, 'theme');
+      const sortedThemes = getSortedList(visibleThemesList, 'theme');
       themesGrid.innerHTML = sortedThemes.map(t => {
         const unlocked = isThemeUnlocked(t.id);
         const equipped = currentTheme === t.id;
@@ -11720,6 +11751,55 @@ window.addEventListener('appinstalled', () => {
 
   document.addEventListener('touchend', releaseInspect);
   document.addEventListener('touchcancel', releaseInspect);
+
+  // --- TIER 100 APEX SOVEREIGN CHERRY INTERACTIVE CLICK BURST SYSTEM ---
+  function createGoldSovereignExplosion(x, y) {
+    const container = document.getElementById('theme-bg-container');
+    if (!container) return;
+
+    // Create an explosion center halo
+    const halo = document.createElement('div');
+    halo.className = 'apex-click-halo';
+    halo.style.left = `${x}px`;
+    halo.style.top = `${y}px`;
+    document.body.appendChild(halo);
+    setTimeout(() => halo.remove(), 1200);
+
+    const icons = ['👑', '✨', '✦', '💎', '⚜️', '⭐'];
+    const count = 12;
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement('div');
+      p.className = 'apex-click-particle';
+      p.textContent = icons[Math.floor(Math.random() * icons.length)];
+      p.style.left = `${x}px`;
+      p.style.top = `${y}px`;
+
+      // Random launch angles & distances
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 40 + Math.random() * 90;
+      const tx = Math.cos(angle) * speed;
+      const ty = Math.sin(angle) * speed - 60; // Bias upwards
+
+      p.style.setProperty('--tx', `${tx}px`);
+      p.style.setProperty('--ty', `${ty}px`);
+      p.style.setProperty('--rot', `${Math.random() * 360}deg`);
+
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 1500);
+    }
+    
+    // Play a majestic royal sound chime!
+    if (typeof Sound !== 'undefined' && Sound.buff) {
+      Sound.buff();
+    }
+  }
+
+  document.addEventListener('click', (e) => {
+    // Check if currentTheme exists and is apex_sovereign
+    if (typeof currentTheme !== 'undefined' && currentTheme === 'apex_sovereign') {
+      createGoldSovereignExplosion(e.clientX, e.clientY);
+    }
+  });
 
 })();
 

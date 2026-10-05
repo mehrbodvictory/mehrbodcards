@@ -198,6 +198,7 @@
       if (typeof Sound !== 'undefined' && Sound.sparkle) {
         Sound.sparkle();
       }
+      triggerBattlePassLevelUpCelebration(afterLevel, beforeLevel);
     }
     updateBattlePassBadge();
   }
@@ -951,8 +952,150 @@
     updateBattlePassBadge();
   }
 
+  function closeBattlePassLevelUpCelebration() {
+    const overlay = document.getElementById('bp-levelup-celebration-overlay');
+    if (overlay) {
+      overlay.classList.add('hidden');
+    }
+  }
+
+  function triggerBattlePassLevelUpCelebration(newLevel, oldLevel) {
+    let overlay = document.getElementById('bp-levelup-celebration-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'bp-levelup-celebration-overlay';
+      overlay.className = 'hidden';
+      overlay.role = 'dialog';
+      overlay.setAttribute('aria-modal', 'true');
+      overlay.setAttribute('aria-label', 'Battle Pass Level Up Celebration');
+      overlay.innerHTML = `
+        <div class="bp-celebration-backdrop"></div>
+        <div class="bp-celebration-rays"></div>
+        
+        <div class="bp-celebration-card">
+          <div class="bp-celebration-header">
+            <div class="bp-celebration-kicker">⚡ SEASON 1 PROGRESSION ⚡</div>
+            <h2 class="bp-celebration-title">LEVEL UP!</h2>
+            <div class="bp-celebration-subtitle">BATTLE PASS TIER REACHED</div>
+          </div>
+
+          <div class="bp-celebration-badge-stage">
+            <div class="bp-celebration-ring ring-outer"></div>
+            <div class="bp-celebration-ring ring-inner"></div>
+            <div class="bp-celebration-badge">
+              <span class="bp-badge-crown">👑</span>
+              <span class="bp-badge-tier-label">TIER</span>
+              <span id="bp-celebration-tier-num" class="bp-badge-tier-num">1</span>
+            </div>
+            <div class="bp-celebration-particles" id="bp-celebration-particles"></div>
+          </div>
+
+          <div class="bp-celebration-rewards-box">
+            <div class="bp-celebration-rewards-title">REWARDS UNLOCKED AT TIER <span id="bp-celebration-reward-tier">1</span></div>
+            <div id="bp-celebration-rewards-list" class="bp-celebration-rewards-list"></div>
+          </div>
+
+          <button type="button" id="btn-bp-celebration-continue" class="primary-btn bp-celebration-continue-btn">
+            CONTINUE ➔
+          </button>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      overlay.querySelector('#btn-bp-celebration-continue')?.addEventListener('click', () => {
+        closeBattlePassLevelUpCelebration();
+      });
+      overlay.addEventListener('click', (e) => {
+        if (e.target.id === 'bp-levelup-celebration-overlay' || e.target.classList.contains('bp-celebration-backdrop')) {
+          closeBattlePassLevelUpCelebration();
+        }
+      });
+    }
+
+    const numEl = overlay.querySelector('#bp-celebration-tier-num');
+    if (numEl) numEl.textContent = newLevel;
+
+    const rewardTierEl = overlay.querySelector('#bp-celebration-reward-tier');
+    if (rewardTierEl) rewardTierEl.textContent = newLevel;
+
+    const listEl = overlay.querySelector('#bp-celebration-rewards-list');
+    if (listEl) {
+      listEl.innerHTML = '';
+      const tierData = BATTLEPASS_TIERS.find(t => t.tier === newLevel);
+      if (tierData) {
+        if (tierData.free) {
+          const freeCard = document.createElement('div');
+          freeCard.className = 'bp-celebration-reward-card free';
+          freeCard.innerHTML = `
+            <span class="bp-celebration-reward-icon">${tierData.free.icon || '🎁'}</span>
+            <span class="bp-celebration-reward-name">${tierData.free.name || tierData.free.label}</span>
+            <span class="bp-celebration-reward-tag">FREE TRACK</span>
+          `;
+          listEl.appendChild(freeCard);
+        }
+        if (tierData.premium) {
+          const premCard = document.createElement('div');
+          premCard.className = 'bp-celebration-reward-card premium';
+          premCard.innerHTML = `
+            <span class="bp-celebration-reward-icon">${tierData.premium.icon || '👑'}</span>
+            <span class="bp-celebration-reward-name">${tierData.premium.name || tierData.premium.label}</span>
+            <span class="bp-celebration-reward-tag">PREMIUM PASS</span>
+          `;
+          listEl.appendChild(premCard);
+        }
+      }
+    }
+
+    // Spawn Particle Shards Explosion
+    const particlesContainer = overlay.querySelector('#bp-celebration-particles');
+    if (particlesContainer) {
+      particlesContainer.innerHTML = '';
+      const colors = ['#f59e0b', '#38bdf8', '#a855f7', '#f43f5e', '#22c55e', '#fef08a'];
+      for (let i = 0; i < 32; i++) {
+        const shard = document.createElement('div');
+        shard.className = 'bp-particle-shard';
+        const angle = (i / 32) * Math.PI * 2 + (Math.random() * 0.2);
+        const distance = 80 + Math.random() * 110;
+        const px = Math.cos(angle) * distance;
+        const py = Math.sin(angle) * distance;
+        const color = colors[i % colors.length];
+
+        shard.style.setProperty('--px', `${px}px`);
+        shard.style.setProperty('--py', `${py}px`);
+        shard.style.backgroundColor = color;
+        shard.style.boxShadow = `0 0 10px ${color}`;
+        shard.style.animationDelay = `${Math.random() * 0.12}s`;
+        particlesContainer.appendChild(shard);
+      }
+    }
+
+    // Audio & Vibration
+    try {
+      if (typeof playSubtleVibrationNoise === 'function') playSubtleVibrationNoise();
+      if (typeof Sound !== 'undefined') {
+        if (Sound.buff) Sound.buff();
+        if (Sound.sparkle) setTimeout(() => Sound.sparkle(), 200);
+      }
+    } catch (e) {}
+
+    overlay.classList.remove('hidden');
+
+    // In-grid tier highlight spotlight if Battle Pass modal is open
+    if (typeof renderBattlePassScreen === 'function') {
+      renderBattlePassScreen();
+    }
+    setTimeout(() => {
+      const col = document.querySelector(`.bp-tier-col[data-tier="${newLevel}"]`);
+      if (col) {
+        col.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        col.classList.add('bp-tier-levelup-spotlight');
+      }
+    }, 200);
+  }
+
   // Global Exports
   window.grantBattlePassXP = grantBattlePassXP;
+  window.triggerBattlePassLevelUpCelebration = triggerBattlePassLevelUpCelebration;
   window.claimBattlePassReward = claimBattlePassReward;
   window.claimAllBattlePassRewards = claimAllBattlePassRewards;
   window.purchasePremiumPass = purchasePremiumPass;

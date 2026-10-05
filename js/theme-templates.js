@@ -520,7 +520,11 @@ window.THEME_TEMPLATES = {
     <div id="theme-chronos-bg" class="theme-3d-scene chronos-3d-astrolabe" aria-hidden="true">
       <div class="chronos-deep-void"></div>
       <div class="chronos-temporal-grid"></div>
-      <div class="chronos-celestial-rings-back"></div>
+      <div class="chronos-celestial-rings-back">
+        <div class="chronos-cosmic-ring r-back-1"></div>
+        <div class="chronos-cosmic-ring r-back-2"></div>
+        <div class="chronos-cosmic-ring r-back-3"></div>
+      </div>
       <div class="chronos-3d-stage">
         <div class="chronos-orrery-ring r1">
           <div class="chronos-planet-mote pm1"></div>
@@ -530,7 +534,9 @@ window.THEME_TEMPLATES = {
           <div class="chronos-planet-mote pm3"></div>
         </div>
         <div class="chronos-orrery-ring r3"></div>
-        <div class="chronos-gear-clockwork cg1"></div>
+        <div class="chronos-gear-clockwork cg1">
+          <div class="gear-tooth"></div><div class="gear-tooth"></div><div class="gear-tooth"></div><div class="gear-tooth"></div>
+        </div>
         <div class="chronos-gear-clockwork cg2"></div>
         <div class="chronos-gear-clockwork cg3"></div>
         <div class="chronos-gear-clockwork cg4"></div>
@@ -544,7 +550,9 @@ window.THEME_TEMPLATES = {
           <div class="chronos-clock-hand hand-h"></div>
           <div class="chronos-clock-hand hand-m"></div>
           <div class="chronos-clock-hand hand-s"></div>
-          <div class="chronos-clock-pin"></div>
+          <div class="chronos-clock-pin">
+            <div class="chronos-wormhole-core"></div>
+          </div>
         </div>
         <div class="chronos-3d-pendulum">
           <div class="chronos-pendulum-arm"></div>
@@ -561,14 +569,21 @@ window.THEME_TEMPLATES = {
       <div class="chronos-stardust cs7"></div>
       <div class="chronos-stardust cs8"></div>
       <div class="chronos-light-sweep"></div>
-      <div class="chronos-hourglass-stream"></div>
+      <div class="chronos-hourglass-stream">
+        <span class="sand-grain s1"></span><span class="sand-grain s2"></span><span class="sand-grain s3"></span><span class="sand-grain s4"></span>
+        <span class="sand-grain s5"></span><span class="sand-grain s6"></span><span class="sand-grain s7"></span><span class="sand-grain s8"></span>
+      </div>
     </div>
   `,
   theme_chronos: `
     <div id="theme-chronos-bg" class="theme-3d-scene chronos-3d-astrolabe" aria-hidden="true">
       <div class="chronos-deep-void"></div>
       <div class="chronos-temporal-grid"></div>
-      <div class="chronos-celestial-rings-back"></div>
+      <div class="chronos-celestial-rings-back">
+        <div class="chronos-cosmic-ring r-back-1"></div>
+        <div class="chronos-cosmic-ring r-back-2"></div>
+        <div class="chronos-cosmic-ring r-back-3"></div>
+      </div>
       <div class="chronos-3d-stage">
         <div class="chronos-orrery-ring r1">
           <div class="chronos-planet-mote pm1"></div>
@@ -578,7 +593,9 @@ window.THEME_TEMPLATES = {
           <div class="chronos-planet-mote pm3"></div>
         </div>
         <div class="chronos-orrery-ring r3"></div>
-        <div class="chronos-gear-clockwork cg1"></div>
+        <div class="chronos-gear-clockwork cg1">
+          <div class="gear-tooth"></div><div class="gear-tooth"></div><div class="gear-tooth"></div><div class="gear-tooth"></div>
+        </div>
         <div class="chronos-gear-clockwork cg2"></div>
         <div class="chronos-gear-clockwork cg3"></div>
         <div class="chronos-gear-clockwork cg4"></div>
@@ -592,7 +609,9 @@ window.THEME_TEMPLATES = {
           <div class="chronos-clock-hand hand-h"></div>
           <div class="chronos-clock-hand hand-m"></div>
           <div class="chronos-clock-hand hand-s"></div>
-          <div class="chronos-clock-pin"></div>
+          <div class="chronos-clock-pin">
+            <div class="chronos-wormhole-core"></div>
+          </div>
         </div>
         <div class="chronos-3d-pendulum">
           <div class="chronos-pendulum-arm"></div>
@@ -609,7 +628,10 @@ window.THEME_TEMPLATES = {
       <div class="chronos-stardust cs7"></div>
       <div class="chronos-stardust cs8"></div>
       <div class="chronos-light-sweep"></div>
-      <div class="chronos-hourglass-stream"></div>
+      <div class="chronos-hourglass-stream">
+        <span class="sand-grain s1"></span><span class="sand-grain s2"></span><span class="sand-grain s3"></span><span class="sand-grain s4"></span>
+        <span class="sand-grain s5"></span><span class="sand-grain s6"></span><span class="sand-grain s7"></span><span class="sand-grain s8"></span>
+      </div>
     </div>
   `,
 
@@ -1306,6 +1328,68 @@ window.THEME_TEMPLATES = {
         <div class="sovereign-gold-flake gf16"></div>
       </div>
       <div class="sovereign-horizon-corona"></div>
+    </div>
+  `,
+
+  // 10. Verity Secret Theme (😊) - Solid Bright Yellow Wall of Vector SVG Smiley Faces
+  verity: `
+    <div id="theme-verity-bg" class="theme-3d-scene verity-3d-stage" aria-hidden="true">
+      <div class="verity-smiley-grid">
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+      </div>
+    </div>
+  `,
+  theme_verity: `
+    <div id="theme-verity-bg" class="theme-3d-scene verity-3d-stage" aria-hidden="true">
+      <div class="verity-smiley-grid">
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+        <svg class="verity-svg-face" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#ffff00" stroke="#000000" stroke-width="7"/><circle cx="34" cy="38" r="7" fill="#000000"/><circle cx="66" cy="38" r="7" fill="#000000"/><path d="M26 56 Q50 84 74 56" stroke="#000000" stroke-width="8" fill="none" stroke-linecap="round"/></svg>
+      </div>
     </div>
   `
 };
