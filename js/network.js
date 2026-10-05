@@ -109,19 +109,12 @@ class ServerRelaySession {
     this.onRematchDecline = onRematchDecline || (() => {});
   }
 
-  _makeRoomCode() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let s = '';
-    for (let i = 0; i < 5; i++) s += chars[Math.floor(Math.random() * chars.length)];
-    return s;
-  }
-
-  async hostGame(seed, wager, hostDeckConfig) {
+  async hostGameWithCode(code, seed, wager, hostDeckConfig) {
     this.isHost = true;
     this.seed = seed;
     this.wager = wager || 0;
     this.hostDeckConfig = hostDeckConfig || null;
-    this.roomCode = this._makeRoomCode();
+    this.roomCode = String(code).toUpperCase().replace(/[^A-Z0-9]/g, '');
     this.onStatus('connecting');
 
     try {
@@ -202,7 +195,7 @@ class ServerRelaySession {
 
   _startPolling() {
     if (this.pollInterval) clearInterval(this.pollInterval);
-    this.pollInterval = setInterval(() => this._poll(), 250);
+    this.pollInterval = setInterval(() => this._poll(), 200);
   }
 
   async _poll() {
@@ -277,26 +270,41 @@ class ServerRelaySession {
   }
 }
 
-/* ---------------- HYBRID NET SESSION (P2P + AUTOMATIC SERVER RELAY FALLBACK) ---------------- */
+/* ---------------- DUAL-TRANSPORT MULTIPLAYER SESSION (P2P + HTTPS SERVER RELAY) ---------------- */
 class NetSession {
   constructor({ onInit, onApplied, onStatus, onPeerError, onGuestConfig, onForfeit, onEmote, onPing, onRematchOffer, onRematchAccept, onRematchDecline }) {
     this.peer = null;
     this.conn = null;
     this.isHost = false;
     this.relaySession = null;
-    this.usingRelay = false;
+    this.receivedGuestConfig = false;
+    this.receivedInit = false;
+    this.processedActionIds = new Set();
 
     this.rawCallbacks = { onInit, onApplied, onStatus, onPeerError, onGuestConfig, onForfeit, onEmote, onPing, onRematchOffer, onRematchAccept, onRematchDecline };
 
-    this.onInit = onInit;
-    this.onApplied = onApplied;   // (action) => void — apply it locally
+    this.onInit = (data) => {
+      if (this.receivedInit) return;
+      this.receivedInit = true;
+      if (onInit) onInit(data);
+    };
+    this.onApplied = (action) => {
+      if (action && action.id) {
+        if (this.processedActionIds.has(action.id)) return;
+        this.processedActionIds.add(action.id);
+      }
+      if (onApplied) onApplied(action);
+    };
     this.onStatus = onStatus || (() => {});
     this.onPeerError = (err) => {
-      const formatted = formatPeerErrorMessage(err);
-      const errObj = (typeof err === 'object' && err !== null) ? { ...err, message: formatted } : { message: formatted };
-      if (onPeerError) onPeerError(errObj);
+      // Non-fatal error logging since Server Relay operates simultaneously
+      console.warn('[Multiplayer Network] PeerJS P2P warning:', err);
     };
-    this.onGuestConfig = onGuestConfig || (() => {});
+    this.onGuestConfig = (config) => {
+      if (this.receivedGuestConfig) return;
+      this.receivedGuestConfig = true;
+      if (onGuestConfig) onGuestConfig(config);
+    };
     this.onForfeit = onForfeit || (() => {});
     this.onEmote = onEmote || (() => {});
     this.onPing = onPing || (() => {});
@@ -322,196 +330,112 @@ class NetSession {
     return s;
   }
 
-  async _switchToRelayHost(seed, wager, hostDeckConfig) {
-    console.warn('[Multiplayer Network] WebRTC P2P unavailable. Seamlessly activating Server Relay Mode...');
-    this.usingRelay = true;
-    if (this.peer) {
-      try { this.peer.destroy(); } catch (_) {}
-      this.peer = null;
-    }
-    this.relaySession = new ServerRelaySession(this.rawCallbacks);
-    return await this.relaySession.hostGame(seed, wager, hostDeckConfig);
-  }
-
-  async _switchToRelayJoin(code, guestDeckConfig) {
-    console.warn('[Multiplayer Network] WebRTC P2P negotiation failed. Seamlessly activating Server Relay Mode...');
-    this.usingRelay = true;
-    if (this.peer) {
-      try { this.peer.destroy(); } catch (_) {}
-      this.peer = null;
-    }
-    this.relaySession = new ServerRelaySession(this.rawCallbacks);
-    return await this.relaySession.joinGame(code, guestDeckConfig);
-  }
-
   async hostGame(seed, wager, hostDeckConfig) {
     this.isHost = true;
     this.seed = seed;
     this.wager = wager || 0;
     this.hostDeckConfig = hostDeckConfig || null;
-    const rawCode = this._makeRoomCode();
-    const code = rawCode.replace(/[^A-Za-z0-9]/g, '');
+    const code = this._makeRoomCode();
     this.roomCode = code;
-    const peerId = 'cardbattler-' + code;
     this.onStatus('connecting');
 
-    return new Promise((resolve, reject) => {
-      const iceConfig = getIceConfig();
-      try {
-        this.peer = new Peer(peerId, { debug: 1, config: iceConfig });
-      } catch (err) {
-        this._switchToRelayHost(seed, wager, hostDeckConfig).then(resolve).catch(reject);
-        return;
-      }
-
-      this.peer.on('open', () => { this.onStatus('waiting'); resolve(code); });
-      this.peer.on('error', err => {
-        console.warn('[PeerJS Host] Error:', err);
-        const errStr = (err && (err.message || err.type)) ? String(err.message || err.type) : '';
-        if (errStr.includes('Negotiation') || err.type === 'server-error' || err.type === 'socket-error') {
-          this._switchToRelayHost(seed, wager, hostDeckConfig).then(resolve).catch(reject);
-          return;
-        }
-        this.onPeerError(err);
-        reject(err);
-      });
-      this.peer.on('disconnected', () => {
-        if (this.usingRelay) return;
-        console.warn('[PeerJS] Disconnected from signaling server, attempting reconnect...');
-        this.peer.reconnect();
-      });
-      this.peer.on('connection', conn => this._handleIncomingHostConn(conn));
+    // 1. Always start Server Relay Session in parallel (Guarantees connection on VPN / School Wi-Fi)
+    this.relaySession = new ServerRelaySession({
+      onInit: this.onInit,
+      onApplied: this.onApplied,
+      onStatus: this.onStatus,
+      onPeerError: this.onPeerError,
+      onGuestConfig: this.onGuestConfig,
+      onForfeit: this.onForfeit,
+      onEmote: this.onEmote,
+      onPing: this.onPing,
+      onRematchOffer: this.onRematchOffer,
+      onRematchAccept: this.onRematchAccept,
+      onRematchDecline: this.onRematchDecline
     });
+    this.relaySession.hostGameWithCode(code, seed, wager, hostDeckConfig).catch(() => {});
+
+    // 2. Also try WebRTC P2P in parallel
+    try {
+      const iceConfig = getIceConfig();
+      const peerId = 'cardbattler-' + code;
+      this.peer = new Peer(peerId, { debug: 1, config: iceConfig });
+
+      this.peer.on('open', () => { this.onStatus('waiting'); });
+      this.peer.on('error', err => { console.warn('[P2P PeerJS] P2P error, relay remains active:', err); });
+      this.peer.on('disconnected', () => { try { this.peer.reconnect(); } catch (_) {} });
+      this.peer.on('connection', conn => this._handleIncomingHostConn(conn));
+    } catch (e) {
+      console.warn('[P2P PeerJS] Failed to instantiate PeerJS, operating in pure Server Relay mode.');
+    }
+
+    this.onStatus('waiting');
+    return code;
   }
 
   _handleIncomingHostConn(conn) {
-    if (this.usingRelay) return;
-    if (this.isReconnecting || (this.conn && !this.conn.open)) {
-      if (this.reconnectTimeout) {
-        clearTimeout(this.reconnectTimeout);
-        this.reconnectTimeout = null;
-      }
-      this.conn = conn;
-      this._wireHostConn();
-      conn.on('open', () => {
-        this.isReconnecting = false;
-        this.onStatus('connected');
-        this.startPingHeartbeat();
-        this._send({ type: 'reconnect_sync' });
-      });
-      return;
-    }
-
     this.conn = conn;
     this._wireHostConn();
-    const timeout = setTimeout(() => {
-      if (!conn.open) {
-        console.warn('[PeerJS Host] Connection handshake timed out, switching to relay...');
-        this._switchToRelayHost(this.seed, this.wager, this.hostDeckConfig);
-      }
-    }, CONNECT_TIMEOUT_MS);
     conn.on('open', () => {
-      clearTimeout(timeout);
       this.onStatus('connected');
       this.startPingHeartbeat();
     });
     conn.on('error', err => {
-      this.onPeerError(err);
+      console.warn('[P2P Conn] Connection error:', err);
     });
   }
 
   sendInit() {
-    if (this.usingRelay && this.relaySession) {
-      return this.relaySession.sendInit();
-    }
+    if (this.relaySession) this.relaySession.sendInit();
     this._send({ type: 'init', seed: this.seed, wager: this.wager, hostDeckConfig: this.hostDeckConfig });
   }
 
-  joinGame(code, guestDeckConfig) {
+  async joinGame(code, guestDeckConfig) {
     this.isHost = false;
     this.guestDeckConfig = guestDeckConfig || null;
-    const cleanCode = (code || '').toString().trim().toUpperCase().replace(/[^A-Za-z0-9]/g, '');
+    const cleanCode = (code || '').toString().trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
     this.roomCode = cleanCode;
     this.onStatus('connecting');
 
-    return new Promise((resolve, reject) => {
+    // 1. Always start Server Relay Session in parallel (Guarantees connection on VPN / School Wi-Fi)
+    this.relaySession = new ServerRelaySession({
+      onInit: this.onInit,
+      onApplied: this.onApplied,
+      onStatus: this.onStatus,
+      onPeerError: this.onPeerError,
+      onGuestConfig: this.onGuestConfig,
+      onForfeit: this.onForfeit,
+      onEmote: this.onEmote,
+      onPing: this.onPing,
+      onRematchOffer: this.onRematchOffer,
+      onRematchAccept: this.onRematchAccept,
+      onRematchDecline: this.onRematchDecline
+    });
+    this.relaySession.joinGame(cleanCode, guestDeckConfig).catch(() => {});
+
+    // 2. Also try WebRTC P2P in parallel
+    try {
       const iceConfig = getIceConfig();
-      try {
-        this.peer = new Peer({ debug: 1, config: iceConfig });
-      } catch (err) {
-        this._switchToRelayJoin(code, guestDeckConfig).then(resolve).catch(reject);
-        return;
-      }
+      this.peer = new Peer({ debug: 1, config: iceConfig });
 
       this.peer.on('open', () => {
-        let attempts = 0;
-        const maxAttempts = 3;
-
-        const tryConnect = () => {
-          attempts++;
-          if (this.conn) {
-            try { this.conn.close(); } catch (_) {}
-          }
-          try {
-            this.conn = this.peer.connect('cardbattler-' + cleanCode, { reliable: true });
-            this._wireGuestConn();
-
-            const timeout = setTimeout(() => {
-              if (!this.conn || !this.conn.open) {
-                if (attempts < maxAttempts) {
-                  console.warn(`[PeerJS Join] Connect attempt ${attempts} timed out, retrying...`);
-                  tryConnect();
-                } else {
-                  this._switchToRelayJoin(code, guestDeckConfig).then(resolve).catch(reject);
-                }
-              }
-            }, 3000);
-
-            this.conn.on('open', () => {
-              clearTimeout(timeout);
-              this._send({ type: 'guestConfig', deckConfig: this.guestDeckConfig });
-              this.onStatus('connected');
-              this.startPingHeartbeat();
-              resolve();
-            });
-
-            this.conn.on('error', err => {
-              clearTimeout(timeout);
-              const errStr = String(err ? (err.message || err.type) : '');
-              if (errStr.includes('Negotiation') || err.type === 'peer-unavailable') {
-                if (attempts < maxAttempts) {
-                  console.warn(`[PeerJS Join] Attempt ${attempts} failed (${errStr}), retrying...`);
-                  setTimeout(tryConnect, 1000);
-                } else {
-                  this._switchToRelayJoin(code, guestDeckConfig).then(resolve).catch(reject);
-                }
-              } else {
-                this._switchToRelayJoin(code, guestDeckConfig).then(resolve).catch(reject);
-              }
-            });
-          } catch (connErr) {
-            this._switchToRelayJoin(code, guestDeckConfig).then(resolve).catch(reject);
-          }
-        };
-
-        tryConnect();
+        try {
+          this.conn = this.peer.connect('cardbattler-' + cleanCode, { reliable: true });
+          this._wireGuestConn();
+          this.conn.on('open', () => {
+            this._send({ type: 'guestConfig', deckConfig: this.guestDeckConfig });
+            this.onStatus('connected');
+            this.startPingHeartbeat();
+          });
+          this.conn.on('error', err => { console.warn('[P2P Guest] Connection error, relay active:', err); });
+        } catch (_) {}
       });
+      this.peer.on('error', err => { console.warn('[P2P PeerJS] Peer error, relay active:', err); });
+    } catch (e) {
+      console.warn('[P2P PeerJS] Peer creation failed, operating in pure Server Relay mode.');
+    }
 
-      this.peer.on('error', err => {
-        const errStr = String(err ? (err.message || err.type) : '');
-        if (errStr.includes('Negotiation') || err.type === 'server-error') {
-          this._switchToRelayJoin(code, guestDeckConfig).then(resolve).catch(reject);
-          return;
-        }
-        this.onPeerError(err);
-        reject(err);
-      });
-      this.peer.on('disconnected', () => {
-        if (this.usingRelay) return;
-        console.warn('[PeerJS] Disconnected from signaling server, attempting reconnect...');
-        this.peer.reconnect();
-      });
-    });
+    this.onStatus('connected');
   }
 
   _wireHostConn() {
@@ -721,52 +645,56 @@ class NetSession {
   }
 
   sendForfeit() {
-    if (this.usingRelay && this.relaySession) return this.relaySession.sendForfeit();
+    if (this.relaySession) this.relaySession.sendForfeit();
     this._send({ type: 'forfeit' });
   }
 
   sendEmote(emoji) {
-    if (this.usingRelay && this.relaySession) return this.relaySession.sendEmote(emoji);
+    if (this.relaySession) this.relaySession.sendEmote(emoji);
     this._send({ type: 'emote', emoji });
   }
 
   sendRematchOffer() {
-    if (this.usingRelay && this.relaySession) return this.relaySession.sendRematchOffer();
+    if (this.relaySession) this.relaySession.sendRematchOffer();
     this._send({ type: 'rematch_offer' });
   }
 
   sendRematchAccept() {
-    if (this.usingRelay && this.relaySession) return this.relaySession.sendRematchAccept();
+    if (this.relaySession) this.relaySession.sendRematchAccept();
     this._send({ type: 'rematch_accept' });
   }
 
   sendRematchDecline() {
-    if (this.usingRelay && this.relaySession) return this.relaySession.sendRematchDecline();
+    if (this.relaySession) this.relaySession.sendRematchDecline();
     this._send({ type: 'rematch_decline' });
   }
 
   // Called by the local UI when the local human wants to perform an action.
   submitAction(action) {
-    if (this.usingRelay && this.relaySession) {
-      return this.relaySession.submitAction(action);
+    if (this.relaySession) {
+      this.relaySession.submitAction(action);
     }
-    if (this.isHost) {
-      this.onApplied(action);                  // apply immediately, authoritative
-      this._send({ type: 'applied', action });  // tell the guest
-    } else {
-      if (this.actionInFlight) {
-        // If the action has been stuck in flight for more than 1500ms, clear the lock safely
-        if (this.actionInFlightTime && Date.now() - this.actionInFlightTime > 1500) {
-          console.warn('[P2P Network] Action flight timed out. Resettling lock to prevent permanent freeze.');
-          this.actionInFlight = false;
-        } else {
-          console.warn('[P2P Network] Action already in flight, ignoring input to prevent desync.');
-          return;
+    if (this.conn && this.conn.open) {
+      if (this.isHost) {
+        this.onApplied(action);                  // apply immediately, authoritative
+        this._send({ type: 'applied', action });  // tell the guest
+      } else {
+        if (this.actionInFlight) {
+          // If the action has been stuck in flight for more than 1500ms, clear the lock safely
+          if (this.actionInFlightTime && Date.now() - this.actionInFlightTime > 1500) {
+            console.warn('[P2P Network] Action flight timed out. Resettling lock to prevent permanent freeze.');
+            this.actionInFlight = false;
+          } else {
+            console.warn('[P2P Network] Action already in flight, ignoring input to prevent desync.');
+            return;
+          }
         }
+        this.actionInFlight = true;
+        this.actionInFlightTime = Date.now();
+        this._send({ type: 'intent', action });   // ask the host to apply it
       }
-      this.actionInFlight = true;
-      this.actionInFlightTime = Date.now();
-      this._send({ type: 'intent', action });   // ask the host to apply it
+    } else if (this.isHost && (!this.conn || !this.conn.open)) {
+      this.onApplied(action);
     }
   }
 
