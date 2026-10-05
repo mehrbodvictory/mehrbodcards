@@ -4127,6 +4127,10 @@ async function startHostingMatchmaking(deckConfig) {
     },
     onGuestConfig: (guestDeckConfig) => {
       if (isMatchmakingCancelled) return;
+      if (typeof matchmakingLobbyHeartbeat !== 'undefined' && matchmakingLobbyHeartbeat) {
+        clearInterval(matchmakingLobbyHeartbeat);
+        matchmakingLobbyHeartbeat = null;
+      }
       stopMatchmakingTimer();
       updateOpponentFoundUI({
         name: guestDeckConfig?.name ? `${guestDeckConfig.name} Player` : 'Opponent',
@@ -4198,6 +4202,23 @@ async function startHostingMatchmaking(deckConfig) {
     } catch (apiErr) {
       // Non-critical if Firebase is active
     }
+
+    // Keep public matchmaking lobby alive in discovery registry while waiting for an opponent
+    if (typeof matchmakingLobbyHeartbeat !== 'undefined' && matchmakingLobbyHeartbeat) {
+      clearInterval(matchmakingLobbyHeartbeat);
+    }
+    matchmakingLobbyHeartbeat = setInterval(() => {
+      if (isMatchmakingCancelled || !matchmakingRoomCode || !matchmakingIsHost) {
+        clearInterval(matchmakingLobbyHeartbeat);
+        matchmakingLobbyHeartbeat = null;
+        return;
+      }
+      fetch('/api/matchmaking/host', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomCode: code })
+      }).catch(() => {});
+    }, 4000);
   } catch (e) {
     if (isMatchmakingCancelled) return;
     document.getElementById('matchmaking-status').textContent = 'Failed to create public lobby.';
@@ -4207,6 +4228,10 @@ async function startHostingMatchmaking(deckConfig) {
 
 function cancelMatchmaking() {
   isMatchmakingCancelled = true;
+  if (typeof matchmakingLobbyHeartbeat !== 'undefined' && matchmakingLobbyHeartbeat) {
+    clearInterval(matchmakingLobbyHeartbeat);
+    matchmakingLobbyHeartbeat = null;
+  }
   stopMatchmakingTimer();
   
   const codeToCancel = matchmakingRoomCode;

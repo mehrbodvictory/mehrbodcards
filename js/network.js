@@ -157,8 +157,11 @@ class ServerRelaySession {
     }
   }
 
-  sendInit() {
-    this._sendMsg({ type: 'init', seed: this.seed, wager: this.wager, hostDeckConfig: this.hostDeckConfig });
+  sendInit(seed, wager, hostDeckConfig) {
+    const s = seed || this.seed;
+    const w = (wager !== undefined && wager !== null) ? wager : this.wager;
+    const h = hostDeckConfig || this.hostDeckConfig;
+    this._sendMsg({ type: 'init', seed: s, wager: w, hostDeckConfig: h });
   }
 
   submitAction(action) {
@@ -195,7 +198,7 @@ class ServerRelaySession {
 
   _startPolling() {
     if (this.pollInterval) clearInterval(this.pollInterval);
-    this.pollInterval = setInterval(() => this._poll(), 200);
+    this.pollInterval = setInterval(() => this._poll(), 80);
   }
 
   async _poll() {
@@ -353,7 +356,9 @@ class NetSession {
       onRematchAccept: this.onRematchAccept,
       onRematchDecline: this.onRematchDecline
     });
-    this.relaySession.hostGameWithCode(code, seed, wager, hostDeckConfig).catch(() => {});
+    await this.relaySession.hostGameWithCode(code, seed, wager, hostDeckConfig).catch((err) => {
+      console.warn('[Relay Host Error]', err);
+    });
 
     // 2. Also try WebRTC P2P in parallel
     try {
@@ -386,7 +391,7 @@ class NetSession {
   }
 
   sendInit() {
-    if (this.relaySession) this.relaySession.sendInit();
+    if (this.relaySession) this.relaySession.sendInit(this.seed, this.wager, this.hostDeckConfig);
     this._send({ type: 'init', seed: this.seed, wager: this.wager, hostDeckConfig: this.hostDeckConfig });
   }
 
@@ -411,7 +416,9 @@ class NetSession {
       onRematchAccept: this.onRematchAccept,
       onRematchDecline: this.onRematchDecline
     });
-    this.relaySession.joinGame(cleanCode, guestDeckConfig).catch(() => {});
+    await this.relaySession.joinGame(cleanCode, guestDeckConfig).catch((err) => {
+      console.warn('[Relay Join Error]', err);
+    });
 
     // 2. Also try WebRTC P2P in parallel
     try {

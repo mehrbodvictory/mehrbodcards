@@ -78,35 +78,40 @@ app.post('/api/matchmaking/cancel', (req, res) => {
 });
 
 /* ---------------- SERVER RELAY MP FALLBACK ROUTES ---------------- */
+function getOrCreateRelayRoom(roomCode) {
+  const cleanCode = String(roomCode || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!cleanCode) return null;
+  let room = relayRooms.get(cleanCode);
+  if (!room) {
+    room = {
+      roomCode: cleanCode,
+      guestJoined: false,
+      messages: [],
+      msgIdCounter: 1,
+      lastActive: Date.now()
+    };
+    relayRooms.set(cleanCode, room);
+  }
+  return room;
+}
+
 app.post('/api/relay/host', (req, res) => {
   const { roomCode } = req.body;
   if (!roomCode) return res.status(400).json({ error: 'Missing roomCode' });
   
-  const cleanCode = String(roomCode).toUpperCase().replace(/[^A-Z0-9]/g, '');
-  relayRooms.set(cleanCode, {
-    roomCode: cleanCode,
-    guestJoined: false,
-    messages: [],
-    msgIdCounter: 1,
-    lastActive: Date.now()
-  });
-  
-  res.json({ success: true, roomCode: cleanCode });
+  const room = getOrCreateRelayRoom(roomCode);
+  room.lastActive = Date.now();
+  res.json({ success: true, roomCode: room.roomCode });
 });
 
 app.post('/api/relay/join', (req, res) => {
   const { roomCode } = req.body;
   if (!roomCode) return res.status(400).json({ error: 'Missing roomCode' });
 
-  const cleanCode = String(roomCode).toUpperCase().replace(/[^A-Z0-9]/g, '');
-  const room = relayRooms.get(cleanCode);
-  if (!room) {
-    return res.status(404).json({ error: 'Relay room not found' });
-  }
-
+  const room = getOrCreateRelayRoom(roomCode);
   room.guestJoined = true;
   room.lastActive = Date.now();
-  res.json({ success: true, roomCode: cleanCode });
+  res.json({ success: true, roomCode: room.roomCode });
 });
 
 app.post('/api/relay/send', (req, res) => {
@@ -115,12 +120,7 @@ app.post('/api/relay/send', (req, res) => {
     return res.status(400).json({ error: 'Missing parameters' });
   }
 
-  const cleanCode = String(roomCode).toUpperCase().replace(/[^A-Z0-9]/g, '');
-  const room = relayRooms.get(cleanCode);
-  if (!room) {
-    return res.status(404).json({ error: 'Relay room not found' });
-  }
-
+  const room = getOrCreateRelayRoom(roomCode);
   const msg = {
     id: room.msgIdCounter++,
     sender,
@@ -141,12 +141,7 @@ app.post('/api/relay/poll', (req, res) => {
     return res.status(400).json({ error: 'Missing roomCode or sender' });
   }
 
-  const cleanCode = String(roomCode).toUpperCase().replace(/[^A-Z0-9]/g, '');
-  const room = relayRooms.get(cleanCode);
-  if (!room) {
-    return res.status(404).json({ error: 'Relay room not found' });
-  }
-
+  const room = getOrCreateRelayRoom(roomCode);
   room.lastActive = Date.now();
   const minId = Number(lastId) || 0;
   const newMsgs = room.messages.filter(m => m.id > minId && m.sender !== sender);
