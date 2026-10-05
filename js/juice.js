@@ -4816,7 +4816,6 @@ window.addEventListener('load', ensureProfileHud);
   const unlockAllCardsBtn = document.getElementById('btn-secret-unlock-all-cards');
   const launch3DHubBtn = document.getElementById('btn-secret-launch-3d-hub');
   const unlockAllCosmeticsBtn = document.getElementById('btn-secret-unlock-all-cosmetics') || document.getElementById('btn-secret-unlock-all-themes');
-  const settingsDevUnlockBtn = document.getElementById('btn-settings-dev-unlock');
   const showCodesBtn = document.getElementById('btn-secret-show-codes');
   const codesManifest = document.getElementById('secret-codes-manifest');
   const execResult = document.getElementById('secret-exec-result');
@@ -4979,10 +4978,6 @@ window.addEventListener('load', ensureProfileHud);
   });
 
   unlockAllMasterBtn?.addEventListener('click', () => {
-    window.devUnlockAll();
-  });
-
-  settingsDevUnlockBtn?.addEventListener('click', () => {
     window.devUnlockAll();
   });
 

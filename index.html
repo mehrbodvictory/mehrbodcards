@@ -473,18 +473,6 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </div>
       </button>
-      <button class="menu-card" id="btn-open-diagnostics-menu">
-        <div class="menu-icon-pod">
-          <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-        </div>
-        <div class="menu-card-body">
-          <span class="menu-card-title">Network Diagnostics</span>
-          <span class="menu-card-sub">Check connectivity &amp; health</span>
-        </div>
-        <div class="menu-card-arrow" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-        </div>
-      </button>
     </div>
     <button class="link-btn back-btn glass-pill-btn">
       <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
@@ -499,9 +487,6 @@
       <div class="mm-hud-badge ping-stat" id="mm-ping-badge">
         <span class="mm-ping-val" id="mm-ping-val">PING: 28ms</span>
       </div>
-      <button type="button" class="mm-hud-badge mm-diag-btn" id="btn-mm-open-diagnostics" title="Open Network Diagnostics" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8;">
-        <span>🔍 Network Health</span>
-      </button>
     </div>
 
     <!-- Central Versus Stage & Holographic Scanning Radar -->
@@ -567,12 +552,6 @@
       </div>
       <div class="mm-progress-track">
         <div class="mm-progress-bar"></div>
-      </div>
-
-      <!-- Slow Search Diagnostic Trigger Banner -->
-      <div id="mm-slow-search-alert" class="mm-diag-slow-prompt hidden">
-        <span>⚠️ Connection taking longer than usual?</span>
-        <button type="button" class="mm-diag-inline-btn" id="btn-mm-inline-diag">🔍 Diagnose Network</button>
       </div>
 
       <!-- Tactical Tip Carousel Card -->
@@ -1634,6 +1613,19 @@
                 <button type="button" class="settings-pill-toggle mode-btn" id="btn-ping-toggle">📶 Ping Indicator: Off</button>
               </div>
             </div>
+
+            <!-- Connection Diagnostics & Network Health -->
+            <div class="settings-card-item highlight-card">
+              <div class="settings-item-main">
+                <div class="settings-item-info">
+                  <div class="settings-item-title">
+                    <span class="item-icon">🛰️</span> Connection Diagnostics
+                  </div>
+                  <div class="settings-item-desc">Live telemetry score, firewall inspection &amp; multi-transport connectivity test</div>
+                </div>
+                <button type="button" class="primary-btn small" id="btn-settings-open-diagnostics">🛰️ Run Test</button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1651,19 +1643,6 @@
                   <div class="settings-item-desc">Local device storage with automatic cloud backup synchronization</div>
                 </div>
                 <span class="status-pill green">ONLINE · SYNCED</span>
-              </div>
-            </div>
-
-            <!-- Developer Override Section -->
-            <div class="settings-card-item">
-              <div class="settings-item-main">
-                <div class="settings-item-info">
-                  <div class="settings-item-title">
-                    <span class="item-icon">⚡</span> Developer: Master Unlock All
-                  </div>
-                  <div class="settings-item-desc">Instantly unlock 100% of all cards, all cosmetics, and Max Tier 100 Battle Pass with Premium</div>
-                </div>
-                <button type="button" class="primary-btn" id="btn-settings-dev-unlock" onclick="if(window.devUnlockAll) window.devUnlockAll();" style="background: linear-gradient(135deg, #38bdf8, #8b5cf6); padding: 8px 16px; font-size: 0.8rem; border-radius: 8px; font-weight: 800; cursor: pointer;">⚡ UNLOCK ALL</button>
               </div>
             </div>
 

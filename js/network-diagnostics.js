@@ -43,14 +43,13 @@ const NetworkDiagnostics = {
     this._renderUI(result);
 
     // --- PROBE 1: HTTP Ingress Relay & Server API ---
-    this.log('Probing HTTP Ingress Relay (/api/matchmaking)...', 'info');
+    this.log('Probing HTTP Ingress Relay (/api/health)...', 'info');
     const httpStart = performance.now();
     try {
       const res = await Promise.race([
-        fetch('/api/matchmaking/join', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({})
+        fetch('/api/health', {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
         }),
         new Promise((_, rej) => setTimeout(() => rej(new Error('HTTP Relay connection timeout (>3.5s)')), 3500))
       ]);

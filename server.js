@@ -32,6 +32,15 @@ let waitingLobbies = [];
 // HTTP Server Relay state for VPN / School Wi-Fi fallback multiplayer matches
 const relayRooms = new Map();
 
+// Global health probe endpoint
+app.all('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: Date.now() });
+});
+
+app.all('/api/relay/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: Date.now(), activeRooms: relayRooms.size });
+});
+
 // Housekeeping: clean up stale relay rooms older than 15 minutes
 setInterval(() => {
   const now = Date.now();

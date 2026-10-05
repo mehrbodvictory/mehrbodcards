@@ -4300,13 +4300,7 @@ function cancelMatchmaking() {
 }
 
 // ---- Network Diagnostics Tool Event Wiring ----------------------------------
-document.getElementById('btn-mm-open-diagnostics')?.addEventListener('click', () => {
-  if (typeof NetworkDiagnostics !== 'undefined') NetworkDiagnostics.openModal();
-});
-document.getElementById('btn-mm-inline-diag')?.addEventListener('click', () => {
-  if (typeof NetworkDiagnostics !== 'undefined') NetworkDiagnostics.openModal();
-});
-document.getElementById('btn-open-diagnostics-menu')?.addEventListener('click', () => {
+document.getElementById('btn-settings-open-diagnostics')?.addEventListener('click', () => {
   if (typeof NetworkDiagnostics !== 'undefined') NetworkDiagnostics.openModal();
 });
 document.getElementById('btn-diag-close')?.addEventListener('click', () => {
@@ -5040,11 +5034,6 @@ document.getElementById('btn-resume-match')?.addEventListener('click', () => {
 
 document.getElementById('btn-options').addEventListener('click', () => openOptions());
 document.getElementById('btn-open-settings-menu').addEventListener('click', () => openOptions());
-document.getElementById('btn-settings-dev-unlock')?.addEventListener('click', () => {
-  if (typeof window.devUnlockAll === 'function') {
-    window.devUnlockAll();
-  }
-});
 document.getElementById('btn-options-close').addEventListener('click', () => {
   document.getElementById('options-overlay').classList.add('hidden');
   if (typeof Sound !== 'undefined' && Sound.modalClose) Sound.modalClose();
