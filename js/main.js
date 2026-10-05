@@ -908,6 +908,23 @@ function defaultDeckBuilderSelection() {
   dbSelectedChips = col.chips.slice(0, REQUIRED_CHIP_COUNT);
 }
 
+function buildDefaultDeckConfig() {
+  const col = loadCollection();
+  const ownedGreen = UNIT_ARCHETYPES[2].filter(a => col.units.includes(a.id));
+  const ownedRed = UNIT_ARCHETYPES[3].filter(a => col.units.includes(a.id));
+  const ownedOrange = UNIT_ARCHETYPES[4].filter(a => col.units.includes(a.id));
+  const unitIds = [];
+  ownedGreen.slice(0, 2).forEach(a => unitIds.push(a.id));
+  ownedRed.slice(0, 1).forEach(a => unitIds.push(a.id));
+  ownedOrange.slice(0, 1).forEach(a => unitIds.push(a.id));
+  while (unitIds.length < REQUIRED_UNIT_COUNT) {
+    unitIds.push('blue_sprite');
+  }
+  const spellIds = col.spells.slice(0, REQUIRED_SPELL_COUNT);
+  const chipIds = col.chips.slice(0, REQUIRED_CHIP_COUNT);
+  return { unitIds, spellIds, chipIds, victoryAnim: typeof loadEquippedVictoryAnim === 'function' ? loadEquippedVictoryAnim() : null };
+}
+
 function dbTotalUnits() {
   return Object.values(dbUnitCounts).reduce((sum, n) => sum + n, 0);
 }
@@ -3770,6 +3787,9 @@ async function beginHost(wagerAmount, hostDeckConfig) {
 document.getElementById('btn-join-confirm').addEventListener('click', async () => {
   const code = document.getElementById('join-code-input').value.trim();
   if (!code) return;
+  if (!pendingGuestDeckConfig) {
+    pendingGuestDeckConfig = buildDefaultDeckConfig();
+  }
   mode = 'mp'; localKey = 'guest'; remoteKey = 'host';
   net = new NetSession({
     onInit: (data) => {
@@ -3792,8 +3812,8 @@ document.getElementById('btn-join-confirm').addEventListener('click', async () =
       _lowHpWarned.clear();
       resetMatchCardStats();
       lastPlacement = null;
-  state = createMatch(data.seed, 'host', 'guest', { host: data.hostDeckConfig, guest: pendingGuestDeckConfig });
-  initReplayLog(data.seed, 'host', 'guest', { host: data.hostDeckConfig, guest: pendingGuestDeckConfig });
+      state = createMatch(data.seed, 'host', 'guest', { host: data.hostDeckConfig, guest: pendingGuestDeckConfig });
+      initReplayLog(data.seed, 'host', 'guest', { host: data.hostDeckConfig, guest: pendingGuestDeckConfig });
       resetSelections();
       showScreen('screen-game');
       setMatchInfo('Multiplayer · Guest' + (currentWager > 0 ? ` · 💰${currentWager.toLocaleString()}` : ''), 'Guest Match');
@@ -3805,7 +3825,7 @@ document.getElementById('btn-join-confirm').addEventListener('click', async () =
         status === 'connected' ? 'Connected! Waiting for match data…' :
         status === 'disconnected' ? 'Host disconnected.' : 'Connecting…';
     },
-    onPeerError: (err) => { document.getElementById('join-status').textContent = err.message || ('Error: ' + err.type); },
+    onPeerError: (err) => { document.getElementById('join-status').textContent = err.message || ('Notice: ' + err.type); },
     onForfeit: () => handleOpponentForfeit(),
     onPing: (latency) => updatePingUI(latency),
     onRematchOffer: () => handleIncomingRematchOffer(),
@@ -3988,6 +4008,9 @@ function updateOpponentFoundUI(remoteData) {
 
 async function beginMatchmaking(deckConfig) {
   isMatchmakingCancelled = false;
+  if (!deckConfig) {
+    deckConfig = (typeof buildDefaultDeckConfig === 'function') ? buildDefaultDeckConfig() : null;
+  }
   showScreen('screen-matchmaking');
   startMatchmakingTimer(deckConfig);
   document.getElementById('matchmaking-status').textContent = 'Connecting to matchmaking server...';
@@ -3998,20 +4021,20 @@ async function beginMatchmaking(deckConfig) {
   try {
     let matchedLobby = null;
 
-    // 1. Try Firebase Firestore matchmaking discovery
+    // 1. Try Firebase Firestore matchmaking discovery (with fast timeout protection)
     if (typeof FirebaseMatchmaking !== 'undefined' && FirebaseMatchmaking.isAvailable()) {
       try {
         if (isMatchmakingCancelled) return;
         document.getElementById('matchmaking-status').textContent = 'Searching for open public matches...';
         matchedLobby = await FirebaseMatchmaking.findAndClaimLobby();
       } catch (fbErr) {
-        console.warn('[Firebase Matchmaking] Search error, checking fallback:', fbErr);
+        console.warn('[Firebase Matchmaking] Search notice, checking local fallback:', fbErr);
       }
     }
 
     if (isMatchmakingCancelled) return;
 
-    // 2. If no Firebase lobby found, check local API fallback if available
+    // 2. If no Firebase lobby found, check local API fallback
     if (!matchedLobby) {
       try {
         const joinRes = await fetch('/api/matchmaking/join', {
@@ -4032,7 +4055,7 @@ async function beginMatchmaking(deckConfig) {
     if (isMatchmakingCancelled) return;
 
     if (matchedLobby && matchedLobby.roomCode) {
-      document.getElementById('matchmaking-status').textContent = 'Match found! Establishing direct P2P connection...';
+      document.getElementById('matchmaking-status').textContent = 'Match found! Connecting to battle...';
       updateOpponentFoundUI({ name: 'Arena Challenger', level: 'VS', art: '⚡', deckName: 'Public Lobby' });
       matchmakingRoomCode = matchedLobby.roomCode;
       matchmakingIsHost = false;
@@ -4068,20 +4091,18 @@ async function beginMatchmaking(deckConfig) {
           initReplayLog(data.seed, 'host', 'guest', { host: data.hostDeckConfig, guest: pendingGuestDeckConfig });
           resetSelections();
           showScreen('screen-game');
-          setMatchInfo('Multiplayer · Public Match (P2P)', 'Public Match');
+          setMatchInfo('Multiplayer · Public Match', 'Public Match');
           render();
         },
         onApplied: (action) => applyActionAndRender(action),
         onStatus: (status) => {
           if (isMatchmakingCancelled) return;
           document.getElementById('matchmaking-status').textContent =
-            status === 'connected' ? 'Connected via P2P! Handshaking match data...' :
-            status === 'disconnected' ? 'Match disconnected.' : 'Connecting to peer...';
+            status === 'connected' ? 'Connected! Synchronizing match data...' :
+            status === 'disconnected' ? 'Match disconnected.' : 'Connecting to match...';
         },
         onPeerError: (err) => {
-          if (isMatchmakingCancelled) return;
-          console.warn('Guest connection failed, transitioning to host fallback...', err);
-          fallbackToHost();
+          console.warn('[Matchmaking Guest Notice]:', err);
         },
         onForfeit: () => handleOpponentForfeit(),
         onPing: (latency) => updatePingUI(latency),
@@ -4103,12 +4124,15 @@ async function beginMatchmaking(deckConfig) {
   } catch (err) {
     if (isMatchmakingCancelled) return;
     document.getElementById('matchmaking-status').textContent = 'Failed to connect to matchmaking: ' + (err.message || err);
-    showToast('Matchmaking error: ' + (err.message || err));
+    showToast('Matchmaking notice: ' + (err.message || err));
   }
 }
 
 async function startHostingMatchmaking(deckConfig) {
   if (isMatchmakingCancelled) return;
+  if (!deckConfig) {
+    deckConfig = (typeof buildDefaultDeckConfig === 'function') ? buildDefaultDeckConfig() : null;
+  }
   document.getElementById('matchmaking-status').textContent = 'Creating public lobby...';
   matchmakingIsHost = true;
   mode = 'mp'; localKey = 'host'; remoteKey = 'guest';
@@ -4122,7 +4146,7 @@ async function startHostingMatchmaking(deckConfig) {
       if (isMatchmakingCancelled) return;
       document.getElementById('matchmaking-status').textContent =
         status === 'waiting' ? 'Lobby registered! Waiting for another player...' :
-        status === 'connected' ? 'Player found! Instantiating direct P2P battle...' :
+        status === 'connected' ? 'Player found! Instantiating battle...' :
         status === 'disconnected' ? 'Player disconnected.' : 'Connecting...';
     },
     onGuestConfig: (guestDeckConfig) => {
@@ -4150,23 +4174,24 @@ async function startHostingMatchmaking(deckConfig) {
       initReplayLog(seed, 'host', 'guest', { host: deckConfig, guest: guestDeckConfig });
       resetSelections();
       showScreen('screen-game');
-      setMatchInfo('Multiplayer · Public Match (P2P)', 'Public Match');
+      setMatchInfo('Multiplayer · Public Match', 'Public Match');
       render();
       net.sendInit();
 
-      // Once connected via direct P2P, deregister from Firebase lobby list
+      // Deregister from discovery registries
       if (typeof FirebaseMatchmaking !== 'undefined' && matchmakingRoomCode) {
         FirebaseMatchmaking.cancelLobby(matchmakingRoomCode).catch(() => {});
       }
+      if (matchmakingRoomCode) {
+        fetch('/api/matchmaking/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ roomCode: matchmakingRoomCode })
+        }).catch(() => {});
+      }
     },
     onPeerError: (err) => {
-      if (isMatchmakingCancelled) return;
-      document.getElementById('matchmaking-status').textContent = err.message || ('Connection failed: ' + err.type);
-      setTimeout(() => {
-        if (!document.getElementById('screen-matchmaking').classList.contains('hidden')) {
-          cancelMatchmaking();
-        }
-      }, 3000);
+      console.warn('[Matchmaking Host Notice]:', err);
     },
     onForfeit: () => handleOpponentForfeit(),
     onPing: (latency) => updatePingUI(latency),
@@ -4188,7 +4213,7 @@ async function startHostingMatchmaking(deckConfig) {
       try {
         await FirebaseMatchmaking.registerLobby(code);
       } catch (fbErr) {
-        console.warn('[Firebase Matchmaking] Failed to register in Firebase:', fbErr);
+        console.warn('[Firebase Matchmaking] Notice on register:', fbErr);
       }
     }
 

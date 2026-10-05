@@ -42,17 +42,33 @@ setInterval(() => {
   }
 }, 60000);
 
+function getOrCreateRelayRoom(roomCode) {
+  const cleanCode = String(roomCode || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!cleanCode) return null;
+  let room = relayRooms.get(cleanCode);
+  if (!room) {
+    room = {
+      roomCode: cleanCode,
+      hostActive: true,
+      guestJoined: false,
+      messages: [],
+      msgIdCounter: 1,
+      lastActive: Date.now()
+    };
+    relayRooms.set(cleanCode, room);
+  }
+  return room;
+}
+
 app.post('/api/matchmaking/host', (req, res) => {
-  const { roomCode } = req.body;
+  const { roomCode } = req.body || {};
   if (!roomCode) return res.status(400).json({ error: 'Missing roomCode' });
+  const cleanCode = String(roomCode).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!cleanCode) return res.status(400).json({ error: 'Invalid roomCode' });
   
   // Clean up stale lobbies (older than 40 seconds)
-  waitingLobbies = waitingLobbies.filter(l => Date.now() - l.timestamp < 40000);
-  
-  // Check if already registered
-  if (!waitingLobbies.some(l => l.roomCode === roomCode)) {
-    waitingLobbies.push({ roomCode, timestamp: Date.now() });
-  }
+  waitingLobbies = waitingLobbies.filter(l => Date.now() - l.timestamp < 40000 && l.roomCode !== cleanCode);
+  waitingLobbies.push({ roomCode: cleanCode, timestamp: Date.now() });
   res.json({ success: true });
 });
 
@@ -70,57 +86,46 @@ app.post('/api/matchmaking/join', (req, res) => {
 });
 
 app.post('/api/matchmaking/cancel', (req, res) => {
-  const { roomCode } = req.body;
+  const { roomCode } = req.body || {};
   if (roomCode) {
-    waitingLobbies = waitingLobbies.filter(l => l.roomCode !== roomCode);
+    const cleanCode = String(roomCode).toUpperCase().replace(/[^A-Z0-9]/g, '');
+    waitingLobbies = waitingLobbies.filter(l => l.roomCode !== cleanCode);
   }
   res.json({ success: true });
 });
 
 /* ---------------- SERVER RELAY MP FALLBACK ROUTES ---------------- */
-function getOrCreateRelayRoom(roomCode) {
-  const cleanCode = String(roomCode || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (!cleanCode) return null;
-  let room = relayRooms.get(cleanCode);
-  if (!room) {
-    room = {
-      roomCode: cleanCode,
-      guestJoined: false,
-      messages: [],
-      msgIdCounter: 1,
-      lastActive: Date.now()
-    };
-    relayRooms.set(cleanCode, room);
-  }
-  return room;
-}
-
 app.post('/api/relay/host', (req, res) => {
-  const { roomCode } = req.body;
+  const { roomCode } = req.body || {};
   if (!roomCode) return res.status(400).json({ error: 'Missing roomCode' });
   
   const room = getOrCreateRelayRoom(roomCode);
+  if (!room) return res.status(400).json({ error: 'Invalid roomCode' });
+  room.hostActive = true;
   room.lastActive = Date.now();
   res.json({ success: true, roomCode: room.roomCode });
 });
 
 app.post('/api/relay/join', (req, res) => {
-  const { roomCode } = req.body;
+  const { roomCode } = req.body || {};
   if (!roomCode) return res.status(400).json({ error: 'Missing roomCode' });
 
   const room = getOrCreateRelayRoom(roomCode);
+  if (!room) return res.status(400).json({ error: 'Invalid roomCode' });
   room.guestJoined = true;
   room.lastActive = Date.now();
   res.json({ success: true, roomCode: room.roomCode });
 });
 
 app.post('/api/relay/send', (req, res) => {
-  const { roomCode, sender, payload } = req.body;
+  const { roomCode, sender, payload } = req.body || {};
   if (!roomCode || !sender || !payload) {
     return res.status(400).json({ error: 'Missing parameters' });
   }
 
   const room = getOrCreateRelayRoom(roomCode);
+  if (!room) return res.status(400).json({ error: 'Invalid roomCode' });
+
   const msg = {
     id: room.msgIdCounter++,
     sender,
@@ -128,20 +133,22 @@ app.post('/api/relay/send', (req, res) => {
     timestamp: Date.now()
   };
   room.messages.push(msg);
-  // Keep last 150 messages max
-  if (room.messages.length > 150) room.messages.shift();
+  // Keep last 250 messages max
+  if (room.messages.length > 250) room.messages.shift();
   room.lastActive = Date.now();
 
   res.json({ success: true, id: msg.id });
 });
 
 app.post('/api/relay/poll', (req, res) => {
-  const { roomCode, sender, lastId } = req.body;
+  const { roomCode, sender, lastId } = req.body || {};
   if (!roomCode || !sender) {
     return res.status(400).json({ error: 'Missing roomCode or sender' });
   }
 
   const room = getOrCreateRelayRoom(roomCode);
+  if (!room) return res.status(400).json({ error: 'Invalid roomCode' });
+
   room.lastActive = Date.now();
   const minId = Number(lastId) || 0;
   const newMsgs = room.messages.filter(m => m.id > minId && m.sender !== sender);
@@ -154,7 +161,7 @@ app.post('/api/relay/poll', (req, res) => {
 });
 
 app.post('/api/relay/close', (req, res) => {
-  const { roomCode } = req.body;
+  const { roomCode } = req.body || {};
   if (roomCode) {
     const cleanCode = String(roomCode).toUpperCase().replace(/[^A-Z0-9]/g, '');
     relayRooms.delete(cleanCode);

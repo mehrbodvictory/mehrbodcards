@@ -1,6 +1,6 @@
 // Firebase Firestore Matchmaking Client
 // Matchmaking discovery uses Firebase Firestore ONLY to pair two players.
-// Once paired, the battle itself is 100% Peer-to-Peer (WebRTC via PeerJS),
+// Once paired, the battle itself is 100% Peer-to-Peer (WebRTC via PeerJS / Server Relay),
 // consuming 0 server/database resources during live gameplay.
 
 const FIREBASE_CONFIG = {
@@ -45,6 +45,13 @@ function getFirestoreDb() {
   return _firestoreDb;
 }
 
+function withTimeout(promise, ms = 2200) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase operation timed out')), ms))
+  ]);
+}
+
 const LOBBY_STALE_MS = 45000; // 45 seconds timeout for stale lobbies
 
 const FirebaseMatchmaking = {
@@ -56,11 +63,10 @@ const FirebaseMatchmaking = {
     const db = getFirestoreDb();
     if (!db) return false;
     try {
-      // Light read to confirm connectivity
-      const snap = await db.collection('matchmaking_lobbies').limit(1).get();
+      await withTimeout(db.collection('matchmaking_lobbies').limit(1).get(), 1800);
       return true;
     } catch (err) {
-      console.warn('[Firebase] testConnection failed:', err);
+      console.warn('[Firebase] testConnection failed/timed out:', err);
       return false;
     }
   },
@@ -72,10 +78,11 @@ const FirebaseMatchmaking = {
 
     const cutoffTime = Date.now() - LOBBY_STALE_MS;
     
-    // Query recent waiting lobbies
-    const snapshot = await db.collection('matchmaking_lobbies')
-      .where('status', '==', 'waiting')
-      .get();
+    // Query recent waiting lobbies with timeout protection for VPNs / school Wi-Fi
+    const snapshot = await withTimeout(
+      db.collection('matchmaking_lobbies').where('status', '==', 'waiting').get(),
+      2500
+    );
 
     if (snapshot.empty) {
       return null;
@@ -95,23 +102,26 @@ const FirebaseMatchmaking = {
     for (const docSnapshot of freshDocs) {
       const docRef = docSnapshot.ref;
       try {
-        const matchedData = await db.runTransaction(async (transaction) => {
-          const freshDoc = await transaction.get(docRef);
-          if (!freshDoc.exists) return null;
-          
-          const data = freshDoc.data();
-          if (data.status !== 'waiting' || (data.createdAt && data.createdAt < cutoffTime)) {
-            return null; // Already claimed or expired
-          }
+        const matchedData = await withTimeout(
+          db.runTransaction(async (transaction) => {
+            const freshDoc = await transaction.get(docRef);
+            if (!freshDoc.exists) return null;
+            
+            const data = freshDoc.data();
+            if (data.status !== 'waiting' || (data.createdAt && data.createdAt < cutoffTime)) {
+              return null; // Already claimed or expired
+            }
 
-          transaction.update(docRef, {
-            status: 'matched',
-            guestJoined: true,
-            matchedAt: Date.now()
-          });
+            transaction.update(docRef, {
+              status: 'matched',
+              guestJoined: true,
+              matchedAt: Date.now()
+            });
 
-          return data;
-        });
+            return data;
+          }),
+          2200
+        );
 
         if (matchedData && matchedData.roomCode) {
           console.log('[Firebase Matchmaking] Successfully claimed lobby:', matchedData.roomCode);
@@ -136,13 +146,16 @@ const FirebaseMatchmaking = {
     const cleanCode = roomCode.toUpperCase().replace(/[^A-Za-z0-9]/g, '');
     const docRef = db.collection('matchmaking_lobbies').doc(cleanCode);
 
-    await docRef.set({
-      roomCode: cleanCode,
-      hostPeerId: 'cardbattler-' + cleanCode,
-      status: 'waiting',
-      createdAt: Date.now(),
-      guestJoined: false
-    });
+    await withTimeout(
+      docRef.set({
+        roomCode: cleanCode,
+        hostPeerId: 'cardbattler-' + cleanCode,
+        status: 'waiting',
+        createdAt: Date.now(),
+        guestJoined: false
+      }),
+      2500
+    );
 
     console.log('[Firebase Matchmaking] Lobby registered in Firestore:', cleanCode);
 
@@ -162,7 +175,7 @@ const FirebaseMatchmaking = {
 
     try {
       const cleanCode = roomCode.toUpperCase().replace(/[^A-Za-z0-9]/g, '');
-      await db.collection('matchmaking_lobbies').doc(cleanCode).delete();
+      await withTimeout(db.collection('matchmaking_lobbies').doc(cleanCode).delete(), 1500);
       console.log('[Firebase Matchmaking] Lobby removed from Firestore:', cleanCode);
     } catch (e) {
       console.warn('[Firebase Matchmaking] Error deleting lobby:', e);
@@ -176,10 +189,10 @@ const FirebaseMatchmaking = {
 
     try {
       const staleCutoff = Date.now() - 120000;
-      // Optimize read metrics by using a filtered query instead of fetching the entire collection
-      const snapshot = await db.collection('matchmaking_lobbies')
-        .where('createdAt', '<', staleCutoff)
-        .get();
+      const snapshot = await withTimeout(
+        db.collection('matchmaking_lobbies').where('createdAt', '<', staleCutoff).get(),
+        2000
+      );
       
       const batch = db.batch();
       let deleteCount = 0;
