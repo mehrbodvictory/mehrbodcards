@@ -1587,7 +1587,7 @@ function saveInventoryBackup() {
     const payload = JSON.stringify({
       bux: loadBux(),
       collection: normalizeInventory(loadCollection()),
-      cosmetics: [...new Set(loadOwnedCosmetics().filter(x => COSMETIC_ITEMS.some(c => c.id === x)))],
+      cosmetics: [...new Set(loadOwnedCosmetics())],
       sleeve: loadEquippedSleeve()
     });
     localStorage.setItem(INVENTORY_BACKUP_KEY, JSON.stringify({
@@ -1608,7 +1608,7 @@ function restoreInventoryBackupIfTampered() {
     const current = {
       bux: loadBux(),
       collection: normalizeInventory(loadCollection()),
-      cosmetics: [...new Set(loadOwnedCosmetics().filter(x => COSMETIC_ITEMS.some(c => c.id === x)))],
+      cosmetics: [...new Set(loadOwnedCosmetics())],
       sleeve: loadEquippedSleeve()
     };
     if (JSON.stringify(current) !== backup.payload) {
@@ -7294,6 +7294,7 @@ function isThemeUnlocked(theme) {
     try {
       if (localStorage.getItem('theme_verity_unlocked') === 'true') return true;
       if (typeof loadRedeemedCodes === 'function' && loadRedeemedCodes().includes('capitaloffrance')) return true;
+      if (typeof ownsCosmetic === 'function' && (ownsCosmetic('theme_verity') || ownsCosmetic('verity'))) return true;
     } catch (e) {}
   }
   if (typeof isAllThemesUnlocked === 'function' && isAllThemesUnlocked()) return true;

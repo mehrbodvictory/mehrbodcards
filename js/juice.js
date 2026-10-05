@@ -2948,11 +2948,15 @@ function redeemShopCode(rawCode) {
     const alreadyOwned = owned.includes('theme_verity') || owned.includes('verity');
     if (!alreadyOwned) {
       owned.push('theme_verity');
+      owned.push('verity');
       saveOwnedCosmetics(owned);
     }
-    try { localStorage.setItem('theme_verity_unlocked', 'true'); } catch (e) {}
+    try {
+      localStorage.setItem('theme_verity_unlocked', 'true');
+    } catch (e) {}
+    if (typeof saveInventoryBackup === 'function') saveInventoryBackup();
     if (typeof updateThemeButtons === 'function') updateThemeButtons();
-    if (typeof renderCollectionScreen === 'function') renderCollectionScreen(currentLockerTopTab);
+    if (typeof renderCollectionScreen === 'function') renderCollectionScreen(typeof currentLockerTopTab !== 'undefined' ? currentLockerTopTab : 'themes');
     if (typeof applyTheme === 'function') applyTheme('verity');
 
     if (alreadyOwned) {
