@@ -2775,6 +2775,11 @@ const ALL_MEHRBOD_SHOP_CODES = [
     code: 'stargazer',
     reward: '🌌 Celestial Boon: +350 Bux + 80 Player XP + 25 Weekly Vault Points',
     icon: '🌌'
+  },
+  {
+    code: 'capitaloffrance',
+    reward: '😊 Verity Theme: Unlocks the secret Verity theme with smiling yellow faces + 1,000 Bux bonus!',
+    icon: '😊'
   }
 ];
 
@@ -2787,11 +2792,22 @@ function saveRedeemedCodes(list) {
 }
 function redeemShopCode(rawCode) {
   const code = String(rawCode || '').trim().toLowerCase();
-  if (!code) { showToast('Enter a code first.'); return; }
-  const redeemed = loadRedeemedCodes();
-  if (redeemed.includes(code)) { showToast('That code has already been redeemed on this device.'); return; }
+  const cleanCode = code.replace(/[^a-z0-9]/g, '');
+  if (!code && !cleanCode) { showToast('Enter a code first.'); return; }
 
-  if (code === 'leo') {
+  const isVerityCode = (cleanCode === 'capitaloffrance' || cleanCode === 'paris' || cleanCode === 'france' || code === 'capital of france' || code === 'capitaloffrance');
+
+  const redeemed = loadRedeemedCodes();
+  if (isVerityCode && (redeemed.includes('capitaloffrance') || redeemed.includes('paris') || redeemed.includes('capital of france'))) {
+    showToast('That code has already been redeemed on this device.');
+    return;
+  }
+  if (redeemed.includes(code) || (cleanCode && redeemed.includes(cleanCode))) {
+    showToast('That code has already been redeemed on this device.');
+    return;
+  }
+
+  if (cleanCode === 'leo') {
     const col = loadCollection();
     const unownedUnits = ALL_NONBLUE_UNIT_IDS.filter(id => !col.units.includes(id));
     const unownedSpells = ALL_SPELL_IDS.filter(id => !col.spells.includes(id));
@@ -2848,7 +2864,7 @@ function redeemShopCode(rawCode) {
       if (typeof renderCollectionScreen === 'function') renderCollectionScreen();
     });
     Sound.sparkle();
-  } else if (code === 'coolsauce') {
+  } else if (cleanCode === 'coolsauce') {
     grantCards(ALL_NONBLUE_UNIT_IDS.slice(), ALL_SPELL_IDS.slice(), ALL_CHIP_IDS.slice());
     const owned = loadOwnedCosmetics();
     COSMETIC_ITEMS.forEach(c => { if (!owned.includes(c.id)) owned.push(c.id); });
@@ -2861,7 +2877,7 @@ function redeemShopCode(rawCode) {
     updateThemeButtons();
     showToast('🎉 Code redeemed! Everything unlocked + 1,000,000 Bux.', 3800);
     Sound.sparkle();
-  } else if (code === 'prism' || code === 'prismcore' || code === 'diamond' || code === 'darkmatter') {
+  } else if (cleanCode === 'prism' || cleanCode === 'prismcore' || cleanCode === 'diamond' || cleanCode === 'darkmatter') {
     try {
       localStorage.setItem('theme_prism_unlocked', 'true');
       localStorage.setItem('theme_darkmatter_unlocked', 'true');
@@ -2871,18 +2887,18 @@ function redeemShopCode(rawCode) {
     recordRecentActivity('Redeemed secret code — unlocked & equipped Prism Core theme!');
     showToast('💎 Prism Core theme unlocked and equipped!', 3800);
     if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
-  } else if (code === '2ndyear') {
+  } else if (cleanCode === '2ndyear') {
     unlockValentineTheme();
     recordRecentActivity('Redeemed a secret code — unlocked the Valentine theme');
     showToast('💘 Secret theme unlocked! Open Options → Themes to wear it.', 3800);
     Sound.sparkle();
-  } else if (code === 'jackpot') {
+  } else if (cleanCode === 'jackpot') {
     addBux(2500);
     recordEconomyChange(2500, 'Redeemed code: jackpot');
     recordRecentActivity('Redeemed code "jackpot" — +2,500 Bux');
     showToast('💰 JACKPOT! +2,500 Mehrbod Bux added to your vault.', 3600);
     Sound.sparkle();
-  } else if (code === 'royalty') {
+  } else if (cleanCode === 'royalty') {
     const owned = loadOwnedCosmetics();
     const hasSleeve = owned.includes('sleeve_gold');
     if (!hasSleeve) {
@@ -2900,13 +2916,13 @@ function redeemShopCode(rawCode) {
       showToast('👑 Royalty redeemed! You already own Gold Sleeves, so here is +1,000 Bux!', 3800);
     }
     Sound.sparkle();
-  } else if (code === 'lucky7') {
+  } else if (cleanCode === 'lucky7') {
     addBux(777);
     recordEconomyChange(777, 'Redeemed a secret code');
     recordRecentActivity('Redeemed a secret code — +777 Bux');
     showToast('🎰 Lucky Sevens! +777 Mehrbod Bux added to your balance.', 3600);
     Sound.sparkle();
-  } else if (code === 'cybergrid') {
+  } else if (cleanCode === 'cybergrid') {
     grantCards([], [], ALL_CHIP_IDS.slice());
     grantArenaRP(75);
     addBux(400);
@@ -2916,7 +2932,7 @@ function redeemShopCode(rawCode) {
     else if (typeof checkAchievements === 'function') checkAchievements();
     showToast('⚡ System Overdrive! All Chips unlocked + 75 Arena RP + 400 Bux.', 4000);
     Sound.sparkle();
-  } else if (code === 'givemelava') {
+  } else if (cleanCode === 'givemelava') {
     const owned = loadOwnedCosmetics();
     const alreadyOwned = owned.includes('theme_magma');
     if (!alreadyOwned) {
@@ -2935,7 +2951,7 @@ function redeemShopCode(rawCode) {
       showToast('🌋 The molten core awakes! 🌋 Magma theme unlocked & equipped!', 3800);
     }
     Sound.sparkle();
-  } else if (code === 'stargazer') {
+  } else if (cleanCode === 'stargazer') {
     addBux(350);
     recordEconomyChange(350, 'Redeemed a secret code');
     grantPlayerXP(80);
@@ -2943,7 +2959,7 @@ function redeemShopCode(rawCode) {
     recordRecentActivity('Redeemed a secret code — +350 Bux + 80 XP + 25 Vault Pts');
     showToast('✨ Celestial boon granted! +350 Bux, 80 Player XP & 25 Vault Points.', 3800);
     Sound.sparkle();
-  } else if (code === 'capitaloffrance') {
+  } else if (isVerityCode) {
     const owned = loadOwnedCosmetics();
     const alreadyOwned = owned.includes('theme_verity') || owned.includes('verity');
     if (!alreadyOwned) {
@@ -2969,6 +2985,7 @@ function redeemShopCode(rawCode) {
       showToast('😊 Secret Code Correct! 😊 Verity theme unlocked & equipped!', 4200);
     }
     Sound.sparkle();
+    redeemed.push('capitaloffrance');
   } else {
     showToast("That code isn't valid.");
     return; // don't burn an attempt on a code that never worked
@@ -2978,6 +2995,7 @@ function redeemShopCode(rawCode) {
   if (inputEl) inputEl.value = '';
 
   redeemed.push(code);
+  if (cleanCode) redeemed.push(cleanCode);
   saveRedeemedCodes(redeemed);
   renderCosmeticsShop();
 }
