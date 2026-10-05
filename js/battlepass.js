@@ -183,6 +183,134 @@
     saveClaimedMap(map);
   }
 
+  // --- D3.js Starburst Particle Animation Helper ---
+  function triggerD3BattlePassStarburst(targetEl, options = {}) {
+    if (typeof d3 === 'undefined') {
+      console.warn('D3.js library not loaded yet.');
+      return;
+    }
+
+    const element = typeof targetEl === 'string'
+      ? document.querySelector(targetEl)
+      : (targetEl || document.getElementById('bp-level-val') || document.querySelector('.bp-celebration-badge-stage') || document.body);
+
+    if (!element) return;
+
+    const rect = element.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    // Fixed full-screen overlay SVG container
+    const svg = d3.select('body')
+      .append('svg')
+      .attr('class', 'd3-starburst-canvas')
+      .style('position', 'fixed')
+      .style('top', '0')
+      .style('left', '0')
+      .style('width', '100vw')
+      .style('height', '100vh')
+      .style('pointer-events', 'none')
+      .style('z-index', '9999')
+      .style('overflow', 'visible');
+
+    // Glow filter definition
+    const defs = svg.append('defs');
+    const filterId = `d3-glow-${Math.floor(Math.random() * 100000)}`;
+    const filter = defs.append('filter')
+      .attr('id', filterId)
+      .attr('x', '-50%')
+      .attr('y', '-50%')
+      .attr('width', '200%')
+      .attr('height', '200%');
+
+    filter.append('feGaussianBlur')
+      .attr('stdDeviation', '2.5')
+      .attr('result', 'coloredBlur');
+
+    const feMerge = filter.append('feMerge');
+    feMerge.append('feMergeNode').attr('in', 'coloredBlur');
+    feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+    const colors = options.colors || ['#f59e0b', '#38bdf8', '#a855f7', '#f43f5e', '#10b981', '#fef08a', '#ffffff'];
+    const particleCount = options.particleCount || 52;
+
+    // Helper to generate custom N-pointed star path
+    function createStarPath(outerRadius, innerRadius, points = 5) {
+      const path = [];
+      for (let i = 0; i < points * 2; i++) {
+        const r = (i % 2 === 0) ? outerRadius : innerRadius;
+        const angle = (i * Math.PI) / points - Math.PI / 2;
+        const x = Math.cos(angle) * r;
+        const y = Math.sin(angle) * r;
+        path.push(`${i === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`);
+      }
+      path.push('Z');
+      return path.join(' ');
+    }
+
+    // Particle Data Generator
+    const particles = d3.range(particleCount).map((i) => {
+      const angle = (i / particleCount) * Math.PI * 2 + (Math.random() * 0.3 - 0.15);
+      const speed = options.speed || (90 + Math.random() * 190);
+      const isStar = Math.random() > 0.25;
+      const points = [4, 5, 8][Math.floor(Math.random() * 3)];
+      const outerRadius = isStar ? (8 + Math.random() * 14) : (4 + Math.random() * 7);
+      const innerRadius = outerRadius * 0.38;
+      const color = colors[i % colors.length];
+      const duration = 750 + Math.random() * 650;
+      const rotation = Math.random() * 360;
+      const spin = (Math.random() - 0.5) * 600;
+
+      return {
+        id: i,
+        x0: centerX,
+        y0: centerY,
+        targetX: centerX + Math.cos(angle) * speed,
+        targetY: centerY + Math.sin(angle) * speed,
+        isStar,
+        points,
+        outerRadius,
+        innerRadius,
+        color,
+        duration,
+        rotation,
+        spin
+      };
+    });
+
+    // Render Particle Shapes
+    const particleNodes = svg.selectAll('.d3-starburst-particle')
+      .data(particles)
+      .enter()
+      .append('path')
+      .attr('class', 'd3-starburst-particle')
+      .attr('d', d => d.isStar ? createStarPath(d.outerRadius, d.innerRadius, d.points) : d3.symbol().type(d3.symbolCircle).size(d.outerRadius * 9)())
+      .attr('fill', d => d.color)
+      .attr('stroke', '#ffffff')
+      .attr('stroke-width', d => d.isStar ? 1.2 : 0)
+      .attr('filter', `url(#${filterId})`)
+      .attr('transform', d => `translate(${d.x0}, ${d.y0}) scale(0.1) rotate(0)`)
+      .style('opacity', 1);
+
+    // Apply Explosive Physics Transitions
+    particleNodes
+      .transition()
+      .duration(d => d.duration)
+      .ease(d3.easeCubicOut)
+      .attr('transform', d => `translate(${d.targetX}, ${d.targetY}) scale(${1.1 + Math.random() * 0.7}) rotate(${d.rotation + d.spin})`)
+      .transition()
+      .duration(350)
+      .ease(d3.easeQuadIn)
+      .style('opacity', 0)
+      .attr('transform', d => `translate(${d.targetX + (d.targetX - d.x0) * 0.25}, ${d.targetY + (d.targetY - d.y0) * 0.25}) scale(0) rotate(${d.rotation + d.spin * 1.4})`)
+      .remove();
+
+    // Auto-remove Canvas
+    setTimeout(() => {
+      svg.remove();
+    }, 1800);
+  }
+
   // --- XP Granting Hook ---
   function grantBattlePassXP(amount) {
     if (!amount || amount <= 0) return;
@@ -198,6 +326,7 @@
       if (typeof Sound !== 'undefined' && Sound.sparkle) {
         Sound.sparkle();
       }
+      triggerD3BattlePassStarburst('#bp-level-val');
       triggerBattlePassLevelUpCelebration(afterLevel, beforeLevel);
     }
     updateBattlePassBadge();
@@ -1080,6 +1209,12 @@
 
     overlay.classList.remove('hidden');
 
+    // Trigger D3.js Starburst Particle Explosions over badge and tier elements
+    setTimeout(() => {
+      triggerD3BattlePassStarburst('.bp-celebration-badge-stage', { particleCount: 65, speed: 210 });
+      triggerD3BattlePassStarburst('#bp-level-val', { particleCount: 35, speed: 140 });
+    }, 150);
+
     // In-grid tier highlight spotlight if Battle Pass modal is open
     if (typeof renderBattlePassScreen === 'function') {
       renderBattlePassScreen();
@@ -1089,12 +1224,14 @@
       if (col) {
         col.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
         col.classList.add('bp-tier-levelup-spotlight');
+        triggerD3BattlePassStarburst(col, { particleCount: 40, speed: 150 });
       }
     }, 200);
   }
 
   // Global Exports
   window.grantBattlePassXP = grantBattlePassXP;
+  window.triggerD3BattlePassStarburst = triggerD3BattlePassStarburst;
   window.triggerBattlePassLevelUpCelebration = triggerBattlePassLevelUpCelebration;
   window.claimBattlePassReward = claimBattlePassReward;
   window.claimAllBattlePassRewards = claimAllBattlePassRewards;
