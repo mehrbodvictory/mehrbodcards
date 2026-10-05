@@ -29,6 +29,19 @@ app.use(express.static(path.join(__dirname), {
 // Matchmaking state (stored in-memory, private and safe)
 let waitingLobbies = [];
 
+// HTTP Server Relay state for VPN / School Wi-Fi fallback multiplayer matches
+const relayRooms = new Map();
+
+// Housekeeping: clean up stale relay rooms older than 15 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [code, room] of relayRooms.entries()) {
+    if (now - room.lastActive > 900000) {
+      relayRooms.delete(code);
+    }
+  }
+}, 60000);
+
 app.post('/api/matchmaking/host', (req, res) => {
   const { roomCode } = req.body;
   if (!roomCode) return res.status(400).json({ error: 'Missing roomCode' });
@@ -60,6 +73,96 @@ app.post('/api/matchmaking/cancel', (req, res) => {
   const { roomCode } = req.body;
   if (roomCode) {
     waitingLobbies = waitingLobbies.filter(l => l.roomCode !== roomCode);
+  }
+  res.json({ success: true });
+});
+
+/* ---------------- SERVER RELAY MP FALLBACK ROUTES ---------------- */
+app.post('/api/relay/host', (req, res) => {
+  const { roomCode } = req.body;
+  if (!roomCode) return res.status(400).json({ error: 'Missing roomCode' });
+  
+  const cleanCode = String(roomCode).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  relayRooms.set(cleanCode, {
+    roomCode: cleanCode,
+    guestJoined: false,
+    messages: [],
+    msgIdCounter: 1,
+    lastActive: Date.now()
+  });
+  
+  res.json({ success: true, roomCode: cleanCode });
+});
+
+app.post('/api/relay/join', (req, res) => {
+  const { roomCode } = req.body;
+  if (!roomCode) return res.status(400).json({ error: 'Missing roomCode' });
+
+  const cleanCode = String(roomCode).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const room = relayRooms.get(cleanCode);
+  if (!room) {
+    return res.status(404).json({ error: 'Relay room not found' });
+  }
+
+  room.guestJoined = true;
+  room.lastActive = Date.now();
+  res.json({ success: true, roomCode: cleanCode });
+});
+
+app.post('/api/relay/send', (req, res) => {
+  const { roomCode, sender, payload } = req.body;
+  if (!roomCode || !sender || !payload) {
+    return res.status(400).json({ error: 'Missing parameters' });
+  }
+
+  const cleanCode = String(roomCode).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const room = relayRooms.get(cleanCode);
+  if (!room) {
+    return res.status(404).json({ error: 'Relay room not found' });
+  }
+
+  const msg = {
+    id: room.msgIdCounter++,
+    sender,
+    payload,
+    timestamp: Date.now()
+  };
+  room.messages.push(msg);
+  // Keep last 150 messages max
+  if (room.messages.length > 150) room.messages.shift();
+  room.lastActive = Date.now();
+
+  res.json({ success: true, id: msg.id });
+});
+
+app.post('/api/relay/poll', (req, res) => {
+  const { roomCode, sender, lastId } = req.body;
+  if (!roomCode || !sender) {
+    return res.status(400).json({ error: 'Missing roomCode or sender' });
+  }
+
+  const cleanCode = String(roomCode).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const room = relayRooms.get(cleanCode);
+  if (!room) {
+    return res.status(404).json({ error: 'Relay room not found' });
+  }
+
+  room.lastActive = Date.now();
+  const minId = Number(lastId) || 0;
+  const newMsgs = room.messages.filter(m => m.id > minId && m.sender !== sender);
+
+  res.json({
+    success: true,
+    guestJoined: room.guestJoined,
+    messages: newMsgs
+  });
+});
+
+app.post('/api/relay/close', (req, res) => {
+  const { roomCode } = req.body;
+  if (roomCode) {
+    const cleanCode = String(roomCode).toUpperCase().replace(/[^A-Z0-9]/g, '');
+    relayRooms.delete(cleanCode);
   }
   res.json({ success: true });
 });
