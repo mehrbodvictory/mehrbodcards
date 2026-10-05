@@ -1,9 +1,7 @@
-// Firebase Firestore Matchmaking Client
-// Matchmaking discovery uses Firebase Firestore ONLY to pair two players.
-// Once paired, the battle itself is 100% Peer-to-Peer (WebRTC via PeerJS / Server Relay),
-// consuming 0 server/database resources during live gameplay.
+// Firebase Realtime Matchmaking and Multiplayer Sync Engine
+// Connects to Firestore named database: ai-studio-mehrbodcards-2486d43b-39c5-4f6d-97c2-d362e9b3583a
 
-const FIREBASE_CONFIG = {
+const FIREBASE_APP_CONFIG = {
   projectId: "modular-current-wthv3",
   appId: "1:223543184692:web:a72ddd20a87a01b06a6961",
   apiKey: "AIzaSyAMdOl4wq0LOez1RaRJBKhtH3KafSAc_a0",
@@ -13,203 +11,358 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "223543184692"
 };
 
-let _firestoreDb = null;
-let _firebaseInitAttempted = false;
+const LOBBY_STALE_MS = 40000;
 
-function getFirestoreDb() {
-  if (_firestoreDb) return _firestoreDb;
-  if (typeof firebase === 'undefined') return null;
-  
-  if (!firebase.apps || !firebase.apps.length) {
-    try {
-      firebase.initializeApp(FIREBASE_CONFIG);
-    } catch (e) {
-      console.warn('[Firebase] Init app error:', e);
-    }
-  }
-
-  try {
-    // Attempt named database if supported, or default instance
-    if (FIREBASE_CONFIG.firestoreDatabaseId && typeof firebase.app().firestore === 'function') {
-      try {
-        _firestoreDb = firebase.app().firestore(FIREBASE_CONFIG.firestoreDatabaseId);
-      } catch (e1) {
-        _firestoreDb = firebase.firestore();
-      }
-    } else if (typeof firebase.firestore === 'function') {
-      _firestoreDb = firebase.firestore();
-    }
-  } catch (e) {
-    console.warn('[Firebase] Firestore init failed:', e);
-  }
-  return _firestoreDb;
+function getBridge() {
+  return window.FirestoreBridge || null;
 }
-
-function withTimeout(promise, ms = 2200) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase operation timed out')), ms))
-  ]);
-}
-
-const LOBBY_STALE_MS = 45000; // 45 seconds timeout for stale lobbies
 
 const FirebaseMatchmaking = {
   isAvailable() {
-    return typeof firebase !== 'undefined' && Boolean(getFirestoreDb());
+    const bridge = getBridge();
+    return Boolean(bridge && bridge.db);
   },
 
-  async testConnection() {
-    const db = getFirestoreDb();
-    if (!db) return false;
-    try {
-      await withTimeout(db.collection('matchmaking_lobbies').limit(1).get(), 1800);
-      return true;
-    } catch (err) {
-      console.warn('[Firebase] testConnection failed/timed out:', err);
-      return false;
-    }
-  },
-
-  // Search for an active, unclaimed waiting lobby created recently
   async findAndClaimLobby() {
-    const db = getFirestoreDb();
-    if (!db) throw new Error("Firebase Firestore is not initialized");
+    const bridge = getBridge();
+    if (!bridge || !bridge.db) return null;
+    const { db, collection, query, where, getDocs, doc, runTransaction } = bridge;
 
-    const cutoffTime = Date.now() - LOBBY_STALE_MS;
-    
-    // Query recent waiting lobbies with timeout protection for VPNs / school Wi-Fi
-    const snapshot = await withTimeout(
-      db.collection('matchmaking_lobbies').where('status', '==', 'waiting').get(),
-      2500
-    );
+    const cutoff = Date.now() - LOBBY_STALE_MS;
+    try {
+      const q = query(
+        collection(db, 'matchmaking_lobbies'),
+        where('status', '==', 'waiting')
+      );
+      const snap = await getDocs(q);
+      if (snap.empty) return null;
 
-    if (snapshot.empty) {
-      return null;
-    }
+      const freshDocs = snap.docs.filter(d => {
+        const data = d.data();
+        return data && data.createdAt >= cutoff && data.status === 'waiting';
+      });
 
-    // Filter by timestamp client-side as well to guarantee fresh lobby
-    const freshDocs = snapshot.docs.filter(doc => {
-      const data = doc.data();
-      return data && data.createdAt && data.createdAt >= cutoffTime && data.status === 'waiting';
-    });
-
-    if (freshDocs.length === 0) {
-      return null;
-    }
-
-    // Try claiming the oldest waiting lobby atomically
-    for (const docSnapshot of freshDocs) {
-      const docRef = docSnapshot.ref;
-      try {
-        const matchedData = await withTimeout(
-          db.runTransaction(async (transaction) => {
-            const freshDoc = await transaction.get(docRef);
-            if (!freshDoc.exists) return null;
-            
-            const data = freshDoc.data();
-            if (data.status !== 'waiting' || (data.createdAt && data.createdAt < cutoffTime)) {
-              return null; // Already claimed or expired
+      for (const d of freshDocs) {
+        const code = d.id;
+        const docRef = doc(db, 'matchmaking_lobbies', code);
+        try {
+          const claimed = await runTransaction(db, async (txn) => {
+            const fresh = await txn.get(docRef);
+            if (!fresh.exists()) return null;
+            const data = fresh.data();
+            if (data.status !== 'waiting' || (data.createdAt && data.createdAt < cutoff)) {
+              return null;
             }
-
-            transaction.update(docRef, {
+            txn.update(docRef, {
               status: 'matched',
               guestJoined: true,
               matchedAt: Date.now()
             });
-
             return data;
-          }),
-          2200
-        );
+          });
 
-        if (matchedData && matchedData.roomCode) {
-          console.log('[Firebase Matchmaking] Successfully claimed lobby:', matchedData.roomCode);
-          return {
-            roomCode: matchedData.roomCode,
-            hostPeerId: matchedData.hostPeerId || ('cardbattler-' + matchedData.roomCode)
-          };
+          if (claimed && claimed.roomCode) {
+            return {
+              roomCode: claimed.roomCode,
+              hostPeerId: 'cardbattler-' + claimed.roomCode
+            };
+          }
+        } catch (txnErr) {
+          // Contention, try next
         }
-      } catch (transErr) {
-        console.warn('[Firebase Matchmaking] Claim transaction contention, trying next:', transErr);
       }
+    } catch (err) {
+      console.warn('[Firebase Matchmaking] Discovery notice:', err);
     }
-
     return null;
   },
 
-  // Host registers a new lobby in Firestore
   async registerLobby(roomCode) {
-    const db = getFirestoreDb();
-    if (!db) throw new Error("Firebase Firestore is not initialized");
+    const bridge = getBridge();
+    if (!bridge || !bridge.db) return null;
+    const { db, doc, setDoc } = bridge;
 
-    const cleanCode = roomCode.toUpperCase().replace(/[^A-Za-z0-9]/g, '');
-    const docRef = db.collection('matchmaking_lobbies').doc(cleanCode);
+    const cleanCode = String(roomCode || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!cleanCode) return null;
 
-    await withTimeout(
-      docRef.set({
+    try {
+      const docRef = doc(db, 'matchmaking_lobbies', cleanCode);
+      await setDoc(docRef, {
         roomCode: cleanCode,
         hostPeerId: 'cardbattler-' + cleanCode,
         status: 'waiting',
         createdAt: Date.now(),
         guestJoined: false
-      }),
-      2500
-    );
-
-    console.log('[Firebase Matchmaking] Lobby registered in Firestore:', cleanCode);
-
-    // Housekeeping: clean up old stale lobbies in background
-    this.cleanStaleLobbies().catch(() => {});
-
-    return {
-      docRef,
-      unsubscribe: null
-    };
-  },
-
-  // Cancel / deregister a lobby
-  async cancelLobby(roomCode) {
-    const db = getFirestoreDb();
-    if (!db || !roomCode) return;
-
-    try {
-      const cleanCode = roomCode.toUpperCase().replace(/[^A-Za-z0-9]/g, '');
-      await withTimeout(db.collection('matchmaking_lobbies').doc(cleanCode).delete(), 1500);
-      console.log('[Firebase Matchmaking] Lobby removed from Firestore:', cleanCode);
-    } catch (e) {
-      console.warn('[Firebase Matchmaking] Error deleting lobby:', e);
+      });
+      return docRef;
+    } catch (err) {
+      console.warn('[Firebase Matchmaking] Lobby register notice:', err);
+      return null;
     }
   },
 
-  // Clean lobbies older than 2 minutes to keep Firestore tidy
-  async cleanStaleLobbies() {
-    const db = getFirestoreDb();
-    if (!db) return;
+  async cancelLobby(roomCode) {
+    const bridge = getBridge();
+    if (!bridge || !bridge.db) return;
+    const { db, doc, deleteDoc } = bridge;
+    const cleanCode = String(roomCode || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!cleanCode) return;
 
     try {
-      const staleCutoff = Date.now() - 120000;
-      const snapshot = await withTimeout(
-        db.collection('matchmaking_lobbies').where('createdAt', '<', staleCutoff).get(),
-        2000
-      );
-      
-      const batch = db.batch();
-      let deleteCount = 0;
-
-      snapshot.forEach(doc => {
-        batch.delete(doc.ref);
-        deleteCount++;
-      });
-
-      if (deleteCount > 0) {
-        await batch.commit();
-        console.log(`[Firebase Matchmaking] Purged ${deleteCount} stale lobbies.`);
-      }
-    } catch (e) {
-      // Non-critical background task
+      await deleteDoc(doc(db, 'matchmaking_lobbies', cleanCode));
+    } catch (err) {
+      // Background cleanup notice
     }
   }
 };
 
+/* ---------------- FIRESTORE REALTIME MULTIPLAYER ROOM SESSION ---------------- */
+class FirebaseRealtimeSession {
+  constructor({ onInit, onApplied, onStatus, onGuestConfig, onForfeit, onEmote, onPing, onRematchOffer, onRematchAccept, onRematchDecline }) {
+    this.isHost = false;
+    this.roomCode = '';
+    this.unsubscribe = null;
+    this.destroyed = false;
+    this.receivedGuestConfig = false;
+    this.receivedInit = false;
+    this.processedActionIds = new Set();
+    this.seed = null;
+    this.wager = 0;
+    this.hostDeckConfig = null;
+    this.guestDeckConfig = null;
+
+    this.onInit = onInit;
+    this.onApplied = onApplied;
+    this.onStatus = onStatus || (() => {});
+    this.onGuestConfig = onGuestConfig || (() => {});
+    this.onForfeit = onForfeit || (() => {});
+    this.onEmote = onEmote || (() => {});
+    this.onPing = onPing || (() => {});
+    this.onRematchOffer = onRematchOffer || (() => {});
+    this.onRematchAccept = onRematchAccept || (() => {});
+    this.onRematchDecline = onRematchDecline || (() => {});
+  }
+
+  async hostRoom(code, seed, wager, hostDeckConfig) {
+    this.isHost = true;
+    this.seed = seed;
+    this.wager = wager || 0;
+    this.hostDeckConfig = hostDeckConfig || null;
+    this.roomCode = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+    const bridge = getBridge();
+    if (!bridge || !bridge.db) return;
+    const { db, doc, setDoc, onSnapshot } = bridge;
+
+    try {
+      const roomRef = doc(db, 'mp_rooms', this.roomCode);
+      await setDoc(roomRef, {
+        roomCode: this.roomCode,
+        status: 'waiting',
+        hostConfig: {
+          seed: this.seed,
+          wager: this.wager,
+          hostDeckConfig: this.hostDeckConfig
+        },
+        guestJoined: false,
+        actions: [],
+        signals: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      });
+
+      this.unsubscribe = onSnapshot(roomRef, (snapshot) => {
+        if (this.destroyed || !snapshot.exists()) return;
+        const data = snapshot.data();
+        this._handleRoomUpdate(data);
+      }, (err) => {
+        console.warn('[Firestore mp_room] Snapshot notice:', err);
+      });
+    } catch (e) {
+      console.warn('[Firestore mp_room] Host room error:', e);
+    }
+  }
+
+  async joinRoom(code, guestDeckConfig) {
+    this.isHost = false;
+    this.guestDeckConfig = guestDeckConfig || null;
+    this.roomCode = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+    const bridge = getBridge();
+    if (!bridge || !bridge.db) return;
+    const { db, doc, setDoc, updateDoc, onSnapshot } = bridge;
+
+    try {
+      const roomRef = doc(db, 'mp_rooms', this.roomCode);
+
+      // Join room document
+      try {
+        await updateDoc(roomRef, {
+          guestJoined: true,
+          guestConfig: this.guestDeckConfig,
+          status: 'ready',
+          joinedAt: Date.now(),
+          updatedAt: Date.now()
+        });
+      } catch (_) {
+        // If doc not ready yet, setDoc merge
+        await setDoc(roomRef, {
+          roomCode: this.roomCode,
+          guestJoined: true,
+          guestConfig: this.guestDeckConfig,
+          status: 'ready',
+          joinedAt: Date.now(),
+          updatedAt: Date.now()
+        }, { merge: true });
+      }
+
+      this.unsubscribe = onSnapshot(roomRef, (snapshot) => {
+        if (this.destroyed || !snapshot.exists()) return;
+        const data = snapshot.data();
+        this._handleRoomUpdate(data);
+      }, (err) => {
+        console.warn('[Firestore mp_room] Snapshot notice:', err);
+      });
+    } catch (e) {
+      console.warn('[Firestore mp_room] Join room error:', e);
+    }
+  }
+
+  sendInit(seed, wager, hostDeckConfig) {
+    const bridge = getBridge();
+    if (!bridge || !bridge.db || !this.roomCode) return;
+    const { db, doc, updateDoc } = bridge;
+
+    try {
+      const roomRef = doc(db, 'mp_rooms', this.roomCode);
+      updateDoc(roomRef, {
+        status: 'active',
+        initData: {
+          seed: seed || this.seed,
+          wager: wager !== undefined ? wager : this.wager,
+          hostDeckConfig: hostDeckConfig || this.hostDeckConfig
+        },
+        updatedAt: Date.now()
+      }).catch(() => {});
+    } catch (e) {}
+  }
+
+  submitAction(action) {
+    if (!action) return;
+    const bridge = getBridge();
+    if (!bridge || !bridge.db || !this.roomCode) return;
+    const { db, doc, runTransaction } = bridge;
+
+    if (!action.id) {
+      action.id = 'act_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    }
+
+    try {
+      const roomRef = doc(db, 'mp_rooms', this.roomCode);
+      runTransaction(db, async (txn) => {
+        const snap = await txn.get(roomRef);
+        if (!snap.exists()) return;
+        const currentActions = snap.data().actions || [];
+        // Keep last 40 actions
+        const updated = [...currentActions.slice(-39), action];
+        txn.update(roomRef, {
+          actions: updated,
+          updatedAt: Date.now()
+        });
+      }).catch(() => {});
+    } catch (e) {}
+  }
+
+  sendSignal(type, payload = {}) {
+    const bridge = getBridge();
+    if (!bridge || !bridge.db || !this.roomCode) return;
+    const { db, doc, runTransaction } = bridge;
+
+    const signalObj = {
+      id: 'sig_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      sender: this.isHost ? 'host' : 'guest',
+      type,
+      payload,
+      timestamp: Date.now()
+    };
+
+    try {
+      const roomRef = doc(db, 'mp_rooms', this.roomCode);
+      runTransaction(db, async (txn) => {
+        const snap = await txn.get(roomRef);
+        if (!snap.exists()) return;
+        const currentSignals = snap.data().signals || [];
+        const updated = [...currentSignals.slice(-19), signalObj];
+        txn.update(roomRef, {
+          signals: updated,
+          updatedAt: Date.now()
+        });
+      }).catch(() => {});
+    } catch (e) {}
+  }
+
+  _handleRoomUpdate(data) {
+    if (!data) return;
+
+    // 1. Guest connection detection
+    if (this.isHost && (data.guestJoined || data.guestConfig) && !this.receivedGuestConfig) {
+      if (data.guestConfig) {
+        this.receivedGuestConfig = true;
+        this.onGuestConfig(data.guestConfig);
+      }
+    }
+
+    // 2. Init detection for Guest
+    if (!this.isHost && (data.initData || data.hostConfig) && !this.receivedInit) {
+      const init = data.initData || data.hostConfig;
+      if (init && init.seed) {
+        this.receivedInit = true;
+        this.onInit(init);
+      }
+    }
+
+    // 3. Actions sync
+    if (Array.isArray(data.actions)) {
+      data.actions.forEach(action => {
+        if (!action || !action.id) return;
+        if (this.processedActionIds.has(action.id)) return;
+        this.processedActionIds.add(action.id);
+        this.onApplied(action);
+      });
+    }
+
+    // 4. Signals sync (forfeit, emote, rematch)
+    if (Array.isArray(data.signals)) {
+      const myRole = this.isHost ? 'host' : 'guest';
+      data.signals.forEach(sig => {
+        if (!sig || !sig.id || sig.sender === myRole) return;
+        if (this.processedActionIds.has(sig.id)) return;
+        this.processedActionIds.add(sig.id);
+
+        if (sig.type === 'forfeit') this.onForfeit();
+        else if (sig.type === 'emote') this.onEmote(sig.payload?.emoji);
+        else if (sig.type === 'rematch_offer') this.onRematchOffer();
+        else if (sig.type === 'rematch_accept') this.onRematchAccept();
+        else if (sig.type === 'rematch_decline') this.onRematchDecline();
+      });
+    }
+  }
+
+  destroy() {
+    this.destroyed = true;
+    if (this.unsubscribe) {
+      try { this.unsubscribe(); } catch (_) {}
+      this.unsubscribe = null;
+    }
+    const bridge = getBridge();
+    if (bridge && bridge.db && this.roomCode && this.isHost) {
+      try {
+        const { db, doc, deleteDoc } = bridge;
+        deleteDoc(doc(db, 'mp_rooms', this.roomCode)).catch(() => {});
+      } catch (_) {}
+    }
+  }
+}
+
 window.FirebaseMatchmaking = FirebaseMatchmaking;
+window.FirebaseRealtimeSession = FirebaseRealtimeSession;

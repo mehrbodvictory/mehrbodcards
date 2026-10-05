@@ -3963,11 +3963,23 @@ function startMatchmakingTimer(deckConfig) {
   const timerEl = document.getElementById('mm-search-timer');
   if (timerEl) timerEl.textContent = '00:00';
 
+  // Reset slow search diagnostic prompt
+  const slowAlert = document.getElementById('mm-slow-search-alert');
+  if (slowAlert) slowAlert.classList.add('hidden');
+
   mmSearchTimerInterval = setInterval(() => {
     const elapsedSec = Math.floor((Date.now() - mmSearchStartMs) / 1000);
     const mins = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
     const secs = String(elapsedSec % 60).padStart(2, '0');
     if (timerEl) timerEl.textContent = `${mins}:${secs}`;
+
+    // If searching takes longer than 7 seconds, display the diagnostic prompt banner
+    if (elapsedSec >= 7 && slowAlert && slowAlert.classList.contains('hidden')) {
+      slowAlert.classList.remove('hidden');
+      if (typeof NetworkDiagnostics !== 'undefined') {
+        NetworkDiagnostics.log(`Matchmaking search in progress (${elapsedSec}s). Probing background network health...`, 'info');
+      }
+    }
   }, 1000);
 }
 
@@ -3976,6 +3988,8 @@ function stopMatchmakingTimer() {
     clearInterval(mmSearchTimerInterval);
     mmSearchTimerInterval = null;
   }
+  const slowAlert = document.getElementById('mm-slow-search-alert');
+  if (slowAlert) slowAlert.classList.add('hidden');
 }
 
 function updateOpponentFoundUI(remoteData) {
@@ -4284,6 +4298,29 @@ function cancelMatchmaking() {
     }).catch(() => {});
   }
 }
+
+// ---- Network Diagnostics Tool Event Wiring ----------------------------------
+document.getElementById('btn-mm-open-diagnostics')?.addEventListener('click', () => {
+  if (typeof NetworkDiagnostics !== 'undefined') NetworkDiagnostics.openModal();
+});
+document.getElementById('btn-mm-inline-diag')?.addEventListener('click', () => {
+  if (typeof NetworkDiagnostics !== 'undefined') NetworkDiagnostics.openModal();
+});
+document.getElementById('btn-open-diagnostics-menu')?.addEventListener('click', () => {
+  if (typeof NetworkDiagnostics !== 'undefined') NetworkDiagnostics.openModal();
+});
+document.getElementById('btn-diag-close')?.addEventListener('click', () => {
+  if (typeof NetworkDiagnostics !== 'undefined') NetworkDiagnostics.closeModal();
+});
+document.getElementById('btn-diag-footer-close')?.addEventListener('click', () => {
+  if (typeof NetworkDiagnostics !== 'undefined') NetworkDiagnostics.closeModal();
+});
+document.getElementById('btn-diag-run-test')?.addEventListener('click', () => {
+  if (typeof NetworkDiagnostics !== 'undefined') NetworkDiagnostics.runFullDiagnostic();
+});
+document.getElementById('btn-diag-copy-report')?.addEventListener('click', () => {
+  if (typeof NetworkDiagnostics !== 'undefined') NetworkDiagnostics.copyReport();
+});
 
 // ---- Action dispatch --------------------------------------------------------
 function dispatch(action) {

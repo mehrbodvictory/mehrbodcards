@@ -1,16 +1,14 @@
-// Dual-Transport Multiplayer Network Layer (WebRTC P2P + HTTPS Server Relay)
-// 
+// Multi-Transport Multiplayer Network Layer (Firestore Realtime + HTTPS Server Relay + WebRTC P2P)
+//
 // Authoritative Host Architecture:
 // All game state logic is executed authoritatively on the host. Actions are
 // submitted by players, verified, applied to the local match engine on the host,
 // and broadcasted down to the guest as 'applied' events.
 //
-// Restrictive Network & VPN / School Wi-Fi Support:
-// School Wi-Fi and corporate VPNs routinely block raw UDP WebRTC traffic, resulting
-// in STUN timeouts or "Negotiation of connection failed" errors.
-// NetSession solves this by running an HTTPS Server Relay in tandem. If WebRTC
-// is blocked or unavailable, gameplay seamlessly flows over the HTTP Relay
-// with zero packet drops, zero desync, and zero interruption.
+// Triple-Layer Connection Guarantee (VPN, School Wi-Fi, Multi-Instance Cloud Run):
+// 1. Firebase Firestore Realtime Sync (mp_rooms collection with onSnapshot) - Real-time push across all networks
+// 2. HTTP Server Relay - Fast REST long-polling
+// 3. WebRTC PeerJS - Direct local P2P acceleration when NAT allows
 
 function getIceConfig() {
   return {
@@ -24,31 +22,31 @@ function getIceConfig() {
 }
 
 function formatPeerErrorMessage(err) {
-  if (!err) return "Connection issue encountered.";
+  if (!err) return "Connection notice.";
   if (typeof err === 'string') return err;
   const type = err.type || '';
   const msg = err.message || '';
   if (msg.includes('Negotiation') || type === 'webrtc') {
-    return "P2P WebRTC blocked by network firewall. Operating via Secure HTTPS Relay.";
+    return "P2P WebRTC blocked by network firewall. Synchronizing via Secure Cloud Relay.";
   }
   if (type === 'server-error' || type === 'socket-error' || type === 'socket-closed') {
-    return "Signaling server busy. Retrying connection...";
+    return "Signaling server busy. Reconnecting...";
   }
   if (type === 'peer-unavailable') {
-    return "Room code not found or opponent went offline.";
+    return "Room code not found or host went offline.";
   }
   if (type === 'unavailable-id') {
     return "Room code already in use. Generating a fresh room...";
   }
   if (type === 'network' || type === 'disconnected') {
-    return "Network connection dropped. Reconnecting...";
+    return "Network reconnecting...";
   }
   return msg || `Connection notice (${type || 'network'})`;
 }
 
 /* ---------------- SERVER RELAY MULTIPLAYER CLASS ---------------- */
 class ServerRelaySession {
-  constructor({ onInit, onApplied, onStatus, onPeerError, onGuestConfig, onForfeit, onEmote, onPing, onRematchOffer, onRematchAccept, onRematchDecline }) {
+  constructor({ onInit, onApplied, onStatus, onGuestConfig, onForfeit, onEmote, onPing, onRematchOffer, onRematchAccept, onRematchDecline }) {
     this.isHost = false;
     this.roomCode = '';
     this.seed = null;
@@ -67,7 +65,6 @@ class ServerRelaySession {
     this.onInit = onInit;
     this.onApplied = onApplied;
     this.onStatus = onStatus || (() => {});
-    this.onPeerError = onPeerError || (() => {});
     this.onGuestConfig = onGuestConfig || (() => {});
     this.onForfeit = onForfeit || (() => {});
     this.onEmote = onEmote || (() => {});
@@ -86,23 +83,17 @@ class ServerRelaySession {
     this.onStatus('connecting');
 
     try {
-      const res = await fetch('/api/relay/host', {
+      await fetch('/api/relay/host', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roomCode: this.roomCode })
       });
-      if (!res.ok) throw new Error('Failed to register host relay room');
-      this.onStatus('waiting');
-      this._startPolling();
-      this._startPingHeartbeat();
-      return this.roomCode;
-    } catch (err) {
-      console.warn('[ServerRelay] Host registration warning:', err);
-      this.onStatus('waiting');
-      this._startPolling();
-      this._startPingHeartbeat();
-      return this.roomCode;
-    }
+    } catch (_) {}
+
+    this.onStatus('waiting');
+    this._startPolling();
+    this._startPingHeartbeat();
+    return this.roomCode;
   }
 
   async joinGame(code, guestDeckConfig) {
@@ -112,15 +103,12 @@ class ServerRelaySession {
     this.onStatus('connecting');
 
     try {
-      const res = await fetch('/api/relay/join', {
+      await fetch('/api/relay/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roomCode: this.roomCode })
       });
-      if (!res.ok) throw new Error('Failed to join relay room');
-    } catch (err) {
-      console.warn('[ServerRelay] Join warning (proceeding to poll):', err);
-    }
+    } catch (_) {}
 
     this.onStatus('connected');
     this._startPolling();
@@ -152,7 +140,6 @@ class ServerRelaySession {
     const payload = { type: 'init', seed: s, wager: w, hostDeckConfig: h };
     this._sendMsg(payload);
 
-    // Host re-sends init briefly to ensure arrival over lossy networks until guest acks
     let sendCount = 0;
     const initTimer = setInterval(() => {
       if (this.destroyed || this.receivedInitAck || sendCount++ > 6) {
@@ -194,9 +181,7 @@ class ServerRelaySession {
           payload
         })
       });
-    } catch (e) {
-      // Non-blocking network send glitch
-    }
+    } catch (_) {}
   }
 
   _startPolling() {
@@ -238,9 +223,7 @@ class ServerRelaySession {
           this._handleIncomingPayload(msg.payload);
         }
       }
-    } catch (err) {
-      // Handled gracefully on next poll tick
-    }
+    } catch (_) {}
   }
 
   _handleIncomingPayload(payload) {
@@ -308,13 +291,14 @@ class ServerRelaySession {
   }
 }
 
-/* ---------------- DUAL-TRANSPORT MULTIPLAYER SESSION ---------------- */
+/* ---------------- TRIPLE-LAYER MULTIPLAYER SESSION ---------------- */
 class NetSession {
   constructor({ onInit, onApplied, onStatus, onPeerError, onGuestConfig, onForfeit, onEmote, onPing, onRematchOffer, onRematchAccept, onRematchDecline }) {
     this.peer = null;
     this.conn = null;
     this.isHost = false;
     this.relaySession = null;
+    this.firebaseSession = null;
     this.receivedGuestConfig = false;
     this.receivedInit = false;
     this.processedActionIds = new Set();
@@ -370,12 +354,28 @@ class NetSession {
     this.roomCode = code;
     this.onStatus('connecting');
 
-    // 1. Start Server Relay Session (100% Guaranteed on VPNs & School Wi-Fi)
+    // 1. Firebase Firestore Realtime Session (Real-time sync across multi-instance Cloud Run & mobile/VPN)
+    if (typeof FirebaseRealtimeSession !== 'undefined') {
+      this.firebaseSession = new FirebaseRealtimeSession({
+        onInit: this.onInit,
+        onApplied: this.onApplied,
+        onStatus: this.onStatus,
+        onGuestConfig: this.onGuestConfig,
+        onForfeit: this.onForfeit,
+        onEmote: this.onEmote,
+        onPing: this.onPing,
+        onRematchOffer: this.onRematchOffer,
+        onRematchAccept: this.onRematchAccept,
+        onRematchDecline: this.onRematchDecline
+      });
+      this.firebaseSession.hostRoom(code, seed, wager, hostDeckConfig).catch(() => {});
+    }
+
+    // 2. HTTPS Server Relay Session (Guaranteed on VPNs & School Wi-Fi)
     this.relaySession = new ServerRelaySession({
       onInit: this.onInit,
       onApplied: this.onApplied,
       onStatus: this.onStatus,
-      onPeerError: () => {},
       onGuestConfig: this.onGuestConfig,
       onForfeit: this.onForfeit,
       onEmote: this.onEmote,
@@ -384,23 +384,18 @@ class NetSession {
       onRematchAccept: this.onRematchAccept,
       onRematchDecline: this.onRematchDecline
     });
-    await this.relaySession.hostGameWithCode(code, seed, wager, hostDeckConfig);
+    this.relaySession.hostGameWithCode(code, seed, wager, hostDeckConfig).catch(() => {});
 
-    // 2. Also open WebRTC PeerJS in background for optional direct P2P acceleration
+    // 3. WebRTC PeerJS in background for optional direct P2P acceleration
     try {
       const iceConfig = getIceConfig();
       const peerId = 'cardbattler-' + code;
       this.peer = new Peer(peerId, { debug: 0, config: iceConfig });
 
       this.peer.on('open', () => { this.onStatus('waiting'); });
-      this.peer.on('error', err => {
-        // Non-fatal because Relay transport handles the session completely
-        console.warn('[P2P PeerJS notice]:', formatPeerErrorMessage(err));
-      });
+      this.peer.on('error', () => {});
       this.peer.on('connection', conn => this._handleIncomingHostConn(conn));
-    } catch (e) {
-      console.warn('[P2P PeerJS] Operating via HTTPS Server Relay.');
-    }
+    } catch (_) {}
 
     this.onStatus('waiting');
     return code;
@@ -419,7 +414,6 @@ class NetSession {
         if (data.action && data.action.player === 'guest') {
           this.onApplied(data.action);
           this._send({ type: 'applied', action: data.action });
-          if (this.relaySession) this.relaySession._sendMsg({ type: 'applied', action: data.action });
         }
       } else if (data.type === 'forfeit') {
         this.onForfeit();
@@ -437,6 +431,9 @@ class NetSession {
   }
 
   sendInit() {
+    if (this.firebaseSession) {
+      this.firebaseSession.sendInit(this.seed, this.wager, this.hostDeckConfig);
+    }
     if (this.relaySession) {
       this.relaySession.sendInit(this.seed, this.wager, this.hostDeckConfig);
     }
@@ -450,12 +447,28 @@ class NetSession {
     this.roomCode = cleanCode;
     this.onStatus('connecting');
 
-    // 1. Start Server Relay Session (100% Guaranteed on VPNs & School Wi-Fi)
+    // 1. Firebase Firestore Realtime Session (Real-time sync across multi-instance Cloud Run & mobile/VPN)
+    if (typeof FirebaseRealtimeSession !== 'undefined') {
+      this.firebaseSession = new FirebaseRealtimeSession({
+        onInit: this.onInit,
+        onApplied: this.onApplied,
+        onStatus: this.onStatus,
+        onGuestConfig: this.onGuestConfig,
+        onForfeit: this.onForfeit,
+        onEmote: this.onEmote,
+        onPing: this.onPing,
+        onRematchOffer: this.onRematchOffer,
+        onRematchAccept: this.onRematchAccept,
+        onRematchDecline: this.onRematchDecline
+      });
+      this.firebaseSession.joinRoom(cleanCode, guestDeckConfig).catch(() => {});
+    }
+
+    // 2. HTTPS Server Relay Session (Guaranteed on VPNs & School Wi-Fi)
     this.relaySession = new ServerRelaySession({
       onInit: this.onInit,
       onApplied: this.onApplied,
       onStatus: this.onStatus,
-      onPeerError: () => {},
       onGuestConfig: this.onGuestConfig,
       onForfeit: this.onForfeit,
       onEmote: this.onEmote,
@@ -464,9 +477,9 @@ class NetSession {
       onRematchAccept: this.onRematchAccept,
       onRematchDecline: this.onRematchDecline
     });
-    await this.relaySession.joinGame(cleanCode, guestDeckConfig);
+    this.relaySession.joinGame(cleanCode, guestDeckConfig).catch(() => {});
 
-    // 2. Also try WebRTC PeerJS in background
+    // 3. WebRTC PeerJS in background
     try {
       const iceConfig = getIceConfig();
       this.peer = new Peer({ debug: 0, config: iceConfig });
@@ -499,12 +512,8 @@ class NetSession {
           this.conn.on('error', () => {});
         } catch (_) {}
       });
-      this.peer.on('error', err => {
-        console.warn('[P2P PeerJS notice]:', formatPeerErrorMessage(err));
-      });
-    } catch (e) {
-      console.warn('[P2P PeerJS] Operating via HTTPS Server Relay.');
-    }
+      this.peer.on('error', () => {});
+    } catch (_) {}
 
     this.onStatus('connected');
   }
@@ -513,6 +522,9 @@ class NetSession {
     if (!action) return;
     if (!action.id) {
       action.id = 'act_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    }
+    if (this.firebaseSession) {
+      this.firebaseSession.submitAction(action);
     }
     if (this.relaySession) {
       this.relaySession.submitAction(action);
@@ -527,26 +539,31 @@ class NetSession {
   }
 
   sendForfeit() {
+    if (this.firebaseSession) this.firebaseSession.sendSignal('forfeit');
     if (this.relaySession) this.relaySession.sendForfeit();
     this._send({ type: 'forfeit' });
   }
 
   sendEmote(emoji) {
+    if (this.firebaseSession) this.firebaseSession.sendSignal('emote', { emoji });
     if (this.relaySession) this.relaySession.sendEmote(emoji);
     this._send({ type: 'emote', emoji });
   }
 
   sendRematchOffer() {
+    if (this.firebaseSession) this.firebaseSession.sendSignal('rematch_offer');
     if (this.relaySession) this.relaySession.sendRematchOffer();
     this._send({ type: 'rematch_offer' });
   }
 
   sendRematchAccept() {
+    if (this.firebaseSession) this.firebaseSession.sendSignal('rematch_accept');
     if (this.relaySession) this.relaySession.sendRematchAccept();
     this._send({ type: 'rematch_accept' });
   }
 
   sendRematchDecline() {
+    if (this.firebaseSession) this.firebaseSession.sendSignal('rematch_decline');
     if (this.relaySession) this.relaySession.sendRematchDecline();
     this._send({ type: 'rematch_decline' });
   }
@@ -559,6 +576,10 @@ class NetSession {
 
   destroy() {
     this.manualDisconnect = true;
+    if (this.firebaseSession) {
+      try { this.firebaseSession.destroy(); } catch (_) {}
+      this.firebaseSession = null;
+    }
     if (this.relaySession) {
       try { this.relaySession.destroy(); } catch (_) {}
       this.relaySession = null;

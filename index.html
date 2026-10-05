@@ -473,6 +473,18 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </div>
       </button>
+      <button class="menu-card" id="btn-open-diagnostics-menu">
+        <div class="menu-icon-pod">
+          <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <div class="menu-card-body">
+          <span class="menu-card-title">Network Diagnostics</span>
+          <span class="menu-card-sub">Check connectivity &amp; health</span>
+        </div>
+        <div class="menu-card-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+      </button>
     </div>
     <button class="link-btn back-btn glass-pill-btn">
       <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
@@ -487,6 +499,9 @@
       <div class="mm-hud-badge ping-stat" id="mm-ping-badge">
         <span class="mm-ping-val" id="mm-ping-val">PING: 28ms</span>
       </div>
+      <button type="button" class="mm-hud-badge mm-diag-btn" id="btn-mm-open-diagnostics" title="Open Network Diagnostics" style="cursor: pointer; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8;">
+        <span>🔍 Network Health</span>
+      </button>
     </div>
 
     <!-- Central Versus Stage & Holographic Scanning Radar -->
@@ -552,6 +567,12 @@
       </div>
       <div class="mm-progress-track">
         <div class="mm-progress-bar"></div>
+      </div>
+
+      <!-- Slow Search Diagnostic Trigger Banner -->
+      <div id="mm-slow-search-alert" class="mm-diag-slow-prompt hidden">
+        <span>⚠️ Connection taking longer than usual?</span>
+        <button type="button" class="mm-diag-inline-btn" id="btn-mm-inline-diag">🔍 Diagnose Network</button>
       </div>
 
       <!-- Tactical Tip Carousel Card -->
@@ -1868,6 +1889,84 @@
     </div>
   </div>
 
+  <!-- ===== CONNECTIVITY HEALTH & NETWORK DIAGNOSTICS MODAL ===== -->
+  <div id="modal-network-diagnostics" class="hidden" role="dialog" aria-modal="true" aria-labelledby="diag-modal-title">
+    <div class="diag-modal-card">
+      <!-- Modal Header -->
+      <div class="diag-modal-header">
+        <div class="diag-header-title-box">
+          <span class="diag-header-icon">🛰️</span>
+          <div>
+            <h2 id="diag-modal-title" class="diag-header-title">Connection Diagnostics</h2>
+            <div class="diag-header-sub">Live Telemetry, Firewall Inspection &amp; Multi-Transport Status</div>
+          </div>
+        </div>
+        <button type="button" id="btn-diag-close" class="modal-close" aria-label="Close Diagnostics">✕</button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="diag-modal-body">
+        <!-- Health Gauge Card -->
+        <div class="diag-gauge-row">
+          <div class="diag-radial-container">
+            <svg class="diag-radial-svg" viewBox="0 0 100 100">
+              <circle class="diag-radial-bg" cx="50" cy="50" r="42" />
+              <circle id="diag-score-circle" class="diag-radial-prog" cx="50" cy="50" r="42" />
+            </svg>
+            <div class="diag-gauge-center" id="diag-score-val">--%</div>
+          </div>
+          <div class="diag-gauge-meta">
+            <span class="diag-gauge-kicker">Connectivity Health</span>
+            <span id="diag-score-rating" class="diag-gauge-rating">ANALYZING...</span>
+            <span class="diag-gauge-desc">Multi-channel probe testing Firestore cluster, HTTP Ingress Relay &amp; WebRTC UDP firewall traversal.</span>
+          </div>
+        </div>
+
+        <!-- Probes Breakdown List -->
+        <div class="diag-probe-list" id="diag-probe-list">
+          <!-- Populated by NetworkDiagnostics engine -->
+        </div>
+
+        <!-- Actionable Fixes & Firewall Detections -->
+        <div class="diag-tips-box">
+          <div class="diag-tips-title">💡 Network Analysis &amp; Firewall Insights</div>
+          <div id="diag-tips-body">
+            <div class="diag-tip-line">Running diagnostic probes across all transport protocols...</div>
+          </div>
+        </div>
+
+        <!-- Live Telemetry & Error Console Stream -->
+        <div class="diag-logs-section">
+          <div class="diag-logs-header">
+            <span>Detailed Telemetry Log Stream</span>
+            <span style="font-size: 0.65rem; color: #94a3b8;">Auto-scroll</span>
+          </div>
+          <div class="diag-logs-container" id="diag-logs-container">
+            <div class="diag-log-line log-info">
+              <span class="diag-log-time">[INIT]</span>
+              <span class="diag-log-msg">Ready to analyze network telemetry.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer Action Bar -->
+      <div class="diag-modal-footer">
+        <button type="button" class="diag-btn secondary" id="btn-diag-copy-report">
+          <span>📋 Copy Report</span>
+        </button>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="diag-btn primary" id="btn-diag-run-test">
+            <span>🔄 Re-test Network</span>
+          </button>
+          <button type="button" class="diag-btn secondary" id="btn-diag-footer-close">
+            <span>Close</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Offline Network Status Indicator Banner -->
   <div id="offline-indicator" class="hidden">
     <span class="offline-pulse"></span> Offline Mode — Running on local cached assets.
@@ -1875,8 +1974,58 @@
 
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+  import {
+    getFirestore,
+    doc,
+    collection,
+    setDoc,
+    getDoc,
+    getDocs,
+    updateDoc,
+    deleteDoc,
+    onSnapshot,
+    runTransaction,
+    query,
+    where,
+    limit
+  } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+
+  const FIREBASE_CONFIG = {
+    projectId: "modular-current-wthv3",
+    appId: "1:223543184692:web:a72ddd20a87a01b06a6961",
+    apiKey: "AIzaSyAMdOl4wq0LOez1RaRJBKhtH3KafSAc_a0",
+    authDomain: "modular-current-wthv3.firebaseapp.com",
+    firestoreDatabaseId: "ai-studio-mehrbodcards-2486d43b-39c5-4f6d-97c2-d362e9b3583a",
+    storageBucket: "modular-current-wthv3.firebasestorage.app",
+    messagingSenderId: "223543184692"
+  };
+
+  try {
+    const app = initializeApp(FIREBASE_CONFIG);
+    const db = getFirestore(app, FIREBASE_CONFIG.firestoreDatabaseId);
+    window.FirestoreBridge = {
+      app,
+      db,
+      doc,
+      collection,
+      setDoc,
+      getDoc,
+      getDocs,
+      updateDoc,
+      deleteDoc,
+      onSnapshot,
+      runTransaction,
+      query,
+      where,
+      limit
+    };
+    console.log('[FirestoreBridge] Initialized successfully with named database:', FIREBASE_CONFIG.firestoreDatabaseId);
+  } catch (err) {
+    console.warn('[FirestoreBridge] Initialization error:', err);
+  }
+</script>
 <!-- D3 Data Visualization Library -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <!-- High-availability PeerJS CDN loader chain with automatic fallback failover to guarantee availability on school/work networks -->
@@ -1906,6 +2055,7 @@
 <script src="js/game.js?v=12.1.0"></script>
 <script src="js/bot.js?v=12.1.0"></script>
 <script src="js/network.js?v=12.1.0"></script>
+<script src="js/network-diagnostics.js?v=12.1.0"></script>
 <script src="js/ui.js?v=12.1.0"></script>
 <script src="js/sound.js?v=12.1.0"></script>
 <script src="js/theme-templates.js?v=12.1.0"></script>
