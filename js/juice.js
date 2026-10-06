@@ -2888,6 +2888,53 @@ function redeemShopCode(rawCode) {
     }
   }
 
+  const moderateCodes = {
+    frostbite: { bux: 150, xp: 50, bpXp: 1000, desc: '❄️ Frosty reward! +150 Bux, 50 Player XP & 1,000 BP XP.' },
+    phoenix: { bux: 200, xp: 75, bpXp: 1500, desc: '🔥 Phoenix rebirth! +200 Bux, 75 Player XP & 1,500 BP XP.' },
+    overcharge: { bux: 250, xp: 40, bpXp: 2000, desc: '⚡ Overcharged nodes! +250 Bux, 40 Player XP & 2,000 BP XP.' },
+    neonwave: { bux: 175, xp: 100, bpXp: 1200, desc: '🌊 Neon retro waves! +175 Bux, 100 Player XP & 1,200 BP XP.' },
+    goldengrail: { bux: 300, xp: 50, bpXp: 1000, desc: '🏆 Holy Grail! +300 Bux, 50 Player XP & 1,000 BP XP.' },
+    shadowstep: { bux: 120, xp: 80, bpXp: 800, desc: '👥 Slid into shadows! +120 Bux, 80 Player XP & 800 BP XP.' },
+    vortex: { bux: 180, xp: 60, bpXp: 1400, desc: '🌀 Swirling dimensional vortex! +180 Bux, 60 Player XP & 1,400 BP XP.' },
+    aether: { bux: 220, xp: 70, bpXp: 1100, desc: '✨ Aetherial mist! +220 Bux, 70 Player XP & 1,100 BP XP.' },
+    catalyst: { bux: 150, xp: 120, bpXp: 1300, desc: '⚗️ Catalyst active! +150 Bux, 120 Player XP & 1,300 BP XP.' },
+    solarflare: { bux: 250, xp: 90, bpXp: 1800, desc: '☀️ Solar storm! +250 Bux, 90 Player XP & 1,800 BP XP.' },
+    echoes: { bux: 130, xp: 70, bpXp: 900, desc: '🗣️ Echoes of the past! +130 Bux, 70 Player XP & 900 BP XP.' },
+    titan: { bux: 300, xp: 50, bpXp: 1500, desc: '🛡️ Giant Titan! +300 Bux, 50 Player XP & 1,500 BP XP.' },
+    gravity: { bux: 160, xp: 90, bpXp: 1000, desc: '🌌 Gravitational pull! +160 Bux, 90 Player XP & 1,000 BP XP.' },
+    nebula: { bux: 240, xp: 80, bpXp: 1600, desc: '💫 Nebula dust! +240 Bux, 80 Player XP & 1,600 BP XP.' },
+    apex: { bux: 350, xp: 100, bpXp: 2000, desc: '🌟 Apex status! +350 Bux, 100 Player XP & 2,000 BP XP.' },
+    mirage: { bux: 140, xp: 65, bpXp: 1000, desc: '🏜️ Sandy Mirage! +140 Bux, 65 Player XP & 1,000 BP XP.' },
+    blitz: { bux: 200, xp: 50, bpXp: 1200, desc: '🏃 Quick blitz! +200 Bux, 50 Player XP & 1,200 BP XP.' },
+    specter: { bux: 190, xp: 85, bpXp: 1500, desc: '👻 Spooky Specter! +190 Bux, 85 Player XP & 1,500 BP XP.' },
+    quantum: { bux: 280, xp: 110, bpXp: 1700, desc: '⚛️ Quantum leap! +280 Bux, 110 Player XP & 1,700 BP XP.' },
+    relic: { bux: 210, xp: 100, bpXp: 1300, desc: '🏺 Ancient Relic! +210 Bux, 100 Player XP & 1,300 BP XP.' }
+  };
+
+  if (moderateCodes[cleanCode]) {
+    const data = moderateCodes[cleanCode];
+    addBux(data.bux);
+    recordEconomyChange(data.bux, `Redeemed code: ${cleanCode}`);
+    if (typeof savePlayerXP === 'function' && typeof loadPlayerXP === 'function') {
+      savePlayerXP(loadPlayerXP() + data.xp);
+    }
+    try {
+      const currentBpXp = parseInt(localStorage.getItem('mehrbod-cards-bp-xp') || '0', 10);
+      localStorage.setItem('mehrbod-cards-bp-xp', (currentBpXp + data.bpXp).toString());
+      if (typeof renderBattlePassScreen === 'function') renderBattlePassScreen();
+    } catch (e) {}
+
+    recordRecentActivity(`Redeemed code "${cleanCode}" — ${data.desc}`);
+    showToast(data.desc, 4000);
+    if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
+
+    if (inputEl) inputEl.value = '';
+    redeemed.push(code);
+    if (cleanCode) redeemed.push(cleanCode);
+    saveRedeemedCodes(redeemed);
+    return;
+  }
+
   if (cleanCode === 'kareem') {
     const col = loadCollection();
     const unownedUnits = ALL_NONBLUE_UNIT_IDS.filter(id => !col.units.includes(id));
@@ -3303,6 +3350,20 @@ function redeemShopCode(rawCode) {
     if (inputEl) inputEl.value = '';
     return;
   } else if (cleanCode === 'leo2') {
+    if (localStorage.getItem('leo2_permanently_burned') === 'true') {
+      showToast("Code 'leo2' has already been permanently consumed! It cannot be used again.", 4500);
+      if (inputEl) inputEl.value = '';
+      return;
+    }
+
+    // Set permanently burned state immediately so it can never be used again
+    try {
+      localStorage.setItem('leo2_permanently_burned', 'true');
+    } catch (e) {}
+
+    // Reset all used/redeemed codes so other codes can be reused
+    saveRedeemedCodes([]);
+
     // Reset collection
     saveCollection({ units: [], spells: [], chips: [] });
     // Reset cosmetics and themes list
@@ -3335,7 +3396,7 @@ function redeemShopCode(rawCode) {
       try { renderBattlePassScreen(); } catch (e) {}
     }
     
-    showToast("🧹 SYSTEM RESET! Your Prism theme, cards, cosmetics, battlepass level, and Mehrbod's Bux have been wiped clean.", 5000);
+    showToast("🧹 SYSTEM RESET! All cards, cosmetics, battlepass progress, Bux, and code redemptions have been wiped. (leo2 is now permanently burned)", 5000);
     if (typeof Sound !== 'undefined' && Sound.select) Sound.select();
     if (inputEl) inputEl.value = '';
     return;
