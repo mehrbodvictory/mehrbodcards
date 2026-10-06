@@ -3008,34 +3008,6 @@ function redeemShopCode(rawCode) {
       if (typeof renderCollectionScreen === 'function') renderCollectionScreen();
     });
     Sound.sparkle();
-  } else if (cleanCode === 'coolsauce') {
-    grantCards(ALL_NONBLUE_UNIT_IDS.slice(), ALL_SPELL_IDS.slice(), ALL_CHIP_IDS.slice());
-    const owned = loadOwnedCosmetics();
-    COSMETIC_ITEMS.forEach(c => { if (!owned.includes(c.id)) owned.push(c.id); });
-    saveOwnedCosmetics(owned);
-    addBux(1000000);
-    recordEconomyChange(1000000, 'Redeemed code: coolsauce');
-    recordRecentActivity('Redeemed code "coolsauce" — unlocked everything + 1,000,000 Bux');
-    if (typeof checkMilestones === 'function') checkMilestones();
-    else if (typeof checkAchievements === 'function') checkAchievements();
-    updateThemeButtons();
-    showCodeRewardModal('Master Coolsauce', '👑', [
-      { icon: '🌟', title: 'Complete Collection Unlock', desc: 'All Units, Spells, Chips & Cosmetics unlocked' },
-      { icon: '💰', title: '+1,000,000 Mehrbod Bux', desc: 'Maximum vault treasury deposit' }
-    ]);
-    Sound.sparkle();
-  } else if (cleanCode === 'prism' || cleanCode === 'prismcore' || cleanCode === 'diamond' || cleanCode === 'darkmatter') {
-    try {
-      localStorage.setItem('theme_prism_unlocked', 'true');
-      localStorage.setItem('theme_darkmatter_unlocked', 'true');
-    } catch (e) {}
-    updateThemeButtons();
-    if (typeof applyTheme === 'function') applyTheme('prism');
-    recordRecentActivity('Redeemed secret code — unlocked & equipped Prism Core theme!');
-    showCodeRewardModal('Prism Core', '💎', [
-      { icon: '💎', title: 'Prism & Dark Matter Themes', desc: 'Unlocked and equipped living diamond crystal refractors' }
-    ]);
-    if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
   } else if (cleanCode === '2ndyear') {
     unlockValentineTheme();
     recordRecentActivity('Redeemed a secret code — unlocked the Valentine theme');
@@ -3330,6 +3302,43 @@ function redeemShopCode(rawCode) {
     initRayGunSystem();
     if (inputEl) inputEl.value = '';
     return;
+  } else if (cleanCode === 'leo2') {
+    // Reset collection
+    saveCollection({ units: [], spells: [], chips: [] });
+    // Reset cosmetics and themes list
+    saveOwnedCosmetics([]);
+    // Remove individual theme unlocks from local storage
+    try {
+      localStorage.removeItem('theme_prism_unlocked');
+      localStorage.removeItem('theme_darkmatter_unlocked');
+      localStorage.removeItem('theme_collector_unlocked');
+      localStorage.removeItem('theme_verity_unlocked');
+      localStorage.removeItem('theme_magma_unlocked');
+    } catch (e) {}
+    // Reset theme to 'dark'
+    if (typeof applyTheme === 'function') applyTheme('dark');
+    // Reset Mehrbod's Bux to zero
+    saveBux(0);
+    if (typeof updateBuxDisplay === 'function') updateBuxDisplay();
+    
+    // Reset Player XP and Battlepass
+    if (typeof savePlayerXP === 'function') savePlayerXP(0);
+    try {
+      localStorage.setItem('mehrbod-cards-bp-xp', '0');
+      localStorage.setItem('mehrbod-cards-bp-claimed', '{}');
+    } catch (e) {}
+    
+    // Update theme selections/collection screen if open
+    if (typeof updateThemeButtons === 'function') updateThemeButtons();
+    if (typeof renderCollectionScreen === 'function') renderCollectionScreen();
+    if (typeof renderBattlePassScreen === 'function') {
+      try { renderBattlePassScreen(); } catch (e) {}
+    }
+    
+    showToast("🧹 SYSTEM RESET! Your Prism theme, cards, cosmetics, battlepass level, and Mehrbod's Bux have been wiped clean.", 5000);
+    if (typeof Sound !== 'undefined' && Sound.select) Sound.select();
+    if (inputEl) inputEl.value = '';
+    return;
   } else if (cleanCode === 'barbod') {
     addBux(-5);
     recordEconomyChange(-5, 'Redeemed code: barbod (-5 Bux scam tax)');
@@ -3438,8 +3447,14 @@ function renderCosmeticsShop() {
   const cosmeticCard = (item) => {
     const isOwned = ownsCosmetic(item.id);
     const isEquipped = item.kind === 'sleeve' && equippedSleeve === item.id;
-    const discount = item.original && item.original > item.cost
-      ? Math.round((1 - item.cost / item.original) * 100) : 0;
+    
+    // Ensure the original price represents at least a 50% discount
+    const originalPrice = (item.original && item.original > item.cost)
+      ? Math.max(item.original, Math.round(item.cost * 2.15))
+      : 0;
+
+    const discount = originalPrice && originalPrice > item.cost
+      ? Math.round((1 - item.cost / originalPrice) * 100) : 0;
     const rarity = item.rarity || 'RARE';
     const rClass = rarityClass[rarity] || 'fn-rare';
 
@@ -3460,7 +3475,7 @@ function renderCosmeticsShop() {
               <div class="fn-price">
                 <span class="fn-coin">◉</span>
                 <span class="fn-cost">${item.cost.toLocaleString()}</span>
-                ${discount ? `<del class="fn-del">${item.original.toLocaleString()}</del>` : ''}
+                ${discount ? `<del class="fn-del">${originalPrice.toLocaleString()}</del>` : ''}
               </div>
             `}
           </div>
@@ -3507,7 +3522,7 @@ function renderCosmeticsShop() {
     <div class="fn-tile fn-epic ${isComplete ? 'collection-complete' : ''}" data-shop-buy="pack:${p.id}" ${isComplete ? 'style="border: 2px dashed #9ca3af; filter: grayscale(1) opacity(0.55);"' : ''}>
       <div class="fn-tile-bg" ${isComplete ? 'style="background: radial-gradient(circle at center, rgba(156, 163, 175, 0.15) 0%, rgba(0, 0, 0, 0) 70%);"' : ''}></div>
       <div class="fn-tile-top">
-        ${isComplete ? `<span class="fn-tag" style="background: linear-gradient(135deg, #9ca3af, #4b5563); color: #fff; font-weight: 800; border-radius: 4px; box-shadow: 0 0 8px rgba(156, 163, 175, 0.5); text-shadow: none;">✓ COMPLETE</span>` : `<span class="fn-tag">${p.tag || 'PACK'}</span>`}
+        ${isComplete ? `<span class="fn-tag" style="background: linear-gradient(135deg, #9ca3af, #4b5563); color: #fff; font-weight: 800; border-radius: 4px; box-shadow: 0 0 8px rgba(156, 163, 175, 0.5); text-shadow: none;">✓ COMPLETE</span>` : ''}
         <span class="fn-power-tag">${p.count} CARDS</span>
       </div>
       <div class="fn-tile-art">
@@ -3515,7 +3530,7 @@ function renderCosmeticsShop() {
       </div>
       <div class="fn-tile-footer">
         <div class="fn-tile-name" ${isComplete ? 'style="color: #9ca3af;"' : ''}>${p.name}</div>
-        <div class="fn-tile-sub">${isComplete ? '<strong style="color: #9ca3af; font-size: 0.8rem; text-shadow: 0 0 4px rgba(156, 163, 175, 0.3);">MAX COLLECTION!</strong>' : (p.badge || `${p.count} Cards Unbox`)}</div>
+        ${isComplete ? `<div class="fn-tile-sub"><strong style="color: #9ca3af; font-size: 0.8rem; text-shadow: 0 0 4px rgba(156, 163, 175, 0.3);">MAX COLLECTION!</strong></div>` : ''}
         <div class="fn-tile-price-row">
           <div class="fn-price">
             <span class="fn-coin">◉</span>
@@ -4622,7 +4637,7 @@ function openProfilePanel() {
   overlay.innerHTML = `
     <div class="profile-panel">
       <button class="feature-close">✕</button>
-      <div class="profile-hero" style="background: linear-gradient(135deg, rgba(10, 10, 15, 0.9), rgba(20, 20, 30, 0.9)), ${avatarGradCss}; border-bottom: 2px solid rgba(255, 255, 255, 0.1);">
+      <div class="profile-hero" style="background: ${avatarGradCss}; border-bottom: 2px solid rgba(255, 255, 255, 0.1);">
         <div class="profile-hero-row">
           <div class="profile-hero-avatar" id="profile-hero-avatar" title="Click to customize animated particle avatar" style="background:${avatarGradCss}">
             <canvas id="profile-hero-particle-canvas" class="profile-hero-particle-canvas" width="160" height="160"></canvas>
@@ -5049,6 +5064,9 @@ function openProfilePanel() {
       if (heroAvatar) heroAvatar.style.background = gradCss;
       const hudBtn = document.getElementById('profile-avatar-btn');
       if (hudBtn) hudBtn.style.background = gradCss;
+      
+      const profileHero = overlay.querySelector('.profile-hero');
+      if (profileHero) profileHero.style.background = gradCss;
 
       if (isCustom) {
         saveProfileGradient({ c1, c2, angle });
@@ -7898,14 +7916,9 @@ function initRayGunSystem() {
       setTimeout(() => { if (plasmaBlueMat) plasmaBlueMat.emissiveIntensity = 0.85; }, 100);
     }
 
-    // Dynamically calculate muzzle coordinates in screen pixels from emitterTip world position
-    const muzzleVec = new THREE.Vector3();
-    emitterTip.getWorldPosition(muzzleVec);
-    muzzleVec.project(camera);
-    
-    const startX = (muzzleVec.x * 0.5 + 0.5) * window.innerWidth;
-    const startY = (-(muzzleVec.y * 0.5) + 0.5) * window.innerHeight;
-
+    // Muzzle coordinates in screen pixels (bottom-left corner emitter tip)
+    const startX = 145;
+    const startY = window.innerHeight - 130;
     const dx = targetX - startX;
     const dy = targetY - startY;
     const dist = Math.hypot(dx, dy);
