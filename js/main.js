@@ -1,22 +1,5 @@
 
 // ---- Global state ------------------------------------------------------
-// Check if this is a fresh session (not a reload/refresh)
-if (sessionStorage.getItem('mehrbod_cards_fresh_load') !== 'true') {
-  sessionStorage.setItem('mehrbod_cards_fresh_load', 'true');
-  window.addEventListener('DOMContentLoaded', () => {
-    const intro = document.getElementById('intro-overlay');
-    if (intro) {
-      setTimeout(() => {
-        intro.style.opacity = '0';
-        setTimeout(() => intro.remove(), 1000);
-      }, 2500);
-    }
-  });
-} else {
-  const intro = document.getElementById('intro-overlay');
-  if (intro) intro.remove();
-}
-
 let state = null;
 let mode = null;           // 'bot' | 'mp'
 let localKey = null, remoteKey = null;

@@ -7898,9 +7898,14 @@ function initRayGunSystem() {
       setTimeout(() => { if (plasmaBlueMat) plasmaBlueMat.emissiveIntensity = 0.85; }, 100);
     }
 
-    // Muzzle coordinates in screen pixels (bottom-left corner emitter tip)
-    const startX = 145;
-    const startY = window.innerHeight - 130;
+    // Dynamically calculate muzzle coordinates in screen pixels from emitterTip world position
+    const muzzleVec = new THREE.Vector3();
+    emitterTip.getWorldPosition(muzzleVec);
+    muzzleVec.project(camera);
+    
+    const startX = (muzzleVec.x * 0.5 + 0.5) * window.innerWidth;
+    const startY = (-(muzzleVec.y * 0.5) + 0.5) * window.innerHeight;
+
     const dx = targetX - startX;
     const dy = targetY - startY;
     const dist = Math.hypot(dx, dy);
