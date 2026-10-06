@@ -2806,6 +2806,11 @@ const ALL_MEHRBOD_SHOP_CODES = [
     code: 'code',
     reward: '😱 Jumpscare Code: Rapid strobe lights, black screen & loud jumpscare + 100 Mehrbod Bux',
     icon: '😱'
+  },
+  {
+    code: 'barbod',
+    reward: '🗑️ Barbod\'s Scam: -5 Mehrbod Bux and 1 piece of worthless dust',
+    icon: '🗑️'
   }
 ];
 
@@ -3255,6 +3260,15 @@ function redeemShopCode(rawCode) {
       }
     }, 70);
 
+    const inputEl = document.getElementById('shop-code-input');
+    if (inputEl) inputEl.value = '';
+    return;
+  } else if (cleanCode === 'barbod') {
+    addBux(-5);
+    recordEconomyChange(-5, 'Redeemed code: barbod (-5 Bux scam tax)');
+    recordRecentActivity('Redeemed code "barbod" — Lost 5 Bux and received 1 worthless dust. Oof!');
+    showToast('🗑️ Barbod scam code! You lost 5 Bux and received 1 piece of useless dust.', 4500);
+    Sound.select();
     const inputEl = document.getElementById('shop-code-input');
     if (inputEl) inputEl.value = '';
     return;
