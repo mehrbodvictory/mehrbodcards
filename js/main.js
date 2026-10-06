@@ -1951,7 +1951,7 @@ function renderCosmeticsShop() {
 
   const items = [
     { id:'theme_mrmoney', kind:'theme', name:'Mr Money Theme', desc:'Turn the whole game into a money-soaked neon vault.', cost:500, tag:'FEATURED', art:'💸', original:750 },
-    { id:'theme_cyberneon', kind:'theme', name:'Cyber Neon Theme', desc:'A neon cyberpunk grid with drifting glyph particles and scanlines.', cost:600, tag:'NEW', art:'🌆', original:800 },
+    { id:'theme_cyberneon', kind:'theme', name:'Cyber Neon Theme', desc:'A neon cyberpunk grid with drifting glyph particles and scanlines.', cost:600, tag:'NEW', art:'⚡', original:800 },
     { id:'theme_abyss', kind:'theme', name:'Abyss Theme', desc:'A bioluminescent deep-sea vault - drifting jellyfish glow and rising bubbles.', cost:600, tag:'NEW', art:'🌊', original:800 },
     { id:'theme_magma', kind:'theme', name:'Magma Theme', desc:'A living volcanic core — undulating molten lava, rising fire embers, pulsing magma fissures, and seismic heat surges.', cost:600, tag:'NEW', art:'🌋', original:800 },
     { id:'victoryanim_meteor', kind:'victoryAnim', name:'Meteor Shower Victory', desc:'A blazing meteor shower streaks across the screen the instant you win - your opponent sees it too.', cost:250, tag:'NEW', art:'☄️', original:0 },
@@ -2081,7 +2081,7 @@ function renderCosmeticsShop() {
       ${section("Today's Best Sellers", "Fresh cosmetics. Pick your favorites before the shop rotates.", featured, 'featured')}
       ${section("Daily Picks", "A rotating selection of sleeves and victory effects.", daily, 'daily')}
       ${section("Bundles", "Special value drops and vault bundles.", [
-        { id:'bundle-vault', kind:'pack', name:'Vault Starter Bundle', desc:'Card Pack + premium cosmetic value drop.', cost:500, tag:'SAVE 25%', art:'💎', original:675 }
+        { id:'bundle-vault', kind:'pack', name:'Vault Starter Bundle', desc:'Card Pack + premium cosmetic value drop.', cost:500, tag:'SAVE 25%', art:'⭐', original:675 }
       ], 'bundles')}
       ${section("Collection", "Everything currently available in the shop.", collection, 'collection')}
 
@@ -2952,6 +2952,15 @@ const ACHIEVEMENTS = [
   { id: 'bux_500',         name: 'Vault Keeper',       desc: 'Hold 250 Mehrbod Bux at once.', icon: '🏦', reward: 10 },
   { id: 'daily_streak_3',  name: 'Creature of Habit',  desc: 'Complete the Daily Challenge 3 days in a row.', icon: '📅', reward: 15 },
   { id: 'mega_fusion',     name: 'Mega Fusion',        desc: 'Merge 3 or more cards together in a single fusion.', icon: '💥', reward: 12 },
+  // 8 New Moderate Difficulty Achievements
+  { id: 'speed_demon',       name: 'Speed Demon',        desc: 'Win a match in 3 rounds or fewer.', icon: '⚡', reward: 20 },
+  { id: 'deck_architect',    name: 'Deck Architect',     desc: 'Own 5 or more unique spells or chips.', icon: '📜', reward: 18 },
+  { id: 'wager_high_roller', name: 'High Stakes Victor', desc: 'Win a wager match with a stake of 50 Bux or higher.', icon: '💎', reward: 30 },
+  { id: 'trial_climber',     name: 'Tower Aspirant',     desc: 'Reach Floor 5 in the Trial Tower.', icon: '🗼', reward: 25 },
+  { id: 'card_hoarder',      name: 'Card Collector',     desc: 'Own 25 or more total cards across your collection.', icon: '📦', reward: 22 },
+  { id: 'combo_master',      name: 'Fusion Adept',       desc: 'Perform 5 or more fusions in a single match.', icon: '🔮', reward: 20 },
+  { id: 'streak_veteran',    name: 'Unstoppable Force',  desc: 'Achieve a win streak of 5 or more matches.', icon: '🔥', reward: 35 },
+  { id: 'tycoon',            name: 'Tycoon',             desc: 'Hold 1,000 Mehrbod Bux at once.', icon: '💰', reward: 25 },
 ];
 const ACHIEVEMENTS_KEY = 'mehrbod_achievements_v1';
 function loadUnlockedAchievements() {
@@ -2990,14 +2999,29 @@ function checkAchievements() {
   const stats = getBattleStats();
   const beaten = loadBeatenDifficulties();
   const daily = loadDailyChallengeState();
+  const col = typeof loadCollection === 'function' ? loadCollection() : { units: [], spells: [], chips: [] };
+  const tower = typeof loadTrialTowerState === 'function' ? loadTrialTowerState() : { best: 0 };
+  const bux = typeof loadBux === 'function' ? loadBux() : 0;
+  const history = typeof getMatchHistory === 'function' ? getMatchHistory() : [];
+
   if (stats.wins >= 1) unlockAchievement('first_win');
   if (stats.wins >= 10) unlockAchievement('win_10');
-  if (stats.streak >= 3) unlockAchievement('win_streak_3');
+  if (stats.streak >= 3 || stats.bestStreak >= 3) unlockAchievement('win_streak_3');
   if (beaten.includes('Master')) unlockAchievement('win_master');
   if (isAllDiffsUnlocked(beaten)) unlockAchievement('all_diffs');
   if (isCollectionComplete()) unlockAchievement('full_collection');
-  if (loadBux() >= 250) unlockAchievement('bux_500');
+  if (bux >= 250) unlockAchievement('bux_500');
   if ((daily.streak || 0) >= 3) unlockAchievement('daily_streak_3');
+
+  // 8 New Moderate Difficulty Achievements checks
+  if ((stats.bestStreak >= 5) || (stats.streak >= 5)) unlockAchievement('streak_veteran');
+  if ((tower.best || tower.floor || 0) >= 5) unlockAchievement('trial_climber');
+  if (bux >= 1000) unlockAchievement('tycoon');
+  if (((col.spells?.length || 0) + (col.chips?.length || 0)) >= 5) unlockAchievement('deck_architect');
+  if (((col.units?.length || 0) + (col.spells?.length || 0) + (col.chips?.length || 0)) >= 25) unlockAchievement('card_hoarder');
+  if (history.some(h => h.result === 'Win' && h.rounds <= 3)) unlockAchievement('speed_demon');
+  if (history.some(h => h.result === 'Win' && h.wager >= 50)) unlockAchievement('wager_high_roller');
+  if (history.some(h => (h.fusionsCount || 0) >= 5)) unlockAchievement('combo_master');
 }
 
 function checkMilestones() {
@@ -10042,7 +10066,7 @@ function renderQuests() {
       </div>
 
       <div class="deck-builder-heading" style="margin-top: 20px;">
-        <span>🎖️ Forge Achievements</span>
+        <span>🎖️ Achievements</span>
         <span style="font-size: 0.72rem; color: #fbbf24; font-weight: 700;">${unlockedAchievements.length}/${ACHIEVEMENTS.length}</span>
       </div>
       <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">

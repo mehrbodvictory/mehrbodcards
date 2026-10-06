@@ -298,33 +298,15 @@
     </div>
   </section>
 
-  <!-- ===== 2.5D STORY MODE CAMPAIGN SCREEN ===== -->
+  <!-- ===== STORY MODE SCREEN (COMING SOON) ===== -->
   <section id="screen-story-mode" class="screen hidden">
-    <div class="story-mode-layout">
-      <div class="story-mode-header">
-        <button class="link-btn back-btn glass-pill-btn" id="btn-story-mode-back">
-          <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-          <span>Back to Single Player</span>
-        </button>
-        <div class="story-title-cluster">
-          <h2 class="story-main-heading">Chronicles of Mehrbod</h2>
-          <span class="story-sub-heading">2.5D Isometric Odyssey</span>
-        </div>
-      </div>
-
-      <div class="story-chapter-tabs-bar" id="story-chapter-tabs"></div>
-
-      <div class="story-viewport-grid">
-        <div class="story-canvas-container">
-          <canvas id="story-2d5-canvas" width="700" height="480"></canvas>
-          <div class="story-canvas-hint">
-            <span>🖱️ Drag to pan camera · Click any node to inspect & deploy</span>
-          </div>
-        </div>
-
-        <div class="story-inspector-panel" id="story-node-inspector">
-          <!-- Populated dynamically by StoryMode engine -->
-        </div>
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; text-align: center;">
+      <div style="background: rgba(30, 41, 59, 0.85); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 20px; padding: 48px 36px; max-width: 480px; width: 100%; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+        <div style="font-size: 3.5rem; margin-bottom: 16px;">📖</div>
+        <h2 style="font-size: 2rem; font-weight: 800; color: #fff; margin-bottom: 10px;">Story Mode</h2>
+        <p style="font-size: 1.15rem; color: #ec4899; font-weight: 700; margin-bottom: 24px;">Coming Soon!</p>
+        <p style="font-size: 0.95rem; color: #94a3b8; line-height: 1.5; margin-bottom: 32px;">The epic campaigns and narrative chronicles are currently under development. Stay tuned for grand adventures!</p>
+        <button class="primary-btn back-btn" id="btn-story-mode-back" style="width: 100%; justify-content: center;">Back to Single Player</button>
       </div>
     </div>
   </section>

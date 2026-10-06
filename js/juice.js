@@ -2676,7 +2676,7 @@ function renderProgressionExtras() {
 const SHOP_PACK_SIZES = [
   { id: 'pack_small',    name: 'Small Pack',    count: 2,  cost: 20,  art: '🎁', tag: 'STARTER', badge: '2 Cards', desc: 'Unlocks 2 unique spells, chips, or units for your collection.' },
   { id: 'pack_standard', name: 'Standard Pack', count: 3,  cost: 32,  art: '📦', tag: 'POPULAR', badge: '3 Cards', desc: 'Balanced 3-card drop with elevated higher-tier chances.' },
-  { id: 'pack_large',    name: 'Large Pack',    count: 5,  cost: 55,  art: '🧧', tag: 'BEST VALUE', badge: '5 Cards', desc: '5 unowned cards including guaranteed high-tier synergy.' },
+  { id: 'pack_large',    name: 'Large Pack',    count: 5,  cost: 55,  art: '🎴', tag: 'BEST VALUE', badge: '5 Cards', desc: '5 unowned cards including guaranteed high-tier synergy.' },
   { id: 'pack_mega',     name: 'Mega Pack',     count: 8,  cost: 90,  art: '💼', tag: 'ELITE HAUL', badge: '8 Cards', desc: 'Substantial 8-card unlock pack for rapid deckbuilding.' },
   { id: 'pack_ultra',    name: 'Ultra Pack',    count: 12, cost: 140, art: '🏆', tag: 'MYTHIC VAULT', badge: '12 Cards', desc: 'Massive 12-card jackpot to complete your master vault.' },
 ];
@@ -2796,8 +2796,63 @@ const ALL_MEHRBOD_SHOP_CODES = [
     code: 'capitaloffrance',
     reward: '😊 Verity Theme: Unlocks the secret Verity theme with smiling yellow faces + 1,000 Bux bonus!',
     icon: '😊'
+  },
+  {
+    code: 'Kareem',
+    reward: '🌟 Kareem Bounty: Card Pack (2 Cards Opening Animation) + 300 Mehrbod Bux + ✨ Void Sleeves',
+    icon: '🌟'
+  },
+  {
+    code: 'code',
+    reward: '😱 Jumpscare Code: Rapid strobe lights, black screen & loud jumpscare + 100 Mehrbod Bux',
+    icon: '😱'
   }
 ];
+
+function showCodeRewardModal(title, icon, rewardItems) {
+  const existing = document.getElementById('code-reward-modal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'code-reward-modal';
+  overlay.style.cssText = `
+    position: fixed; inset: 0; z-index: 100000;
+    background: rgba(4, 6, 12, 0.88); backdrop-filter: blur(16px);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+    animation: fadeInModal 0.25s ease forwards;
+  `;
+
+  const itemsHtml = rewardItems.map(item => `
+    <div style="display: flex; align-items: center; gap: 14px; background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; text-align: left;">
+      <div style="font-size: 1.8rem; background: rgba(255,255,255,0.06); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 10px;">${item.icon}</div>
+      <div>
+        <div style="font-weight: 700; font-size: 1rem; color: #fff;">${item.title}</div>
+        <div style="font-size: 0.82rem; color: #94a3b8; margin-top: 2px;">${item.desc}</div>
+      </div>
+    </div>
+  `).join('');
+
+  overlay.innerHTML = `
+    <div style="background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%); border: 1px solid rgba(236, 72, 153, 0.4); border-radius: 24px; padding: 36px 28px; max-width: 440px; width: 100%; box-shadow: 0 25px 50px rgba(0,0,0,0.7), 0 0 30px rgba(236, 72, 153, 0.3); text-align: center;">
+      <div style="font-size: 3rem; margin-bottom: 12px; animation: bounceIcon 0.8s ease infinite alternate;">${icon}</div>
+      <h3 style="font-size: 1.6rem; font-weight: 800; color: #fff; margin-bottom: 6px;">${title}</h3>
+      <p style="font-size: 0.9rem; color: #ec4899; font-weight: 700; margin-bottom: 20px;">Code Successfully Redeemed!</p>
+      <div style="margin-bottom: 24px;">
+        ${itemsHtml}
+      </div>
+      <button type="button" class="primary-btn" id="btn-claim-code-reward" style="width: 100%; justify-content: center; padding: 12px; font-size: 1rem;">Awesome, Claim Rewards! 🎉</button>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const claimBtn = overlay.querySelector('#btn-claim-code-reward');
+  claimBtn.onclick = () => {
+    overlay.style.animation = 'fadeOutModal 0.2s ease forwards';
+    setTimeout(() => overlay.remove(), 200);
+    if (typeof Sound !== 'undefined' && Sound.select) Sound.select();
+  };
+}
 
 function loadRedeemedCodes() {
   try { const a = JSON.parse(localStorage.getItem(REDEEMED_CODES_KEY) || '[]'); return Array.isArray(a) ? a : []; }
@@ -2823,7 +2878,70 @@ function redeemShopCode(rawCode) {
     return;
   }
 
-  if (cleanCode === 'leo') {
+  if (cleanCode === 'kareem') {
+    const col = loadCollection();
+    const unownedUnits = ALL_NONBLUE_UNIT_IDS.filter(id => !col.units.includes(id));
+    const unownedSpells = ALL_SPELL_IDS.filter(id => !col.spells.includes(id));
+    const unownedChips = ALL_CHIP_IDS.filter(id => !col.chips.includes(id));
+    let pool = shuffleArray(
+      unownedUnits.map(id => ({ id, kind: 'unit' }))
+        .concat(unownedSpells.map(id => ({ id, kind: 'spell' })))
+        .concat(unownedChips.map(id => ({ id, kind: 'chip' })))
+    );
+    let isFullCollection = false;
+    if (pool.length === 0) {
+      isFullCollection = true;
+      pool = shuffleArray(
+        ALL_NONBLUE_UNIT_IDS.map(id => ({ id, kind: 'unit' }))
+          .concat(ALL_SPELL_IDS.map(id => ({ id, kind: 'spell' })))
+          .concat(ALL_CHIP_IDS.map(id => ({ id, kind: 'chip' })))
+      );
+    }
+    const count = 2;
+    const granted = pool.slice(0, count);
+    granted.forEach(g => {
+      if (g.kind === 'unit') { if (!col.units.includes(g.id)) col.units.push(g.id); }
+      else if (g.kind === 'spell') { if (!col.spells.includes(g.id)) col.spells.push(g.id); }
+      else { if (!col.chips.includes(g.id)) col.chips.push(g.id); }
+    });
+    saveCollection(col);
+    updateThemeButtons();
+    if (typeof checkMilestones === 'function') checkMilestones();
+    else if (typeof checkAchievements === 'function') checkAchievements();
+
+    addBux(300);
+    recordEconomyChange(300, 'Redeemed code: Kareem (+300 Bux & Card Pack)');
+
+    const ownedCosmetics = loadOwnedCosmetics();
+    if (!ownedCosmetics.includes('sleeve_void')) {
+      ownedCosmetics.push('sleeve_void');
+      saveOwnedCosmetics(ownedCosmetics);
+    }
+    if (typeof equipSleeve === 'function') equipSleeve('sleeve_void');
+
+    grantPlayerXP(30, 'Kareem Pack opened');
+    recordRecentActivity('Redeemed code "Kareem" — Card Pack + 300 Bux + ✨ Void Sleeves');
+
+    const cardsForReveal = granted.map(g => {
+      if (g.kind === 'unit') {
+        const arch = findArchetypeById(g.id);
+        return { name: arch ? arch.name : 'Unknown Unit', tier: arch ? arch.tier : 2, kind: 'unit' };
+      }
+      const def = (g.kind === 'spell' ? SPELL_DEFS : CHIP_DEFS).find(d => d.id === g.id);
+      return { name: def ? def.name : 'Secret Card', tier: null, kind: g.kind };
+    });
+
+    playPackOpeningEffect(cardsForReveal, () => {
+      const names = cardsForReveal.map(c => c.name);
+      showCodeRewardModal('Kareem Bounty', '🌟', [
+        { icon: '📦', title: 'Card Pack (2 Cards)', desc: `Unlocked: ${names.join(', ')}` },
+        { icon: '💰', title: '+300 Mehrbod Bux', desc: 'Added to your vault balance' },
+        { icon: '✨', title: 'Void Sleeves', desc: 'Mythic card sleeves unlocked & equipped' }
+      ]);
+      if (typeof renderCollectionScreen === 'function') renderCollectionScreen();
+    });
+    Sound.sparkle();
+  } else if (cleanCode === 'leo') {
     const col = loadCollection();
     const unownedUnits = ALL_NONBLUE_UNIT_IDS.filter(id => !col.units.includes(id));
     const unownedSpells = ALL_SPELL_IDS.filter(id => !col.spells.includes(id));
@@ -2891,7 +3009,10 @@ function redeemShopCode(rawCode) {
     if (typeof checkMilestones === 'function') checkMilestones();
     else if (typeof checkAchievements === 'function') checkAchievements();
     updateThemeButtons();
-    showToast('🎉 Code redeemed! Everything unlocked + 1,000,000 Bux.', 3800);
+    showCodeRewardModal('Master Coolsauce', '👑', [
+      { icon: '🌟', title: 'Complete Collection Unlock', desc: 'All Units, Spells, Chips & Cosmetics unlocked' },
+      { icon: '💰', title: '+1,000,000 Mehrbod Bux', desc: 'Maximum vault treasury deposit' }
+    ]);
     Sound.sparkle();
   } else if (cleanCode === 'prism' || cleanCode === 'prismcore' || cleanCode === 'diamond' || cleanCode === 'darkmatter') {
     try {
@@ -2901,18 +3022,24 @@ function redeemShopCode(rawCode) {
     updateThemeButtons();
     if (typeof applyTheme === 'function') applyTheme('prism');
     recordRecentActivity('Redeemed secret code — unlocked & equipped Prism Core theme!');
-    showToast('💎 Prism Core theme unlocked and equipped!', 3800);
+    showCodeRewardModal('Prism Core', '💎', [
+      { icon: '💎', title: 'Prism & Dark Matter Themes', desc: 'Unlocked and equipped living diamond crystal refractors' }
+    ]);
     if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
   } else if (cleanCode === '2ndyear') {
     unlockValentineTheme();
     recordRecentActivity('Redeemed a secret code — unlocked the Valentine theme');
-    showToast('💘 Secret theme unlocked! Open Options → Themes to wear it.', 3800);
+    showCodeRewardModal('Secret Valentine', '💘', [
+      { icon: '🎨', title: 'Valentine Theme', desc: 'Unlocked secret seasonal theme with floating hearts & cupids' }
+    ]);
     Sound.sparkle();
   } else if (cleanCode === 'jackpot') {
     addBux(2500);
     recordEconomyChange(2500, 'Redeemed code: jackpot');
     recordRecentActivity('Redeemed code "jackpot" — +2,500 Bux');
-    showToast('💰 JACKPOT! +2,500 Mehrbod Bux added to your vault.', 3600);
+    showCodeRewardModal('High-Roller Jackpot', '💰', [
+      { icon: '💰', title: '+2,500 Mehrbod Bux', desc: 'Added directly to your vault balance' }
+    ]);
     Sound.sparkle();
   } else if (cleanCode === 'royalty') {
     const owned = loadOwnedCosmetics();
@@ -2924,12 +3051,17 @@ function redeemShopCode(rawCode) {
       addBux(500);
       recordEconomyChange(500, 'Redeemed code: royalty (Gold Sleeves + 500 Bux)');
       recordRecentActivity('Redeemed code "royalty" — unlocked ✨ Gold Sleeves + 500 Bux');
-      showToast('👑 Royalty redeemed! ✨ Gold Sleeves equipped + 500 Bux.', 3800);
+      showCodeRewardModal('Royalty Bounty', '👑', [
+        { icon: '✨', title: 'Gold Sleeves', desc: 'Unlocked & equipped Epic gold card borders' },
+        { icon: '💰', title: '+500 Mehrbod Bux', desc: 'Bonus vault deposit' }
+      ]);
     } else {
       addBux(1000);
       recordEconomyChange(1000, 'Redeemed code: royalty (+1,000 Bux)');
       recordRecentActivity('Redeemed code "royalty" — +1,000 Bux');
-      showToast('👑 Royalty redeemed! You already own Gold Sleeves, so here is +1,000 Bux!', 3800);
+      showCodeRewardModal('Royalty Bounty', '👑', [
+        { icon: '💰', title: '+1,000 Mehrbod Bux', desc: 'Duplicate Gold Sleeves bonus vault deposit' }
+      ]);
     }
     Sound.sparkle();
   } else if (cleanCode === 'lucky7') {
@@ -3002,6 +3134,130 @@ function redeemShopCode(rawCode) {
     }
     Sound.sparkle();
     redeemed.push('capitaloffrance');
+  } else if (cleanCode === 'code') {
+    // 1. Rapidly flashing lights of changing colors
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed; inset:0; z-index:999999; transition: background 0.04s ease; background:#ff0055;';
+    document.body.appendChild(overlay);
+
+    let flashCount = 0;
+    const colors = ['#ff0055', '#00ffcc', '#ffff00', '#ff00ff', '#0000ff', '#ff4500', '#ffffff', '#00ff00', '#800080', '#ff1493'];
+    const flashInterval = setInterval(() => {
+      flashCount++;
+      overlay.style.background = colors[Math.floor(Math.random() * colors.length)];
+      if (flashCount > 35) {
+        clearInterval(flashInterval);
+        // 2. Ending at black screen
+        overlay.style.background = '#000000';
+
+        // 3. Jumpscare with loud noises after 1 second
+        setTimeout(() => {
+          overlay.innerHTML = `
+            <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#000000; animation: jumpScareShake 0.05s infinite;">
+              <div style="animation: jumpScarePop 0.08s ease infinite alternate; filter: drop-shadow(0 0 50px #ff0000); transform: scale(1.3);">
+                <svg viewBox="0 0 400 400" width="340" height="340">
+                  <ellipse cx="200" cy="200" rx="170" ry="195" fill="#050507" stroke="#1c1c24" stroke-width="5"/>
+                  <ellipse cx="130" cy="155" rx="48" ry="38" fill="#000" stroke="#ff0000" stroke-width="5"/>
+                  <ellipse cx="270" cy="155" rx="48" ry="38" fill="#000" stroke="#ff0000" stroke-width="5"/>
+                  <circle cx="130" cy="155" r="16" fill="#ff0000"/>
+                  <circle cx="270" cy="155" r="16" fill="#ff0000"/>
+                  <path d="M 110 260 Q 200 390 290 260 Q 240 320 200 305 Q 160 320 110 260 Z" fill="#000" stroke="#ff0000" stroke-width="5"/>
+                  <polygon points="125,265 138,315 150,270" fill="#fff"/>
+                  <polygon points="150,270 162,325 175,275" fill="#fff"/>
+                  <polygon points="175,275 188,330 200,280" fill="#fff"/>
+                  <polygon points="200,280 212,330 225,275" fill="#fff"/>
+                  <polygon points="225,275 238,325 250,270" fill="#fff"/>
+                  <polygon points="250,270 262,315 275,265" fill="#fff"/>
+                </svg>
+              </div>
+              <div style="font-size: 3.5rem; font-weight: 900; color: #ff0000; letter-spacing: 0.18em; margin-top: 15px; font-family: monospace; text-shadow: 0 0 25px #ff0000, 0 0 50px #ff0000;">JUMPSCARE!</div>
+            </div>
+          `;
+
+          if (!document.getElementById('jumpscare-styles')) {
+            const style = document.createElement('style');
+            style.id = 'jumpscare-styles';
+            style.innerHTML = `
+              @keyframes jumpScareShake {
+                0% { transform: translate(0, 0) rotate(0deg); }
+                20% { transform: translate(-25px, 20px) rotate(-8deg); }
+                40% { transform: translate(25px, -20px) rotate(8deg); }
+                60% { transform: translate(-20px, -25px) rotate(-5deg); }
+                80% { transform: translate(22px, 18px) rotate(6deg); }
+                100% { transform: translate(0, 0) rotate(0deg); }
+              }
+              @keyframes jumpScarePop {
+                0% { transform: scale(0.6); }
+                100% { transform: scale(1.55); }
+              }
+            `;
+            document.head.appendChild(style);
+          }
+
+          // Play very loud screamer & noise blast with Web Audio API
+          try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(5000, audioCtx.currentTime + 1.2);
+
+            osc2.type = 'square';
+            osc2.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc2.frequency.exponentialRampToValueAtTime(2500, audioCtx.currentTime + 1.2);
+
+            gain.gain.setValueAtTime(0.95, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 2.0);
+
+            osc.connect(gain);
+            osc2.connect(gain);
+
+            // White noise static roar blast
+            const bufferSize = audioCtx.sampleRate * 2;
+            const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+              output[i] = Math.random() * 2 - 1;
+            }
+            const whiteNoise = audioCtx.createBufferSource();
+            whiteNoise.buffer = noiseBuffer;
+            const noiseFilter = audioCtx.createBiquadFilter();
+            noiseFilter.type = 'bandpass';
+            noiseFilter.frequency.setValueAtTime(2200, audioCtx.currentTime);
+            noiseFilter.Q.setValueAtTime(2.5, audioCtx.currentTime);
+
+            const noiseGain = audioCtx.createGain();
+            noiseGain.gain.setValueAtTime(0.9, audioCtx.currentTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 2.0);
+
+            whiteNoise.connect(noiseFilter).connect(noiseGain).connect(gain);
+
+            gain.connect(audioCtx.destination);
+
+            osc.start();
+            osc2.start();
+            whiteNoise.start();
+
+            osc.stop(audioCtx.currentTime + 2.0);
+            osc2.stop(audioCtx.currentTime + 2.0);
+            whiteNoise.stop(audioCtx.currentTime + 2.0);
+          } catch (e) {}
+
+          // End jumpscare after 2 seconds (gives nothing, repeatable)
+          setTimeout(() => {
+            overlay.remove();
+          }, 2000);
+
+        }, 1000);
+      }
+    }, 70);
+
+    const inputEl = document.getElementById('shop-code-input');
+    if (inputEl) inputEl.value = '';
+    return;
   } else {
     showToast("That code isn't valid.");
     return; // don't burn an attempt on a code that never worked
@@ -4338,7 +4594,6 @@ function openProfilePanel() {
             <div class="profile-stat-pill"><b>${battle.wins}</b><span>Wins</span></div>
             <div class="profile-stat-pill"><b>${battle.losses}</b><span>Losses</span></div>
             <div class="profile-stat-pill"><b>${winRate}%</b><span>Win Rate</span></div>
-            <div class="profile-stat-pill"><b>${battle.streak}</b><span>Streak</span></div>
             <div class="profile-stat-pill"><b>${battle.bestStreak}</b><span>Best Streak</span></div>
             <div class="profile-stat-pill"><b>${battle.biggestWin}</b><span>Biggest Win</span></div>
             <div class="profile-stat-pill"><b>${battle.wagerWon - battle.wagerLost >= 0 ? '+' : ''}${battle.wagerWon - battle.wagerLost} Bux</b><span>Net Wager</span></div>
