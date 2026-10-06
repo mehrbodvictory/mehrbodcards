@@ -2874,13 +2874,17 @@ function redeemShopCode(rawCode) {
   const isVerityCode = (cleanCode === 'capitaloffrance' || cleanCode === 'paris' || cleanCode === 'france' || code === 'capital of france' || code === 'capitaloffrance');
 
   const redeemed = loadRedeemedCodes();
-  if (isVerityCode && (redeemed.includes('capitaloffrance') || redeemed.includes('paris') || redeemed.includes('capital of france'))) {
-    showToast('That code has already been redeemed on this device.');
-    return;
-  }
-  if (redeemed.includes(code) || (cleanCode && redeemed.includes(cleanCode))) {
-    showToast('That code has already been redeemed on this device.');
-    return;
+  
+  // Skip redeemed check only for 'barbod' to ensure it's truly repeatable
+  if (cleanCode !== 'barbod') {
+    if (isVerityCode && (redeemed.includes('capitaloffrance') || redeemed.includes('paris') || redeemed.includes('capital of france'))) {
+      showToast('That code has already been redeemed on this device.');
+      return;
+    }
+    if (redeemed.includes(code) || (cleanCode && redeemed.includes(cleanCode))) {
+      showToast('That code has already been redeemed on this device.');
+      return;
+    }
   }
 
   if (cleanCode === 'kareem') {
@@ -4157,8 +4161,86 @@ const ParticleAvatarEngine = (function() {
     if (typeof updateProfileAvatar === 'function') updateProfileAvatar();
   }
 
+  function getCustomFireColor() {
+    try {
+      return localStorage.getItem('mehrbod_custom_fire_color_v1') || '#f97316';
+    } catch (e) {
+      return '#f97316';
+    }
+  }
+  function saveCustomFireColor(hex) {
+    try {
+      localStorage.setItem('mehrbod_custom_fire_color_v1', hex);
+    } catch (e) {}
+  }
+
+  function showFireColorPickerModal(onConfirm) {
+    const existing = document.getElementById('fire-color-modal');
+    if (existing) existing.remove();
+
+    const currentColor = getCustomFireColor();
+
+    const modal = document.createElement('div');
+    modal.id = 'fire-color-modal';
+    modal.style.cssText = `
+      position: fixed; inset: 0; z-index: 100000;
+      background: rgba(4, 6, 12, 0.85); backdrop-filter: blur(12px);
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+      animation: fadeInModal 0.2s ease forwards;
+    `;
+
+    modal.innerHTML = `
+      <div style="background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%); border: 1px solid rgba(249, 115, 22, 0.4); border-radius: 20px; padding: 28px; max-width: 380px; width: 100%; box-shadow: 0 20px 40px rgba(0,0,0,0.6); text-align: center;">
+        <div style="font-size: 2.5rem; margin-bottom: 8px;">🔥</div>
+        <h3 style="font-size: 1.3rem; font-weight: 800; color: #fff; margin-bottom: 4px;">Customize Fire Particle Color</h3>
+        <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 20px;">Pick your custom flame shade using the RGB color picker below.</p>
+        
+        <div style="margin-bottom: 24px; display: flex; flex-direction: column; align-items: center; gap: 12px;">
+          <label style="font-size: 0.85rem; font-weight: 700; color: #f97316; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <span>Flame Color:</span>
+            <input type="color" id="fire-color-input" value="${currentColor}" style="width: 50px; height: 40px; border: none; border-radius: 8px; background: transparent; cursor: pointer;" />
+          </label>
+          <div id="fire-hex-preview" style="font-family: monospace; font-size: 0.85rem; color: #cbd5e1; background: rgba(255,255,255,0.06); padding: 4px 12px; border-radius: 6px;">${currentColor}</div>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+          <button type="button" class="secondary-btn" id="fire-color-cancel" style="flex:1; justify-content:center; padding: 10px;">Cancel</button>
+          <button type="button" class="primary-btn" id="fire-color-confirm" style="flex:1; justify-content:center; padding: 10px; background: linear-gradient(135deg, #f97316, #ef4444); border:none;">Confirm 🔥</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const colorInput = modal.querySelector('#fire-color-input');
+    const hexPreview = modal.querySelector('#fire-hex-preview');
+    colorInput.oninput = (e) => {
+      hexPreview.textContent = e.target.value;
+    };
+
+    modal.querySelector('#fire-color-cancel').onclick = () => {
+      modal.remove();
+    };
+
+    modal.querySelector('#fire-color-confirm').onclick = () => {
+      const selectedHex = colorInput.value;
+      saveCustomFireColor(selectedHex);
+      modal.remove();
+      if (typeof onConfirm === 'function') onConfirm(selectedHex);
+    };
+  }
+
   function getAvatar(id) {
-    return PARTICLE_AVATARS.find(a => a.id === id) || PARTICLE_AVATARS[0];
+    const av = PARTICLE_AVATARS.find(a => a.id === id) || PARTICLE_AVATARS[0];
+    if (av.id === 'solar-phoenix') {
+      const customHex = getCustomFireColor();
+      return {
+        ...av,
+        glowColor: customHex,
+        palette: [customHex, '#ef4444', '#fbbf24', '#fef08a', '#ffffff']
+      };
+    }
+    return av;
   }
 
   function createParticles(def, count = 24) {
@@ -4410,6 +4492,7 @@ const ParticleAvatarEngine = (function() {
     ctx.font = `${Math.round(14 * scale)}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    ctx.fillStyle = def.glowColor;
     ctx.fillText(def.icon, 0, 0);
 
     ctx.restore();
@@ -4455,9 +4538,12 @@ const ParticleAvatarEngine = (function() {
                   <span class="pac-element-tag">${av.element.split('/')[0].trim()}</span>
                 </div>
                 <div class="pac-desc">${av.desc}</div>
-                <button type="button" class="pac-equip-btn ${isEquipped ? 'active' : ''}">
-                  ${isEquipped ? '✓ Equipped' : 'Equip Avatar'}
-                </button>
+                <div style="display:flex; gap:6px; margin-top:6px;">
+                  <button type="button" class="pac-equip-btn ${isEquipped ? 'active' : ''}" style="flex:1;">
+                    ${isEquipped ? '✓ Equipped' : 'Equip Avatar'}
+                  </button>
+                  ${av.id === 'solar-phoenix' ? `<button type="button" class="secondary-btn small" id="btn-customize-fire" style="padding:4px 8px; font-size:0.7rem;" title="Choose Custom Fire Color">🎨 Color</button>` : ''}
+                </div>
               </div>
             </div>
           `;
@@ -4478,9 +4564,29 @@ const ParticleAvatarEngine = (function() {
 
     // Bind card equip clicks
     container.querySelectorAll('.particle-avatar-card').forEach(card => {
-      card.addEventListener('click', () => {
+      card.addEventListener('click', (e) => {
         const aId = card.dataset.avatarId;
         if (!aId) return;
+
+        const isColorBtn = e.target.closest('#btn-customize-fire');
+        if (aId === 'solar-phoenix' && (isColorBtn || !e.target.closest('.pac-equip-btn'))) {
+          showFireColorPickerModal((customHex) => {
+            setActiveAvatarId(aId);
+            if (typeof Sound !== 'undefined' && typeof Sound.playLevelUp === 'function') {
+              try { Sound.playLevelUp(); } catch (_) {}
+            }
+            showToast(`🔥 Equipped "Solar Phoenix" with custom flame color!`, 2500);
+
+            const heroCanvas = overlay.querySelector('#profile-hero-particle-canvas');
+            if (heroCanvas) {
+              attachCanvas(heroCanvas, aId, { size: 76, particleCount: 32 });
+            }
+            populateTab(overlay);
+            updateAll();
+          });
+          return;
+        }
+
         setActiveAvatarId(aId);
         if (typeof Sound !== 'undefined' && typeof Sound.playLevelUp === 'function') {
           try { Sound.playLevelUp(); } catch (_) {}
