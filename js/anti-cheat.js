@@ -84,7 +84,7 @@ const AntiCheat = (function() {
     }
     const player = action.player;
     const pState = (gameState.players && gameState.players[player]) || gameState[player];
-    if (pState && pState.ready && action.type !== 'readyPlacement' && action.type !== 'readyAttack') {
+    if (pState && (pState.readyPlacement || pState.readyAttack) && action.type !== 'readyPlacement' && action.type !== 'readyAttack') {
       return { valid: false, reason: 'Cannot perform tactical actions while in locked Ready state' };
     }
     return { valid: true };
@@ -95,8 +95,9 @@ const AntiCheat = (function() {
     const actType = action.type || action.kind;
     if (actType !== 'place') return { valid: true };
     const { slot } = action;
-    if (!Number.isInteger(slot) || slot < 0 || slot > 3) {
-      return { valid: false, reason: `Invalid board slot index: ${slot} (must be 0, 1, 2, or 3)` };
+    const maxSlots = (typeof BOARD_SIZE !== 'undefined') ? BOARD_SIZE : 6;
+    if (!Number.isInteger(slot) || slot < 0 || slot >= maxSlots) {
+      return { valid: false, reason: `Invalid board slot index: ${slot} (must be between 0 and ${maxSlots - 1})` };
     }
     return { valid: true };
   }
@@ -122,11 +123,17 @@ const AntiCheat = (function() {
   // --- Layer 6: Match Deck Pool & Card Placement Quota Verification ---
   function initMatchDeckTracker(hostConfig, guestConfig) {
     matchDeckUsage.clear();
-    if (hostConfig && hostConfig.units) {
-      matchDeckUsage.set('host', { allocated: { ...hostConfig.units }, used: {} });
+    if (hostConfig) {
+      const unitIds = Array.isArray(hostConfig.unitIds) ? hostConfig.unitIds : (Array.isArray(hostConfig.units) ? hostConfig.units : []);
+      const allocated = {};
+      unitIds.forEach(id => { allocated[id] = (allocated[id] || 0) + 1; });
+      matchDeckUsage.set('host', { allocated, used: {} });
     }
-    if (guestConfig && guestConfig.units) {
-      matchDeckUsage.set('guest', { allocated: { ...guestConfig.units }, used: {} });
+    if (guestConfig) {
+      const unitIds = Array.isArray(guestConfig.unitIds) ? guestConfig.unitIds : (Array.isArray(guestConfig.units) ? guestConfig.units : []);
+      const allocated = {};
+      unitIds.forEach(id => { allocated[id] = (allocated[id] || 0) + 1; });
+      matchDeckUsage.set('guest', { allocated, used: {} });
     }
   }
 

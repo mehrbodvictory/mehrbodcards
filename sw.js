@@ -22,11 +22,6 @@ const PRECACHE_ASSETS = [
   'js/rng.js',
   'js/sound.js',
   'js/ui.js',
-  'pwa-192x192.png',
-  'pwa-512x512.png',
-  'pwa-maskable-512x512.png',
-  'apple-touch-icon.png',
-  'favicon.ico',
   'manifest.json'
 ];
 

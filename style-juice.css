@@ -4795,23 +4795,23 @@ body:has(#battlepass-overlay:not(.hidden)) #top-left-hud {
 
 /* 1. Chronos Horizon (⏳ Tier 1) */
 html.theme-chronos, html.theme-theme_chronos {
-  --bg: #0d091e;
-  --bg2: #1e1535;
-  --panel: rgba(23, 15, 43, 0.94);
-  --line: rgba(245, 158, 11, 0.45);
-  --text: #fef3c7;
-  --muted: #d97706;
-  --accent: #f59e0b;
+  --bg: #1a0826;
+  --bg2: #2b0c3d;
+  --panel: rgba(43, 12, 61, 0.94);
+  --line: rgba(236, 72, 153, 0.45);
+  --text: #fdf2f8;
+  --muted: #db2777;
+  --accent: #ec4899;
   --tier1: #38bdf8;
   --tier2: #10b981;
   --tier3: #f43f5e;
-  --tier4: #f59e0b;
-  --bg-grad-1: #281747;
-  --bg-grad-2: #090514;
-  --glass-bg: linear-gradient(135deg, rgba(30, 21, 53, 0.75) 0%, rgba(13, 9, 30, 0.85) 100%);
-  --glass-border: rgba(245, 158, 11, 0.35);
-  --glass-border-highlight: rgba(251, 191, 36, 0.8);
-  --glass-shadow-3d: 0 16px 36px rgba(13, 9, 30, 0.8), 0 0 20px rgba(245, 158, 11, 0.2);
+  --tier4: #ec4899;
+  --bg-grad-1: #4a1259;
+  --bg-grad-2: #140321;
+  --glass-bg: linear-gradient(135deg, rgba(43, 12, 61, 0.75) 0%, rgba(26, 8, 38, 0.85) 100%);
+  --glass-border: rgba(236, 72, 153, 0.35);
+  --glass-border-highlight: rgba(244, 114, 182, 0.8);
+  --glass-shadow-3d: 0 16px 36px rgba(26, 8, 38, 0.8), 0 0 20px rgba(236, 72, 153, 0.25);
 }
 
 /* 2. Hyperdrive Cyber-Grid (🌆 Tier 10) */
@@ -5007,15 +5007,15 @@ html.theme-apex_sovereign, html.theme-theme_apex_sovereign {
 
 /* --- 1. CHRONOS HORIZON 3D STYLES --- */
 #theme-chronos-bg {
-  background: radial-gradient(circle at 50% 35%, #1e1535 0%, #0d091e 65%, #05030b 100%);
+  background: radial-gradient(circle at 50% 35%, #2b0c3d 0%, #1a0826 65%, #0d0214 100%);
 }
 .chronos-deep-void {
   position: absolute; inset: 0;
-  background: radial-gradient(circle, transparent 40%, rgba(5, 3, 11, 0.75) 100%);
+  background: radial-gradient(circle, transparent 40%, rgba(13, 2, 20, 0.75) 100%);
 }
 .chronos-temporal-grid {
   position: absolute; inset: 0;
-  background-image: radial-gradient(rgba(245, 158, 11, 0.15) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(236, 72, 153, 0.25) 1px, transparent 1px);
   background-size: 32px 32px;
   transform: perspective(600px) rotateX(60deg) scale(2);
   opacity: 0.6;
@@ -5032,8 +5032,8 @@ html.theme-apex_sovereign, html.theme-theme_apex_sovereign {
   100% { transform: translate(-50%, -50%) rotateX(-12deg) rotateY(15deg); }
 }
 .chronos-orrery-ring {
-  position: absolute; border-radius: 50%; border: 1.5px solid rgba(245, 158, 11, 0.35);
-  box-shadow: 0 0 15px rgba(245, 158, 11, 0.2), inset 0 0 15px rgba(245, 158, 11, 0.15);
+  position: absolute; border-radius: 50%; border: 1.5px solid rgba(236, 72, 153, 0.4);
+  box-shadow: 0 0 15px rgba(236, 72, 153, 0.3), inset 0 0 15px rgba(236, 72, 153, 0.2);
 }
 .chronos-orrery-ring.r1 {
   inset: 15px;
@@ -5050,8 +5050,8 @@ html.theme-apex_sovereign, html.theme-theme_apex_sovereign {
 }
 .chronos-gear-clockwork {
   position: absolute; border-radius: 50%;
-  border: 2px dashed rgba(245, 158, 11, 0.4);
-  box-shadow: inset 0 0 25px rgba(245, 158, 11, 0.25);
+  border: 2px dashed rgba(236, 72, 153, 0.45);
+  box-shadow: inset 0 0 25px rgba(236, 72, 153, 0.25);
 }
 .chronos-gear-clockwork.cg1 {
   width: 320px; height: 320px; top: 80px; left: 80px;
@@ -5070,18 +5070,18 @@ html.theme-apex_sovereign, html.theme-theme_apex_sovereign {
   transform: translate(-50%, -50%);
   width: 160px; height: 160px;
   border-radius: 50%;
-  background: radial-gradient(circle, #24143d 0%, #130a24 85%);
-  border: 2px solid #f59e0b;
-  box-shadow: 0 0 30px rgba(245, 158, 11, 0.4);
+  background: radial-gradient(circle, #3d0c4e 0%, #1c0528 85%);
+  border: 2px solid #ec4899;
+  box-shadow: 0 0 30px rgba(236, 72, 153, 0.5);
 }
 .chronos-clock-face {
   position: absolute; inset: 6px; border-radius: 50%;
-  border: 1px dotted rgba(245, 158, 11, 0.6);
+  border: 1px dotted rgba(244, 114, 182, 0.6);
 }
 .chronos-clock-hand {
   position: absolute; bottom: 50%; left: 50%;
   transform-origin: bottom center;
-  background: #f59e0b; border-radius: 4px;
+  background: #ec4899; border-radius: 4px;
 }
 .chronos-clock-hand.hand-h { width: 3px; height: 42px; animation: clockSpin 12s linear infinite; }
 .chronos-clock-hand.hand-m { width: 2px; height: 60px; animation: clockSpin 3s linear infinite; }
@@ -5096,13 +5096,13 @@ html.theme-apex_sovereign, html.theme-theme_apex_sovereign {
 }
 .chronos-pendulum-arm {
   width: 2px; height: 180px;
-  background: linear-gradient(180deg, #f59e0b 0%, rgba(245, 158, 11, 0.2) 100%);
+  background: linear-gradient(180deg, #ec4899 0%, rgba(236, 72, 153, 0.2) 100%);
   margin: 0 auto;
 }
 .chronos-pendulum-bob {
   width: 32px; height: 32px; border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #fde68a 0%, #f59e0b 60%, #b45309 100%);
-  box-shadow: 0 0 20px #f59e0b;
+  background: radial-gradient(circle at 35% 35%, #fbcfe8 0%, #ec4899 60%, #be185d 100%);
+  box-shadow: 0 0 20px #ec4899;
   transform: translate(-15px, -6px);
 }
 @keyframes pendulumSwing {
@@ -5111,7 +5111,7 @@ html.theme-apex_sovereign, html.theme-theme_apex_sovereign {
 }
 .chronos-temporal-haze {
   position: absolute; inset: 0;
-  background: radial-gradient(circle, rgba(168, 85, 247, 0.18) 0%, transparent 65%);
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.22) 0%, transparent 65%);
   animation: pulseHaze 5s ease-in-out infinite alternate;
 }
 @keyframes pulseHaze {
@@ -5120,7 +5120,7 @@ html.theme-apex_sovereign, html.theme-theme_apex_sovereign {
 }
 .chronos-stardust {
   position: absolute; width: 3px; height: 3px; border-radius: 50%;
-  background: #fde68a; box-shadow: 0 0 8px #f59e0b;
+  background: #fbcfe8; box-shadow: 0 0 8px #ec4899;
   animation: stardustRise 6s linear infinite;
 }
 .chronos-stardust.cs1 { left: 20%; bottom: -10px; animation-delay: 0s; }
