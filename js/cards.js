@@ -80,6 +80,9 @@ const ABILITIES = {
   orange_onplay_soulharvest:{ id: 'orange_onplay_soulharvest', label: 'On placement: gains +1 DMG for every card that has died so far this match (both sides combined).' },
   orange_ondeath_rebirth2: { id: 'orange_ondeath_rebirth2', label: 'On death: leaves behind 2 Blue cards on your board in its place, if you have room.' },
   orange_onplay_alphastrike:{ id: 'orange_onplay_alphastrike', label: 'On placement: immediately deals its DMG to a random enemy card, on top of attacking normally this round.' },
+  restore_spell: { id: 'restore_spell', label: 'On placement: restore 1 used spell card to your hand.' },
+  restore_chip:  { id: 'restore_chip', label: 'On placement: restore 1 used chip card to your hand.' },
+  add_random_blue: { id: 'add_random_blue', label: 'On placement: add a random Blue card to your hand.' },
 };
 
 // ---- Unit archetypes -------------------------------------------------------
@@ -122,8 +125,8 @@ const UNIT_ARCHETYPES = {
     { id: 'red_duelist',     name: 'Duelist',     sp: 4, pool: ['red_onattack_doublestrike'] },
     { id: 'red_hyperdrive_drake', name: 'Hyperdrive Drake', sp: 5, pool: ['red_onplay_dmgall1'] },
     { id: 'red_cyber_valkyrie',   name: 'Cyber Valkyrie',   sp: 6, pool: ['red_onplay_buffallies_dmg1'] },
-    { id: 'red_solar_phoenix',    name: 'Solar Phoenix',    sp: 6, pool: ['red_onplay_burn2'] },
-    { id: 'red_nebula_valkyrie',  name: 'Nebula Valkyrie',  sp: 6, pool: ['red_onattack_splash1'] },
+    { id: 'red_solar_phoenix',    name: 'Solar Phoenix',    sp: 6, pool: ['restore_chip'] },
+    { id: 'red_nebula_valkyrie',  name: 'Nebula Valkyrie',  sp: 6, pool: ['restore_spell'] },
   ],
   4: [ // Orange (Scaling 7 - 9 SP, max 9)
     { id: 'orange_colossus',   name: 'Colossus',   sp: 8, pool: ['onplay_dmg2'] },
@@ -135,9 +138,9 @@ const UNIT_ARCHETYPES = {
     { id: 'orange_phoenix',    name: 'Phoenix',    sp: 8, pool: ['orange_ondeath_rebirth2'] },
     { id: 'orange_warlord',    name: 'Warlord',    sp: 9, pool: ['orange_onplay_alphastrike'] },
     { id: 'orange_chronos_sentinel', name: 'Chronos Sentinel', sp: 8, pool: ['orange_onplay_refreshall'] },
-    { id: 'orange_singularity_devourer', name: 'Singularity Devourer', sp: 9, pool: ['orange_onplay_execute'] },
+    { id: 'orange_singularity_devourer', name: 'Void Entity', sp: 9, pool: ['add_random_blue'] },
     { id: 'orange_quantum_behemoth', name: 'Quantum Colossus', sp: 9, pool: ['orange_onplay_scaledmg'] },
-    { id: 'orange_apex_sovereign_unit', name: 'Apex Sovereign Sentinel', sp: 9, pool: ['orange_onplay_alphastrike'] },
+    { id: 'orange_apex_sovereign_unit', name: 'Jonesy', sp: 9, pool: ['orange_onplay_alphastrike'] },
   ],
 };
 
@@ -382,7 +385,126 @@ function validateDeckConfigIntegrity(config) {
   return { valid: true };
 }
 
+const PROFILE_GRADIENT_KEY = 'mehrbod-cards-profile-gradient';
+const PROFILE_GRADIENT_PRESETS = [
+  { name: 'Astral Void', c1: '#8b5cf6', c2: '#06b6d4', angle: 135 },
+  { name: 'Solar Flare', c1: '#f97316', c2: '#ef4444', angle: 135 },
+  { name: 'Cyber Neon', c1: '#06b6d4', c2: '#3b82f6', angle: 135 },
+  { name: 'Emerald Mint', c1: '#10b981', c2: '#059669', angle: 135 },
+  { name: 'Royal Gold', c1: '#eab308', c2: '#ca8a04', angle: 135 },
+  { name: 'Neon Rose', c1: '#ec4899', c2: '#8b5cf6', angle: 135 },
+  { name: 'Molten Magma', c1: '#dc2626', c2: '#7c2d12', angle: 135 },
+  { name: 'Deep Ocean', c1: '#0284c7', c2: '#1e1b4b', angle: 135 },
+  { name: 'Twilight Rune', c1: '#6366f1', c2: '#4338ca', angle: 135 },
+  { name: 'Pastel Sunset', c1: '#f472b6', c2: '#fb923c', angle: 135 },
+  { name: 'Toxic Volt', c1: '#84cc16', c2: '#0d9488', angle: 135 },
+  { name: 'Vampire Dark', c1: '#881337', c2: '#1c1917', angle: 135 },
+];
+
+function hslToHex(h, s, l) {
+  l /= 100;
+  const a = (s * Math.min(l, 1 - l)) / 100;
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+function loadProfileGradient() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PROFILE_GRADIENT_KEY) || 'null');
+    if (raw && typeof raw === 'object' && raw.c1 && raw.c2) {
+      return {
+        c1: String(raw.c1),
+        c2: String(raw.c2),
+        angle: typeof raw.angle === 'number' ? raw.angle : 135
+      };
+    }
+  } catch (e) {}
+  return null;
+}
+
+function saveProfileGradient(grad) {
+  try {
+    if (!grad) {
+      localStorage.removeItem(PROFILE_GRADIENT_KEY);
+    } else {
+      localStorage.setItem(PROFILE_GRADIENT_KEY, JSON.stringify({
+        c1: grad.c1,
+        c2: grad.c2,
+        angle: typeof grad.angle === 'number' ? grad.angle : 135
+      }));
+    }
+  } catch (e) {}
+}
+
+function profileAvatarColors(name) {
+  let hash = 0;
+  const safeName = String(name || 'Player');
+  for (let i = 0; i < safeName.length; i++) hash = safeName.charCodeAt(i) + ((hash << 5) - hash);
+  const hue1 = Math.abs(hash) % 360;
+  const hue2 = (hue1 + 40) % 360;
+  return {
+    c1: `hsl(${hue1}, 62%, 46%)`,
+    c2: `hsl(${hue2}, 62%, 34%)`,
+    hex1: hslToHex(hue1, 62, 46),
+    hex2: hslToHex(hue2, 62, 34)
+  };
+}
+
+function getActiveProfileGradient(name, isLocal = false) {
+  const localName = (typeof loadPlayerName === 'function' ? loadPlayerName() : '') || 'Player';
+  
+  // Only apply local player's saved custom gradient if this is explicitly the local player
+  if (isLocal || name === 'You') {
+    const custom = loadProfileGradient();
+    if (custom) {
+      return { ...custom, isCustom: true };
+    }
+    const myColors = profileAvatarColors(localName);
+    return {
+      c1: myColors.hex1 || '#8b5cf6',
+      c2: myColors.hex2 || '#06b6d4',
+      angle: 150,
+      isCustom: false
+    };
+  }
+
+  // Remote player / opponent profile gradient:
+  const targetName = String(name || 'Opponent');
+  // If remote player name is identical to local player's name, add a deterministic offset
+  // so the opponent never has the exact same visual colors as the local user
+  const effectiveName = (targetName === localName || targetName === 'Player') ? (targetName + '_opp_p2') : targetName;
+  const defaultColors = profileAvatarColors(effectiveName);
+  return {
+    c1: defaultColors.hex1 || '#ec4899',
+    c2: defaultColors.hex2 || '#f59e0b',
+    angle: 135,
+    isCustom: false
+  };
+}
+
+function getProfileAvatarGradientCss(name, customGrad, isLocal = false) {
+  if (customGrad && customGrad.c1 && customGrad.c2) {
+    return `linear-gradient(${customGrad.angle || 135}deg, ${customGrad.c1}, ${customGrad.c2})`;
+  }
+  if (typeof customGrad === 'string' && customGrad.startsWith('linear-gradient')) {
+    return customGrad;
+  }
+  const grad = getActiveProfileGradient(name, isLocal);
+  return `linear-gradient(${grad.angle || 135}deg, ${grad.c1}, ${grad.c2})`;
+}
+
 if (typeof window !== 'undefined') {
+  window.PROFILE_GRADIENT_KEY = PROFILE_GRADIENT_KEY;
+  window.PROFILE_GRADIENT_PRESETS = PROFILE_GRADIENT_PRESETS;
+  window.loadProfileGradient = loadProfileGradient;
+  window.saveProfileGradient = saveProfileGradient;
+  window.profileAvatarColors = profileAvatarColors;
+  window.getActiveProfileGradient = getActiveProfileGradient;
+  window.getProfileAvatarGradientCss = getProfileAvatarGradientCss;
   window.PLAYER_XP_KEY = PLAYER_XP_KEY;
   window.loadPlayerXP = loadPlayerXP;
   window.savePlayerXP = savePlayerXP;

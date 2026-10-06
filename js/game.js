@@ -167,6 +167,24 @@ function abilityTrigger(state, playerKey, card, trigger, slot, deathSource) {
         damageCard(state, enemyKey, pick, card.dmg, source);
         pushLog(state, `${card.name} strikes immediately for ${card.dmg}`);
       }
+    } else if (a === 'restore_spell') {
+      const usedSpells = me.graveyardSpells || []; // Assuming graveyardSpells tracks used spells
+      if (usedSpells.length > 0) {
+        const restored = usedSpells.pop();
+        me.spells.push(restored);
+        pushLog(state, `${card.name} restores a used spell: ${restored.name}`);
+      }
+    } else if (a === 'restore_chip') {
+      const usedChips = me.graveyardChips || []; // Assuming graveyardChips tracks used chips
+      if (usedChips.length > 0) {
+        const restored = usedChips.pop();
+        me.chips.push(restored);
+        pushLog(state, `${card.name} restores a used chip: ${restored.name}`);
+      }
+    } else if (a === 'add_random_blue') {
+      const blue = makeUnitCard(1, state._rng);
+      me.deck.push(blue);
+      pushLog(state, `${card.name} adds a random Blue card to your deck`);
     }
   } else if (trigger === 'ondeath') {
     if (a === 'ondeath_dmg2') {
@@ -817,7 +835,11 @@ function castSpell(state, playerKey, spellInstanceId, targetOwnerKey, targetSlot
   }
   if (removeSpell) {
     const removeIdx = p.spells.findIndex(s => s.id === spellInstanceId);
-    if (removeIdx !== -1) p.spells.splice(removeIdx, 1);
+    if (removeIdx !== -1) {
+      const removed = p.spells.splice(removeIdx, 1)[0];
+      p.graveyardSpells = p.graveyardSpells || [];
+      p.graveyardSpells.push(removed);
+    }
   }
   pushLog(state, `${playerKey} casts ${spell.name}`);
   return { ok: true };
@@ -847,6 +869,8 @@ function attachChip(state, playerKey, chipInstanceId, targetOwnerKey, targetSlot
   }
   if (chip.bonusDefend) targetCard.bonusDefendCharge = (targetCard.bonusDefendCharge || 0) + chip.bonusDefend;
   p.chips.splice(idx, 1);
+  p.graveyardChips = p.graveyardChips || [];
+  p.graveyardChips.push(chip);
   pushFx(state, { type: 'chipAttach', owner: targetOwnerKey, slot: targetSlot, chipName: chip.name, dmgAmount: chip.dmg || 0, hpAmount: chip.hp || 0, lifesteal: !!chip.lifesteal, bonusDefend: chip.bonusDefend || 0 });
   pushLog(state, `${playerKey} attaches ${chip.name} to ${targetCard.name}`);
   return { ok: true };

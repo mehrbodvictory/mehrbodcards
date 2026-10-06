@@ -2869,6 +2869,7 @@ function saveRedeemedCodes(list) {
 function redeemShopCode(rawCode) {
   const code = String(rawCode || '').trim().toLowerCase();
   const cleanCode = code.replace(/[^a-z0-9]/g, '');
+  const inputEl = document.getElementById('shop-code-input');
   if (!code && !cleanCode) { showToast('Enter a code first.'); return; }
 
   const isVerityCode = (cleanCode === 'capitaloffrance' || cleanCode === 'paris' || cleanCode === 'france' || code === 'capital of france' || code === 'capitaloffrance');
@@ -3264,7 +3265,69 @@ function redeemShopCode(rawCode) {
       }
     }, 70);
 
-    const inputEl = document.getElementById('shop-code-input');
+    if (inputEl) inputEl.value = '';
+    return;
+  } else if (cleanCode === 'dinnerbone') {
+    if (window.__dinnerboneEndTime && Date.now() < window.__dinnerboneEndTime) {
+      showToast('Dinnerbone is already active!');
+      if (inputEl) inputEl.value = '';
+      return;
+    }
+    const duration = 5 * 60 * 1000;
+    const endTime = Date.now() + duration;
+    window.__dinnerboneEndTime = endTime;
+
+    document.documentElement.style.transition = 'transform 2s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+    document.documentElement.style.transform = 'rotate(180deg)';
+    document.documentElement.style.height = '100vh';
+    document.documentElement.style.overflow = 'hidden';
+
+    const buxCounter = document.getElementById('bux-counter');
+    const buxVal = document.getElementById('bux-counter-value');
+    const buxIcon = buxCounter ? buxCounter.querySelector('.bux-icon-3d') : null;
+
+    const timerSpan = document.createElement('span');
+    timerSpan.id = 'dinnerbone-timer-display';
+    timerSpan.style.color = '#ff4757';
+    timerSpan.style.fontWeight = '900';
+    timerSpan.style.fontSize = '1.1rem';
+    timerSpan.style.textShadow = '0 0 10px rgba(255, 71, 87, 0.5)';
+    
+    if (buxVal) buxVal.style.display = 'none';
+    if (buxIcon) buxIcon.style.display = 'none';
+    if (buxCounter) buxCounter.appendChild(timerSpan);
+
+    const updateTimer = () => {
+      const remaining = Math.max(0, window.__dinnerboneEndTime - Date.now());
+      const mins = Math.floor(remaining / 60000);
+      const secs = Math.floor((remaining % 60000) / 1000);
+      timerSpan.textContent = `🙃 ${mins}:${secs.toString().padStart(2, '0')}`;
+
+      if (remaining > 0 && window.__dinnerboneEndTime > 0) {
+        requestAnimationFrame(updateTimer);
+      } else if (window.__dinnerboneEndTime > 0) {
+        document.documentElement.style.transform = '';
+        document.documentElement.style.overflow = '';
+        if (buxVal) buxVal.style.display = '';
+        if (buxIcon) buxIcon.style.display = '';
+        timerSpan.remove();
+        window.__dinnerboneEndTime = 0;
+        showToast('The Dinnerbone curse has been lifted!');
+      }
+    };
+    updateTimer();
+
+    showToast('🙃 DINNERBONE! Gravity has inverted for 5 minutes.', 4000);
+    Sound.sparkle();
+    if (inputEl) inputEl.value = '';
+    return;
+  } else if (cleanCode === 'beautyofannihilation') {
+    if (window.__rayGunActive) {
+      showToast('Ray Gun is already online!');
+      if (inputEl) inputEl.value = '';
+      return;
+    }
+    initRayGunSystem();
     if (inputEl) inputEl.value = '';
     return;
   } else if (cleanCode === 'barbod') {
@@ -3273,15 +3336,13 @@ function redeemShopCode(rawCode) {
     recordRecentActivity('Redeemed code "barbod" — Lost 5 Bux and received 1 worthless dust. Oof!');
     showToast('🗑️ Barbod scam code! You lost 5 Bux and received 1 piece of useless dust.', 4500);
     Sound.select();
-    const inputEl = document.getElementById('shop-code-input');
     if (inputEl) inputEl.value = '';
     return;
   } else {
     showToast("That code isn't valid.");
     return; // don't burn an attempt on a code that never worked
   }
-
-  const inputEl = document.getElementById('shop-code-input');
+  
   if (inputEl) inputEl.value = '';
 
   redeemed.push(code);
@@ -3592,118 +3653,6 @@ function renderCosmeticsShop() {
    ============================================================ */
 const ARENA_RANK_COLORS = ['#cd7f32', '#c0c0c0', '#ffd700', '#67e8f9', '#60a5fa', '#a78bfa', '#fb7185'];
 
-const PROFILE_GRADIENT_KEY = 'mehrbod-cards-profile-gradient';
-const PROFILE_GRADIENT_PRESETS = [
-  { name: 'Astral Void', c1: '#8b5cf6', c2: '#06b6d4', angle: 135 },
-  { name: 'Solar Flare', c1: '#f97316', c2: '#ef4444', angle: 135 },
-  { name: 'Cyber Neon', c1: '#06b6d4', c2: '#3b82f6', angle: 135 },
-  { name: 'Emerald Mint', c1: '#10b981', c2: '#059669', angle: 135 },
-  { name: 'Royal Gold', c1: '#eab308', c2: '#ca8a04', angle: 135 },
-  { name: 'Neon Rose', c1: '#ec4899', c2: '#8b5cf6', angle: 135 },
-  { name: 'Molten Magma', c1: '#dc2626', c2: '#7c2d12', angle: 135 },
-  { name: 'Deep Ocean', c1: '#0284c7', c2: '#1e1b4b', angle: 135 },
-  { name: 'Twilight Rune', c1: '#6366f1', c2: '#4338ca', angle: 135 },
-  { name: 'Pastel Sunset', c1: '#f472b6', c2: '#fb923c', angle: 135 },
-  { name: 'Toxic Volt', c1: '#84cc16', c2: '#0d9488', angle: 135 },
-  { name: 'Vampire Dark', c1: '#881337', c2: '#1c1917', angle: 135 },
-];
-
-function hslToHex(h, s, l) {
-  l /= 100;
-  const a = (s * Math.min(l, 1 - l)) / 100;
-  const f = n => {
-    const k = (n + h / 30) % 12;
-    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    return Math.round(255 * color).toString(16).padStart(2, '0');
-  };
-  return `#${f(0)}${f(8)}${f(4)}`;
-}
-
-function loadProfileGradient() {
-  try {
-    const raw = JSON.parse(localStorage.getItem(PROFILE_GRADIENT_KEY) || 'null');
-    if (raw && typeof raw === 'object' && raw.c1 && raw.c2) {
-      return {
-        c1: String(raw.c1),
-        c2: String(raw.c2),
-        angle: typeof raw.angle === 'number' ? raw.angle : 135
-      };
-    }
-  } catch (e) {}
-  return null;
-}
-
-function saveProfileGradient(grad) {
-  try {
-    if (!grad) {
-      localStorage.removeItem(PROFILE_GRADIENT_KEY);
-    } else {
-      localStorage.setItem(PROFILE_GRADIENT_KEY, JSON.stringify({
-        c1: grad.c1,
-        c2: grad.c2,
-        angle: typeof grad.angle === 'number' ? grad.angle : 135
-      }));
-    }
-  } catch (e) {}
-}
-
-function profileAvatarColors(name) {
-  let hash = 0;
-  const safeName = String(name || 'Player');
-  for (let i = 0; i < safeName.length; i++) hash = safeName.charCodeAt(i) + ((hash << 5) - hash);
-  const hue1 = Math.abs(hash) % 360;
-  const hue2 = (hue1 + 40) % 360;
-  return {
-    c1: `hsl(${hue1}, 62%, 46%)`,
-    c2: `hsl(${hue2}, 62%, 34%)`,
-    hex1: hslToHex(hue1, 62, 46),
-    hex2: hslToHex(hue2, 62, 34)
-  };
-}
-
-function getActiveProfileGradient(name, isLocal = false) {
-  const localName = (typeof loadPlayerName === 'function' ? loadPlayerName() : '') || 'Player';
-  
-  // Only apply local player's saved custom gradient if this is explicitly the local player
-  if (isLocal || name === 'You') {
-    const custom = loadProfileGradient();
-    if (custom) {
-      return { ...custom, isCustom: true };
-    }
-    const myColors = profileAvatarColors(localName);
-    return {
-      c1: myColors.hex1 || '#8b5cf6',
-      c2: myColors.hex2 || '#06b6d4',
-      angle: 150,
-      isCustom: false
-    };
-  }
-
-  // Remote player / opponent profile gradient:
-  const targetName = String(name || 'Opponent');
-  // If remote player name is identical to local player's name, add a deterministic offset
-  // so the opponent never has the exact same visual colors as the local user
-  const effectiveName = (targetName === localName || targetName === 'Player') ? (targetName + '_opp_p2') : targetName;
-  const defaultColors = profileAvatarColors(effectiveName);
-  return {
-    c1: defaultColors.hex1 || '#ec4899',
-    c2: defaultColors.hex2 || '#f59e0b',
-    angle: 135,
-    isCustom: false
-  };
-}
-
-function getProfileAvatarGradientCss(name, customGrad, isLocal = false) {
-  if (customGrad && customGrad.c1 && customGrad.c2) {
-    return `linear-gradient(${customGrad.angle || 135}deg, ${customGrad.c1}, ${customGrad.c2})`;
-  }
-  if (typeof customGrad === 'string' && customGrad.startsWith('linear-gradient')) {
-    return customGrad;
-  }
-  const grad = getActiveProfileGradient(name, isLocal);
-  return `linear-gradient(${grad.angle || 135}deg, ${grad.c1}, ${grad.c2})`;
-}
-
 function removeOldStatsFooterButton() {
   const btn = document.getElementById('btn-player-stats');
   if (!btn) return;
@@ -3772,6 +3721,20 @@ function updateProfileAvatar() {
   const letter = name.trim().charAt(0).toUpperCase() || 'P';
   letterEl.textContent = letter;
   btn.style.background = getProfileAvatarGradientCss(name, null, true);
+  
+  // Add/Update frame
+  let frame = btn.querySelector('.profile-frame');
+  if (!frame) {
+    frame = document.createElement('div');
+    frame.className = 'profile-frame';
+    btn.appendChild(frame);
+  }
+  frame.className = 'profile-frame';
+  const rank = arenaRankIndexFromRP(loadArenaRankState().rp);
+  if (rank >= 6) frame.classList.add('frame-gold');
+  else if (rank >= 4) frame.classList.add('frame-silver');
+  else if (rank >= 2) frame.classList.add('frame-bronze');
+  
   if (badge) badge.classList.toggle('hidden', !canPrestigeNow());
 
   const hudCanvas = document.getElementById('hud-profile-particle-canvas');
@@ -4312,8 +4275,7 @@ const ParticleAvatarEngine = (function() {
     animFrameId = null;
     if (attachedCanvases.size === 0) return;
     if (document.hidden) {
-      animFrameId = requestAnimationFrame(renderLoop);
-      return;
+      return; // Stop animation loop when tab is hidden
     }
     const dt = Math.min(0.05, (now - lastTime) / 1000);
     lastTime = now;
@@ -4615,7 +4577,8 @@ const ParticleAvatarEngine = (function() {
     attachCanvas,
     detachCanvas,
     updateAll,
-    populateTab
+    populateTab,
+    startLoop
   };
 })();
 window.ParticleAvatarEngine = ParticleAvatarEngine;
@@ -4626,7 +4589,7 @@ function openProfilePanel() {
 
   const name = loadPlayerName() || 'Player';
   const letter = name.trim().charAt(0).toUpperCase() || 'P';
-  const avatarGradCss = getProfileAvatarGradientCss(name);
+  const avatarGradCss = getProfileAvatarGradientCss(name, null, true);
 
   const info = playerLevelFromXP(loadPlayerXP());
   const xpPct = Math.round((info.into / info.need) * 100);
@@ -4659,7 +4622,7 @@ function openProfilePanel() {
   overlay.innerHTML = `
     <div class="profile-panel">
       <button class="feature-close">✕</button>
-      <div class="profile-hero">
+      <div class="profile-hero" style="background: linear-gradient(135deg, rgba(10, 10, 15, 0.9), rgba(20, 20, 30, 0.9)), ${avatarGradCss}; border-bottom: 2px solid rgba(255, 255, 255, 0.1);">
         <div class="profile-hero-row">
           <div class="profile-hero-avatar" id="profile-hero-avatar" title="Click to customize animated particle avatar" style="background:${avatarGradCss}">
             <canvas id="profile-hero-particle-canvas" class="profile-hero-particle-canvas" width="160" height="160"></canvas>
@@ -5018,7 +4981,7 @@ function openProfilePanel() {
   const renderPickerContent = () => {
     if (!pickerCard) return;
     const currentName = loadPlayerName() || 'Player';
-    const currentGrad = getActiveProfileGradient(currentName);
+    const currentGrad = getActiveProfileGradient(currentName, true);
     const defaultNameColors = profileAvatarColors(currentName);
     const isAuto = !currentGrad.isCustom;
 
@@ -7107,6 +7070,7 @@ window.playSkeletonStaffAnimation = playSkeletonStaffAnimation;
     isTabActive = !document.hidden;
     if (isTabActive) {
       window.__triggerThemeParallaxCheck();
+      ParticleAvatarEngine.startLoop(); // Restart particle loop
     }
   });
 
@@ -7119,6 +7083,939 @@ window.playSkeletonStaffAnimation = playSkeletonStaffAnimation;
 
   window.__triggerThemeParallaxCheck();
 })();
+
+/* ---------- Ray Gun Secret System ---------- */
+function initRayGunSystem() {
+  if (window.__rayGunActive) return;
+  window.__rayGunActive = true;
+  let plasmaBlueMat = null;
+
+  const container = document.createElement('div');
+  container.id = 'raygun-container';
+  container.style.cssText = 'position:fixed; bottom:-10px; left:-10px; width:420px; height:380px; z-index:9999999; pointer-events:none;';
+  document.body.appendChild(container);
+
+  if (typeof THREE === 'undefined') {
+    showToast('Three.js not loaded. Ray Gun failed to initialize.');
+    return;
+  }
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(40, 420 / 380, 0.1, 1000);
+  camera.position.set(2.8, 1.2, 8.8);
+  camera.lookAt(1.5, -0.1, 0);
+
+  const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+  renderer.setSize(420, 380);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+  container.appendChild(renderer.domElement);
+
+  // Studio lighting to highlight the glossy red and chrome metallic finishes
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+  scene.add(ambientLight);
+
+  const keyLight = new THREE.DirectionalLight(0xffffff, 1.2);
+  keyLight.position.set(6, 10, 8);
+  scene.add(keyLight);
+
+  const rimLight = new THREE.DirectionalLight(0x38bdf8, 0.9);
+  rimLight.position.set(-8, 6, -4);
+  scene.add(rimLight);
+
+  const fillLight = new THREE.DirectionalLight(0xffe4e6, 0.5);
+  fillLight.position.set(4, -4, 6);
+  scene.add(fillLight);
+
+  // --- Dynamic Textures ---
+  // 1. Iconic Battery Meter Gauge Texture
+  function createDialTexture() {
+    const cv = document.createElement('canvas');
+    cv.width = 512;
+    cv.height = 512;
+    const ctx = cv.getContext('2d');
+
+    // Dark dial face
+    const bgGrad = ctx.createRadialGradient(256, 256, 40, 256, 256, 256);
+    bgGrad.addColorStop(0, '#2d0a0f');
+    bgGrad.addColorStop(0.75, '#160406');
+    bgGrad.addColorStop(1, '#0a0102');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, 512, 512);
+
+    // Chrome outer ring
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 14;
+    ctx.beginPath();
+    ctx.arc(256, 256, 240, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Colored Meter Arc: Yellow to Vibrant Radioactive Green
+    const meterGrad = ctx.createLinearGradient(90, 256, 430, 256);
+    meterGrad.addColorStop(0, '#ef4444');
+    meterGrad.addColorStop(0.25, '#f59e0b');
+    meterGrad.addColorStop(0.65, '#84cc16');
+    meterGrad.addColorStop(1, '#10b981');
+
+    ctx.strokeStyle = meterGrad;
+    ctx.lineWidth = 36;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    // Arc across the upper-right hemisphere
+    ctx.arc(256, 256, 175, Math.PI * 0.9, Math.PI * 2.05);
+    ctx.stroke();
+
+    // Calibration hash marks
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 5;
+    for (let a = Math.PI * 0.95; a <= Math.PI * 2.0; a += 0.13) {
+      const x1 = 256 + Math.cos(a) * 150;
+      const y1 = 256 + Math.sin(a) * 150;
+      const x2 = 256 + Math.cos(a) * 195;
+      const y2 = 256 + Math.sin(a) * 195;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+
+    // Needle pointing into green zone
+    ctx.strokeStyle = '#dc2626';
+    ctx.lineWidth = 9;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(256, 256);
+    const needleAng = Math.PI * 1.8;
+    ctx.lineTo(256 + Math.cos(needleAng) * 165, 256 + Math.sin(needleAng) * 165);
+    ctx.stroke();
+
+    // Pivot hub
+    ctx.fillStyle = '#475569';
+    ctx.beginPath();
+    ctx.arc(256, 256, 28, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#f8fafc';
+    ctx.beginPath();
+    ctx.arc(256, 256, 12, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Gold lightning sigil
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(235, 330);
+    ctx.lineTo(270, 360);
+    ctx.lineTo(245, 380);
+    ctx.lineTo(275, 420);
+    ctx.stroke();
+
+    const tex = new THREE.CanvasTexture(cv);
+    tex.anisotropy = 4;
+    return tex;
+  }
+
+  // 2. Dorsal Fin Gold Scrollwork Texture
+  function createFinTexture() {
+    const cv = document.createElement('canvas');
+    cv.width = 512;
+    cv.height = 512;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#bd0d22';
+    ctx.fillRect(0, 0, 512, 512);
+
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 14;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // Flourish vine curves matching reference
+    ctx.beginPath();
+    ctx.moveTo(80, 420);
+    ctx.bezierCurveTo(180, 360, 220, 240, 380, 160);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(170, 330);
+    ctx.bezierCurveTo(120, 260, 160, 190, 240, 230);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(260, 250);
+    ctx.bezierCurveTo(220, 150, 300, 100, 360, 140);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(320, 200);
+    ctx.bezierCurveTo(360, 280, 430, 240, 460, 180);
+    ctx.stroke();
+
+    const tex = new THREE.CanvasTexture(cv);
+    tex.anisotropy = 4;
+    return tex;
+  }
+
+  // --- High-Grade Materials ---
+  const redCandyMat = new THREE.MeshStandardMaterial({
+    color: 0xbd0d22,
+    metalness: 0.65,
+    roughness: 0.22,
+  });
+
+  const darkRedMat = new THREE.MeshStandardMaterial({
+    color: 0x7a0512,
+    metalness: 0.58,
+    roughness: 0.32,
+  });
+
+  const chromeMat = new THREE.MeshStandardMaterial({
+    color: 0xf1f5f9,
+    metalness: 0.96,
+    roughness: 0.12,
+  });
+
+  const goldMat = new THREE.MeshStandardMaterial({
+    color: 0xf59e0b,
+    metalness: 0.85,
+    roughness: 0.25,
+  });
+
+  plasmaBlueMat = new THREE.MeshStandardMaterial({
+    color: 0x00d8ff,
+    emissive: 0x0284c7,
+    emissiveIntensity: 0.85,
+    roughness: 0.1,
+    metalness: 0.15,
+    transparent: true,
+    opacity: 0.92,
+  });
+  const bluePlasmaMat = plasmaBlueMat;
+
+  const glassMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.35,
+    roughness: 0.05,
+    metalness: 0.9,
+  });
+
+  const finTexture = createFinTexture();
+  const finMat = new THREE.MeshStandardMaterial({
+    map: finTexture,
+    metalness: 0.6,
+    roughness: 0.25,
+  });
+
+  const dialTexture = createDialTexture();
+  const dialFaceMat = new THREE.MeshStandardMaterial({
+    map: dialTexture,
+    roughness: 0.2,
+    metalness: 0.3,
+  });
+
+  // --- Master Ray Gun Model Group ---
+  const gunGroup = new THREE.Group();
+  scene.add(gunGroup);
+
+  // 1. FRONT TRUMPET CONE MUZZLE (FUNNEL)
+  const funnelOuter = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.75, 0.28, 1.5, 32, 1, false),
+    redCandyMat
+  );
+  funnelOuter.rotation.z = Math.PI / 2;
+  funnelOuter.position.set(3.45, 0.5, 0);
+  gunGroup.add(funnelOuter);
+
+  // Trumpet chrome rim lip
+  const funnelRim = new THREE.Mesh(
+    new THREE.TorusGeometry(0.75, 0.045, 16, 32),
+    chromeMat
+  );
+  funnelRim.rotation.y = Math.PI / 2;
+  funnelRim.position.set(4.2, 0.5, 0);
+  gunGroup.add(funnelRim);
+
+  // Gold decorative band around funnel
+  const funnelGoldBand = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.68, 0.65, 0.16, 32),
+    goldMat
+  );
+  funnelGoldBand.rotation.z = Math.PI / 2;
+  funnelGoldBand.position.set(3.9, 0.5, 0);
+  gunGroup.add(funnelGoldBand);
+
+  // Gold stud rivets around the band
+  for (let i = 0; i < 8; i++) {
+    const ang = (i / 8) * Math.PI * 2;
+    const stud = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), goldMat);
+    stud.position.set(3.9, 0.5 + Math.cos(ang) * 0.68, Math.sin(ang) * 0.68);
+    gunGroup.add(stud);
+  }
+
+  // Funnel interior cone
+  const funnelInner = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.24, 0.7, 1.45, 32, 1, true),
+    darkRedMat
+  );
+  funnelInner.rotation.z = Math.PI / 2;
+  funnelInner.position.set(3.45, 0.5, 0);
+  gunGroup.add(funnelInner);
+
+  // Central Emitter Antenna Probe (Rod extending straight through cone)
+  const emitterRod = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.04, 0.04, 2.5, 16),
+    chromeMat
+  );
+  emitterRod.rotation.z = Math.PI / 2;
+  emitterRod.position.set(3.95, 0.5, 0);
+  gunGroup.add(emitterRod);
+
+  // Iconic Glossy Red Emitter Bead at very tip
+  const emitterTip = new THREE.Mesh(
+    new THREE.SphereGeometry(0.14, 16, 16),
+    redCandyMat
+  );
+  emitterTip.position.set(5.22, 0.5, 0);
+  gunGroup.add(emitterTip);
+
+  // Dynamic muzzle light for shot flashes
+  const muzzleFlashLight = new THREE.PointLight(0x22c55e, 0, 12);
+  muzzleFlashLight.position.set(5.3, 0.5, 0);
+  gunGroup.add(muzzleFlashLight);
+
+  // 2. FRONT RETICLE SIGHT (TALL SILVER POST WITH OCTAGON CROSSHAIR)
+  const sightPost = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.025, 0.025, 1.4, 12),
+    chromeMat
+  );
+  sightPost.position.set(2.4, 1.25, 0);
+  gunGroup.add(sightPost);
+
+  // Octagon crosshairs reticle
+  const sightRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.32, 0.03, 8, 8),
+    chromeMat
+  );
+  sightRing.rotation.y = Math.PI / 2;
+  sightRing.position.set(2.4, 1.95, 0);
+  gunGroup.add(sightRing);
+
+  // Internal crosshair bars
+  const crossHoriz = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.012, 0.012, 0.6, 8),
+    chromeMat
+  );
+  crossHoriz.rotation.x = Math.PI / 2;
+  crossHoriz.position.set(2.4, 1.95, 0);
+  gunGroup.add(crossHoriz);
+
+  const crossVert = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.012, 0.012, 0.6, 8),
+    chromeMat
+  );
+  crossVert.position.set(2.4, 1.95, 0);
+  gunGroup.add(crossVert);
+
+  // 3. STEPPED FLUTED BARREL ASSEMBLY
+  const barrelMid = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.26, 0.28, 0.9, 24),
+    chromeMat
+  );
+  barrelMid.rotation.z = Math.PI / 2;
+  barrelMid.position.set(2.25, 0.5, 0);
+  gunGroup.add(barrelMid);
+
+  // Ribbed barrel rings
+  for (let i = 0; i < 3; i++) {
+    const bRing = new THREE.Mesh(
+      new THREE.TorusGeometry(0.32, 0.045, 12, 24),
+      chromeMat
+    );
+    bRing.rotation.y = Math.PI / 2;
+    bRing.position.set(2.0 + i * 0.25, 0.5, 0);
+    gunGroup.add(bRing);
+  }
+
+  // 4. SWEPT DORSAL FIN (SHARK FIN WITH GOLD SCROLLWORK)
+  const finShape = new THREE.Shape();
+  finShape.moveTo(0, 0);
+  finShape.lineTo(0.95, 0);
+  finShape.quadraticCurveTo(0.35, 0.85, -0.4, 1.05);
+  finShape.quadraticCurveTo(-0.1, 0.4, 0, 0);
+
+  const finGeom = new THREE.ExtrudeGeometry(finShape, {
+    depth: 0.16,
+    bevelEnabled: true,
+    bevelSegments: 3,
+    steps: 1,
+    bevelSize: 0.03,
+    bevelThickness: 0.03,
+  });
+  finGeom.center();
+
+  const dorsalFin = new THREE.Mesh(finGeom, finMat);
+  dorsalFin.position.set(1.68, 1.08, 0);
+  gunGroup.add(dorsalFin);
+
+  // Gold trim outline around fin
+  const finGoldTrim = new THREE.Mesh(
+    new THREE.BoxGeometry(0.9, 0.08, 0.2),
+    goldMat
+  );
+  finGoldTrim.position.set(1.68, 0.58, 0);
+  gunGroup.add(finGoldTrim);
+
+  // Gold "Z" collar badge below the fin
+  const collarBadge = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.38, 0.42, 0.35, 24),
+    darkRedMat
+  );
+  collarBadge.rotation.z = Math.PI / 2;
+  collarBadge.position.set(1.68, 0.5, 0);
+  gunGroup.add(collarBadge);
+
+  // 5. BLUE PLASMA CANISTER (URANIUM BATTERY CELL)
+  const plasmaCell = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.48, 0.48, 1.65, 32),
+    bluePlasmaMat
+  );
+  plasmaCell.rotation.z = Math.PI / 2;
+  plasmaCell.position.set(0.85, 0.5, 0);
+  gunGroup.add(plasmaCell);
+
+  // Plasma battery interior light
+  const plasmaPointLight = new THREE.PointLight(0x00d4ff, 0.8, 4);
+  plasmaPointLight.position.set(0.85, 0.5, 0);
+  gunGroup.add(plasmaPointLight);
+
+  // Red front and rear caps of the plasma cell
+  const frontCap = new THREE.Mesh(
+    new THREE.SphereGeometry(0.48, 24, 24, 0, Math.PI * 2, 0, Math.PI / 2),
+    redCandyMat
+  );
+  frontCap.rotation.z = -Math.PI / 2;
+  frontCap.position.set(1.67, 0.5, 0);
+  gunGroup.add(frontCap);
+
+  const rearCap = new THREE.Mesh(
+    new THREE.SphereGeometry(0.48, 24, 24, 0, Math.PI * 2, 0, Math.PI / 2),
+    redCandyMat
+  );
+  rearCap.rotation.z = Math.PI / 2;
+  rearCap.position.set(0.03, 0.5, 0);
+  gunGroup.add(rearCap);
+
+  // 3 Curved Chrome Retention Clamps / Brackets over plasma cell
+  for (let i = 0; i < 3; i++) {
+    const bracketX = 0.42 + i * 0.42;
+    const bracket = new THREE.Mesh(
+      new THREE.TorusGeometry(0.52, 0.045, 12, 32, Math.PI),
+      chromeMat
+    );
+    bracket.position.set(bracketX, 0.5, 0);
+    gunGroup.add(bracket);
+
+    // Support lugs on both sides
+    const lugL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.12), chromeMat);
+    lugL.position.set(bracketX, 0.5, 0.52);
+    gunGroup.add(lugL);
+
+    const lugR = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.12), chromeMat);
+    lugR.position.set(bracketX, 0.5, -0.52);
+    gunGroup.add(lugR);
+  }
+
+  // Top chrome runner rod connecting brackets
+  const topRunner = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.035, 0.035, 1.45, 12),
+    chromeMat
+  );
+  topRunner.rotation.z = Math.PI / 2;
+  topRunner.position.set(0.85, 1.02, 0);
+  gunGroup.add(topRunner);
+
+  // 6. LOWER BULBOUS POD (UNDER-CHAMBER)
+  const lowerPod = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.46, 0.42, 1.1, 24),
+    redCandyMat
+  );
+  lowerPod.rotation.z = Math.PI / 2;
+  lowerPod.position.set(0.78, -0.25, 0);
+  gunGroup.add(lowerPod);
+
+  const podFrontCap = new THREE.Mesh(
+    new THREE.SphereGeometry(0.46, 16, 16),
+    redCandyMat
+  );
+  podFrontCap.position.set(1.33, -0.25, 0);
+  gunGroup.add(podFrontCap);
+
+  const podRearCap = new THREE.Mesh(
+    new THREE.SphereGeometry(0.42, 16, 16),
+    redCandyMat
+  );
+  podRearCap.position.set(0.23, -0.25, 0);
+  gunGroup.add(podRearCap);
+
+  // Chrome pod socket cuff for hose
+  const podCuff = new THREE.Mesh(
+    new THREE.TorusGeometry(0.18, 0.05, 12, 20),
+    chromeMat
+  );
+  podCuff.rotation.x = Math.PI / 2;
+  podCuff.position.set(0.78, -0.7, 0.1);
+  gunGroup.add(podCuff);
+
+  // 7. SWEEPING UNDER-CABLE / HOSE (FROM LOWER POD TO BOTTOM OF GRIP)
+  const hoseCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.78, -0.7, 0.08),
+    new THREE.Vector3(0.72, -1.25, 0.12),
+    new THREE.Vector3(0.42, -1.85, 0.14),
+    new THREE.Vector3(-0.15, -2.25, 0.08),
+    new THREE.Vector3(-0.68, -2.42, 0.0),
+  ]);
+
+  const hoseGeom = new THREE.TubeGeometry(hoseCurve, 32, 0.058, 12, false);
+  const hoseMesh = new THREE.Mesh(hoseGeom, redCandyMat);
+  gunGroup.add(hoseMesh);
+
+  // Chrome grip connector cuff
+  const gripHoseCuff = new THREE.Mesh(
+    new THREE.TorusGeometry(0.12, 0.04, 12, 16),
+    chromeMat
+  );
+  gripHoseCuff.position.set(-0.68, -2.42, 0);
+  gunGroup.add(gripHoseCuff);
+
+  // 8. MAIN RECEIVER BODY (HOUSING)
+  const receiverMain = new THREE.Mesh(
+    new THREE.BoxGeometry(2.35, 1.85, 1.25),
+    redCandyMat
+  );
+  receiverMain.position.set(-0.65, 0.15, 0);
+  gunGroup.add(receiverMain);
+
+  // Rounded top shoulders for receiver
+  const receiverTopCurve = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.62, 0.62, 2.35, 24),
+    redCandyMat
+  );
+  receiverTopCurve.rotation.z = Math.PI / 2;
+  receiverTopCurve.position.set(-0.65, 0.95, 0);
+  gunGroup.add(receiverTopCurve);
+
+  // 3 Horizontal Chrome Speed Stripes on each side
+  for (let side = -1; side <= 1; side += 2) {
+    for (let s = 0; s < 3; s++) {
+      const stripe = new THREE.Mesh(
+        new THREE.BoxGeometry(1.65, 0.065, 0.05),
+        chromeMat
+      );
+      stripe.position.set(-0.65, -0.05 + s * 0.18, side * 0.64);
+      gunGroup.add(stripe);
+    }
+  }
+
+  // Rear Dual-Loop Reload Latch / Hammer
+  const latchPost = new THREE.Mesh(
+    new THREE.BoxGeometry(0.2, 0.4, 0.35),
+    chromeMat
+  );
+  latchPost.position.set(-1.7, 0.9, 0);
+  gunGroup.add(latchPost);
+
+  // Dual metallic wire hoops sticking up and back
+  for (let side = -1; side <= 1; side += 2) {
+    const loop = new THREE.Mesh(
+      new THREE.TorusGeometry(0.32, 0.04, 12, 24, Math.PI * 1.5),
+      chromeMat
+    );
+    loop.rotation.z = -Math.PI / 4;
+    loop.position.set(-1.85, 1.25, side * 0.22);
+    gunGroup.add(loop);
+  }
+
+  // Rear chrome knob / buffer
+  const rearKnob = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.18, 0.22, 0.45, 16),
+    chromeMat
+  );
+  rearKnob.rotation.z = Math.PI / 2;
+  rearKnob.position.set(-1.95, 0.15, 0);
+  gunGroup.add(rearKnob);
+
+  // 9. CIRCULAR BATTERY GAUGE / METER DIAL (PROMINENT RIGHT SIDE)
+  const dialGroup = new THREE.Group();
+  dialGroup.position.set(-0.62, 0.35, 0.62);
+  gunGroup.add(dialGroup);
+
+  // Raised bezel casing
+  const dialBezel = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.68, 0.74, 0.24, 32),
+    redCandyMat
+  );
+  dialBezel.rotation.x = Math.PI / 2;
+  dialGroup.add(dialBezel);
+
+  // Chrome bezel rim ring
+  const dialChromeRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.69, 0.04, 16, 32),
+    chromeMat
+  );
+  dialChromeRing.position.set(0, 0, 0.12);
+  dialGroup.add(dialChromeRing);
+
+  // Dial face with canvas texture
+  const dialFace = new THREE.Mesh(
+    new THREE.CircleGeometry(0.64, 32),
+    dialFaceMat
+  );
+  dialFace.position.set(0, 0, 0.13);
+  dialGroup.add(dialFace);
+
+  // Glass dome cover
+  const dialGlass = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.65, 0.65, 0.04, 32),
+    glassMat
+  );
+  dialGlass.rotation.x = Math.PI / 2;
+  dialGlass.position.set(0, 0, 0.16);
+  dialGroup.add(dialGlass);
+
+  // 10. ERGONOMIC PISTOL GRIP & TRIGGER
+  const gripGroup = new THREE.Group();
+  gripGroup.position.set(-0.72, -0.65, 0);
+  gunGroup.add(gripGroup);
+
+  // Angled grip handle
+  const gripMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.82, 2.1, 0.76),
+    redCandyMat
+  );
+  gripMesh.rotation.z = -0.28;
+  gripMesh.position.set(0, -0.75, 0);
+  gripGroup.add(gripMesh);
+
+  // 6 Chrome grip ladder rungs along the rear backstrap
+  for (let r = 0; r < 6; r++) {
+    const rung = new THREE.Mesh(
+      new THREE.BoxGeometry(0.12, 0.07, 0.62),
+      chromeMat
+    );
+    // Calculated along the angled back of the grip
+    const yOff = -0.15 - r * 0.24;
+    const xOff = -0.38 + yOff * Math.tan(-0.28);
+    rung.position.set(xOff, yOff, 0);
+    gripGroup.add(rung);
+  }
+
+  // Chrome grip baseplate
+  const gripBase = new THREE.Mesh(
+    new THREE.BoxGeometry(0.92, 0.18, 0.84),
+    chromeMat
+  );
+  gripBase.rotation.z = -0.28;
+  gripBase.position.set(-0.35, -1.82, 0);
+  gripGroup.add(gripBase);
+
+  // Trigger guard
+  const guardCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.25, 0.0, 0),
+    new THREE.Vector3(0.28, -0.3, 0),
+    new THREE.Vector3(0.22, -0.9, 0),
+    new THREE.Vector3(-0.15, -1.05, 0),
+  ]);
+  const guardMesh = new THREE.Mesh(
+    new THREE.TubeGeometry(guardCurve, 20, 0.05, 10, false),
+    redCandyMat
+  );
+  gripGroup.add(guardMesh);
+
+  // Curved chrome trigger
+  const triggerMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.12, 0.45, 0.16),
+    chromeMat
+  );
+  triggerMesh.rotation.z = 0.35;
+  triggerMesh.position.set(0.02, -0.45, 0);
+  gripGroup.add(triggerMesh);
+
+  // --- Initial Position & Cinematic Trophy Orientation ---
+  gunGroup.position.set(-0.3, -0.35, 0);
+  gunGroup.rotation.set(0.08, 0.72, 0.08);
+
+  // Interactive mouse aim tracking
+  let aimTargetY = 0.72;
+  let aimTargetZ = 0.08;
+  let aimCurrentY = 0.72;
+  let aimCurrentZ = 0.08;
+
+  let recoilX = 0;
+  let recoilRotZ = 0;
+
+  window.addEventListener('pointermove', (e) => {
+    if (!window.__rayGunActive) return;
+    const normX = e.clientX / window.innerWidth;
+    const normY = e.clientY / window.innerHeight;
+    aimTargetY = 0.55 + normX * 0.35;
+    aimTargetZ = 0.02 + (0.5 - normY) * 0.22;
+  }, { passive: true });
+
+  function animate() {
+    if (!window.__rayGunActive) return;
+    requestAnimationFrame(animate);
+
+    const t = Date.now() * 0.0025;
+    // Gentle floating idle breathing sway
+    const idleY = Math.sin(t) * 0.04;
+    const idleZ = Math.cos(t * 0.8) * 0.02;
+
+    // Smooth lerp mouse aiming
+    aimCurrentY += (aimTargetY - aimCurrentY) * 0.08;
+    aimCurrentZ += (aimTargetZ - aimCurrentZ) * 0.08;
+
+    // Recoil recovery
+    recoilX *= 0.84;
+    recoilRotZ *= 0.84;
+
+    gunGroup.position.x = -0.3 - recoilX;
+    gunGroup.position.y = -0.35 + idleY;
+    gunGroup.rotation.y = aimCurrentY;
+    gunGroup.rotation.z = aimCurrentZ + idleZ + recoilRotZ;
+
+    // Pulse the blue plasma battery emissive glow
+    if (plasmaBlueMat) {
+      plasmaBlueMat.emissiveIntensity = 0.85 + Math.sin(t * 3.0) * 0.2;
+    }
+    if (plasmaPointLight) {
+      plasmaPointLight.intensity = 0.8 + Math.sin(t * 3.0) * 0.25;
+    }
+
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  // --- Iconic Call of Duty Zombies Ray Gun Firing Sound Synthesizer ---
+  function playAuthenticRayGunSound() {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const now = audioCtx.currentTime;
+
+      // 1. Initial High-Frequency Laser Chirp ("Pchew")
+      const oscChirp = audioCtx.createOscillator();
+      const gainChirp = audioCtx.createGain();
+      oscChirp.type = 'sawtooth';
+      oscChirp.frequency.setValueAtTime(1900, now);
+      oscChirp.frequency.exponentialRampToValueAtTime(110, now + 0.22);
+
+      gainChirp.gain.setValueAtTime(0.55, now);
+      gainChirp.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+      // Lowpass filter to shape the electronic zap
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(3200, now);
+      filter.frequency.exponentialRampToValueAtTime(600, now + 0.25);
+
+      oscChirp.connect(filter);
+      filter.connect(gainChirp);
+      gainChirp.connect(audioCtx.destination);
+      oscChirp.start(now);
+      oscChirp.stop(now + 0.25);
+
+      // 2. Frequency Modulation for the iconic sci-fi plasma "buzz/flutter"
+      const carrier = audioCtx.createOscillator();
+      const modulator = audioCtx.createOscillator();
+      const modGain = audioCtx.createGain();
+      const carrierGain = audioCtx.createGain();
+
+      carrier.type = 'triangle';
+      carrier.frequency.setValueAtTime(950, now);
+      carrier.frequency.exponentialRampToValueAtTime(180, now + 0.28);
+
+      modulator.type = 'sine';
+      modulator.frequency.setValueAtTime(140, now); // FM rate
+      modGain.gain.setValueAtTime(220, now);
+      modGain.gain.exponentialRampToValueAtTime(10, now + 0.25);
+
+      modulator.connect(carrier.frequency);
+      carrier.connect(carrierGain);
+      carrierGain.gain.setValueAtTime(0.45, now);
+      carrierGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      carrierGain.connect(audioCtx.destination);
+
+      modulator.start(now);
+      carrier.start(now);
+      modulator.stop(now + 0.3);
+      carrier.stop(now + 0.3);
+
+      // 3. Deep Punch / Bass Thump
+      const bassOsc = audioCtx.createOscillator();
+      const bassGain = audioCtx.createGain();
+      bassOsc.type = 'sine';
+      bassOsc.frequency.setValueAtTime(140, now);
+      bassOsc.frequency.exponentialRampToValueAtTime(35, now + 0.22);
+      bassGain.gain.setValueAtTime(0.6, now);
+      bassGain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+      bassOsc.connect(bassGain);
+      bassGain.connect(audioCtx.destination);
+      bassOsc.start(now);
+      bassOsc.stop(now + 0.24);
+
+      // 4. Lingering Metallic Spring / Sci-Fi Discharge Tail
+      const tailOsc = audioCtx.createOscillator();
+      const tailGain = audioCtx.createGain();
+      tailOsc.type = 'sine';
+      tailOsc.frequency.setValueAtTime(430, now + 0.05);
+      tailOsc.frequency.exponentialRampToValueAtTime(180, now + 0.65);
+      tailGain.gain.setValueAtTime(0.0, now);
+      tailGain.gain.setValueAtTime(0.25, now + 0.05);
+      tailGain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+      tailOsc.connect(tailGain);
+      tailGain.connect(audioCtx.destination);
+      tailOsc.start(now + 0.05);
+      tailOsc.stop(now + 0.65);
+    } catch (e) {}
+  }
+
+  // --- Firing Action ---
+  function fireRayGun(targetX, targetY) {
+    playAuthenticRayGunSound();
+
+    // Kickback animation & muzzle pitch-up
+    recoilX = 0.55;
+    recoilRotZ = 0.18;
+
+    // Flash green muzzle light
+    if (muzzleFlashLight) {
+      muzzleFlashLight.intensity = 8.0;
+      setTimeout(() => { if (muzzleFlashLight) muzzleFlashLight.intensity = 0; }, 70);
+    }
+
+    // Flash plasma battery
+    if (plasmaBlueMat) {
+      plasmaBlueMat.emissiveIntensity = 2.5;
+      setTimeout(() => { if (plasmaBlueMat) plasmaBlueMat.emissiveIntensity = 0.85; }, 100);
+    }
+
+    // Muzzle coordinates in screen pixels (bottom-left corner emitter tip)
+    const startX = 145;
+    const startY = window.innerHeight - 130;
+    const dx = targetX - startX;
+    const dy = targetY - startY;
+    const dist = Math.hypot(dx, dy);
+    const angle = Math.atan2(dy, dx);
+
+    // High-energy glowing green plasma bolt
+    const bolt = document.createElement('div');
+    bolt.style.cssText = `
+      position: fixed;
+      left: ${startX}px;
+      top: ${startY}px;
+      width: 50px;
+      height: 12px;
+      background: radial-gradient(circle, #ffffff 15%, #4ade80 60%, #16a34a 100%);
+      border-radius: 999px;
+      box-shadow: 0 0 25px 6px #22c55e, 0 0 50px 12px #15803d;
+      z-index: 10000000;
+      pointer-events: none;
+      transform-origin: left center;
+      transform: rotate(${angle}rad) scaleX(0.5);
+      transition: transform 0.28s cubic-bezier(0.12, 0.7, 0.2, 1), opacity 0.28s ease-in;
+    `;
+    document.body.appendChild(bolt);
+
+    requestAnimationFrame(() => {
+      bolt.style.transform = `rotate(${angle}rad) translate(${dist}px, 0) scaleX(3.5)`;
+      bolt.style.opacity = '0';
+      setTimeout(() => bolt.remove(), 290);
+    });
+
+    // Muzzle smoke / energy ring
+    const ring = document.createElement('div');
+    ring.style.cssText = `
+      position: fixed;
+      left: ${startX}px;
+      top: ${startY}px;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #4ade80;
+      border-radius: 50%;
+      box-shadow: 0 0 20px #22c55e;
+      z-index: 10000000;
+      pointer-events: none;
+      transform: translate(-50%, -50%) scale(0.2);
+      transition: transform 0.25s ease-out, opacity 0.25s ease-out;
+    `;
+    document.body.appendChild(ring);
+    requestAnimationFrame(() => {
+      ring.style.transform = `translate(-50%, -50%) scale(3.5)`;
+      ring.style.opacity = '0';
+      setTimeout(() => ring.remove(), 260);
+    });
+
+    // Impact explosion & plasma splash at click location
+    setTimeout(() => {
+      const impact = document.createElement('div');
+      impact.style.cssText = `
+        position: fixed;
+        left: ${targetX}px;
+        top: ${targetY}px;
+        width: 14px;
+        height: 14px;
+        background: radial-gradient(circle, #ffffff 20%, #4ade80 70%, transparent 100%);
+        border-radius: 50%;
+        box-shadow: 0 0 35px 12px #22c55e, 0 0 70px 24px #16a34a;
+        z-index: 10000000;
+        pointer-events: none;
+        transform: translate(-50%, -50%) scale(0.2);
+        transition: transform 0.35s cubic-bezier(0.15, 0.85, 0.35, 1.2), opacity 0.35s ease-out;
+      `;
+      document.body.appendChild(impact);
+
+      // Radial plasma splash particles
+      for (let p = 0; p < 8; p++) {
+        const spark = document.createElement('div');
+        const spAng = (p / 8) * Math.PI * 2 + Math.random() * 0.4;
+        const spDist = 30 + Math.random() * 45;
+        spark.style.cssText = `
+          position: fixed;
+          left: ${targetX}px;
+          top: ${targetY}px;
+          width: 5px;
+          height: 5px;
+          background: #86efac;
+          border-radius: 50%;
+          box-shadow: 0 0 10px #22c55e;
+          z-index: 10000000;
+          pointer-events: none;
+          transform: translate(-50%, -50%);
+          transition: transform 0.32s ease-out, opacity 0.32s ease-out;
+        `;
+        document.body.appendChild(spark);
+        requestAnimationFrame(() => {
+          spark.style.transform = `translate(${Math.cos(spAng) * spDist - 2.5}px, ${Math.sin(spAng) * spDist - 2.5}px) scale(0)`;
+          spark.style.opacity = '0';
+          setTimeout(() => spark.remove(), 330);
+        });
+      }
+
+      requestAnimationFrame(() => {
+        impact.style.transform = `translate(-50%, -50%) scale(4.8)`;
+        impact.style.opacity = '0';
+        setTimeout(() => impact.remove(), 360);
+      });
+    }, 180);
+  }
+
+  window.addEventListener('mousedown', (e) => {
+    if (!window.__rayGunActive) return;
+    if (e.target.closest('button, input, a, .card, .menu-card, .tab-btn, .modal, .feature-close')) return;
+    fireRayGun(e.clientX, e.clientY);
+  });
+
+  showToast('🔫 BEAUTY OF ANNIHILATION! Ray Gun Mark I online.', 4000);
+}
 
 
 

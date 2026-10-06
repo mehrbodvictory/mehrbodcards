@@ -1227,7 +1227,19 @@ html.theme-valentine .brand-mark {
 #profile-avatar-btn:active { transform: translateY(0) scale(.93); }
 @media (max-width: 480px) { #profile-avatar-btn { width: 32px; height: 32px; font-size: .85rem; } }
 
-.profile-exclaim {
+.profile-frame {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+}
+.frame-gold { border: 3px solid #fbbf24; box-shadow: 0 0 10px #fbbf24; }
+.frame-silver { border: 3px solid #94a3b8; box-shadow: 0 0 10px #94a3b8; }
+.frame-bronze { border: 3px solid #b45309; box-shadow: 0 0 10px #b45309; }
   position: absolute; top: -3px; right: -3px; width: 16px; height: 16px; border-radius: 50%;
   background: #ff4757; color: #fff; font: 900 11px/16px var(--font-display); text-align: center;
   box-shadow: 0 0 8px rgba(255,60,60,.9); animation: profileExclaimPulse 1.3s ease-in-out infinite;
