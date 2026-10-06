@@ -146,10 +146,11 @@ function nextId() { return 'c' + (++_uid); }
 
 function makeUnitCardFromArchetype(tier, archetype, rng, forcedAbility) {
   const t = TIERS[tier];
-  const ability = forcedAbility || rng.pick(archetype.pool);
+  let ability = (forcedAbility && archetype.pool.includes(forcedAbility)) ? forcedAbility : (archetype.pool.length > 1 ? rng.pick(archetype.pool) : archetype.pool[0]);
   const spVal = archetype.sp !== undefined ? archetype.sp : t.sp;
   const card = {
     id: nextId(),
+    archetypeId: archetype.id,
     kind: 'unit',
     tier,
     name: archetype.name,
@@ -246,22 +247,17 @@ function makeSpellOrChip(def) {
 const RANDOM_DECK_TIER_WEIGHTS = [1, 1, 1, 1, 1, 1, 2, 2, 3, 3, 4, 4];
 
 function buildDeck(rng, config, playerKey = 'p') {
-  let rawUnits;
+  let units;
   if (config && Array.isArray(config.unitIds) && config.unitIds.length === 12) {
-    rawUnits = config.unitIds.map(id => makeUnitCardById(id, rng)).filter(Boolean);
-    while (rawUnits.length < 12) rawUnits.push(makeUnitCard(1, rng)); // safety net for a stale/unknown id
+    units = config.unitIds.map(id => makeUnitCardById(id, rng)).filter(Boolean);
+    while (units.length < 12) units.push(makeUnitCard(1, rng)); // safety net for a stale/unknown id
   } else {
-    rawUnits = RANDOM_DECK_TIER_WEIGHTS.map(tier => makeUnitCard(tier, rng));
+    units = RANDOM_DECK_TIER_WEIGHTS.map(tier => makeUnitCard(tier, rng));
   }
-  rawUnits = rng.shuffle(rawUnits);
-  const units = rawUnits.map((card, i) => {
-    if (card) {
-      const pKey = playerKey || 'p';
-      card.id = `${pKey}_u_${i}`;
-      card.netId = `${pKey}_u_${i}`;
-      card.deckIndex = i;
-    }
-    return card;
+  units = rng.shuffle(units);
+  units.forEach((card, i) => {
+    card.id = `${playerKey}_u_${i}`;
+    card.netId = `${playerKey}_u_${i}`;
   });
 
   const spellPool = (config && Array.isArray(config.spellIds) && config.spellIds.length === 4)
@@ -271,25 +267,21 @@ function buildDeck(rng, config, playerKey = 'p') {
     ? config.chipIds.map(id => CHIP_DEFS.find(c => c.id === id)).filter(Boolean)
     : rng.shuffle(CHIP_DEFS.concat(CHIP_DEFS)).slice(0, 2);
 
-  const pKey = playerKey || 'p';
   const spells = spellPool.map((def, i) => {
     const s = makeSpellOrChip(def);
-    s.defId = def.id;
-    s.id = `${pKey}_s_${i}_${def.id}`;
+    s.id = `${playerKey}_s_${i}`;
+    s.netId = `${playerKey}_s_${i}`;
     return s;
   });
+
   const chips = chipPool.map((def, i) => {
     const c = makeSpellOrChip(def);
-    c.defId = def.id;
-    c.id = `${pKey}_c_${i}_${def.id}`;
+    c.id = `${playerKey}_c_${i}`;
+    c.netId = `${playerKey}_c_${i}`;
     return c;
   });
 
-  return {
-    units,                                            // all 12 unit cards, available from the very start
-    spells,                                           // exactly 4 spells, available from game start
-    chips,                                            // exactly 2 chips, available from game start
-  };
+  return { units, spells, chips };
 }
 
 function chipSlotsFree(card) {

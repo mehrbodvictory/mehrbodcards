@@ -129,15 +129,17 @@ class ServerRelaySession {
     }, 1200);
   }
 
-  sendInit(seed, wager, hostDeckConfig) {
+  sendInit(seed, wager, hostDeckConfig, guestDeckConfig) {
     const s = seed || this.seed;
     const w = (wager !== undefined && wager !== null) ? wager : this.wager;
     const h = hostDeckConfig || this.hostDeckConfig;
+    const g = guestDeckConfig || this.guestDeckConfig;
     this.seed = s;
     this.wager = w;
     this.hostDeckConfig = h;
+    this.guestDeckConfig = g;
 
-    const payload = { type: 'init', seed: s, wager: w, hostDeckConfig: h };
+    const payload = { type: 'init', seed: s, wager: w, hostDeckConfig: h, guestDeckConfig: g };
     this._sendMsg(payload);
 
     let sendCount = 0;

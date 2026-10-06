@@ -2192,12 +2192,18 @@ html.theme-valentine .brand-mark {
 }
 
 .phase-attack #hand-row, 
-.phase-attack #spells-chips-row, 
 .phase-attack #hand-label {
   opacity: 0.35;
   transform: translateY(8px) scale(0.98);
   pointer-events: none;
   filter: grayscale(0.2);
+}
+
+.phase-attack #spells-chips-row {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  filter: none !important;
+  transform: none !important;
 }
 
 .phase-attack #phase-label {

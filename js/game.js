@@ -47,8 +47,8 @@ function newPlayerState(deck, config = {}) {
 // bot) falls back to a random draft, same as before v2.0.
 function createMatch(seed, p1id = 'p1', p2id = 'p2', deckConfigs = {}) {
   const rng = new RngStream(seed);
-  const deck1 = buildDeck(rng, deckConfigs[p1id]);
-  const deck2 = buildDeck(rng, deckConfigs[p2id]);
+  const deck1 = buildDeck(rng, deckConfigs[p1id], p1id);
+  const deck2 = buildDeck(rng, deckConfigs[p2id], p2id);
   const state = {
     seed, rngCalls: rng.calls,
     round: 1,
@@ -299,21 +299,21 @@ function damageCard(state, ownerKey, slot, amount, source) {
   const p = state.players[ownerKey];
   const card = p.board[slot];
   if (!card) return;
-  // v3.11: Ward (green_onplay_ward1) completely negates the next instance
-  // of damage this card would take, from ANY source - attack, spell, or
-  // ability - since damageCard() is the single funnel every one of those
-  // already routes through. One charge, consumed here, before HP changes.
   if (card.wardCharges > 0) {
     card.wardCharges -= 1;
     pushFx(state, { type: 'block', owner: ownerKey, slot, source, warded: true });
+    pushLog(state, `🛡️ Ward blocked incoming damage on ${card.name}`);
     return;
   }
-  card.hp = Math.max(0, card.hp - amount);
+  const cleanDmg = Math.max(0, amount);
+  const prevHp = card.hp;
+  card.hp = Math.max(0, card.hp - cleanDmg);
   const killed = card.hp <= 0;
   pushFx(state, {
-    type: 'damage', targetOwner: ownerKey, targetSlot: slot, amount, killed,
+    type: 'damage', targetOwner: ownerKey, targetSlot: slot, amount: cleanDmg, killed,
     targetName: card.name, targetTier: card.tier, source: source || null,
   });
+  pushLog(state, `💥 ${card.name} (Tier ${card.tier}) took ${cleanDmg} dmg [${prevHp} -> ${card.hp}/${card.maxHp} HP]`);
   if (killed) killCard(state, ownerKey, slot, source);
 }
 
@@ -594,8 +594,8 @@ function autoResolveForcedMerges(state, playerKey) {
 }
 
 function castSpell(state, playerKey, spellInstanceId, targetOwnerKey, targetSlot) {
-  if (state.phase !== 'attack') {
-    return { ok: false, error: 'Spells can only be cast during the attack phase' };
+  if (state.phase !== 'placement' && state.phase !== 'attack') {
+    return { ok: false, error: 'Spells can only be cast during placement or attack phase' };
   }
   const blocked = forcedBlock(state, playerKey);
   if (blocked) return blocked;

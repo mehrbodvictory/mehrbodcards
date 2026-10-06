@@ -84,8 +84,13 @@ const AntiCheat = (function() {
     }
     const player = action.player;
     const pState = (gameState.players && gameState.players[player]) || gameState[player];
-    if (pState && (pState.readyPlacement || pState.readyAttack) && action.type !== 'readyPlacement' && action.type !== 'readyAttack') {
-      return { valid: false, reason: 'Cannot perform tactical actions while in locked Ready state' };
+    if (pState) {
+      if (pState.readyPlacement && phase === 'placement' && action.type !== 'readyPlacement') {
+        return { valid: false, reason: 'Cannot perform placement actions while in locked Ready state' };
+      }
+      if (pState.readyAttack && phase === 'attack' && action.type !== 'readyAttack') {
+        return { valid: false, reason: 'Cannot perform attack actions while in locked Ready state' };
+      }
     }
     return { valid: true };
   }
@@ -95,9 +100,8 @@ const AntiCheat = (function() {
     const actType = action.type || action.kind;
     if (actType !== 'place') return { valid: true };
     const { slot } = action;
-    const maxSlots = (typeof BOARD_SIZE !== 'undefined') ? BOARD_SIZE : 6;
-    if (!Number.isInteger(slot) || slot < 0 || slot >= maxSlots) {
-      return { valid: false, reason: `Invalid board slot index: ${slot} (must be between 0 and ${maxSlots - 1})` };
+    if (!Number.isInteger(slot) || slot < 0 || slot >= 6) {
+      return { valid: false, reason: `Invalid board slot index: ${slot} (must be 0 to 5)` };
     }
     return { valid: true };
   }
@@ -123,25 +127,25 @@ const AntiCheat = (function() {
   // --- Layer 6: Match Deck Pool & Card Placement Quota Verification ---
   function initMatchDeckTracker(hostConfig, guestConfig) {
     matchDeckUsage.clear();
-    if (hostConfig) {
-      const unitIds = Array.isArray(hostConfig.unitIds) ? hostConfig.unitIds : (Array.isArray(hostConfig.units) ? hostConfig.units : []);
-      const allocated = {};
-      unitIds.forEach(id => { allocated[id] = (allocated[id] || 0) + 1; });
-      matchDeckUsage.set('host', { allocated, used: {} });
+    if (hostConfig && (hostConfig.unitIds || hostConfig.units)) {
+      const units = hostConfig.unitIds || hostConfig.units;
+      const counts = {};
+      if (Array.isArray(units)) { units.forEach(id => { counts[String(id)] = (counts[String(id)] || 0) + 1; }); }
+      matchDeckUsage.set('host', { allocated: counts, used: {} });
     }
-    if (guestConfig) {
-      const unitIds = Array.isArray(guestConfig.unitIds) ? guestConfig.unitIds : (Array.isArray(guestConfig.units) ? guestConfig.units : []);
-      const allocated = {};
-      unitIds.forEach(id => { allocated[id] = (allocated[id] || 0) + 1; });
-      matchDeckUsage.set('guest', { allocated, used: {} });
+    if (guestConfig && (guestConfig.unitIds || guestConfig.units)) {
+      const units = guestConfig.unitIds || guestConfig.units;
+      const counts = {};
+      if (Array.isArray(units)) { units.forEach(id => { counts[String(id)] = (counts[String(id)] || 0) + 1; }); }
+      matchDeckUsage.set('guest', { allocated: counts, used: {} });
     }
   }
 
   function validateCardPlacementQuota(player, archetypeId) {
     const tracker = matchDeckUsage.get(player);
-    if (!tracker) return { valid: true }; // Single player / unconstrained fallback
+    if (!tracker || !tracker.allocated) return { valid: true }; // Single player / unconstrained fallback
     const idStr = String(archetypeId);
-    const maxAllowed = tracker.allocated[idStr] || 0;
+    const maxAllowed = tracker.allocated[idStr] != null ? tracker.allocated[idStr] : 999;
     const currentUsed = tracker.used[idStr] || 0;
     if (currentUsed >= maxAllowed) {
       return { valid: false, reason: `Card placement quota exceeded for unit archetype #${archetypeId}` };

@@ -170,7 +170,7 @@ function renderSpellsChips(container, playerState, selection) {
   playerState.spells.forEach(spell => {
     const el = document.createElement('div');
     const isFresh = isFreshCard('spell', spell.id);
-    const isPlayable = isAttackPhase;
+    const isPlayable = isPlacementPhase || isAttackPhase;
     el.className = 'sc-card spell' + (isFresh ? ' pop-in' : '') + (isPlayable ? ' playable-spell-glow' : '');
     el.dataset.role = 'spell'; el.dataset.spellId = spell.id;
     if (selection && selection.mode === 'spell' && selection.id === spell.id) el.classList.add('selected');
