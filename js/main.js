@@ -3029,6 +3029,9 @@ function startVsBot(wagerAmount = 0, deckConfig = null) {
   gameOverAnnounced = false;
   meteorShowerDone = false;
   epicVictoryDone = false;
+  if (!deckConfig) {
+    deckConfig = (typeof buildDefaultDeckConfig === 'function') ? buildDefaultDeckConfig() : null;
+  }
   matchVictoryAnims = { you: deckConfig?.victoryAnim || null, bot: null };
   matchStartTime = Date.now();
   currentWager = wagerAmount || 0;
@@ -4585,13 +4588,13 @@ async function startHostingMatchmaking(deckConfig) {
         gameOverAnnounced = false;
         meteorShowerDone = false;
         epicVictoryDone = false;
-        matchVictoryAnims = { host: guestDeckConfig?.victoryAnim || null, guest: deckConfig?.victoryAnim || null };
+        matchVictoryAnims = { host: deckConfig?.victoryAnim || null, guest: guestDeckConfig?.victoryAnim || null };
         matchStartTime = Date.now();
         _lowHpWarned.clear();
         resetMatchCardStats();
         lastPlacement = null;
-        state = createMatch(seed, 'host', 'guest', { host: guestDeckConfig, guest: deckConfig });
-        initReplayLog(seed, 'host', 'guest', { host: guestDeckConfig, guest: deckConfig });
+        state = createMatch(seed, 'host', 'guest', { host: deckConfig, guest: guestDeckConfig });
+        initReplayLog(seed, 'host', 'guest', { host: deckConfig, guest: guestDeckConfig });
         resetSelections();
         showScreen('screen-game');
         setMatchInfo('Multiplayer · Public Match', 'Public Match');

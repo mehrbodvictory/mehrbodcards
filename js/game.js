@@ -47,8 +47,8 @@ function newPlayerState(deck, config = {}) {
 // bot) falls back to a random draft, same as before v2.0.
 function createMatch(seed, p1id = 'p1', p2id = 'p2', deckConfigs = {}) {
   const rng = new RngStream(seed);
-  const deck1 = buildDeck(rng, deckConfigs[p1id], p1id);
-  const deck2 = buildDeck(rng, deckConfigs[p2id], p2id);
+  const deck1 = buildDeck(rng, deckConfigs[p1id]);
+  const deck2 = buildDeck(rng, deckConfigs[p2id]);
   const state = {
     seed, rngCalls: rng.calls,
     round: 1,
@@ -421,15 +421,15 @@ function placeCard(state, playerKey, deckIndex, slot, cardId, archetypeId) {
   if (slot == null || slot < 0 || slot >= BOARD_SIZE) return { ok: false, error: 'invalid board slot' };
   if (p.board[slot] !== null && p.board[slot] !== undefined) return { ok: false, error: 'slot occupied' };
 
-  // Locate the target card in the player's deck pool:
+  // Locate the target card in the player's deck pool (placement strictly requires Tier 1 / Blue units):
   let targetIdx = -1;
-  // 1. Try exact cardId or netId matching if provided
+  // 1. Try exact cardId or netId matching if provided and tier is 1
   if (cardId) {
-    targetIdx = p.deck.findIndex(c => c && (c.id === cardId || c.netId === cardId));
+    targetIdx = p.deck.findIndex(c => c && c.tier === 1 && (c.id === cardId || c.netId === cardId));
   }
-  // 2. Try matching by archetypeId if provided
+  // 2. Try matching by archetypeId if provided (tier must be 1)
   if (targetIdx === -1 && archetypeId) {
-    targetIdx = p.deck.findIndex(c => c && (c.archetypeId === archetypeId || c.id === archetypeId));
+    targetIdx = p.deck.findIndex(c => c && c.tier === 1 && (c.archetypeId === archetypeId || c.id === archetypeId));
   }
   // 3. Try deckIndex if valid and points to a Tier 1 card
   if (targetIdx === -1 && typeof deckIndex === 'number' && deckIndex >= 0 && deckIndex < p.deck.length) {
@@ -600,14 +600,8 @@ function castSpell(state, playerKey, spellInstanceId, targetOwnerKey, targetSlot
   const blocked = forcedBlock(state, playerKey);
   if (blocked) return blocked;
   const p = state.players[playerKey];
-  let idx = p.spells.findIndex(s => s.id === spellInstanceId);
-  if (idx === -1) {
-    idx = p.spells.findIndex(s => s.defId === spellInstanceId || s.id.includes(spellInstanceId) || spellInstanceId.includes(s.defId));
-  }
-  if (idx === -1 && p.spells.length > 0) {
-    idx = 0; // fallback to first spell if specified spell matches def
-  }
-  if (idx === -1 || !p.spells[idx]) return { ok: false, error: 'spell not in hand' };
+  const idx = p.spells.findIndex(s => s.id === spellInstanceId);
+  if (idx === -1) return { ok: false, error: 'spell not in hand' };
   const spell = p.spells[idx];
   const targetP = state.players[targetOwnerKey];
   const targetCard = targetP ? targetP.board[targetSlot] : null;
@@ -833,14 +827,8 @@ function attachChip(state, playerKey, chipInstanceId, targetOwnerKey, targetSlot
   const blocked = forcedBlock(state, playerKey);
   if (blocked) return blocked;
   const p = state.players[playerKey];
-  let idx = p.chips.findIndex(c => c.id === chipInstanceId);
-  if (idx === -1) {
-    idx = p.chips.findIndex(c => c.defId === chipInstanceId || c.id.includes(chipInstanceId) || chipInstanceId.includes(c.defId));
-  }
-  if (idx === -1 && p.chips.length > 0) {
-    idx = 0; // fallback to first chip
-  }
-  if (idx === -1 || !p.chips[idx]) return { ok: false, error: 'chip not in hand' };
+  const idx = p.chips.findIndex(c => c.id === chipInstanceId);
+  if (idx === -1) return { ok: false, error: 'chip not in hand' };
   const chip = p.chips[idx];
   const targetP = state.players[targetOwnerKey];
   const targetCard = targetP.board[targetSlot];
@@ -924,9 +912,6 @@ function setAttack(state, playerKey, slot, targetOwnerKey, targetSlot) {
 }
 
 function readyPlacement(state, playerKey) {
-  if (isForced(state, playerKey)) {
-    autoResolveForcedMerges(state, playerKey);
-  }
   const blocked = forcedBlock(state, playerKey);
   if (blocked) return blocked;
   state.players[playerKey].readyPlacement = true;
@@ -939,9 +924,6 @@ function readyPlacement(state, playerKey) {
 }
 
 function readyAttack(state, playerKey) {
-  if (isForced(state, playerKey)) {
-    autoResolveForcedMerges(state, playerKey);
-  }
   const blocked = forcedBlock(state, playerKey);
   if (blocked) return blocked;
   state.players[playerKey].readyAttack = true;
