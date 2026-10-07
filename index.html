@@ -31,7 +31,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MehrbodCards">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><polygon points='16,2 29,9.5 29,22.5 16,30 3,22.5 3,9.5' fill='%23ffd700'/><path d='M11 21V11L16 16L21 11V21' stroke='%23121008' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' fill='none'/></svg>">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none'><defs><linearGradient id='mb-base' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%23fff8d2'/><stop offset='35%' stop-color='%23ffd700'/><stop offset='70%' stop-color='%23d4af37'/><stop offset='100%' stop-color='%237a5c10'/></linearGradient><linearGradient id='mb-inner' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='%23ffd700'/><stop offset='100%' stop-color='%23996515'/></linearGradient></defs><circle cx='16' cy='16' r='14' fill='url(%23mb-base)' stroke='%23ffd700' stroke-width='1.2'/><circle cx='16' cy='16' r='11.5' stroke='%23b8860b' stroke-dasharray='4 2' stroke-width='1'/><circle cx='16' cy='16' r='9.5' fill='url(%23mb-inner)' stroke='%237a5c10' stroke-width='0.8'/><path d='M9 20V12L12.5 15.5L16 10L19.5 15.5L23 12V20' stroke='%23121008' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' fill='none'/><path d='M9 20V12L12.5 15.5L16 10L19.5 15.5L23 12V20' stroke='%23ffffff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' fill='none'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -39,13 +39,15 @@
 <link rel="stylesheet" href="style-juice.css?v=14.1.0">
 <style>
   :root {
-    color-scheme: dark !important;
+    color-scheme: dark;
     --bg: #0b0f19;
+    --bg-grad-1: #131b2e;
+    --bg-grad-2: #080c14;
   }
   html {
-    background-color: #0b0f19 !important;
-    background: #0b0f19 !important;
-    color-scheme: dark !important;
+    background-color: var(--bg) !important;
+    background: var(--bg) !important;
+    color-scheme: dark;
     height: 100%;
     margin: 0;
     padding: 0;
@@ -53,9 +55,9 @@
     overscroll-behavior-y: none !important;
   }
   body {
-    background-color: #0b0f19 !important;
-    background: radial-gradient(ellipse at top, #131b2e 0%, #080c14 70%) !important;
-    color-scheme: dark !important;
+    background-color: var(--bg) !important;
+    background: radial-gradient(ellipse at top, var(--bg-grad-1, #131b2e) 0%, var(--bg-grad-2, #080c14) 70%) !important;
+    color-scheme: dark;
     min-height: 100%;
     min-height: 100dvh;
     min-height: -webkit-fill-available;
@@ -63,6 +65,12 @@
     padding: 0;
     overscroll-behavior: none !important;
     overscroll-behavior-y: none !important;
+  }
+  html.theme-light {
+    color-scheme: light !important;
+  }
+  html.theme-light body {
+    color-scheme: light !important;
   }
   #pwa-top-safe-guard {
     display: none;
@@ -145,7 +153,7 @@
         </div>
         <div class="menu-card-body">
           <span class="menu-card-title">Single Player</span>
-          <span class="menu-card-sub">Campaign, practice &amp; tower</span>
+          <span class="menu-card-sub">Solo</span>
         </div>
         <div class="menu-card-arrow" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -158,7 +166,7 @@
           </div>
           <div class="menu-card-body">
             <span class="menu-card-title">Shop</span>
-            <span class="menu-card-sub">Cosmetics, cards &amp; packs</span>
+            <span class="menu-card-sub">Packs &amp; Cards</span>
           </div>
           <div class="menu-card-arrow" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -169,8 +177,8 @@
             <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path></svg>
           </div>
           <div class="menu-card-body">
-            <span class="menu-card-title">ENTER VR 🥽</span>
-            <span class="menu-card-sub">Immersive VR Mode &amp; 3D Shop Showroom</span>
+            <span class="menu-card-title">VR Arena</span>
+            <span class="menu-card-sub">WebXR</span>
           </div>
           <div class="menu-card-arrow" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -183,7 +191,7 @@
         </div>
         <div class="menu-card-body">
           <span class="menu-card-title">Multiplayer</span>
-          <span class="menu-card-sub">Online matchmaking &amp; custom rooms</span>
+          <span class="menu-card-sub">Online &amp; LAN</span>
         </div>
         <div class="menu-card-arrow" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -202,7 +210,7 @@
       </button>
       <div class="footer-btn-wrapper" style="position: relative; display: inline-flex; align-items: center; justify-content: center;">
         <button class="link-btn glass-pill-btn footer-squircle-btn battlepass-glow-btn" id="btn-open-battlepass">
-          <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 6px #38bdf8); color: #38bdf8;">
+          <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
           </svg>
           <span style="background: linear-gradient(135deg, #38bdf8 0%, #a855f7 50%, #f43f5e 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 900; letter-spacing: 0.05em;">PASS S1</span>
@@ -237,57 +245,65 @@
 
   <!-- ===== SINGLE PLAYER ===== -->
   <section id="screen-single-player" class="screen hidden">
-    <h2>Single Player</h2>
-    <div class="menu-grid two-col">
-      <button class="menu-card" id="btn-story-mode">
-        <div class="menu-icon-pod">
-          <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
-        </div>
-        <div class="menu-card-body">
-          <span class="menu-card-title">Story Mode</span>
-          <span class="menu-card-sub">Campaign adventure</span>
-        </div>
-        <div class="menu-card-arrow" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-        </div>
-      </button>
+    <div class="menu-header-block">
+      <h2 class="menu-screen-title">Single Player</h2>
+    </div>
+
+    <div class="menu-grid single-col sp-menu-grid">
+      <!-- PRACTICE VS BOT -->
       <button class="menu-card" id="btn-practice-bot">
         <div class="menu-icon-pod">
-          <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8.01" y2="16"></line><line x1="16" y1="16" x2="16.01" y2="16"></line></svg>
+          <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+            <circle cx="12" cy="5" r="2"></circle>
+            <path d="M12 7v4"></path>
+          </svg>
         </div>
         <div class="menu-card-body">
-          <span class="menu-card-title">Practice vs Bot</span>
-          <span class="menu-card-sub">5 difficulty tiers</span>
+          <span class="menu-card-title">Practice</span>
+          <span class="menu-card-sub">VS AI</span>
         </div>
         <div class="menu-card-arrow" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </div>
       </button>
+
+      <!-- TRIAL TOWER -->
       <button class="menu-card" id="btn-trial-tower-menu">
         <div class="menu-icon-pod">
-          <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16"></path><path d="M6 22V7l3-3 3 3v15"></path><path d="M12 7l3-3 3 3v15"></path><line x1="9" y1="11" x2="9" y2="15"></line><line x1="15" y1="11" x2="15" y2="15"></line></svg>
+          <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 22h16"></path>
+            <path d="M6 22V7l3-3 3 3v15"></path>
+            <path d="M12 7l3-3 3 3v15"></path>
+          </svg>
         </div>
         <div class="menu-card-body">
           <span class="menu-card-title">Trial Tower</span>
-          <span class="menu-card-sub">Endless citadel ascent</span>
+          <span class="menu-card-sub">Floors</span>
         </div>
         <div class="menu-card-arrow" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </div>
       </button>
+
+      <!-- DECK BUILDER -->
       <button class="menu-card" id="btn-sp-deck-builder">
         <div class="menu-icon-pod">
-          <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path><path d="M2 22l6-6"></path></svg>
+          <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+            <path d="M2 22l6-6"></path>
+          </svg>
         </div>
         <div class="menu-card-body">
           <span class="menu-card-title">Deck Builder</span>
-          <span class="menu-card-sub">Craft &amp; manage loadouts</span>
+          <span class="menu-card-sub">Decks</span>
         </div>
         <div class="menu-card-arrow" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </div>
       </button>
     </div>
+
     <div class="screen-sub-actions">
       <button class="link-btn glass-pill-btn" id="btn-how-to-play">
         <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
@@ -297,19 +313,6 @@
         <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
         <span>Back</span>
       </button>
-    </div>
-  </section>
-
-  <!-- ===== STORY MODE SCREEN (COMING SOON) ===== -->
-  <section id="screen-story-mode" class="screen hidden">
-    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; text-align: center;">
-      <div style="background: rgba(30, 41, 59, 0.85); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 20px; padding: 48px 36px; max-width: 480px; width: 100%; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
-        <div style="font-size: 3.5rem; margin-bottom: 16px;">📖</div>
-        <h2 style="font-size: 2rem; font-weight: 800; color: #fff; margin-bottom: 10px;">Story Mode</h2>
-        <p style="font-size: 1.15rem; color: #ec4899; font-weight: 700; margin-bottom: 24px;">Coming Soon!</p>
-        <p style="font-size: 0.95rem; color: #94a3b8; line-height: 1.5; margin-bottom: 32px;">The epic campaigns and narrative chronicles are currently under development. Stay tuned for grand adventures!</p>
-        <button class="primary-btn back-btn" id="btn-story-mode-back" style="width: 100%; justify-content: center;">Back to Single Player</button>
-      </div>
     </div>
   </section>
 
@@ -337,17 +340,97 @@
       </div>
 
       <div class="tower-page-layout">
-        <!-- Tower Visual Citadel -->
+        <!-- Tower Visual Citadel Castle SVG & Ascension Track -->
         <div class="tower-citadel-wrapper" id="tower-citadel-container">
+          <!-- Player vs Enemy Clash Animation Banner Overlay (triggers on victory return) -->
+          <div id="tower-clash-overlay" class="tower-clash-overlay hidden">
+            <div class="clash-side player">
+              <div class="clash-avatar" id="clash-player-avatar">⚔️</div>
+              <div class="clash-name" id="clash-player-name">Player</div>
+            </div>
+            <div class="clash-vs-badge">VS</div>
+            <div class="clash-side enemy">
+              <div class="clash-avatar" id="clash-enemy-avatar">🤖</div>
+              <div class="clash-name" id="clash-enemy-name">Tower Guardian</div>
+            </div>
+            <div class="clash-hit-fx" id="clash-hit-fx">💥 KO!</div>
+          </div>
+
           <div class="tower-spire-cap">
             <div class="spire-crystal-orb">✦</div>
-            <div class="spire-title">ASTRAL APEX · FLOOR 30+</div>
-            <div class="spire-sub">Unlock a new theme when reaching floor 30.</div>
+            <div class="spire-title">TRIAL LORD (S1) · FLOOR 50</div>
+            <div class="spire-sub">Unlock Trial Lord (S1) at Level 50.</div>
           </div>
-          <div class="tower-citadel-viewport" id="tower-citadel-viewport">
-            <div class="tower-citadel-scroller" id="tower-citadel-stack">
-              <!-- Dynamically populated tower bricks -->
+
+          <div class="tower-castle-svg-container" id="tower-castle-svg-container">
+            <!-- Castle Citadel SVG Illustration -->
+            <svg class="tower-castle-svg" viewBox="0 0 400 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="castleGrad" x1="200" y1="0" x2="200" y2="600" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="var(--accent, #c084fc)" stop-opacity="0.85"/>
+                  <stop offset="40%" stop-color="#38bdf8" stop-opacity="0.55"/>
+                  <stop offset="100%" stop-color="#0f172a" stop-opacity="0.95"/>
+                </linearGradient>
+                <linearGradient id="spireGlow" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#ffffff"/>
+                  <stop offset="100%" stop-color="var(--accent, #a855f7)"/>
+                </linearGradient>
+                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="8" result="blur"/>
+                  <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+                </filter>
+              </defs>
+
+              <!-- Celestial Spire Apex Beacon -->
+              <circle cx="200" cy="40" r="18" fill="url(#spireGlow)" filter="url(#glow)"/>
+              <path d="M200 10 L205 35 L200 40 L195 35 Z" fill="#ffffff"/>
+              
+              <!-- Castle Citadel Wall Silhouettes -->
+              <!-- Main Apex Tower -->
+              <path d="M160 140 L200 50 L240 140 L230 260 L170 260 Z" fill="url(#castleGrad)" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
+              <!-- Battlements Apex -->
+              <path d="M150 140 H250 V155 H235 V148 H220 V155 H205 V148 H195 V155 H180 V148 H165 V155 H150 Z" fill="#1e1b4b" stroke="var(--accent, #a855f7)" stroke-width="1.5"/>
+
+              <!-- Mid Citadel Keep -->
+              <path d="M130 260 L270 260 L280 400 L120 400 Z" fill="#0f172a" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+              <!-- Mid Battlements -->
+              <path d="M120 260 H280 V275 H265 V268 H250 V275 H235 V268 H220 V275 H205 V268 H195 V275 H180 V268 H165 V275 H150 V268 H135 V275 H120 Z" fill="#1e293b" stroke="#38bdf8" stroke-width="1.5"/>
+
+              <!-- Base Fortress Foundation -->
+              <path d="M90 400 L310 400 L330 580 L70 580 Z" fill="#090d16" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+              <!-- Grand Entrance Arch Gate -->
+              <path d="M165 580 V490 Q200 460 235 490 V580 Z" fill="#020617" stroke="var(--accent, #a855f7)" stroke-width="2.5"/>
+
+              <!-- Winding Ascension Path -->
+              <path id="castle-ascent-path" d="M200 530 C130 500, 130 430, 200 410 C270 390, 270 300, 200 270 C130 240, 150 160, 200 70" fill="none" stroke="rgba(168, 85, 247, 0.4)" stroke-width="3" stroke-dasharray="6 6"/>
+
+              <!-- Castle Windows & Embrasures -->
+              <circle cx="200" cy="190" r="10" fill="#38bdf8" opacity="0.8" filter="url(#glow)"/>
+              <rect x="175" y="320" width="12" height="24" rx="6" fill="#fbbf24" opacity="0.8"/>
+              <rect x="213" y="320" width="12" height="24" rx="6" fill="#fbbf24" opacity="0.8"/>
+
+              <!-- Floor Tier Nodes along Castle Path -->
+              <g class="castle-nodes">
+                <circle id="cnode-1" cx="200" cy="530" r="9" class="cnode cleared" data-floor="1"/>
+                <circle id="cnode-5" cx="140" cy="450" r="9" class="cnode" data-floor="5"/>
+                <circle id="cnode-10" cx="200" cy="380" r="10" class="cnode milestone" data-floor="10"/>
+                <circle id="cnode-15" cx="260" cy="320" r="10" class="cnode milestone" data-floor="15"/>
+                <circle id="cnode-20" cx="200" cy="270" r="9" class="cnode" data-floor="20"/>
+                <circle id="cnode-30" cx="160" cy="180" r="11" class="cnode apex" data-floor="30"/>
+                <circle id="cnode-50" cx="200" cy="70" r="12" class="cnode crown" data-floor="50"/>
+              </g>
+            </svg>
+
+            <!-- Animated Player Avatar Token Ascending Castle -->
+            <div id="tower-player-pawn" class="tower-player-pawn">
+              <div class="pawn-aura"></div>
+              <div class="pawn-avatar" id="pawn-avatar-icon">⚔️</div>
+              <div class="pawn-floor-tag" id="pawn-floor-tag">F1</div>
             </div>
+          </div>
+
+          <div class="tower-citadel-viewport" id="tower-citadel-viewport" style="display:none;">
+            <div class="tower-citadel-scroller" id="tower-citadel-stack"></div>
           </div>
         </div>
 
@@ -359,6 +442,15 @@
             </div>
             <h3 class="tmc-floor-title" id="tower-console-floor-title">Floor 1 Challenge</h3>
             <p class="tmc-desc" id="tower-console-desc">Ascend against baseline AI bots. Win to climb higher; defeat shatters the run back to Floor 1.</p>
+
+            <!-- Active Stacking Run Modifiers Indicator -->
+            <div id="tower-active-run-box" class="tower-active-run-box hidden">
+              <div class="tarb-header">
+                <span class="tarb-title">⚡ ACTIVE RUN MODIFIERS</span>
+                <span id="tarb-count-badge" class="tarb-count">0 Stacked</span>
+              </div>
+              <div id="tarb-mods-row" class="tarb-mods-row"></div>
+            </div>
 
             <div class="tmc-rewards-grid">
               <div class="tmc-reward-item">
@@ -373,7 +465,7 @@
                   <svg class="glass-icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
                 </span>
                 <span class="tri-val" id="tower-console-xp-val">+45 XP</span>
-                <span class="tri-label">Profile XP</span>
+                <span class="tri-label">Profile & Battle Pass</span>
               </div>
               <div class="tmc-reward-item">
                 <span class="tri-icon">
@@ -388,6 +480,14 @@
               <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"></polyline><line x1="13" y1="19" x2="19" y2="13"></line><line x1="16" y1="16" x2="20" y2="20"></line><line x1="19" y1="21" x2="21" y2="19"></line></svg>
               <span>Ascend to Floor 1</span>
             </button>
+            <button type="button" class="secondary-btn tower-loadout-btn" id="btn-tower-edit-loadout" style="margin-top: 10px; width: 100%; border: 1px solid rgba(255, 255, 255, 0.25); background: rgba(255, 255, 255, 0.08); color: #e2e8f0; padding: 8px 16px; border-radius: 12px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <span>⚔️ Edit Trial Loadout (8 Cards, 3 Spells, 2 Chips)</span>
+            </button>
+
+            <!-- Trial Lord Milestone Rewards Track Button -->
+            <div id="tower-milestones-summary-card" style="margin-top: 10px; display: flex; justify-content: center;">
+              <button type="button" class="link-btn small" id="btn-tower-open-milestones-modal" style="color: #c084fc; font-weight: 700; font-size: 0.78rem; background: rgba(192, 132, 252, 0.12); border: 1px solid rgba(192, 132, 252, 0.3); padding: 6px 14px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">View Rewards Track ›</button>
+            </div>
           </div>
         </div>
       </div>
@@ -396,15 +496,15 @@
 
   <!-- ===== BOT MATCH MODE SELECT ===== -->
   <section id="screen-bot-mode" class="screen hidden">
-    <h2>Practice vs Bot</h2>
+    <h2>Practice</h2>
     <div class="menu-grid two-col">
       <button class="menu-card" id="btn-bot-mode-normal">
         <div class="menu-icon-pod">
           <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="6"></rect><line x1="6" y1="12" x2="10" y2="12"></line><line x1="8" y1="10" x2="8" y2="14"></line><line x1="15" y1="13" x2="15.01" y2="13"></line><line x1="18" y1="11" x2="18.01" y2="11"></line></svg>
         </div>
         <div class="menu-card-body">
-          <span class="menu-card-title">Normal Match</span>
-          <span class="menu-card-sub">Free play, no stakes</span>
+          <span class="menu-card-title">Casual</span>
+          <span class="menu-card-sub">No Stakes</span>
         </div>
         <div class="menu-card-arrow" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -415,8 +515,8 @@
           <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"></circle><path d="M18.09 10.37A6 6 0 1 1 10.34 18"></path><path d="M7 6h2v4H7z"></path></svg>
         </div>
         <div class="menu-card-body">
-          <span class="menu-card-title">Wager Match</span>
-          <span class="menu-card-sub">Bet Mehrbod Bux vs AI</span>
+          <span class="menu-card-title">Wager</span>
+          <span class="menu-card-sub">Bux Stakes</span>
         </div>
         <div class="menu-card-arrow" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -431,49 +531,162 @@
 
   <!-- ===== MULTIPLAYER ===== -->
   <section id="screen-multiplayer" class="screen hidden">
-    <h2>Multiplayer</h2>
-    <div class="menu-grid three-col">
+    <div class="menu-header-block">
+      <h2 class="menu-screen-title">Multiplayer</h2>
+    </div>
+
+    <div class="menu-grid single-col mp-menu-grid">
+      <!-- FIND PUBLIC MATCH -->
       <button class="menu-card" id="btn-matchmaking-menu">
         <div class="menu-icon-pod">
-          <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+          <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <circle cx="12" cy="12" r="6"></circle>
+            <circle cx="12" cy="12" r="2"></circle>
+            <line x1="12" y1="2" x2="12" y2="12"></line>
+          </svg>
         </div>
         <div class="menu-card-body">
-          <span class="menu-card-title">Find Match</span>
-          <span class="menu-card-sub">Instant public matchmaking</span>
+          <span class="menu-card-title">Quick Match</span>
+          <span class="menu-card-sub">Online</span>
         </div>
         <div class="menu-card-arrow" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </div>
       </button>
+
+      <!-- HOST PRIVATE ROOM -->
       <button class="menu-card" id="btn-host-menu">
         <div class="menu-icon-pod">
-          <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+          <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+          </svg>
         </div>
         <div class="menu-card-body">
-          <span class="menu-card-title">Host Match</span>
-          <span class="menu-card-sub">Create private room code</span>
+          <span class="menu-card-title">Host</span>
+          <span class="menu-card-sub">Private</span>
         </div>
         <div class="menu-card-arrow" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </div>
       </button>
+
+      <!-- JOIN PRIVATE ROOM -->
       <button class="menu-card" id="btn-join-menu">
         <div class="menu-icon-pod">
-          <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
+          <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+            <polyline points="10 17 15 12 10 7"></polyline>
+            <line x1="15" y1="12" x2="3" y2="12"></line>
+          </svg>
         </div>
         <div class="menu-card-body">
-          <span class="menu-card-title">Join Match</span>
-          <span class="menu-card-sub">Enter friend's room code</span>
+          <span class="menu-card-title">Join</span>
+          <span class="menu-card-sub">Code</span>
+        </div>
+        <div class="menu-card-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+      </button>
+
+      <!-- LAN GAMES -->
+      <button class="menu-card" id="btn-lan-menu">
+        <div class="menu-icon-pod">
+          <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+            <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+            <line x1="12" y1="20" x2="12.01" y2="20"></line>
+          </svg>
+        </div>
+        <div class="menu-card-body">
+          <span class="menu-card-title">LAN</span>
+          <span class="menu-card-sub">Local</span>
         </div>
         <div class="menu-card-arrow" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </div>
       </button>
     </div>
-    <button class="link-btn back-btn glass-pill-btn">
-      <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-      <span>Back</span>
-    </button>
+
+    <div class="screen-sub-actions">
+      <button class="link-btn back-btn glass-pill-btn">
+        <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        <span>Back</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ===== LAN GAMES SCREEN ===== -->
+  <section id="screen-lan" class="screen hidden">
+    <div class="menu-header-block">
+      <h2 class="menu-screen-title">LAN</h2>
+    </div>
+
+    <!-- LAN Actions Bar -->
+    <div class="lan-actions-bar">
+      <button class="primary-btn small" id="btn-lan-host-open">Host Match</button>
+      <button class="glass-pill-btn" id="btn-lan-refresh-scan">Refresh</button>
+    </div>
+
+    <!-- Host LAN Game Drawer -->
+    <div id="lan-host-drawer" class="lan-host-drawer hidden">
+      <div class="lan-drawer-header">
+        <span style="font-weight: 700; color: #f8fafc;">Host Match</span>
+        <button class="icon-btn small" id="btn-lan-drawer-close" title="Close">✕</button>
+      </div>
+      <div class="lan-drawer-form">
+        <input id="lan-host-name-input" class="lan-text-input" placeholder="Room Name" maxlength="28" />
+        <div class="lan-drawer-actions">
+          <button class="primary-btn small" id="btn-lan-host-start">Create</button>
+          <button class="link-btn" id="btn-lan-host-cancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Discovered LAN Rooms -->
+    <div class="lan-rooms-section">
+      <div class="lan-section-title-row">
+        <span class="lan-section-title">Nearby Matches</span>
+        <span id="lan-room-count-badge" class="lan-count-badge">0</span>
+      </div>
+
+      <div id="lan-rooms-list" class="lan-rooms-list">
+        <div class="lan-empty-radar" id="lan-empty-state">
+          <div class="lan-radar-circle">
+            <div class="lan-radar-sweep-anim"></div>
+            <svg class="lan-radar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+              <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+              <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+              <line x1="12" y1="20" x2="12.01" y2="20"></line>
+            </svg>
+          </div>
+          <p class="lan-empty-title">Scanning…</p>
+          <p class="lan-empty-sub">No matches found</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Direct Connect -->
+    <div class="lan-direct-connect-card">
+      <div class="lan-direct-header" id="lan-direct-toggle">
+        <span>Direct Connect</span>
+        <svg class="lan-direct-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </div>
+      <div id="lan-direct-body" class="lan-direct-body hidden">
+        <input id="lan-direct-code-input" class="lan-text-input" placeholder="CODE" maxlength="5" autocapitalize="characters" />
+        <button class="primary-btn small" id="btn-lan-direct-join">Connect</button>
+      </div>
+    </div>
+
+    <div class="screen-sub-actions">
+      <button class="link-btn back-btn glass-pill-btn" id="btn-lan-back">
+        <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        <span>Back</span>
+      </button>
+    </div>
   </section>
 
   <!-- ===== PUBLIC MATCHMAKING SCREEN ===== -->
@@ -581,8 +794,8 @@
           <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="6"></rect><line x1="6" y1="12" x2="10" y2="12"></line><line x1="8" y1="10" x2="8" y2="14"></line><line x1="15" y1="13" x2="15.01" y2="13"></line><line x1="18" y1="11" x2="18.01" y2="11"></line></svg>
         </div>
         <div class="menu-card-body">
-          <span class="menu-card-title">Normal Match</span>
-          <span class="menu-card-sub">Friendly, no stakes</span>
+          <span class="menu-card-title">Casual</span>
+          <span class="menu-card-sub">No Stakes</span>
         </div>
         <div class="menu-card-arrow" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -593,8 +806,8 @@
           <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"></circle><path d="M18.09 10.37A6 6 0 1 1 10.34 18"></path><path d="M7 6h2v4H7z"></path></svg>
         </div>
         <div class="menu-card-body">
-          <span class="menu-card-title">Wager Match</span>
-          <span class="menu-card-sub">Bet Mehrbod Bux</span>
+          <span class="menu-card-title">Wager</span>
+          <span class="menu-card-sub">Bux Stakes</span>
         </div>
         <div class="menu-card-arrow" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -1073,8 +1286,8 @@
             <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
           </div>
           <div class="menu-card-body">
-            <span class="menu-card-title">Cards Archive</span>
-            <span class="menu-card-sub">Discovered units, spells, and augments</span>
+            <span class="menu-card-title">Cards</span>
+            <span class="menu-card-sub">Archive</span>
           </div>
           <div class="menu-card-arrow" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -1085,8 +1298,8 @@
             <svg class="glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 1 0 20v-5a5 5 0 0 0 0-10V2z"></path></svg>
           </div>
           <div class="menu-card-body">
-            <span class="menu-card-title">Visual Themes</span>
-            <span class="menu-card-sub">Aesthetic skins &amp; interface colorways</span>
+            <span class="menu-card-title">Themes</span>
+            <span class="menu-card-sub">Colorways</span>
           </div>
           <div class="menu-card-arrow" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -1158,8 +1371,8 @@
           <span class="theme-icon">❄️</span><span>Glacial Frost</span>
           <span class="theme-lock-icon">🔒</span>
         </button>
-        <button class="theme-btn locked" id="theme-btn-astral" data-theme="astral" title="Clear Floor 30 of the Trial Tower to unlock!">
-          <span class="theme-icon">🌌</span><span>Astral Void</span>
+        <button class="theme-btn locked" id="theme-btn-astral" data-theme="astral" title="Reach Level 50 or Floor 50 of the Trial Tower to unlock!">
+          <span class="theme-icon">🌌</span><span>Trial Lord (S1)</span>
           <span class="theme-lock-icon">🔒</span>
         </button>
         <button class="theme-btn locked" id="theme-btn-celestial" data-theme="celestial" title="Reach Floor 50 of the Trial Tower to unlock!">
@@ -1244,6 +1457,12 @@
     <!-- Real-time P2P Network latency indicator -->
     <div id="p2p-ping-badge" class="hidden">
       <span class="ping-dot"></span> <span id="p2p-ping-value">--</span> ms
+    </div>
+
+    <!-- Real-time Trial Tower Floor & Stacking Modifiers HUD -->
+    <div id="tower-battle-hud" class="tower-battle-hud hidden">
+      <span class="tbh-floor-badge" id="tbh-floor-badge">🗼 Floor 1</span>
+      <div class="tbh-modifiers-tray" id="tbh-modifiers-tray" title="Active Trial Tower Modifiers"></div>
     </div>
 
     <div id="phase-bar">
@@ -1396,6 +1615,103 @@
       <button class="primary-btn hidden" id="btn-mp-rematch">Rematch</button>
       <button class="link-btn" id="btn-rematch">Back to menu</button>
     </div>
+    </div>
+  </div>
+
+  <!-- ===== BOSS FLOOR WARNING OVERLAY ===== -->
+  <div id="boss-floor-warning-overlay" class="hidden" role="dialog" aria-modal="true" aria-labelledby="bfw-title" style="position: fixed; inset: 0; z-index: 9999; background: rgba(10, 3, 20, 0.92); backdrop-filter: blur(16px); display: flex; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box;">
+    <div class="boss-warning-card">
+      <button type="button" class="modal-close" id="btn-boss-warning-close" aria-label="Close warning">✕</button>
+
+      <!-- Animated Icon (Floating & Pulsing Skull or Crown) -->
+      <div class="boss-warning-icon-wrap">
+        <div class="boss-warning-flame-ring"></div>
+        <div class="boss-warning-icon" id="bfw-boss-icon">💀</div>
+      </div>
+
+      <!-- Warning Header -->
+      <div class="boss-warning-tag">⚠️ HIGH DIFFICULTY ENCOUNTER</div>
+      <h2 id="bfw-title" class="boss-warning-title">BOSS FLOOR <span id="bfw-floor-num">10</span></h2>
+
+      <!-- Boss Details Box -->
+      <div class="boss-warning-details">
+        <div class="boss-warning-boss-name" id="bfw-boss-name">Gargantua Colossus</div>
+        <div class="boss-warning-hp-badge" id="bfw-boss-hp">❤️ 50 HP · Boss Tier 👑</div>
+        <p class="boss-warning-aura-desc" id="bfw-boss-aura">
+          <strong>⚡ Boss Aura: Iron Wall</strong><br>
+          Boss units start with +2 bonus Defense charges and 10% damage reflection.
+        </p>
+      </div>
+
+      <!-- Action Button -->
+      <div class="boss-warning-actions">
+        <button type="button" class="boss-engage-btn" id="btn-boss-warning-engage">
+          <span>⚔️ ENGAGE BOSS ⚔️</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TRIAL TOWER ASCENT & MODIFIER PICKER MODAL ===== -->
+  <div id="tower-ascent-modal" class="hidden" role="dialog" aria-modal="true" style="position: fixed; inset: 0; z-index: 9998; background: rgba(2, 6, 23, 0.88); backdrop-filter: blur(14px); display: flex; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box;">
+    <div class="tower-ascent-card">
+      <div class="ascent-banner">
+        <div class="ascent-spire-badge">🗼 TOWER ASCENT</div>
+        <h2 id="ascent-title" class="ascent-title">Floor 1 Conquered!</h2>
+        <div id="ascent-rewards-tag" class="ascent-rewards-tag">+15 Bux · +50 XP</div>
+      </div>
+
+      <!-- Milestone Theme Unlock Banner if unlocked (e.g. Floor 30 Astral Apex!) -->
+      <div id="ascent-theme-unlock-banner" class="ascent-theme-unlock hidden">
+        <span class="atu-icon">🌌</span>
+        <div class="atu-info">
+          <div class="atu-title">THEME UNLOCKED: ASTRAL APEX!</div>
+          <div class="atu-sub">You conquered the Astral Spire! Equip anytime in Themes.</div>
+        </div>
+      </div>
+
+      <!-- Choose Modifier Section -->
+      <div class="ascent-modifier-picker">
+        <div class="ascent-picker-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+          <div class="ascent-picker-label" style="margin-bottom:0;">CHOOSE A RUN MODIFIER <span class="ascent-stack-hint">(STACKS WITH YOUR ACTIVE RUN)</span></div>
+          <button type="button" class="ascent-reroll-btn" id="btn-ascent-reroll" style="background: rgba(255, 215, 0, 0.15); border: 1px solid rgba(255, 215, 0, 0.4); color: #ffd700; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
+            🎲 Reroll Modifiers (50 Bux)
+          </button>
+        </div>
+        <div id="ascent-modifier-choices" class="ascent-modifier-grid">
+          <!-- 3 Modifier Cards dynamically generated -->
+        </div>
+      </div>
+
+      <!-- Active Modifier Tray -->
+      <div class="ascent-active-tray">
+        <div class="ascent-tray-title">Active Modifiers Stack:</div>
+        <div id="ascent-active-pills" class="ascent-pills-row">
+          <span class="ascent-empty-pill">No modifiers yet</span>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="ascent-actions">
+        <button class="primary-btn ascent-next-btn pulse-glow" id="btn-ascent-next" disabled>
+          <span id="btn-ascent-next-text">Select a Modifier to Continue</span>
+        </button>
+        <button class="link-btn ascent-exit-btn" id="btn-ascent-exit">
+          Save Run &amp; Return to Citadel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MULTIPLAYER DISCONNECTION & RECOVERY OVERLAY ===== -->
+  <div id="mp-disconnect-overlay" class="hidden" role="dialog" aria-modal="true" style="position: fixed; inset: 0; z-index: 9999; background: rgba(2, 6, 23, 0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center;">
+    <div class="mp-disconnect-card" style="background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 16px; padding: 20px 24px; max-width: 340px; width: 88%; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.8); position: relative;">
+      <h3 style="font-size: 1.15rem; margin: 0 0 6px; color: #fff;">Opponent Disconnected</h3>
+      <p id="mp-disconnect-desc" class="sub" style="font-size: 0.85rem; color: #94a3b8; margin: 0 0 16px;">Reconnecting… (<strong id="mp-disconnect-countdown" style="color: #38bdf8;">15s</strong>)</p>
+      <div style="display: flex; gap: 8px; justify-content: center;">
+        <button class="primary-btn small" id="btn-mp-disconnect-wait">Wait</button>
+        <button class="link-btn small" id="btn-mp-disconnect-claim" style="color: #f87171;">Claim Win</button>
+      </div>
     </div>
   </div>
 
@@ -1999,7 +2315,6 @@
 <script src="js/ui.js?v=12.1.2"></script>
 <script src="js/sound.js?v=12.1.2"></script>
 <script src="js/theme-templates.js?v=12.1.2"></script>
-<script src="js/story-mode.js?v=12.1.2"></script>
 <script src="js/main.js?v=12.1.2"></script>
 <script src="js/juice.js?v=12.1.2"></script>
 <script src="js/battlepass.js?v=12.1.2"></script>

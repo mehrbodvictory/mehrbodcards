@@ -420,6 +420,14 @@ function showScreen(id) {
   if (typeof window.__triggerThemeParallaxCheck === 'function') {
     window.__triggerThemeParallaxCheck();
   }
+  if (typeof ParticleAvatarEngine !== 'undefined') {
+    ParticleAvatarEngine.startLoop();
+  }
+  if (id === 'screen-lan') {
+    if (typeof startLanLobbyScanning === 'function') startLanLobbyScanning();
+  } else {
+    if (typeof stopLanLobbyScanning === 'function') stopLanLobbyScanning();
+  }
   if (typeof updatePingBadgeVisibility === 'function') {
     updatePingBadgeVisibility();
   }
@@ -909,6 +917,12 @@ function buyCardPack() {
 const REQUIRED_UNIT_COUNT = 12;
 const REQUIRED_SPELL_COUNT = 4;
 const REQUIRED_CHIP_COUNT = 2;
+let dbIsTrialTower = false;
+
+function getReqUnits() { return dbIsTrialTower ? 8 : 12; }
+function getReqSpells() { return dbIsTrialTower ? 3 : 4; }
+function getReqChips() { return 2; }
+
 let dbUnitCounts = {};
 let dbSelectedSpells = [];
 let dbSelectedChips = [];
@@ -917,20 +931,21 @@ let dbOnConfirm = null;
 function defaultDeckBuilderSelection() {
   dbUnitCounts = {};
   const col = loadCollection();
-  // BUGFIX: the default pre-fill used to be all-Blue, so a player who just
-  // clicked "Confirm Deck" without customizing anything ended up with zero
-  // blueprints and could never merge. Seed a couple of owned Green/Red/
-  // Orange picks in by default (if the player owns any), then top up with
-  // Blue to fill the remaining slots.
+  const reqUnits = getReqUnits();
+  const reqSpells = getReqSpells();
+  const reqChips = getReqChips();
+
   const ownedGreen = UNIT_ARCHETYPES[2].filter(a => col.units.includes(a.id));
   const ownedRed = UNIT_ARCHETYPES[3].filter(a => col.units.includes(a.id));
   const ownedOrange = UNIT_ARCHETYPES[4].filter(a => col.units.includes(a.id));
-  const starterBlueprints = [...ownedGreen.slice(0, 2), ...ownedRed.slice(0, 1), ...ownedOrange.slice(0, 1)];
+  const starterBlueprints = dbIsTrialTower
+    ? [...ownedGreen.slice(0, 1), ...ownedRed.slice(0, 1)]
+    : [...ownedGreen.slice(0, 2), ...ownedRed.slice(0, 1), ...ownedOrange.slice(0, 1)];
   starterBlueprints.forEach(a => { dbUnitCounts[a.id] = (dbUnitCounts[a.id] || 0) + 1; });
-  const remaining = REQUIRED_UNIT_COUNT - dbTotalUnits();
+  const remaining = reqUnits - dbTotalUnits();
   if (remaining > 0) dbUnitCounts['blue_sprite'] = (dbUnitCounts['blue_sprite'] || 0) + remaining;
-  dbSelectedSpells = col.spells.slice(0, REQUIRED_SPELL_COUNT);
-  dbSelectedChips = col.chips.slice(0, REQUIRED_CHIP_COUNT);
+  dbSelectedSpells = col.spells.slice(0, reqSpells);
+  dbSelectedChips = col.chips.slice(0, reqChips);
 }
 
 function decorateDeckConfigWithPlayerProfile(config) {
@@ -949,6 +964,7 @@ function decorateDeckConfigWithPlayerProfile(config) {
 }
 
 const ACTIVE_DECK_KEY = 'mehrbod_active_deck_v1';
+const ACTIVE_TRIAL_TOWER_DECK_KEY = 'mehrbod_trial_tower_deck_v1';
 
 function saveActiveDeck(config) {
   try {
@@ -963,6 +979,53 @@ function loadActiveDeck() {
   } catch (e) {
     return null;
   }
+}
+
+function saveActiveTrialTowerDeck(config) {
+  try {
+    localStorage.setItem(ACTIVE_TRIAL_TOWER_DECK_KEY, JSON.stringify(config));
+  } catch (e) {}
+}
+
+function loadActiveTrialTowerDeck() {
+  try {
+    const raw = localStorage.getItem(ACTIVE_TRIAL_TOWER_DECK_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function buildDefaultTrialDeckConfig() {
+  const saved = loadActiveTrialTowerDeck();
+  if (saved && Array.isArray(saved.unitIds) && saved.unitIds.length === 8) {
+    const col = loadCollection();
+    const validUnits = saved.unitIds.every(uid => isUnitArchetypeOwned(uid));
+    const validSpells = (saved.spellIds || []).every(sid => col.spells.includes(sid));
+    const validChips = (saved.chipIds || []).every(cid => col.chips.includes(cid));
+    if (validUnits && validSpells && validChips) {
+      return decorateDeckConfigWithPlayerProfile({
+        unitIds: saved.unitIds.slice(),
+        spellIds: (saved.spellIds || []).slice(0, 3),
+        chipIds: (saved.chipIds || []).slice(0, 2),
+        victoryAnim: typeof loadEquippedVictoryAnim === 'function' ? loadEquippedVictoryAnim() : null,
+        isTrialTower: true
+      });
+    }
+  }
+  const col = loadCollection();
+  const ownedGreen = UNIT_ARCHETYPES[2].filter(a => col.units.includes(a.id));
+  const ownedRed = UNIT_ARCHETYPES[3].filter(a => col.units.includes(a.id));
+  const unitIds = [];
+  ownedGreen.slice(0, 2).forEach(a => unitIds.push(a.id));
+  ownedRed.slice(0, 1).forEach(a => unitIds.push(a.id));
+  while (unitIds.length < 8) {
+    unitIds.push('blue_sprite');
+  }
+  const spellIds = col.spells.slice(0, 3);
+  const chipIds = col.chips.slice(0, 2);
+  const baseConfig = { unitIds, spellIds, chipIds, victoryAnim: typeof loadEquippedVictoryAnim === 'function' ? loadEquippedVictoryAnim() : null, isTrialTower: true };
+  return decorateDeckConfigWithPlayerProfile(baseConfig);
 }
 
 function buildDefaultDeckConfig() {
@@ -1004,8 +1067,10 @@ function dbTotalUnits() {
 
 let dbReturnScreen = 'screen-menu';
 
-function openDeckBuilder(onConfirm, returnScreen) {
+function openDeckBuilder(onConfirm, returnScreen, isTrialTower = false) {
   dbOnConfirm = onConfirm;
+  dbIsTrialTower = !!isTrialTower;
+
   const currentVisible = document.querySelector('.screen:not(.hidden)');
   if (returnScreen) {
     dbReturnScreen = returnScreen;
@@ -1014,15 +1079,19 @@ function openDeckBuilder(onConfirm, returnScreen) {
   }
 
   // Restore the player's saved active deck if available and valid
-  const saved = loadActiveDeck();
+  const saved = dbIsTrialTower ? loadActiveTrialTowerDeck() : loadActiveDeck();
   const col = loadCollection();
-  if (saved && Array.isArray(saved.unitIds) && saved.unitIds.length) {
+  const reqUnits = getReqUnits();
+  const reqSpells = getReqSpells();
+  const reqChips = getReqChips();
+
+  if (saved && Array.isArray(saved.unitIds) && saved.unitIds.length === reqUnits) {
     dbUnitCounts = {};
     saved.unitIds.filter(uid => isUnitArchetypeOwned(uid)).forEach(uid => {
       dbUnitCounts[uid] = (dbUnitCounts[uid] || 0) + 1;
     });
-    dbSelectedSpells = (saved.spellIds || []).filter(sid => col.spells.includes(sid)).slice(0, REQUIRED_SPELL_COUNT);
-    dbSelectedChips = (saved.chipIds || []).filter(cid => col.chips.includes(cid)).slice(0, REQUIRED_CHIP_COUNT);
+    dbSelectedSpells = (saved.spellIds || []).filter(sid => col.spells.includes(sid)).slice(0, reqSpells);
+    dbSelectedChips = (saved.chipIds || []).filter(cid => col.chips.includes(cid)).slice(0, reqChips);
   } else {
     defaultDeckBuilderSelection();
   }
@@ -1042,7 +1111,7 @@ function openDeckBuilder(onConfirm, returnScreen) {
 function dbAdjustUnit(archetypeId, delta) {
   const current = dbUnitCounts[archetypeId] || 0;
   const total = dbTotalUnits();
-  if (delta > 0 && total >= REQUIRED_UNIT_COUNT) return;
+  if (delta > 0 && total >= getReqUnits()) return;
   const next = Math.max(0, current + delta);
   if (next === current) return;
   if (typeof Sound !== 'undefined') {
@@ -1066,7 +1135,7 @@ function dbSpellCount(id) {
 function dbAdjustSpell(id, delta) {
   const count = dbSpellCount(id);
   const total = dbSelectedSpells.length;
-  if (delta > 0 && total >= REQUIRED_SPELL_COUNT) return;
+  if (delta > 0 && total >= getReqSpells()) return;
   if (delta < 0 && count <= 0) return;
   if (delta > 0) {
     dbSelectedSpells.push(id);
@@ -1402,31 +1471,35 @@ function renderDeckBuilder() {
   chipsContainer.appendChild(chipsFrag);
 
   // 5. Update Labels and completeness
+  const reqUnits = getReqUnits();
+  const reqSpells = getReqSpells();
+  const reqChips = getReqChips();
+
   const uCountEl = document.getElementById('deck-builder-unit-count') || document.getElementById('active-units-count');
-  if (uCountEl) uCountEl.textContent = `${totalUnits}/${REQUIRED_UNIT_COUNT}`;
+  if (uCountEl) uCountEl.textContent = `${totalUnits}/${reqUnits}`;
   const sCountEl = document.getElementById('deck-builder-spell-count') || document.getElementById('active-spells-count');
-  if (sCountEl) sCountEl.textContent = `${dbSelectedSpells.length}/${REQUIRED_SPELL_COUNT}`;
+  if (sCountEl) sCountEl.textContent = `${dbSelectedSpells.length}/${reqSpells}`;
   const cCountEl = document.getElementById('deck-builder-chip-count') || document.getElementById('active-chips-count');
-  if (cCountEl) cCountEl.textContent = `${dbSelectedChips.length}/${REQUIRED_CHIP_COUNT}`;
+  if (cCountEl) cCountEl.textContent = `${dbSelectedChips.length}/${reqChips}`;
 
   // Update badge counter inside categories tabs
   const tabUnitsCount = document.getElementById('pool-tab-units-count');
   const tabSpellsCount = document.getElementById('pool-tab-spells-count');
   const tabChipsCount = document.getElementById('pool-tab-chips-count');
-  if (tabUnitsCount) tabUnitsCount.textContent = `${totalUnits}/12`;
-  if (tabSpellsCount) tabSpellsCount.textContent = `${dbSelectedSpells.length}/4`;
-  if (tabChipsCount) tabChipsCount.textContent = `${dbSelectedChips.length}/2`;
+  if (tabUnitsCount) tabUnitsCount.textContent = `${totalUnits}/${reqUnits}`;
+  if (tabSpellsCount) tabSpellsCount.textContent = `${dbSelectedSpells.length}/${reqSpells}`;
+  if (tabChipsCount) tabChipsCount.textContent = `${dbSelectedChips.length}/${reqChips}`;
 
-  const complete = totalUnits === REQUIRED_UNIT_COUNT && dbSelectedSpells.length === REQUIRED_SPELL_COUNT && dbSelectedChips.length === REQUIRED_CHIP_COUNT;
+  const complete = totalUnits === reqUnits && dbSelectedSpells.length === reqSpells && dbSelectedChips.length === reqChips;
   const hint = document.getElementById('deck-completeness-hint');
   if (hint) {
-    hint.textContent = `${totalUnits}/${REQUIRED_UNIT_COUNT} CARDS`;
+    hint.textContent = dbIsTrialTower ? `${totalUnits}/${reqUnits} TRIAL CARDS` : `${totalUnits}/${reqUnits} CARDS`;
     hint.classList.toggle('complete', complete);
   }
   const confirmBtn = document.getElementById('btn-deck-builder-confirm');
   if (confirmBtn) {
     confirmBtn.disabled = !complete;
-    confirmBtn.textContent = dbOnConfirm ? 'Confirm Deck' : 'Save & Close';
+    confirmBtn.textContent = dbOnConfirm ? (dbIsTrialTower ? 'Confirm Trial Loadout' : 'Confirm Deck') : 'Save & Close';
     confirmBtn.classList.toggle('ready-pulse', complete);
   }
   renderDeckSynergyAnalytics();
@@ -1437,6 +1510,10 @@ function renderDeckBuilder() {
 function renderDeckSynergyAnalytics() {
   const container = document.getElementById('deck-synergy-analytics');
   if (!container) return;
+
+  const reqUnits = getReqUnits();
+  const reqSpells = getReqSpells();
+  const reqChips = getReqChips();
 
   let t1 = 0, t2 = 0, t3 = 0, t4 = 0;
   Object.entries(dbUnitCounts).forEach(([archId, count]) => {
@@ -1477,7 +1554,7 @@ function renderDeckSynergyAnalytics() {
   container.innerHTML = `
     <div class="dsw-header">
       <div class="dsw-rating">${rating}</div>
-      <div class="dsw-counts">Units: ${totalUnits}/12 | Spells: ${spellsCount}/4 | Chips: ${chipsCount}/2</div>
+      <div class="dsw-counts">Units: ${totalUnits}/${reqUnits} | Spells: ${spellsCount}/${reqSpells} | Chips: ${chipsCount}/${reqChips}</div>
     </div>
     <div class="dsw-bar-wrap">
       <div class="dsw-bar t1" style="width: ${p1}%" title="Blue Tier 1: ${t1}"></div>
@@ -1535,14 +1612,21 @@ document.getElementById('deck-builder-search')?.addEventListener('input', applyD
 document.getElementById('deck-builder-tier-filter')?.addEventListener('change', applyDeckBuilderFilter);
 
 document.getElementById('btn-deck-builder-confirm').addEventListener('click', () => {
+  const reqUnits = getReqUnits();
+  const reqSpells = getReqSpells();
+  const reqChips = getReqChips();
+
   const totalUnits = dbTotalUnits();
-  if (totalUnits !== REQUIRED_UNIT_COUNT || dbSelectedSpells.length !== REQUIRED_SPELL_COUNT || dbSelectedChips.length !== REQUIRED_CHIP_COUNT) return;
+  if (totalUnits !== reqUnits || dbSelectedSpells.length !== reqSpells || dbSelectedChips.length !== reqChips) return;
   const unitIds = [];
   Object.entries(dbUnitCounts).forEach(([id, count]) => { for (let i = 0; i < count; i++) unitIds.push(id); });
-  const rawConfig = { unitIds, spellIds: dbSelectedSpells.slice(), chipIds: dbSelectedChips.slice(), victoryAnim: loadEquippedVictoryAnim() };
+  const rawConfig = { unitIds, spellIds: dbSelectedSpells.slice(), chipIds: dbSelectedChips.slice(), victoryAnim: loadEquippedVictoryAnim(), isTrialTower: dbIsTrialTower };
   
-  // Persist as the active deck
-  saveActiveDeck(rawConfig);
+  if (dbIsTrialTower) {
+    saveActiveTrialTowerDeck(rawConfig);
+  } else {
+    saveActiveDeck(rawConfig);
+  }
 
   const config = decorateDeckConfigWithPlayerProfile(rawConfig);
   const cb = dbOnConfirm;
@@ -1550,7 +1634,7 @@ document.getElementById('btn-deck-builder-confirm').addEventListener('click', ()
   if (cb) {
     cb(config);
   } else {
-    showToast('Deck saved to your active loadout!', 2000);
+    showToast(dbIsTrialTower ? 'Trial Tower loadout saved!' : 'Deck saved to your active loadout!', 2000);
     showScreen(dbReturnScreen || 'screen-menu');
   }
 });
@@ -1566,17 +1650,21 @@ function autoFillDeck() {
   const ownedUnitIds = [...UNIT_ARCHETYPES[1].map(a => a.id), ...col.units];
   let total = dbTotalUnits();
   let guard = 0;
-  while (total < REQUIRED_UNIT_COUNT && ownedUnitIds.length && guard++ < 500) {
+  const reqUnits = getReqUnits();
+  const reqSpells = getReqSpells();
+  const reqChips = getReqChips();
+
+  while (total < reqUnits && ownedUnitIds.length && guard++ < 500) {
     const pick = ownedUnitIds[Math.floor(Math.random() * ownedUnitIds.length)];
     dbUnitCounts[pick] = (dbUnitCounts[pick] || 0) + 1;
     total++;
   }
-  while (dbSelectedSpells.length < REQUIRED_SPELL_COUNT && col.spells.length) {
+  while (dbSelectedSpells.length < reqSpells && col.spells.length) {
     const pick = col.spells[Math.floor(Math.random() * col.spells.length)];
     dbSelectedSpells.push(pick);
   }
   const remainingChips = col.chips.filter(id => !dbSelectedChips.includes(id));
-  while (dbSelectedChips.length < REQUIRED_CHIP_COUNT && remainingChips.length) {
+  while (dbSelectedChips.length < reqChips && remainingChips.length) {
     const i = Math.floor(Math.random() * remainingChips.length);
     dbSelectedChips.push(remainingChips.splice(i, 1)[0]);
   }
@@ -2142,41 +2230,35 @@ function openModernShop() {
 document.getElementById('btn-shop')?.addEventListener('click', openModernShop);
 document.getElementById('bux-counter')?.addEventListener('click', openModernShop);
 
-document.getElementById('btn-story-mode')?.addEventListener('click', () => {
-  if (typeof StoryMode !== 'undefined' && typeof StoryMode.openStoryScreen === 'function') {
-    StoryMode.openStoryScreen();
-  } else {
-    showScreen('screen-story-mode');
-  }
-});
 document.getElementById('btn-practice-bot')?.addEventListener('click', () => showScreen('screen-bot-mode'));
 
 document.getElementById('btn-emergency-convert')?.addEventListener('click', () => {
   if (!state || state.phase !== 'placement' || usedEmergencyConversion) return;
 
   const pState = state.players[localKey];
+  if (!pState || !pState.board || !pState.deck) return;
   const boardEmpty = pState.board.every(c => !c);
-  const blueInHand = pState.deck.filter(c => c.tier === 1).length;
-  const blueprintsInHand = pState.deck.filter(c => c.tier > 1).length;
+  const blueInHand = pState.deck.filter(c => c && c.tier === 1).length;
+  const blueprintsInHand = pState.deck.filter(c => c && c.tier > 1).length;
 
   if (boardEmpty && blueInHand === 0 && blueprintsInHand > 0) {
-    if (!confirm("Are you sure you want to salvage your blueprints? This consumes 1 Blueprint from your hand and replaces it with 2 Emergency Blue Units!")) return;
-
-    const bpIndex = pState.deck.findIndex(c => c.tier > 1);
-    if (bpIndex !== -1) {
-      const removed = pState.deck.splice(bpIndex, 1)[0];
-      
-      const rngObj = state.rng || { pick: (arr) => arr[Math.floor(Math.random() * arr.length)] };
-      const blue1 = makeUnitCard(1, rngObj);
-      const blue2 = makeUnitCard(1, rngObj);
-      
-      pState.deck.push(blue1, blue2);
-      
-      usedEmergencyConversion = true;
-      if (typeof Sound !== 'undefined' && Sound.cardPlace) Sound.cardPlace(1);
-      showToast(`Emergency Salvage Successful! Exchanged ${removed.name} Blueprint for 2 Blue Units.`);
-      render();
-    }
+    const bpIndex = pState.deck.findIndex(c => c && c.tier > 1);
+    const bpCard = pState.deck[bpIndex];
+    showConfirmDialog({
+      kicker: 'EMERGENCY SALVAGE',
+      title: 'Salvage Blueprint?',
+      message: `Consume 1 ${bpCard?.name || 'Blueprint'} from your hand and exchange it for 2 Emergency Blue Units?`,
+      okText: '⚡ Salvage Now',
+      cancelText: 'Cancel',
+      danger: false,
+      onConfirm: () => {
+        usedEmergencyConversion = true;
+        dispatch({ type: 'emergencySalvage', blueprintIndex: bpIndex });
+        if (typeof Sound !== 'undefined' && Sound.cardPlace) Sound.cardPlace(1);
+        showToast(`Emergency Salvage: Exchanged ${bpCard?.name || 'Blueprint'} for 2 Blue Units.`);
+        render();
+      }
+    });
   }
 });
 
@@ -2184,6 +2266,10 @@ document.getElementById('btn-bot-mode-normal')?.addEventListener('click', () => 
 document.getElementById('btn-bot-mode-wager')?.addEventListener('click', () => { updateBuxDisplay(); showScreen('screen-shop-bot'); });
 
 document.getElementById('btn-host-menu')?.addEventListener('click', () => showScreen('screen-host-mode'));
+
+document.getElementById('btn-lan-menu')?.addEventListener('click', () => {
+  showScreen('screen-lan');
+});
 
 document.getElementById('btn-matchmaking-menu')?.addEventListener('click', () => {
   openDeckBuilder((config) => beginMatchmaking(config));
@@ -2223,10 +2309,10 @@ document.querySelectorAll('.menu-card').forEach(wirePressFeedback);
 // anything, so there was no way to back out of any submenu.
 const BACK_TARGETS = {
   'screen-single-player': 'screen-menu',
-  'screen-story-mode': 'screen-single-player',
   'screen-trial-tower': 'screen-single-player',
   'screen-bot-mode': 'screen-single-player',
   'screen-multiplayer': 'screen-menu',
+  'screen-lan': 'screen-multiplayer',
   'screen-host-mode': 'screen-multiplayer',
   'screen-shop-cosmetics': 'screen-menu',
   'screen-shop-bot': 'screen-bot-mode',
@@ -2248,6 +2334,10 @@ document.querySelectorAll('.back-btn').forEach(btn => {
       return;
     }
     if ((screenEl.id === 'screen-host' || screenEl.id === 'screen-join') && net) {
+      if (screenEl.id === 'screen-host' && currentWager > 0) {
+        addBux(currentWager);
+        currentWager = 0;
+      }
       net.destroy();
       net = null;
     }
@@ -2946,7 +3036,7 @@ const ACHIEVEMENTS = [
   { id: 'win_master',      name: 'Master Slayer',      desc: 'Beat the Master difficulty bot.', icon: '👑', reward: 38 },
   { id: 'win_10',          name: 'Seasoned Duelist',   desc: 'Win 10 matches total.', icon: '⚔️', reward: 25 },
   { id: 'win_streak_3',    name: 'On a Roll',          desc: 'Win 3 matches in a row.', icon: '🔥', reward: 20 },
-  { id: 'wager_win',       name: 'High Roller',        desc: 'Win a wagered match.', icon: '💰', reward: 13 },
+  { id: 'wager_win',       name: 'High Stakes Master', desc: 'Win a wagered match.', icon: '💰', reward: 13 },
   { id: 'all_diffs',       name: 'Undisputed',         desc: 'Beat every bot difficulty at least once.', icon: '🏆', reward: 50 },
   { id: 'full_collection', name: 'Completionist',      desc: 'Collect every card in the game.', icon: '💠', reward: 75 },
   { id: 'bux_500',         name: 'Vault Keeper',       desc: 'Hold 250 Mehrbod Bux at once.', icon: '🏦', reward: 10 },
@@ -2954,7 +3044,7 @@ const ACHIEVEMENTS = [
   { id: 'mega_fusion',     name: 'Mega Fusion',        desc: 'Merge 3 or more cards together in a single fusion.', icon: '💥', reward: 12 },
   // 8 New Moderate Difficulty Achievements
   { id: 'speed_demon',       name: 'Speed Demon',        desc: 'Win a match in 3 rounds or fewer.', icon: '⚡', reward: 20 },
-  { id: 'deck_architect',    name: 'Deck Architect',     desc: 'Own 5 or more unique spells or chips.', icon: '📜', reward: 18 },
+  { id: 'deck_architect',    name: 'Deck Architect',     desc: 'Own 50 or more unique spells or chips.', icon: '📜', reward: 18 },
   { id: 'wager_high_roller', name: 'High Stakes Victor', desc: 'Win a wager match with a stake of 50 Bux or higher.', icon: '💎', reward: 30 },
   { id: 'trial_climber',     name: 'Tower Aspirant',     desc: 'Reach Floor 5 in the Trial Tower.', icon: '🗼', reward: 25 },
   { id: 'card_hoarder',      name: 'Card Collector',     desc: 'Own 25 or more total cards across your collection.', icon: '📦', reward: 22 },
@@ -3017,7 +3107,7 @@ function checkAchievements() {
   if ((stats.bestStreak >= 5) || (stats.streak >= 5)) unlockAchievement('streak_veteran');
   if ((tower.best || tower.floor || 0) >= 5) unlockAchievement('trial_climber');
   if (bux >= 1000) unlockAchievement('tycoon');
-  if (((col.spells?.length || 0) + (col.chips?.length || 0)) >= 5) unlockAchievement('deck_architect');
+  if (((col.spells?.length || 0) + (col.chips?.length || 0)) >= 50) unlockAchievement('deck_architect');
   if (((col.units?.length || 0) + (col.spells?.length || 0) + (col.chips?.length || 0)) >= 25) unlockAchievement('card_hoarder');
   if (history.some(h => h.result === 'Win' && h.rounds <= 3)) unlockAchievement('speed_demon');
   if (history.some(h => h.result === 'Win' && h.wager >= 50)) unlockAchievement('wager_high_roller');
@@ -3073,10 +3163,28 @@ function startVsBot(wagerAmount = 0, deckConfig = null) {
   resetSelections();
   showScreen('screen-game');
   const eff = getEffectiveBotDifficulty(botDifficulty);
-  setMatchInfo(
-    `Vs Bot · ${botDifficulty === 'Adaptive' ? `Adaptive (${eff})` : botDifficulty}` + (currentWager > 0 ? ` · 💰${currentWager.toLocaleString()}` : ''),
-    `${botDifficulty === 'Adaptive' ? `Adaptive (${eff})` : botDifficulty} vs Bot` + (currentWager > 0 ? ` · 💰${currentWager.toLocaleString()}` : '')
-  );
+  if (typeof trialTowerActive !== 'undefined' && trialTowerActive && typeof loadTrialTowerState === 'function') {
+    const ts = loadTrialTowerState();
+    const isBoss = typeof isBossFloor === 'function' && isBossFloor(ts.floor);
+    const bossDef = isBoss && typeof getBossDefinition === 'function' ? getBossDefinition(ts.floor) : null;
+    const modTag = (ts && Array.isArray(ts.modifiers) && ts.modifiers.length > 0) ? ` · ⚡${ts.modifiers.length} Mods` : '';
+    if (isBoss && bossDef) {
+      setMatchInfo(
+        `💀 BOSS FLOOR ${ts.floor} · ${bossDef.name} (${bossDef.bossCard.hp} HP)${modTag}`,
+        `💀 Boss Floor ${ts.floor} vs ${bossDef.name}`
+      );
+    } else {
+      setMatchInfo(
+        `🗼 Trial Tower · Floor ${ts.floor}${modTag} (${botDifficulty})`,
+        `Floor ${ts.floor}${modTag} vs ${botDifficulty} Bot`
+      );
+    }
+  } else {
+    setMatchInfo(
+      `Vs Bot · ${botDifficulty === 'Adaptive' ? `Adaptive (${eff})` : botDifficulty}` + (currentWager > 0 ? ` · 💰${currentWager.toLocaleString()}` : ''),
+      `${botDifficulty === 'Adaptive' ? `Adaptive (${eff})` : botDifficulty} vs Bot` + (currentWager > 0 ? ` · 💰${currentWager.toLocaleString()}` : '')
+    );
+  }
   ensureBotActs(() => render());
   render();
 }
@@ -4106,6 +4214,11 @@ async function beginHost(wagerAmount, hostDeckConfig) {
     onRematchOffer: () => handleIncomingRematchOffer(),
     onRematchAccept: () => handleIncomingRematchAccept(),
     onRematchDecline: () => handleIncomingRematchDecline(),
+    onDisconnectWarning: () => showDisconnectRecoveryOverlay(),
+    onReconnected: () => {
+      hideDisconnectRecoveryOverlay();
+      showToast('⚡ Opponent reconnected!', 2000);
+    }
   });
   try {
     const code = await net.hostGame(seed, currentWager, hostDeckConfig);
@@ -4122,8 +4235,17 @@ document.getElementById('btn-join-confirm').addEventListener('click', async () =
   pendingGuestDeckConfig = decorateDeckConfigWithPlayerProfile(pendingGuestDeckConfig);
 
   mode = 'mp'; localKey = 'guest'; remoteKey = 'host';
+  let manualJoinWatchdog = setTimeout(() => {
+    const statusEl = document.getElementById('join-status');
+    if (statusEl && (!state || state.phase === 'gameover')) {
+      statusEl.textContent = 'Room not responding. Check room code or ensure host is ready.';
+    }
+  }, 15000);
+
   net = new NetSession({
     onInit: (data) => {
+      if (manualJoinWatchdog) { clearTimeout(manualJoinWatchdog); manualJoinWatchdog = null; }
+      hideDisconnectRecoveryOverlay();
       remotePlayerName = data.hostDeckConfig?.playerName || 'Host Player';
       remotePlayerAvatar = data.hostDeckConfig?.playerAvatar || (remotePlayerName ? remotePlayerName.charAt(0).toUpperCase() : '⚔️');
       remotePlayerGradient = data.hostDeckConfig?.playerGradient || null;
@@ -4167,6 +4289,11 @@ document.getElementById('btn-join-confirm').addEventListener('click', async () =
     onRematchOffer: () => handleIncomingRematchOffer(),
     onRematchAccept: () => handleIncomingRematchAccept(),
     onRematchDecline: () => handleIncomingRematchDecline(),
+    onDisconnectWarning: () => showDisconnectRecoveryOverlay(),
+    onReconnected: () => {
+      hideDisconnectRecoveryOverlay();
+      showToast('⚡ Opponent reconnected!', 2000);
+    }
   });
   try { await net.joinGame(code, pendingGuestDeckConfig); } catch (e) { /* status already shown */ }
 });
@@ -4178,6 +4305,312 @@ document.getElementById('join-code-input').addEventListener('keydown', (e) => {
     e.preventDefault();
     document.getElementById('btn-join-confirm').click();
   }
+});
+
+/* ---------------- MULTIPLAYER DISCONNECTION & RECOVERY ---------------- */
+let mpDisconnectTimer = null;
+let mpDisconnectCountdown = 15;
+
+function showDisconnectRecoveryOverlay() {
+  if (mode !== 'mp' || !state || state.phase === 'gameover') return;
+  const overlay = document.getElementById('mp-disconnect-overlay');
+  const countEl = document.getElementById('mp-disconnect-countdown');
+  if (!overlay) return;
+
+  overlay.classList.remove('hidden');
+  mpDisconnectCountdown = 15;
+  if (countEl) countEl.textContent = `${mpDisconnectCountdown}s`;
+
+  if (mpDisconnectTimer) clearInterval(mpDisconnectTimer);
+  mpDisconnectTimer = setInterval(() => {
+    mpDisconnectCountdown--;
+    if (countEl) countEl.textContent = `${mpDisconnectCountdown}s`;
+    if (mpDisconnectCountdown <= 0) {
+      clearInterval(mpDisconnectTimer);
+      mpDisconnectTimer = null;
+      showToast('Opponent grace period expired. Claiming match victory.', 3000);
+      handleOpponentForfeit();
+      hideDisconnectRecoveryOverlay();
+    }
+  }, 1000);
+}
+
+function hideDisconnectRecoveryOverlay() {
+  const overlay = document.getElementById('mp-disconnect-overlay');
+  if (overlay) overlay.classList.add('hidden');
+  if (mpDisconnectTimer) {
+    clearInterval(mpDisconnectTimer);
+    mpDisconnectTimer = null;
+  }
+}
+
+document.getElementById('btn-mp-disconnect-wait')?.addEventListener('click', () => {
+  hideDisconnectRecoveryOverlay();
+  showToast('Waiting in background for opponent to reconnect…', 2500);
+});
+document.getElementById('btn-mp-disconnect-claim')?.addEventListener('click', () => {
+  hideDisconnectRecoveryOverlay();
+  handleOpponentForfeit();
+});
+
+/* ---------------- LAN MULTIPLAYER LOGIC ---------------- */
+let currentLanRooms = [];
+
+function startLanLobbyScanning() {
+  if (typeof LanDiscovery === 'undefined') return;
+  LanDiscovery.addListener(renderDiscoveredLanRooms);
+  LanDiscovery.startScanning();
+}
+
+function stopLanLobbyScanning() {
+  if (typeof LanDiscovery === 'undefined') return;
+  LanDiscovery.removeListener(renderDiscoveredLanRooms);
+  LanDiscovery.stopScanning();
+}
+
+function renderDiscoveredLanRooms(rooms) {
+  currentLanRooms = rooms || [];
+  const listEl = document.getElementById('lan-rooms-list');
+  const countBadge = document.getElementById('lan-room-count-badge');
+  const emptyState = document.getElementById('lan-empty-state');
+  if (!listEl) return;
+
+  if (countBadge) countBadge.textContent = `${currentLanRooms.length} Found`;
+
+  if (currentLanRooms.length === 0) {
+    listEl.innerHTML = '';
+    if (emptyState) {
+      listEl.appendChild(emptyState);
+      emptyState.classList.remove('hidden');
+    }
+    return;
+  }
+
+  listEl.innerHTML = '';
+  currentLanRooms.forEach(room => {
+    const card = document.createElement('div');
+    card.className = 'lan-room-card';
+    const hostGradient = (typeof getProfileAvatarGradientCss === 'function') 
+      ? getProfileAvatarGradientCss(room.hostName, room.hostGradient, true) 
+      : 'linear-gradient(135deg, #10b981, #059669)';
+    const hostInitial = (room.hostName && room.hostName.length > 0)
+      ? room.hostName.charAt(0).toUpperCase()
+      : 'L';
+    
+    card.innerHTML = `
+      <div class="lan-room-info-left">
+        <div class="lan-room-avatar" style="background: ${hostGradient}">
+          ${hostInitial}
+        </div>
+        <div class="lan-room-meta">
+          <div class="lan-room-name">${room.roomName || room.hostName}</div>
+          <div class="lan-room-sub">
+            <span>${room.hostName}</span>
+          </div>
+        </div>
+      </div>
+      <button class="primary-btn small btn-join-lan-match" data-code="${room.roomCode}">
+        Join
+      </button>
+    `;
+
+    card.querySelector('.btn-join-lan-match')?.addEventListener('click', () => {
+      openDeckBuilder((config) => {
+        pendingGuestDeckConfig = config;
+        handleJoinLanMatch(room.roomCode, room);
+      });
+    });
+
+    listEl.appendChild(card);
+  });
+}
+
+async function handleHostLanMatch(roomName, hostDeckConfig) {
+  hostDeckConfig = decorateDeckConfigWithPlayerProfile(hostDeckConfig);
+  mode = 'mp'; localKey = 'host'; remoteKey = 'guest';
+  currentWager = 0;
+  const seed = makeSeed();
+
+  net = new NetSession({
+    onInit: () => {},
+    onApplied: (action) => applyActionAndRender(action),
+    onStatus: (status) => {
+      if (status === 'connected') showToast('Connected.', 1500);
+    },
+    onGuestConfig: (guestDeckConfig) => {
+      remotePlayerName = guestDeckConfig?.playerName || 'Guest Player';
+      remotePlayerAvatar = guestDeckConfig?.playerAvatar || (remotePlayerName ? remotePlayerName.charAt(0).toUpperCase() : '⚔️');
+      remotePlayerGradient = guestDeckConfig?.playerGradient || null;
+      remotePlayerLevel = guestDeckConfig?.playerLevel || 1;
+
+      gameOverAnnounced = false;
+      meteorShowerDone = false;
+      epicVictoryDone = false;
+      matchVictoryAnims = { host: hostDeckConfig?.victoryAnim || null, guest: guestDeckConfig?.victoryAnim || null };
+      matchStartTime = Date.now();
+      _lowHpWarned.clear();
+      resetMatchCardStats();
+      lastPlacement = null;
+      state = createMatch(seed, 'host', 'guest', { host: hostDeckConfig, guest: guestDeckConfig });
+      initReplayLog(seed, 'host', 'guest', { host: hostDeckConfig, guest: guestDeckConfig });
+      resetSelections();
+      showScreen('screen-game');
+      setMatchInfo('LAN Match', 'LAN');
+      render();
+      net.sendInit();
+    },
+    onPeerError: (err) => {
+      showToast(err.message || ('Notice: ' + err.type));
+    },
+    onForfeit: () => handleOpponentForfeit(),
+    onPing: (latency) => updatePingUI(latency, true),
+    onRematchOffer: () => handleIncomingRematchOffer(),
+    onRematchAccept: () => handleIncomingRematchAccept(),
+    onRematchDecline: () => handleIncomingRematchDecline(),
+    onDisconnectWarning: () => showDisconnectRecoveryOverlay(),
+    onReconnected: () => {
+      hideDisconnectRecoveryOverlay();
+      showToast('Reconnected.', 1500);
+    }
+  });
+
+  try {
+    const code = await net.hostLanGame(roomName, seed, 0, hostDeckConfig);
+    showToast(`LAN Room: ${code}`, 2500);
+  } catch (e) {
+    showToast('Failed to host LAN match.');
+  }
+}
+
+async function handleJoinLanMatch(code, roomInfo) {
+  if (!code) return;
+  if (!pendingGuestDeckConfig) {
+    pendingGuestDeckConfig = buildDefaultDeckConfig();
+  }
+  pendingGuestDeckConfig = decorateDeckConfigWithPlayerProfile(pendingGuestDeckConfig);
+
+  mode = 'mp'; localKey = 'guest'; remoteKey = 'host';
+  net = new NetSession({
+    onInit: (data) => {
+      hideDisconnectRecoveryOverlay();
+      remotePlayerName = data.hostDeckConfig?.playerName || roomInfo?.hostName || 'Host Player';
+      remotePlayerAvatar = data.hostDeckConfig?.playerAvatar || (remotePlayerName ? remotePlayerName.charAt(0).toUpperCase() : '⚔️');
+      remotePlayerGradient = data.hostDeckConfig?.playerGradient || null;
+      remotePlayerLevel = data.hostDeckConfig?.playerLevel || 1;
+
+      document.getElementById('gameover-overlay').classList.add('hidden');
+      document.getElementById('gameover-card').querySelectorAll('.confetti-piece').forEach(el => el.remove());
+      gameOverAnnounced = false;
+      meteorShowerDone = false;
+      epicVictoryDone = false;
+      matchVictoryAnims = { host: data.hostDeckConfig?.victoryAnim || null, guest: pendingGuestDeckConfig?.victoryAnim || null };
+      matchStartTime = Date.now();
+      currentWager = 0;
+      _lowHpWarned.clear();
+      resetMatchCardStats();
+      lastPlacement = null;
+      state = createMatch(data.seed, 'host', 'guest', { host: data.hostDeckConfig, guest: pendingGuestDeckConfig });
+      initReplayLog(data.seed, 'host', 'guest', { host: data.hostDeckConfig, guest: pendingGuestDeckConfig });
+      resetSelections();
+      showScreen('screen-game');
+      setMatchInfo('LAN Match', 'LAN');
+      render();
+    },
+    onApplied: (action) => applyActionAndRender(action),
+    onStatus: (status) => {
+      if (status === 'connected') showToast('Connected.', 1500);
+    },
+    onPeerError: (err) => {
+      showToast(err.message || ('Notice: ' + err.type));
+    },
+    onForfeit: () => handleOpponentForfeit(),
+    onPing: (latency) => updatePingUI(latency, true),
+    onRematchOffer: () => handleIncomingRematchOffer(),
+    onRematchAccept: () => handleIncomingRematchAccept(),
+    onRematchDecline: () => handleIncomingRematchDecline(),
+    onDisconnectWarning: () => showDisconnectRecoveryOverlay(),
+    onReconnected: () => {
+      hideDisconnectRecoveryOverlay();
+      showToast('Reconnected.', 1500);
+    }
+  });
+
+  try {
+    await net.joinLanGame(code, pendingGuestDeckConfig);
+  } catch (e) {
+    showToast('Failed to join match.');
+  }
+}
+
+// Wire LAN screen buttons
+document.getElementById('btn-lan-host-open')?.addEventListener('click', () => {
+  const drawer = document.getElementById('lan-host-drawer');
+  if (drawer) {
+    drawer.classList.remove('hidden');
+    const input = document.getElementById('lan-host-name-input');
+    const pName = (typeof playerName !== 'undefined' && playerName) ? playerName : 'Player';
+    if (input && !input.value) input.value = `${pName}'s Arena`;
+    input?.focus();
+  }
+});
+
+document.getElementById('btn-lan-drawer-close')?.addEventListener('click', () => {
+  document.getElementById('lan-host-drawer')?.classList.add('hidden');
+});
+
+document.getElementById('btn-lan-host-cancel')?.addEventListener('click', () => {
+  document.getElementById('lan-host-drawer')?.classList.add('hidden');
+});
+
+document.getElementById('btn-lan-host-start')?.addEventListener('click', () => {
+  const input = document.getElementById('lan-host-name-input');
+  const rName = input?.value?.trim() || 'LAN Match';
+  document.getElementById('lan-host-drawer')?.classList.add('hidden');
+  openDeckBuilder((config) => handleHostLanMatch(rName, config));
+});
+
+document.getElementById('btn-lan-refresh-scan')?.addEventListener('click', () => {
+  const icon = document.getElementById('lan-refresh-icon');
+  if (icon) {
+    icon.style.transition = 'transform 0.5s ease';
+    icon.style.transform = 'rotate(360deg)';
+    setTimeout(() => { if (icon) icon.style.transform = 'rotate(0deg)'; }, 500);
+  }
+  if (typeof LanDiscovery !== 'undefined') LanDiscovery._pollLanRooms();
+  showToast('Scanning local network for matches…', 1500);
+});
+
+document.getElementById('lan-direct-toggle')?.addEventListener('click', () => {
+  const body = document.getElementById('lan-direct-body');
+  const chev = document.getElementById('lan-direct-chevron');
+  if (body) {
+    const isHidden = body.classList.toggle('hidden');
+    if (chev) chev.textContent = isHidden ? '▾' : '▴';
+  }
+});
+
+document.getElementById('btn-lan-direct-join')?.addEventListener('click', () => {
+  const code = document.getElementById('lan-direct-code-input')?.value?.trim();
+  if (!code) {
+    showToast('Please enter a 5-character LAN room code.');
+    return;
+  }
+  openDeckBuilder((config) => {
+    pendingGuestDeckConfig = config;
+    handleJoinLanMatch(code, null);
+  });
+});
+
+document.getElementById('lan-direct-code-input')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('btn-lan-direct-join')?.click();
+  }
+});
+
+document.getElementById('btn-lan-back')?.addEventListener('click', () => {
+  stopLanLobbyScanning();
+  showScreen('screen-multiplayer');
 });
 
 let matchmakingRoomCode = null;
@@ -4472,17 +4905,27 @@ async function beginMatchmaking(deckConfig) {
       }
       
       let isTransitioningToHost = false;
+      let mmJoinWatchdog = null;
       const fallbackToHost = async () => {
         if (isMatchmakingCancelled || isTransitioningToHost) return;
+        if (mmJoinWatchdog) { clearTimeout(mmJoinWatchdog); mmJoinWatchdog = null; }
         isTransitioningToHost = true;
         document.getElementById('matchmaking-status').textContent = 'Matched lobby unreachable. Creating fresh public lobby...';
         if (net) { net.destroy(); net = null; }
         await startHostingMatchmaking(deckConfig);
       };
 
+      mmJoinWatchdog = setTimeout(() => {
+        if (!isMatchmakingCancelled && !isTransitioningToHost && matchmakingRoomCode && (!state || state.phase === 'gameover')) {
+          console.warn('[Matchmaking] Matched host not responding within 7s, falling back to host lobby.');
+          fallbackToHost();
+        }
+      }, 7000);
+
       net = new NetSession({
         onInit: (data) => {
           if (isMatchmakingCancelled) return;
+          if (mmJoinWatchdog) { clearTimeout(mmJoinWatchdog); mmJoinWatchdog = null; }
           stopMatchmakingTimer();
           const localName = (typeof loadPlayerName === 'function' ? loadPlayerName() : '') || 'Player';
           remotePlayerName = data.hostDeckConfig?.playerName || remotePlayerName || 'Opponent';
@@ -4539,6 +4982,11 @@ async function beginMatchmaking(deckConfig) {
         onRematchOffer: () => handleIncomingRematchOffer(),
         onRematchAccept: () => handleIncomingRematchAccept(),
         onRematchDecline: () => handleIncomingRematchDecline(),
+        onDisconnectWarning: () => showDisconnectRecoveryOverlay(),
+        onReconnected: () => {
+          hideDisconnectRecoveryOverlay();
+          showToast('⚡ Opponent reconnected!', 2000);
+        }
       });
       
       try {
@@ -4646,6 +5094,11 @@ async function startHostingMatchmaking(deckConfig) {
     onRematchOffer: () => handleIncomingRematchOffer(),
     onRematchAccept: () => handleIncomingRematchAccept(),
     onRematchDecline: () => handleIncomingRematchDecline(),
+    onDisconnectWarning: () => showDisconnectRecoveryOverlay(),
+    onReconnected: () => {
+      hideDisconnectRecoveryOverlay();
+      showToast('⚡ Opponent reconnected!', 2000);
+    }
   });
   
   try {
@@ -5231,6 +5684,9 @@ function resetRematchState() {
 
 function handleIncomingRematchOffer() {
   rematchState = 'received';
+  if (net && typeof net.resetForRematch === 'function') {
+    net.resetForRematch();
+  }
   showToast('⚔️ Opponent requested a rematch!', 3000);
   const btn = document.getElementById('btn-mp-rematch');
   if (btn) {
@@ -5242,6 +5698,9 @@ function handleIncomingRematchOffer() {
 
 function handleIncomingRematchAccept() {
   rematchState = 'accepted';
+  if (net && typeof net.resetForRematch === 'function') {
+    net.resetForRematch();
+  }
   showToast('⚡ Rematch accepted! Preparing battlefield...', 2500);
   if (localKey === 'host') {
     initiateHostRematch();
@@ -5261,6 +5720,9 @@ function handleIncomingRematchDecline() {
 
 function initiateHostRematch() {
   if (localKey !== 'host' || !net) return;
+  if (typeof net.resetForRematch === 'function') {
+    net.resetForRematch();
+  }
   const seed = makeSeed();
   net.seed = seed;
   
@@ -5642,81 +6104,6 @@ function handleOpponentForfeit() {
 }
 
 // ---- Click delegation on the game screen ------------------------------------
-document.getElementById('screen-game').addEventListener('click', (e) => {
-  if (mode === 'replay') return;
-  if (!state || state.phase === 'gameover') return;
-  if (suppressNextClick) { suppressNextClick = false; return; }
-
-  const handCardEl = e.target.closest('[data-role="hand-card"]');
-  const spellEl = e.target.closest('[data-role="spell"]');
-  const chipEl = e.target.closest('[data-role="chip"]');
-  const slotEl = e.target.closest('.slot');
-
-  if (handCardEl) {
-    if (state.phase !== 'placement') return;
-    const idx = Number(handCardEl.dataset.handIdx);
-    selMode = null; selSpellId = null; selChipId = null; selAttackerSlot = null; selMergeSlots = [];
-    selHandIdx = (selHandIdx === idx) ? null : idx;
-    if (selHandIdx !== null && typeof Sound !== 'undefined') {
-      const card = state.players[localKey]?.deck[idx];
-      const tier = card ? card.tier : 1;
-      if (Sound.cardSelect) Sound.cardSelect(tier);
-    }
-    render();
-    return;
-  }
-
-  if (spellEl) {
-    if (state && state.phase !== 'attack') {
-      showToast('⚡ Spells can only be cast during the attack phase!');
-      return;
-    }
-    const id = spellEl.dataset.spellId;
-    resetSelections();
-    selSpellId = id;
-    if (typeof Sound !== 'undefined' && Sound.spellSelect) Sound.spellSelect();
-    render();
-    return;
-  }
-
-  if (chipEl) {
-    const id = chipEl.dataset.chipId;
-    resetSelections();
-    selChipId = id;
-    if (typeof Sound !== 'undefined' && Sound.chipSelect) Sound.chipSelect();
-    render();
-    return;
-  }
-
-  if (slotEl) {
-    e.stopPropagation();
-    const owner = slotEl.dataset.owner;
-    const slot = Number(slotEl.dataset.slot);
-    const isMine = owner === localKey;
-    const p = state.players[owner];
-    const card = p.board[slot];
-
-    // NEW FEATURE: Combine mode - tapping own cards toggles them in/out of
-    // the current multi-card merge selection (2-4 cards).
-    if (selMode === 'merge') {
-      if (!isMine) { showToast('Combine mode only selects your own cards.'); return; }
-      if (!card) return;
-      const idx = selMergeSlots.indexOf(slot);
-      if (idx !== -1) {
-        selMergeSlots.splice(idx, 1);
-      } else {
-        if (card.tier === 4) { showToast('Orange is already the highest tier and cannot merge with anything.'); return; }
-        if (selMergeSlots.length >= 4) { showToast('You can combine at most 4 cards in one fusion.'); return; }
-        selMergeSlots.push(slot);
-        if (typeof Sound !== 'undefined') {
-          if (Sound.tierChime) Sound.tierChime(card.tier);
-          else if (Sound.select) Sound.select();
-        }
-      }
-      render();
-      return;
-    }
-
 function openSacrificeSpellModal({ spellName, availableSpells, onSelect }) {
   const overlay = document.getElementById('sacrifice-spell-overlay');
   const titleEl = document.getElementById('sac-spell-title');
@@ -5787,6 +6174,87 @@ function openSacrificeSpellModal({ spellName, availableSpells, onSelect }) {
   if (typeof Sound !== 'undefined' && Sound.modalOpen) Sound.modalOpen();
 }
 
+document.getElementById('screen-game').addEventListener('click', (e) => {
+  if (mode === 'replay') return;
+  if (!state || state.phase === 'gameover') return;
+  if (suppressNextClick) { suppressNextClick = false; return; }
+
+  const handCardEl = e.target.closest('[data-role="hand-card"]');
+  const spellEl = e.target.closest('[data-role="spell"]');
+  const chipEl = e.target.closest('[data-role="chip"]');
+  const slotEl = e.target.closest('.slot');
+
+  if (handCardEl) {
+    if (state.phase !== 'placement') return;
+    const idx = Number(handCardEl.dataset.handIdx);
+    selMode = null; selSpellId = null; selChipId = null; selAttackerSlot = null; selMergeSlots = [];
+    selHandIdx = (selHandIdx === idx) ? null : idx;
+    if (selHandIdx !== null && typeof Sound !== 'undefined') {
+      const card = state.players[localKey]?.deck[idx];
+      const tier = card ? card.tier : 1;
+      if (Sound.cardSelect) Sound.cardSelect(tier);
+    }
+    render();
+    return;
+  }
+
+  if (spellEl) {
+    if (state && state.phase !== 'placement' && state.phase !== 'attack') {
+      showToast('⚡ Spells can only be cast during placement or attack phase!');
+      return;
+    }
+    const id = spellEl.dataset.spellId;
+    const wasSelected = selSpellId === id;
+    resetSelections();
+    if (!wasSelected) {
+      selSpellId = id;
+      if (typeof Sound !== 'undefined' && Sound.spellSelect) Sound.spellSelect();
+    }
+    render();
+    return;
+  }
+
+  if (chipEl) {
+    const id = chipEl.dataset.chipId;
+    const wasSelected = selChipId === id;
+    resetSelections();
+    if (!wasSelected) {
+      selChipId = id;
+      if (typeof Sound !== 'undefined' && Sound.chipSelect) Sound.chipSelect();
+    }
+    render();
+    return;
+  }
+
+  if (slotEl) {
+    e.stopPropagation();
+    const owner = slotEl.dataset.owner;
+    const slot = Number(slotEl.dataset.slot);
+    const isMine = owner === localKey;
+    const p = state.players[owner];
+    const card = p.board[slot];
+
+    // Combine mode - tapping own cards toggles them in/out of
+    // the current multi-card merge selection (2-4 cards).
+    if (selMode === 'merge') {
+      if (!isMine) { showToast('Combine mode only selects your own cards.'); return; }
+      if (!card) return;
+      const idx = selMergeSlots.indexOf(slot);
+      if (idx !== -1) {
+        selMergeSlots.splice(idx, 1);
+      } else {
+        if (card.tier === 4) { showToast('Orange is already the highest tier and cannot merge with anything.'); return; }
+        if (selMergeSlots.length >= 4) { showToast('You can combine at most 4 cards in one fusion.'); return; }
+        selMergeSlots.push(slot);
+        if (typeof Sound !== 'undefined') {
+          if (Sound.tierChime) Sound.tierChime(card.tier);
+          else if (Sound.select) Sound.select();
+        }
+      }
+      render();
+      return;
+    }
+
     if (selSpellId) {
       const activeSpell = state.players[localKey]?.spells.find(s => s.id === selSpellId);
       const isRevive = activeSpell && (activeSpell.reviveSpell || activeSpell.defId === 'revivespell');
@@ -5856,7 +6324,7 @@ function openSacrificeSpellModal({ spellName, availableSpells, onSelect }) {
       } else {
         if (isMine) {
           if (card && !state.players[localKey].defendingSlots[slot]) {
-            selAttackerSlot = slot;
+            selAttackerSlot = (selAttackerSlot === slot) ? null : slot;
             if (typeof Sound !== 'undefined' && Sound.cardSelect) Sound.cardSelect();
             render();
           }
@@ -6381,9 +6849,13 @@ function render() {
       }
     }
 
-    overlay.classList.remove('hidden');
     const isWin = state.winner === localKey;
     const isDraw = state.winner === 'draw';
+    if (typeof trialTowerActive !== 'undefined' && trialTowerActive && isWin) {
+      overlay.classList.add('hidden');
+    } else {
+      overlay.classList.remove('hidden');
+    }
     const cardEl = document.getElementById('gameover-card');
     if (cardEl) {
       cardEl.classList.remove('is-win', 'is-loss');
@@ -6423,10 +6895,10 @@ function render() {
     const mpRematchBtn = document.getElementById('btn-mp-rematch');
     if (mpRematchBtn) {
       mpRematchBtn.classList.toggle('hidden', mode !== 'mp');
-      resetRematchState();
     }
     if (!gameOverAnnounced) {
       gameOverAnnounced = true;
+      resetRematchState();
       saveMatchReplay();
       if (!tutorialActive) {
         let oldAdaptiveDiff = null;
@@ -7059,28 +7531,33 @@ function updatePingBadgeVisibility() {
   const badge = document.getElementById('p2p-ping-badge');
   if (!badge) return;
   
-  // Show badge ONLY if multiplayer match is ACTIVE, network object exists, and setting is enabled!
-  const isMultiplayerGame = mode === 'mp' && typeof net !== 'undefined' && net && net.conn && net.conn.open;
+  // Show badge if multiplayer match is ACTIVE, network session exists, and setting is enabled
+  const isMultiplayerGame = mode === 'mp' && typeof net !== 'undefined' && Boolean(net);
   if (isMultiplayerGame && pingIndicatorEnabled) {
     badge.classList.remove('hidden');
   } else {
     badge.classList.add('hidden');
   }
 }
-function updatePingUI(latency) {
+function updatePingUI(latency, isLan = false) {
   const badge = document.getElementById('p2p-ping-badge');
   const valEl = document.getElementById('p2p-ping-value');
   if (!badge || !valEl) return;
   
-  valEl.textContent = latency;
-  
-  badge.classList.remove('ping-excellent', 'ping-good', 'ping-poor');
-  if (latency < 50) {
+  if (isLan || (typeof net !== 'undefined' && net && net.isLan)) {
+    valEl.textContent = latency < 10 ? `${latency} (LAN)` : latency;
+    badge.classList.remove('ping-good', 'ping-poor');
     badge.classList.add('ping-excellent');
-  } else if (latency <= 150) {
-    badge.classList.add('ping-good');
   } else {
-    badge.classList.add('ping-poor');
+    valEl.textContent = latency;
+    badge.classList.remove('ping-excellent', 'ping-good', 'ping-poor');
+    if (latency < 50) {
+      badge.classList.add('ping-excellent');
+    } else if (latency <= 150) {
+      badge.classList.add('ping-good');
+    } else {
+      badge.classList.add('ping-poor');
+    }
   }
   
   updatePingBadgeVisibility();
@@ -7230,6 +7707,8 @@ applyReducedMotion(reducedMotion);
 
 // ---- Console / Performance Mode (Disables backdrop-filter blur and heavy background particle shaders) ----
 let performanceMode = loadPerformanceMode();
+let omegaPerformanceMode = loadOmegaPerformanceMode();
+
 function loadPerformanceMode() {
   try {
     const saved = localStorage.getItem('mehrbod-cards-perf-mode');
@@ -7243,27 +7722,124 @@ function loadPerformanceMode() {
   }
 }
 
+function loadOmegaPerformanceMode() {
+  try {
+    return localStorage.getItem('mehrbod-cards-omega-perf') === '1';
+  } catch (e) {
+    return false;
+  }
+}
+
 function applyPerformanceMode(on) {
   performanceMode = on;
   document.documentElement.classList.toggle('low-perf-device', on);
   document.body?.classList.toggle('low-perf-device', on);
   const btn = document.getElementById('btn-perf-mode-toggle');
   if (btn) {
-    btn.textContent = on ? '⚡ Performance: On' : '⚡ Performance: Off';
-    btn.setAttribute('data-state', on ? 'on' : 'off');
+    if (omegaPerformanceMode) {
+      btn.textContent = '🥔 Performance: Potato';
+      btn.setAttribute('data-state', 'potato');
+    } else {
+      btn.textContent = on ? '⚡ Performance: On' : '⚡ Performance: Off';
+      btn.setAttribute('data-state', on ? 'on' : 'off');
+    }
   }
   try { localStorage.setItem('mehrbod-cards-perf-mode', on ? '1' : '0'); } catch (e) {}
 }
 
+function applyOmegaPerformanceMode(on) {
+  omegaPerformanceMode = on;
+  document.documentElement.classList.toggle('omega-perf-mode', on);
+  document.body?.classList.toggle('omega-perf-mode', on);
+
+  const btn = document.getElementById('btn-perf-mode-toggle');
+  if (btn) {
+    if (on) {
+      btn.textContent = '🥔 Performance: Potato';
+      btn.setAttribute('data-state', 'potato');
+    } else {
+      btn.textContent = performanceMode ? '⚡ Performance: On' : '⚡ Performance: Off';
+      btn.setAttribute('data-state', performanceMode ? 'on' : 'off');
+    }
+  }
+
+  const rg = document.getElementById('raygun-container');
+  if (rg) {
+    rg.style.display = on ? 'none' : 'block';
+  }
+
+  try {
+    localStorage.setItem('mehrbod-cards-omega-perf', on ? '1' : '0');
+  } catch (e) {}
+}
+
 const perfModeBtn = document.getElementById('btn-perf-mode-toggle');
 if (perfModeBtn) {
-  perfModeBtn.addEventListener('click', () => {
-    applyPerformanceMode(!performanceMode);
-    if (typeof Sound !== 'undefined' && Sound.click) Sound.click();
-    showToast(performanceMode ? '⚡ Console Performance Mode Enabled (Blurs & complex animations disabled)' : '🎨 High Fidelity Visuals Enabled', 2500);
+  let holdTimer = null;
+  let isHoldTriggered = false;
+
+  const startHold = (e) => {
+    isHoldTriggered = false;
+    clearTimeout(holdTimer);
+    holdTimer = setTimeout(() => {
+      isHoldTriggered = true;
+      applyOmegaPerformanceMode(!omegaPerformanceMode);
+      if (omegaPerformanceMode) {
+        applyPerformanceMode(true);
+      }
+      if (typeof Sound !== 'undefined' && typeof Sound.tone === 'function') {
+        // Play a low potato-sounding synth beep
+        Sound.tone(150, 0.35, 'triangle', 0.15);
+      } else {
+        try {
+          const ac = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = ac.createOscillator();
+          const g = ac.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(150, ac.currentTime);
+          g.gain.setValueAtTime(0.15, ac.currentTime);
+          g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.35);
+          osc.connect(g).connect(ac.destination);
+          osc.start();
+          osc.stop(ac.currentTime + 0.35);
+        } catch (_) {}
+      }
+      showToast(omegaPerformanceMode ? '🥔 Omega Potato Mode Activated! (Zero effects, flat graphics)' : '🎨 High Fidelity Visuals Enabled', 2500);
+    }, 1500); // 1.5s press-and-hold
+  };
+
+  const cancelHold = () => {
+    clearTimeout(holdTimer);
+  };
+
+  perfModeBtn.addEventListener('mousedown', startHold);
+  perfModeBtn.addEventListener('touchstart', startHold, { passive: true });
+
+  window.addEventListener('mouseup', cancelHold);
+  window.addEventListener('touchend', cancelHold, { passive: true });
+  perfModeBtn.addEventListener('mouseleave', cancelHold);
+
+  perfModeBtn.addEventListener('click', (e) => {
+    if (isHoldTriggered) {
+      e.preventDefault();
+      e.stopPropagation();
+      isHoldTriggered = false;
+      return;
+    }
+    if (omegaPerformanceMode) {
+      applyOmegaPerformanceMode(false);
+      applyPerformanceMode(false);
+      if (typeof Sound !== 'undefined' && Sound.click) Sound.click();
+      showToast('🎨 High Fidelity Visuals Enabled', 2500);
+    } else {
+      applyPerformanceMode(!performanceMode);
+      if (typeof Sound !== 'undefined' && Sound.click) Sound.click();
+      showToast(performanceMode ? '⚡ Console Performance Mode Enabled (Blurs & complex animations disabled)' : '🎨 High Fidelity Visuals Enabled', 2500);
+    }
   });
 }
 applyPerformanceMode(performanceMode);
+applyOmegaPerformanceMode(omegaPerformanceMode);
 
 // ---- Thermal & Battery Saver Mode (Mobile Passive Cooling & Energy Optimization) -
 let batterySaverMode = loadBatterySaverMode(); // 'auto' | 'on' | 'off'
@@ -7663,7 +8239,11 @@ function isAstralThemeUnlocked() {
     if (localStorage.getItem('theme_astral_unlocked') === 'true') return true;
     if (typeof loadTrialTowerState === 'function') {
       const tower = loadTrialTowerState();
-      if (tower && (tower.best >= 30 || tower.floor >= 30)) return true;
+      if (tower && (tower.best >= 50 || tower.floor >= 50)) return true;
+    }
+    if (typeof loadPlayerXP === 'function' && typeof playerLevelFromXP === 'function') {
+      const pLvl = playerLevelFromXP(loadPlayerXP()).level;
+      if (pLvl >= 50) return true;
     }
   } catch (e) {}
   return false;
@@ -7722,7 +8302,7 @@ function themeDisplayName(t) {
     dark: 'Dark', light: 'Light', verdant: 'Verdant', pink: 'Pink', storm: 'Storm',
     aurora: 'Aurora', sovereign: 'Sovereign', flame: 'Flame', mrmoney: 'Mr Money',
     cyberneon: 'Cyber Neon', abyss: 'Abyss', magma: 'Magma', quantum: 'Quantum Flux',
-    glacier: 'Glacial Frost', astral: 'Astral Void', celestial: 'Celestial Divinity',
+    glacier: 'Glacial Frost', astral: 'Trial Lord (S1)', celestial: 'Celestial Divinity',
     prism: 'Prism Core', darkmatter: 'Prism Core',
     chronos: 'Chronos Horizon', neon_cyberpunk: 'Hyperdrive Cyber-Grid',
     void_singularity: 'Void Singularity', quantum_overdrive: 'Quantum Horizon',
@@ -7801,7 +8381,7 @@ Object.assign(THEME_LOCK_MESSAGE, {
   magma: '🔒 Buy the Magma theme in the Mehrbod Shop for 1200 Bux!',
   quantum: '🔒 Reach Floor 10 of the Trial Tower to unlock the Quantum Flux theme!',
   glacier: '🔒 Reach Floor 15 of the Trial Tower to unlock the Glacial Frost theme!',
-  astral: '🔒 Clear Floor 30 of the Trial Tower to unlock the Astral Void theme!',
+  astral: '🔒 Reach Level 50 or Floor 50 of the Trial Tower to unlock the Trial Lord (S1) theme!',
   celestial: '🔒 Reach Floor 50 of the Trial Tower to unlock the Celestial Divinity theme!',
   prism: '🔒 Collect 100% of all cards, spells, and chips to unlock the Prism Core theme!',
   darkmatter: '🔒 Collect 100% of all cards, spells, and chips to unlock the Prism Core theme!',
@@ -7885,6 +8465,48 @@ function applyTheme(theme) {
     document.body.classList.add('theme-' + theme);
   }
   document.body.setAttribute('data-theme', theme);
+
+  const THEME_ACCENT_COLORS = {
+    dark: '#38bdf8',
+    light: '#0284c7',
+    verdant: '#2f8f4e',
+    pink: '#ff5fa8',
+    flame: '#38bdf8',
+    aurora: '#34d399',
+    sovereign: '#d4af37',
+    storm: '#9fe0ff',
+    mrmoney: '#3ddc63',
+    cyberneon: '#ff2ec4',
+    abyss: '#22e6c8',
+    magma: '#ff5500',
+    quantum: '#00f2fe',
+    glacier: '#00f5d4',
+    astral: '#c084fc',
+    celestial: '#ffd700',
+    prism: '#38bdf8',
+    darkmatter: '#00f0ff',
+    valentine: '#ff4f7b',
+    sakura: '#f472b6',
+    solar: '#f59e0b',
+    steampunk: '#d97706',
+    galaxy: '#818cf8',
+    chronos: '#ec4899',
+    neon_cyberpunk: '#00f0ff',
+    void_singularity: '#a855f7',
+    quantum_overdrive: '#14b8a6',
+    solar_prominence: '#f59e0b',
+    prism_mythic: '#38bdf8',
+    celestial_nebula: '#c084fc',
+    abyss_kraken: '#06b6d4',
+    apex_sovereign: '#eab308',
+    verity: '#ffff00'
+  };
+
+  const themeAccent = THEME_ACCENT_COLORS[theme] || '#38bdf8';
+  document.documentElement.style.setProperty('--theme-accent', themeAccent);
+  document.documentElement.style.setProperty('--accent', themeAccent);
+  document.body.style.setProperty('--theme-accent', themeAccent);
+  document.body.style.setProperty('--accent', themeAccent);
   
   // Lazy load theme background assets dynamically
   const container = document.getElementById('theme-bg-container');
@@ -8026,13 +8648,13 @@ const THEME_DATA_REGISTRY = [
   { id: 'aurora', name: 'Aurora', emblem: '🌌', rarity: 'QUEST', rarityClass: 'epic', desc: 'Northern polar light auroras shimmering across icy glaciers.', unlockHint: 'Unlocked by defeating Expert Difficulty AI', primary: '#2dd4bf', panel: '#134e4a', bg: '#042f2e' },
   { id: 'sovereign', name: 'The Sovereign', emblem: '👑', rarity: 'MASTER', rarityClass: 'legendary', desc: 'Imperial 24k gilded royal majesty with antique gold trim.', unlockHint: 'Unlocked by defeating Master Difficulty AI', primary: '#eab308', panel: '#713f12', bg: '#422006' },
   { id: 'storm', name: 'Storm', emblem: '⛈️', rarity: 'LEGENDARY', rarityClass: 'legendary', desc: 'Crackling azure lightning surges across torrential thundercloud skies.', unlockHint: 'Unlocked by conquering all difficulty quests', primary: '#38bdf8', panel: '#0c4a6e', bg: '#082f49' },
-  { id: 'mrmoney', name: 'Mr Money', emblem: '🤑', rarity: 'SHOP', rarityClass: 'legendary', desc: 'Opulent high-roller casino vault dripping in gold bullion & banknotes.', unlockHint: 'Purchased in Cosmetics Shop for 1,000 Bux', primary: '#22c55e', panel: '#064e3b', bg: '#022c22' },
+  { id: 'mrmoney', name: 'Mr Money', emblem: '🤑', rarity: 'SHOP', rarityClass: 'legendary', desc: 'Opulent executive treasure vault dripping in gold bullion & banknotes.', unlockHint: 'Purchased in Cosmetics Shop for 1,000 Bux', primary: '#22c55e', panel: '#064e3b', bg: '#022c22' },
   { id: 'cyberneon', name: 'Cyber Neon', emblem: '🌆', rarity: 'SHOP', rarityClass: 'exotic', desc: 'Cyberpunk neon grid lines pulsating with synthwave laser energy.', unlockHint: 'Purchased in Cosmetics Shop for 1,200 Bux', primary: '#f43f5e', panel: '#1e1b4b', bg: '#030712' },
   { id: 'abyss', name: 'Abyss', emblem: '🌊', rarity: 'SHOP', rarityClass: 'exotic', desc: 'Deep oceanic hydrothermal trenches illuminated by bioluminescent jellyfish.', unlockHint: 'Purchased in Cosmetics Shop for 1,200 Bux', primary: '#06b6d4', panel: '#082f49', bg: '#021422' },
   { id: 'magma', name: 'Magma', emblem: '🌋', rarity: 'SHOP', rarityClass: 'mythic', desc: 'A living volcanic caldera with undulating molten lava and rising heat sparks.', unlockHint: 'Purchased in Cosmetics Shop for 1,200 Bux', primary: '#ff4500', panel: '#4a0e04', bg: '#200600' },
   { id: 'quantum', name: 'Quantum', emblem: '⚛️', rarity: 'LEVEL 10', rarityClass: 'mythic', desc: 'Subatomic quark fields and violet singularity particle distortions.', unlockHint: 'Unlocked at Player Level 10', primary: '#c084fc', panel: '#3b0764', bg: '#180828' },
   { id: 'glacier', name: 'Glacier', emblem: '❄️', rarity: 'TRIAL TOWER', rarityClass: 'epic', desc: 'Crystalline sub-zero permafrost radiating pristine arctic frost.', unlockHint: 'Unlocked by clearing Floor 15 in the Trial Tower', primary: '#67e8f9', panel: '#0e4a66', bg: '#082736' },
-  { id: 'astral', name: 'Astral', emblem: '🌌', rarity: 'TRIAL TOWER', rarityClass: 'exotic', desc: 'Interstellar nebulas and distant spiral galaxies drifting in silent space.', unlockHint: 'Unlocked by clearing Floor 30 in the Trial Tower', primary: '#a855f7', panel: '#1f0b40', bg: '#09041a' },
+  { id: 'astral', name: 'Trial Lord (S1)', emblem: '🌌', rarity: 'LEVEL 50', rarityClass: 'exotic', desc: 'Transcendent hyper-dimensional cosmos featuring a supermassive central singularity, multi-angle relativistic accretion disks, dual particle jets, and sacred celestial constellations.', unlockHint: 'Unlocked at Level 50 or clearing Floor 50 in the Trial Tower', primary: '#c084fc', panel: '#1f0b40', bg: '#030009' },
   { id: 'celestial', name: 'Celestial', emblem: '☀️', rarity: 'TRIAL TOWER', rarityClass: 'mythic', desc: 'Radiant golden divine solar flares from the throne of the stars.', unlockHint: 'Unlocked by conquering Floor 50 in the Trial Tower', primary: '#fde047', panel: '#593c06', bg: '#261a04' },
   { id: 'prism', name: 'Prism Core', emblem: '💎', rarity: 'COMPLETION', rarityClass: 'mythic', desc: 'Living diamond crystal refractors with real-time chromatic spectrum dispersion, multi-faceted obsidian glass card framing, and celestial harmonic caustics.', unlockHint: 'Unlocked when 100% of all cards, spells, and chips are collected', primary: '#00f0ff', panel: '#040d1a', bg: '#020610' },
   { id: 'valentine', name: 'Valentine', emblem: '💘', rarity: 'SECRET', rarityClass: 'exotic', desc: 'Sweetheart confectionery theme filled with romantic rose petals.', unlockHint: 'Unlocked with secret code: LOVE', primary: '#fb7185', panel: '#881337', bg: '#4c0519' },
@@ -8068,6 +8690,12 @@ const SLEEVE_DATA_REGISTRY = [
   { id: 'sleeve_phoenix', name: 'Phoenix Ember Sleeves', rarity: 'LEGENDARY', rarityClass: 'legendary', desc: 'Radiant fiery flame borders shedding glowing phoenix sparks.', cost: 850, sleeveClass: 'sleeve-phoenix' },
   { id: 'sleeve_emerald', name: 'Emerald Empress Sleeves', rarity: 'EPIC', rarityClass: 'epic', desc: 'Luminous jade emerald gemstone borders with gilded corner accents.', cost: 700, sleeveClass: 'sleeve-emerald' },
   { id: 'sleeve_obsidian', name: 'Tactical Obsidian Sleeves', rarity: 'MYTHIC', rarityClass: 'mythic', desc: 'Sleek stealth carbon obsidian frames with crimson laser edging.', cost: 1000, sleeveClass: 'sleeve-obsidian' },
+  /* --- Trial Lord Milestone Sleeves --- */
+  { id: 'sleeve_trial_lord_novice', name: 'Trial Lord Novice Sleeves', rarity: 'MILESTONE 10', rarityClass: 'rare', desc: 'Bronze runic spire card border unlocked by conquering Floor 10 of Trial Tower.', cost: 0, sleeveClass: 'sleeve-trial-lord-novice' },
+  { id: 'sleeve_trial_lord_sentinel', name: 'Trial Lord Sentinel Sleeves', rarity: 'MILESTONE 20', rarityClass: 'epic', desc: 'Electro-cyan cyber spire card border unlocked by conquering Floor 20 of Trial Tower.', cost: 0, sleeveClass: 'sleeve-trial-lord-sentinel' },
+  { id: 'sleeve_trial_lord_conqueror', name: 'Trial Lord Conqueror Sleeves', rarity: 'MILESTONE 30', rarityClass: 'legendary', desc: 'Gilded solar prominence card border unlocked by conquering Floor 30 of Trial Tower.', cost: 0, sleeveClass: 'sleeve-trial-lord-conqueror' },
+  { id: 'sleeve_trial_lord_sovereign', name: 'Trial Lord Sovereign Sleeves', rarity: 'MILESTONE 40', rarityClass: 'mythic', desc: 'Deep void singularity card border unlocked by conquering Floor 40 of Trial Tower.', cost: 0, sleeveClass: 'sleeve-trial-lord-sovereign' },
+  { id: 'sleeve_trial_lord_apex', name: 'Trial Lord Apex Gold Sleeves', rarity: 'MILESTONE 50', rarityClass: 'exotic', desc: 'Imperial 24k crown spire card border unlocked by conquering Floor 50 of Trial Tower.', cost: 0, sleeveClass: 'sleeve-trial-lord-apex' },
 ];
 
 const VICTORY_DATA_REGISTRY = [
@@ -10307,8 +10935,81 @@ document.getElementById('btn-copy-code').addEventListener('click', async () => {
 });
 
 // ---- Patch notes --------------------------------------------------------
-const CURRENT_VERSION = '7.92';
+const CURRENT_VERSION = '8.00';
 const PATCH_NOTES = [
+  {
+    version: '8.00',
+    date: '2026-10-07',
+    title: 'Trial Tower Stacking Modifiers Draft & Epic Astral Apex Theme Overhaul',
+    notes: [
+      "TRIAL TOWER ASCENT OVERHAUL: Beating a Trial Tower floor now presents an interactive level ascent screen where players celebrate their victory and choose whether to proceed directly to the next level or save and return to the Citadel.",
+      "STACKING RUN MODIFIERS: Every cleared match lets you draft 1 of 3 powerful combat modifiers that stack across the run (Splash Wave, Critical Strike, Vampiric Drain, Overcharge Surge, Bastion Plating, Twin Strike, Reaper Execution, Thorns Matrix, Solar Ignition)!",
+      "ACTIVE MODIFIER HUD: Real-time modifier stack counter and badge tray in the Citadel console and in-match header so you can track your build synergies as you climb.",
+      "ASTRAL APEX COMPLETE OVERHAUL: Completely redesigned the Floor 30 Trial Tower theme into an epic cosmic spectacle featuring a supermassive central singularity, multi-angle relativistic accretion disks, dual hyper-relativistic jet beams, sacred celestial orbital rings, 20-star twinkling field with diffraction spikes, and blazing shooting comets."
+    ],
+  },
+  {
+    version: '7.98',
+    date: '2026-10-07',
+    title: 'Active Theme Matching Menu Tiles & Minimalist Text Redesign',
+    notes: [
+      "THEME-REACTIVE MENU TILES: Menu cards, icon pods, borders, glows, and vector SVG icons dynamically match the color of the active theme across all 33 unlocked colorways in real time.",
+      "LAN EMOJI REMOVAL: Replaced the satellite emoji with an animated vector radar scan SVG; host room avatars now display clean typographic monogram initials.",
+      "MINIMALIST COPY PASS: Stripped verbose subtitles and text across all menu cards, solo mode, multiplayer, bot practice, and collection book to sleek minimalist titles and tags."
+    ],
+  },
+  {
+    version: '7.97',
+    date: '2026-10-07',
+    title: 'Minimalist UI Text Pass Across Multiplayer & LAN',
+    notes: [
+      "MINIMALIST COPY PASS: Stripped verbose descriptions, redundant subtext, and noisy badges across the Multiplayer menu, LAN screen, and match cards for a clean, sleek interface.",
+      "STREAMLINED DISCONNECT HUD: Replaced long-winded recovery messages with a compact, minimal reconnect indicator and clean action buttons."
+    ],
+  },
+  {
+    version: '7.96',
+    date: '2026-10-07',
+    title: 'LAN Multiplayer Games Engine & Deep Multiplayer Network Audit',
+    notes: [
+      "LAN GAMES ENGINE: Added a dedicated LAN Games mode with live Wi-Fi radar scanning and automatic nearby peer discovery using dual-channel BroadcastChannel and local network beacons for true zero-latency (<5ms) tactical battles.",
+      "ONE-CLICK NEARBY MATCH JOINING: Discovered local games dynamically appear on the LAN radar list with host avatar, player level, and match title, allowing instant 1-tap connection without manual codes.",
+      "DIRECT LAN CONNECT: Added Direct IP and Room Code Connect drawer for explicit local network and custom host pairing.",
+      "DISCONNECT RECOVERY HUD: Implemented a 15-second network stabilization grace period overlay during active matches with countdown timer, giving players time to reconnect during Wi-Fi hiccups without instant defeat.",
+      "SERVER RELAY CONCURRENCY FIX: Added polling lock and monotonic message watermark deduplication in ServerRelaySession to eliminate race conditions and out-of-order action delivery.",
+      "ARCADE PURGE RE-VERIFIED: Confirmed 100% elimination of all arcade lounge UI, modal components, and minigame scripts across the entire project."
+    ],
+  },
+  {
+    version: '7.95',
+    date: '2026-10-07',
+    title: 'Multiplayer System Audit, Rematch Integrity & Matchmaking Watchdog',
+    notes: [
+      "REMATCH STATE CORRUPTION FIX: Fixed Firestore session actions and signals reset during match restarts, preventing actions from prior games from corrupting new rematch boards.",
+      "REMATCH BUTTON PRESERVATION: Fixed game-over render cycle to preserve incoming rematch requests and active offer states against background ping/heartbeat re-renders.",
+      "MATCHMAKING WATCHDOG & DEADLOCK PREVENTION: Added a 7-second join watchdog timer that automatically falls back to hosting when matching with unreachable or stalled lobbies.",
+      "HOST WAGER NAVIGATION PROTECTION: Leaving the host lobby before a match begins now automatically and safely refunds your staked Mehrbod Bux.",
+      "DETERMINISTIC ACTION DEDUPLICATION: Hardened triple-layer action transport (Firebase + Server Relay + WebRTC) with deterministic fallback signatures to guarantee zero double-execution of moves."
+    ],
+  },
+  {
+    version: '7.94',
+    date: '2026-10-07',
+    title: 'Arcade Lounge & All Mini-Game Code Completely Wiped',
+    notes: [
+      "ARCADE ERASED: Completely wiped the Arcade Lounge, slots machine, dice, coin flip, and fortune wheel modals, navigation controls, and all associated event listeners and code from the game.",
+      "STREAMLINED NAVIGATION DOCK: Restored the main menu bottom dock to its clean core pillars (Collection, Quests, Pass S1, Settings) with balanced spacing and pristine ergonomics."
+    ],
+  },
+  {
+    version: '7.93',
+    date: '2026-10-07',
+    title: 'Purge of Casino & Gambling Mentions Across Entire Game',
+    notes: [
+      "COMPLETE CASINO & GAMBLING TERMINOLOGY PURGE: Audited and removed all mentions of casino, gambling, bets, and jackpot terminology across all UI menus, shop items, audio annotations, achievements, and codebases.",
+      "STAKES & REWARD REBRANDING: Streamlined menu cards to 'Play for Mehrbod Bux', updated prize wheel slices to 'Grand Prize' / 'Grand Vault', and renamed achievements to 'High Stakes Master' for family-friendly, pure tactical gaming aesthetic."
+    ],
+  },
   {
     version: '7.92',
     date: '2026-10-05',

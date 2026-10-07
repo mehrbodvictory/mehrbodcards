@@ -17,7 +17,7 @@ function isFreshCard(bucket, id) {
 function cardEl(card, { owner, slot, selected, defending, attacking, forceGlow, popIn, attackAnim, deathAnim, hitAnim, selectableClass, extraClass, mergePickNumber } = {}) {
   const el = document.createElement('div');
   el._cardData = card;
-  el.className = `card tier${card.tier} ${extraClass || ''}`;
+  el.className = `card tier${card.tier} ${card.isBossCard || card.tier === 5 ? 'boss-card' : ''} ${extraClass || ''}`;
   if (selected) el.classList.add('selected');
   if (defending) el.classList.add('defending');
   if (attacking) el.classList.add('attacking-flag');
@@ -66,7 +66,7 @@ function cardEl(card, { owner, slot, selected, defending, attacking, forceGlow, 
 // orange), which is hard to distinguish for some forms of color blindness.
 // Every card now also carries a small shape glyph unique to its tier, shown
 // next to its name, so tier is always readable by shape too, not just hue.
-const TIER_GLYPHS = { 1: '●', 2: '▲', 3: '■', 4: '★' };
+const TIER_GLYPHS = { 1: '●', 2: '▲', 3: '■', 4: '★', 5: '👑' };
 
 const ABILITY_SHORT = {
   onplay_dmg2: 'Play: 2 dmg to weakest foe',
@@ -98,8 +98,15 @@ const ABILITY_SHORT = {
   orange_onplay_soulharvest: "Play: +1 dmg per death this match",
   orange_ondeath_rebirth2: 'Death: reborn as 2 Blue cards',
   orange_onplay_alphastrike: 'Play: instantly strikes a random foe',
+  restore_spell: 'Play: restore a used spell',
+  restore_chip: 'Play: restore a used chip',
+  add_random_blue: 'Play: +1 random Blue card',
 };
-function abilityLabel(id) { return ABILITY_SHORT[id] || ''; }
+function abilityLabel(id) {
+  if (ABILITY_SHORT[id]) return ABILITY_SHORT[id];
+  if (typeof ABILITIES !== 'undefined' && ABILITIES[id] && ABILITIES[id].label) return ABILITIES[id].label;
+  return '';
+}
 
 function renderBoard(container, playerState, ownerKey, { selectedSlot, selectedSlots, targetableSlots, forceGlowAll } = {}) {
   container.innerHTML = '';

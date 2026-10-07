@@ -16,6 +16,16 @@ function runBotPlacement(state, botKey, difficulty, rng) {
   const p = state.players[botKey];
   const level = DIFFICULTIES.indexOf(difficulty);
 
+  // 0. BOSS DEPLOYMENT: Always deploy Boss Card immediately into slot 0 if sitting in deck!
+  const bossDeckIdx = p.deck.findIndex(c => c && (c.isBossCard || c.tier === 5));
+  if (bossDeckIdx !== -1) {
+    const empty = emptySlots(p.board);
+    if (empty.length > 0) {
+      const targetSlot = empty.includes(0) ? 0 : empty[0];
+      placeCard(state, botKey, null, targetSlot, bossDeckIdx);
+    }
+  }
+
   // 1. Place cards from the deck into empty slots, resolving forced
   // Blue-merges as soon as they come up.
   while (emptySlots(p.board).length > 0 && !isForced(state, botKey)) {
@@ -109,8 +119,12 @@ function attachSmartChips(state, botKey) {
     const chip = p.chips[0];
     const myFilled = filledSlots(p.board).filter(s => hasFreeChipSlot(p.board[s]));
     if (myFilled.length === 0) break;
-    // Prefer highest tier unit for chip enhancement
-    const target = myFilled.sort((a, b) => p.board[b].tier - p.board[a].tier)[0];
+    // Prefer Boss card (tier 5) or highest tier unit for chip enhancement
+    const target = myFilled.sort((a, b) => {
+      const isBossA = p.board[a].isBossCard || p.board[a].tier === 5 ? 100 : p.board[a].tier;
+      const isBossB = p.board[b].isBossCard || p.board[b].tier === 5 ? 100 : p.board[b].tier;
+      return isBossB - isBossA;
+    })[0];
     const res = attachChip(state, botKey, chip.id, botKey, target);
     if (!res || !res.ok) break;
   }

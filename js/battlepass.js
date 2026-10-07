@@ -551,24 +551,31 @@
   }
 
   // --- Check Unclaimed Count ---
-  function hasUnclaimedRewards() {
+  function getUnclaimedRewardsCount() {
     const currentLevel = getBattlePassLevel();
     const premiumUnlocked = isBattlePassUnlocked();
+    let count = 0;
 
     for (let i = 1; i <= currentLevel; i++) {
-      if (!isRewardClaimed(i, 'free')) return true;
-      if (premiumUnlocked && !isRewardClaimed(i, 'premium')) return true;
+      if (!isRewardClaimed(i, 'free')) count++;
+      if (premiumUnlocked && !isRewardClaimed(i, 'premium')) count++;
     }
-    return false;
+    return count;
+  }
+
+  function hasUnclaimedRewards() {
+    return getUnclaimedRewardsCount() > 0;
   }
 
   function updateBattlePassBadge() {
     const unclaimedBadge = document.getElementById('bp-claim-indicator');
     const claimAllBtns = document.querySelectorAll('#bp-claim-all, #btn-bp-claim-all, .bp-claim-all-btn');
-    const hasUnclaimed = hasUnclaimedRewards();
+    const unclaimedCount = getUnclaimedRewardsCount();
+    const hasUnclaimed = unclaimedCount > 0;
 
     if (unclaimedBadge) {
       if (hasUnclaimed) {
+        unclaimedBadge.textContent = unclaimedCount;
         unclaimedBadge.classList.remove('hidden');
       } else {
         unclaimedBadge.classList.add('hidden');

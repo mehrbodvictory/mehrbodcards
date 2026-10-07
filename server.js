@@ -29,12 +29,15 @@ app.use(express.static(path.join(__dirname), {
 // Matchmaking state (stored in-memory, private and safe)
 let waitingLobbies = [];
 
+// LAN Lobbies state (local network active hosts with auto-discovery)
+const lanRooms = new Map();
+
 // HTTP Server Relay state for VPN / School Wi-Fi fallback multiplayer matches
 const relayRooms = new Map();
 
 // Global health probe endpoint
 app.all('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: Date.now() });
+  res.json({ status: 'ok', timestamp: Date.now(), lanRooms: lanRooms.size, relayRooms: relayRooms.size });
 });
 
 app.all('/api/matchmaking', (req, res) => {
@@ -53,7 +56,7 @@ app.all('/api/relay/health', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now(), activeRooms: relayRooms.size });
 });
 
-// Housekeeping: clean up stale relay rooms older than 15 minutes
+// Housekeeping: clean up stale relay rooms older than 15 minutes, and stale LAN rooms older than 45s
 setInterval(() => {
   const now = Date.now();
   for (const [code, room] of relayRooms.entries()) {
@@ -61,7 +64,95 @@ setInterval(() => {
       relayRooms.delete(code);
     }
   }
-}, 60000);
+  for (const [code, lanRoom] of lanRooms.entries()) {
+    if (now - lanRoom.lastHeartbeat > 45000) {
+      lanRooms.delete(code);
+    }
+  }
+}, 30000);
+
+/* ---------------- LAN DISCOVERY & DIRECT CONNECT ROUTES ---------------- */
+app.get('/api/lan/rooms', (req, res) => {
+  const now = Date.now();
+  const activeLanList = [];
+  for (const [code, room] of lanRooms.entries()) {
+    if (now - room.lastHeartbeat <= 45000 && room.status === 'open') {
+      activeLanList.push({
+        roomCode: room.roomCode,
+        roomName: room.roomName || `${room.hostName || 'Host'}'s LAN Match`,
+        hostName: room.hostName || 'Host',
+        hostAvatar: room.hostAvatar || '⚔️',
+        hostLevel: room.hostLevel || 1,
+        hostGradient: room.hostGradient || null,
+        wager: room.wager || 0,
+        createdAt: room.createdAt,
+        clientIp: req.ip || req.socket?.remoteAddress || '127.0.0.1'
+      });
+    }
+  }
+  res.json({ success: true, rooms: activeLanList, timestamp: now });
+});
+
+app.post('/api/lan/host', (req, res) => {
+  const { roomCode, roomName, hostInfo, wager } = req.body || {};
+  if (!roomCode) return res.status(400).json({ error: 'Missing roomCode' });
+  const cleanCode = String(roomCode).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!cleanCode) return res.status(400).json({ error: 'Invalid roomCode' });
+
+  const existing = lanRooms.get(cleanCode);
+  const room = {
+    roomCode: cleanCode,
+    roomName: roomName || `${hostInfo?.playerName || 'Player'}'s Arena`,
+    hostName: hostInfo?.playerName || 'Host Player',
+    hostAvatar: hostInfo?.playerAvatar || '⚔️',
+    hostLevel: hostInfo?.playerLevel || 1,
+    hostGradient: hostInfo?.playerGradient || null,
+    wager: Number(wager) || 0,
+    status: 'open',
+    createdAt: existing?.createdAt || Date.now(),
+    lastHeartbeat: Date.now()
+  };
+
+  lanRooms.set(cleanCode, room);
+  // Ensure relay room is ready as fallback
+  getOrCreateRelayRoom(cleanCode);
+  res.json({ success: true, roomCode: cleanCode });
+});
+
+app.post('/api/lan/heartbeat', (req, res) => {
+  const { roomCode } = req.body || {};
+  if (!roomCode) return res.status(400).json({ error: 'Missing roomCode' });
+  const cleanCode = String(roomCode).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const room = lanRooms.get(cleanCode);
+  if (room) {
+    room.lastHeartbeat = Date.now();
+    return res.json({ success: true });
+  }
+  res.json({ success: false, error: 'Room not found' });
+});
+
+app.post('/api/lan/join', (req, res) => {
+  const { roomCode, guestInfo } = req.body || {};
+  if (!roomCode) return res.status(400).json({ error: 'Missing roomCode' });
+  const cleanCode = String(roomCode).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const room = lanRooms.get(cleanCode);
+  if (room) {
+    room.status = 'matched';
+    room.lastHeartbeat = Date.now();
+  }
+  const relayRoom = getOrCreateRelayRoom(cleanCode);
+  if (relayRoom) relayRoom.guestJoined = true;
+  res.json({ success: true, roomCode: cleanCode, roomInfo: room || null });
+});
+
+app.post('/api/lan/leave', (req, res) => {
+  const { roomCode } = req.body || {};
+  if (roomCode) {
+    const cleanCode = String(roomCode).toUpperCase().replace(/[^A-Z0-9]/g, '');
+    lanRooms.delete(cleanCode);
+  }
+  res.json({ success: true });
+});
 
 function getOrCreateRelayRoom(roomCode) {
   const cleanCode = String(roomCode || '').toUpperCase().replace(/[^A-Z0-9]/g, '');

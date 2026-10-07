@@ -7,7 +7,145 @@ const TIERS = {
   2: { name: 'Green',  hex: '#4C9A5B', hp: 2, dmg: 2, sp: 3, defends: 1 },
   3: { name: 'Red',    hex: '#C1443C', hp: 3, dmg: 3, sp: 5, defends: 0 },
   4: { name: 'Orange', hex: '#E08A2C', hp: 4, dmg: 4, sp: 9, defends: 0 },
+  5: { name: 'Boss',   hex: '#9333ea', hp: 50, dmg: 8, sp: 5, defends: 2 },
 };
+
+// ---- BOSS DEFINITIONS & BOSS CARDS (Floors 10, 20, 30, 40, 50) --------------
+const BOSS_DEFINITIONS = {
+  10: {
+    floor: 10,
+    name: 'Barbod',
+    avatar: '🌪️',
+    bossCard: {
+      archetypeId: 'boss_barbod',
+      kind: 'unit',
+      tier: 5,
+      name: 'Barbod',
+      hp: 50,
+      maxHp: 50,
+      dmg: 6,
+      sp: 5,
+      ability: 'orange_onplay_scaledmg',
+      isBossCard: true,
+      isBoss: true
+    },
+    bossModifier: {
+      id: 'boss_iron_wall',
+      name: 'Boss Aura: Dust Storm',
+      icon: '💨',
+      tag: 'BOSS',
+      desc: 'Scaling Damage + throws blinding dust at player screen! Gains +2 bonus Defense charges.'
+    }
+  },
+  20: {
+    floor: 20,
+    name: 'Big Chungus',
+    avatar: '🥕',
+    bossCard: {
+      archetypeId: 'boss_big_chungus',
+      kind: 'unit',
+      tier: 5,
+      name: 'Big Chungus',
+      hp: 52,
+      maxHp: 52,
+      dmg: 7,
+      sp: 5,
+      ability: 'orange_onplay_soulharvest',
+      isBossCard: true,
+      isBoss: true
+    },
+    bossModifier: {
+      id: 'boss_soul_drain',
+      name: 'Boss Aura: Soul Harvest',
+      icon: '💀',
+      tag: 'BOSS',
+      desc: 'Gains +1 DMG per death & siphons player card HP every round to heal Big Chungus.'
+    }
+  },
+  30: {
+    floor: 30,
+    name: 'Diddy',
+    avatar: '🎩',
+    bossCard: {
+      archetypeId: 'boss_diddy',
+      kind: 'unit',
+      tier: 5,
+      name: 'Diddy',
+      hp: 55,
+      maxHp: 55,
+      dmg: 8,
+      sp: 5,
+      ability: 'red_onattack_doublestrike',
+      isBossCard: true,
+      isBoss: true
+    },
+    bossModifier: {
+      id: 'boss_tempus_frenzy',
+      name: 'Boss Aura: Double Strike',
+      icon: '⚡',
+      tag: 'BOSS',
+      desc: 'Attacks strike twice per turn and deal bonus splash damage.'
+    }
+  },
+  40: {
+    floor: 40,
+    name: 'Zeus',
+    avatar: '⚡',
+    bossCard: {
+      archetypeId: 'boss_zeus',
+      kind: 'unit',
+      tier: 5,
+      name: 'Zeus',
+      hp: 58,
+      maxHp: 58,
+      dmg: 9,
+      sp: 5,
+      ability: 'red_onplay_dmgall1',
+      isBossCard: true,
+      isBoss: true
+    },
+    bossModifier: {
+      id: 'boss_hellfire_blast',
+      name: 'Boss Aura: Hellfire Blast',
+      icon: '🌩️',
+      tag: 'BOSS',
+      desc: 'Strikes all player cards with 2 lightning burn damage every round.'
+    }
+  },
+  50: {
+    floor: 50,
+    name: 'Midas',
+    avatar: '👑',
+    bossCard: {
+      archetypeId: 'boss_midas',
+      kind: 'unit',
+      tier: 5,
+      name: 'Midas',
+      hp: 65,
+      maxHp: 65,
+      dmg: 10,
+      sp: 5,
+      ability: 'orange_onplay_alphastrike',
+      isBossCard: true,
+      isBoss: true
+    },
+    bossModifier: {
+      id: 'boss_apex_supremacy',
+      name: 'Boss Aura: Alpha Strike Execution',
+      icon: '🪙',
+      tag: 'BOSS',
+      desc: 'Golden touch! Instantly executes weakest foe on play, reduces player max HP, and takes 30% reduced damage.'
+    }
+  }
+};
+
+function isBossFloor(floor) {
+  return typeof floor === 'number' && (floor % 10 === 0) && floor >= 10 && floor <= 50;
+}
+
+function getBossDefinition(floor) {
+  return BOSS_DEFINITIONS[floor] || null;
+}
 
 function tierOf(n) { return TIERS[n]; }
 
@@ -248,27 +386,65 @@ function makeSpellOrChip(def) {
 // matches still show off named higher-tier archetypes.
 // 2 of each tier (1, 2, 3, 4 = 8 cards) + 4 extra blue cards (total 12 cards)
 const RANDOM_DECK_TIER_WEIGHTS = [1, 1, 1, 1, 1, 1, 2, 2, 3, 3, 4, 4];
+const RANDOM_TOWER_DECK_TIER_WEIGHTS = [1, 1, 1, 1, 2, 2, 3, 4];
 
 function buildDeck(rng, config, playerKey = 'p') {
   let units;
-  if (config && Array.isArray(config.unitIds) && config.unitIds.length === 12) {
-    units = config.unitIds.map(id => makeUnitCardById(id, rng)).filter(Boolean);
-    while (units.length < 12) units.push(makeUnitCard(1, rng)); // safety net for a stale/unknown id
+  const isTower = (typeof trialTowerActive !== 'undefined' && trialTowerActive) || (config && config.isTrialTower);
+  const targetUnits = isTower ? 8 : 12;
+  const targetSpells = isTower ? 3 : 4;
+  const targetChips = 2;
+
+  let currentTowerFloor = 0;
+  if (typeof loadTrialTowerState === 'function') {
+    const ts = loadTrialTowerState();
+    if (ts && ts.floor) currentTowerFloor = ts.floor;
+  }
+  const bossFloorNum = config?.bossFloor || (isTower && isBossFloor(currentTowerFloor) ? currentTowerFloor : null);
+  const bossDef = bossFloorNum ? getBossDefinition(bossFloorNum) : null;
+
+  if (config && Array.isArray(config.unitIds) && config.unitIds.length > 0) {
+    units = config.unitIds.slice(0, targetUnits).map(id => makeUnitCardById(id, rng)).filter(Boolean);
+    while (units.length < targetUnits) units.push(makeUnitCard(1, rng));
   } else {
-    units = RANDOM_DECK_TIER_WEIGHTS.map(tier => makeUnitCard(tier, rng));
+    const weights = isTower ? RANDOM_TOWER_DECK_TIER_WEIGHTS : RANDOM_DECK_TIER_WEIGHTS;
+    units = weights.map(tier => makeUnitCard(tier, rng));
   }
   units = rng.shuffle(units);
+
+  // If this is a Boss match and building the bot deck, inject the Boss Card at the front!
+  if (playerKey === 'bot' && bossDef) {
+    const bossCard = { ...bossDef.bossCard, defendChargesUsed: 0, canAttackAgain: false, pendingAttackTargetId: null };
+    // Replace the first unit or insert Boss Card at position 0
+    units = [bossCard, ...units.slice(0, targetUnits - 1)];
+  }
+
   units.forEach((card, i) => {
     card.id = `${playerKey}_u_${i}`;
     card.netId = `${playerKey}_u_${i}`;
   });
 
-  const spellPool = (config && Array.isArray(config.spellIds) && config.spellIds.length === 4)
-    ? config.spellIds.map(id => SPELL_DEFS.find(s => s.id === id)).filter(Boolean)
-    : rng.shuffle(SPELL_DEFS.concat(SPELL_DEFS)).slice(0, 4);
-  const chipPool = (config && Array.isArray(config.chipIds) && config.chipIds.length === 2)
-    ? config.chipIds.map(id => CHIP_DEFS.find(c => c.id === id)).filter(Boolean)
-    : rng.shuffle(CHIP_DEFS.concat(CHIP_DEFS)).slice(0, 2);
+  let spellPool;
+  if (config && Array.isArray(config.spellIds) && config.spellIds.length > 0) {
+    spellPool = config.spellIds.slice(0, targetSpells).map(id => SPELL_DEFS.find(s => s.id === id)).filter(Boolean);
+  } else {
+    spellPool = rng.shuffle(SPELL_DEFS.concat(SPELL_DEFS)).slice(0, targetSpells);
+  }
+  while (spellPool.length < targetSpells) {
+    const fallback = SPELL_DEFS[Math.floor(rng.next() * SPELL_DEFS.length)];
+    if (fallback) spellPool.push(fallback);
+  }
+
+  let chipPool;
+  if (config && Array.isArray(config.chipIds) && config.chipIds.length > 0) {
+    chipPool = config.chipIds.slice(0, targetChips).map(id => CHIP_DEFS.find(c => c.id === id)).filter(Boolean);
+  } else {
+    chipPool = rng.shuffle(CHIP_DEFS.concat(CHIP_DEFS)).slice(0, targetChips);
+  }
+  while (chipPool.length < targetChips) {
+    const fallback = CHIP_DEFS[Math.floor(rng.next() * CHIP_DEFS.length)];
+    if (fallback) chipPool.push(fallback);
+  }
 
   const spells = spellPool.map((def, i) => {
     const s = makeSpellOrChip(def);

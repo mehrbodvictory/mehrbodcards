@@ -245,7 +245,7 @@ class FirebaseRealtimeSession {
     }
   }
 
-  sendInit(seed, wager, hostDeckConfig) {
+  sendInit(seed, wager, hostDeckConfig, guestDeckConfig) {
     const bridge = getBridge();
     if (!bridge || !bridge.db || !this.roomCode) return;
     const { db, doc, updateDoc } = bridge;
@@ -254,10 +254,13 @@ class FirebaseRealtimeSession {
       const roomRef = doc(db, 'mp_rooms', this.roomCode);
       updateDoc(roomRef, {
         status: 'active',
+        actions: [],
+        signals: [],
         initData: {
           seed: seed || this.seed,
           wager: wager !== undefined ? wager : this.wager,
-          hostDeckConfig: hostDeckConfig || this.hostDeckConfig
+          hostDeckConfig: hostDeckConfig || this.hostDeckConfig,
+          guestDeckConfig: guestDeckConfig || this.guestDeckConfig
         },
         updatedAt: Date.now()
       }).catch(() => {});
@@ -323,14 +326,15 @@ class FirebaseRealtimeSession {
 
     // 1. Guest connection detection
     if (this.isHost && (data.guestJoined || data.guestConfig) && !this.receivedGuestConfig) {
+      this.onStatus('connected');
       if (data.guestConfig) {
         this.receivedGuestConfig = true;
         this.onGuestConfig(data.guestConfig);
       }
     }
 
-    // 2. Init detection for Guest
-    if (!this.isHost && (data.initData || data.hostConfig) && !this.receivedInit) {
+    // 2. Init detection for Guest (only trigger when match is officially active with initData)
+    if (!this.isHost && (data.status === 'active' || data.initData) && !this.receivedInit) {
       const init = data.initData || data.hostConfig;
       if (init && init.seed) {
         this.receivedInit = true;
@@ -363,6 +367,11 @@ class FirebaseRealtimeSession {
         else if (sig.type === 'rematch_decline') this.onRematchDecline();
       });
     }
+  }
+
+  resetForRematch() {
+    this.receivedInit = false;
+    this.processedActionIds.clear();
   }
 
   destroy() {

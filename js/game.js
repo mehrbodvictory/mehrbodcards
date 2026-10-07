@@ -64,6 +64,36 @@ function createMatch(seed, p1id = 'p1', p2id = 'p2', deckConfigs = {}) {
     totalDeaths: 0, // v3.11: running count of every card that has died on either side this match - feeds Orange Harvester's soulharvest ability
   };
   state._rng = rng;
+
+  if (typeof trialTowerActive !== 'undefined' && trialTowerActive && typeof getActiveTowerModifiers === 'function') {
+    state.trialTowerModifiers = getActiveTowerModifiers().slice();
+  }
+  if (deckConfigs && deckConfigs.trialTowerModifiers) {
+    state.trialTowerModifiers = deckConfigs.trialTowerModifiers.slice();
+  }
+  state.trialTowerModifiers = state.trialTowerModifiers || [];
+
+  // Check for Boss Floor setup
+  let towerFloor = 0;
+  if (typeof loadTrialTowerState === 'function') {
+    const ts = loadTrialTowerState();
+    if (ts && ts.floor) towerFloor = ts.floor;
+  }
+  const bossFloorNum = deckConfigs?.bossFloor || (typeof trialTowerActive !== 'undefined' && trialTowerActive && typeof isBossFloor === 'function' && isBossFloor(towerFloor) ? towerFloor : null);
+  if (bossFloorNum && typeof getBossDefinition === 'function') {
+    const bossDef = getBossDefinition(bossFloorNum);
+    if (bossDef) {
+      state.isBossMatch = true;
+      state.bossFloor = bossFloorNum;
+      state.bossDef = bossDef;
+      if (!state.trialTowerModifiers.includes(bossDef.bossModifier.id)) {
+        state.trialTowerModifiers.push(bossDef.bossModifier.id);
+      }
+      pushLog(state, `💀 WARNING: BOSS FLOOR ${bossFloorNum}! Facing ${bossDef.name} (${bossDef.bossCard.hp} HP)!`);
+      pushLog(state, `⚡ Active Boss Aura: ${bossDef.bossModifier.name} - ${bossDef.bossModifier.desc}`);
+    }
+  }
+
   return state;
 }
 
@@ -355,6 +385,7 @@ function killCard(state, ownerKey, slot, deathSource) {
   p.board[slot] = null;               // remove from the board FIRST so on-death
   p.graveyard.push(card);             // targeting logic can never see/re-hit this card
   delete p.defendingSlots[slot];
+  delete p.attackAssignments[slot];
   abilityTrigger(state, ownerKey, card, 'ondeath', slot, deathSource);
   if (canReplenish) replenishBlue(state, ownerKey, 1);
 }
@@ -439,10 +470,19 @@ function placeCard(state, playerKey, deckIndex, slot, cardId, archetypeId) {
   if (slot == null || slot < 0 || slot >= BOARD_SIZE) return { ok: false, error: 'invalid board slot' };
   if (p.board[slot] !== null && p.board[slot] !== undefined) return { ok: false, error: 'slot occupied' };
 
-  // Locate the target card in the player's deck pool (placement strictly requires Tier 1 / Blue units):
+  // Locate the target card in the player's deck pool (placement strictly requires Tier 1 / Blue units, OR Boss Cards for Boss AI):
   let targetIdx = -1;
-  // 1. Try exact cardId or netId matching if provided and tier is 1
+  // 0. Check if placing a Boss Card
   if (cardId) {
+    targetIdx = p.deck.findIndex(c => c && (c.isBossCard || c.tier === 5) && (c.id === cardId || c.netId === cardId || c.archetypeId === cardId));
+  }
+  if (targetIdx === -1 && typeof deckIndex === 'number' && deckIndex >= 0 && deckIndex < p.deck.length) {
+    if (p.deck[deckIndex] && (p.deck[deckIndex].isBossCard || p.deck[deckIndex].tier === 5)) {
+      targetIdx = deckIndex;
+    }
+  }
+  // 1. Try exact cardId or netId matching if provided and tier is 1
+  if (targetIdx === -1 && cardId) {
     targetIdx = p.deck.findIndex(c => c && c.tier === 1 && (c.id === cardId || c.netId === cardId));
   }
   // 2. Try matching by archetypeId if provided (tier must be 1)
@@ -466,6 +506,51 @@ function placeCard(state, playerKey, deckIndex, slot, cardId, archetypeId) {
 
   const card = p.deck.splice(targetIdx, 1)[0];
   p.board[slot] = card;
+
+  // Trial Tower Modifiers on card placement
+  if (state.trialTowerModifiers && Array.isArray(state.trialTowerModifiers)) {
+    if (playerKey === 'you' || playerKey === state.order[0]) {
+      const ocCount = state.trialTowerModifiers.filter(m => m === 'overcharge').length;
+      if (ocCount > 0) {
+        card.dmg += 2 * ocCount;
+        pushLog(state, `⚔️ Overcharge Surge: ${card.name} +${2 * ocCount} ATK!`);
+      }
+      const bastCount = state.trialTowerModifiers.filter(m => m === 'bastion').length;
+      if (bastCount > 0) {
+        card.hp += 3 * bastCount;
+        card.maxHp += 3 * bastCount;
+        pushLog(state, `🛡️ Bastion Plating: ${card.name} +${3 * bastCount} Shield HP!`);
+      }
+      if (state.trialTowerModifiers.includes('boss_apex_supremacy')) {
+        card.maxHp = Math.max(1, card.maxHp - 1);
+        card.hp = Math.min(card.hp, card.maxHp);
+        pushLog(state, `👑 Apex Supremacy Aura: ${card.name} max HP reduced to ${card.maxHp}!`);
+      }
+    }
+    if (playerKey === 'bot' || playerKey === state.order[1]) {
+      if (card.name === 'Barbod' || card.archetypeId === 'boss_barbod') {
+        pushLog(state, `💨 Barbod throws blinding dust at the screen!`);
+        if (typeof window !== 'undefined' && typeof window.triggerDustStormEffect === 'function') {
+          window.triggerDustStormEffect();
+        }
+      }
+      if (state.trialTowerModifiers.includes('boss_iron_wall')) {
+        card.bonusDefendCharge = (card.bonusDefendCharge || 0) + 2;
+        pushLog(state, `🛡️ Iron Wall Aura: ${card.name} gains +2 Defense charges!`);
+      }
+      if (state.trialTowerModifiers.includes('boss_tempus_frenzy')) {
+        card.dmg += 2;
+        pushLog(state, `⚡ Tempus Frenzy Aura: ${card.name} gains +2 ATK!`);
+      }
+    }
+  }
+
+  // Astral Apex Theme Bonus: +1 ATK to every card in Trial Tower matches ONLY
+  if (typeof trialTowerActive !== 'undefined' && trialTowerActive && typeof currentTheme !== 'undefined' && (currentTheme === 'astral' || currentTheme === 'theme_astral') && (playerKey === 'you' || playerKey === state.order[0])) {
+    card.dmg += 1;
+    pushLog(state, `🌌 Astral Apex Resonance: ${card.name} +1 ATK!`);
+  }
+
   pushFx(state, { type: 'place', owner: playerKey, slot });
   abilityTrigger(state, playerKey, card, 'onplay', slot);
   return { ok: true };
@@ -611,7 +696,7 @@ function autoResolveForcedMerges(state, playerKey) {
   }
 }
 
-function castSpell(state, playerKey, spellInstanceId, targetOwnerKey, targetSlot) {
+function castSpell(state, playerKey, spellInstanceId, targetOwnerKey, targetSlot, sacSpellId) {
   if (state.phase !== 'placement' && state.phase !== 'attack') {
     return { ok: false, error: 'Spells can only be cast during placement or attack phase' };
   }
@@ -763,8 +848,16 @@ function castSpell(state, playerKey, spellInstanceId, targetOwnerKey, targetSlot
       stillAlive.hp = stillAlive.maxHp;
       pushFx(state, { type: 'orangeHeal', targetOwner: targetOwnerKey, targetSlot, source });
     }
-    let otherSpellIdx = p.spells.findIndex((s, i) => i !== idx && (s.sacrificeMan || s.defId === 'sacrificeman' || s.name === 'Sacrifice Man'));
-    if (otherSpellIdx === -1) otherSpellIdx = p.spells.findIndex((s, i) => i !== idx);
+    let otherSpellIdx = -1;
+    if (sacSpellId) {
+      otherSpellIdx = p.spells.findIndex((s, i) => i !== idx && (s.id === sacSpellId || s.defId === sacSpellId));
+    }
+    if (otherSpellIdx === -1) {
+      otherSpellIdx = p.spells.findIndex((s, i) => i !== idx && (s.sacrificeMan || s.defId === 'sacrificeman' || s.name === 'Sacrifice Man'));
+    }
+    if (otherSpellIdx === -1) {
+      otherSpellIdx = p.spells.findIndex((s, i) => i !== idx);
+    }
     if (otherSpellIdx !== -1) {
       const sac = p.spells[otherSpellIdx];
       p.spells.splice(otherSpellIdx, 1);
@@ -780,8 +873,16 @@ function castSpell(state, playerKey, spellInstanceId, targetOwnerKey, targetSlot
   }
 
   if (spell.sanctioned || spell.defId === 'sanctioned') {
-    let otherSpellIdx = p.spells.findIndex((s, i) => i !== idx && (s.sacrificeMan || s.defId === 'sacrificeman' || s.name === 'Sacrifice Man'));
-    if (otherSpellIdx === -1) otherSpellIdx = p.spells.findIndex((s, i) => i !== idx);
+    let otherSpellIdx = -1;
+    if (sacSpellId) {
+      otherSpellIdx = p.spells.findIndex((s, i) => i !== idx && (s.id === sacSpellId || s.defId === sacSpellId));
+    }
+    if (otherSpellIdx === -1) {
+      otherSpellIdx = p.spells.findIndex((s, i) => i !== idx && (s.sacrificeMan || s.defId === 'sacrificeman' || s.name === 'Sacrifice Man'));
+    }
+    if (otherSpellIdx === -1) {
+      otherSpellIdx = p.spells.findIndex((s, i) => i !== idx);
+    }
     if (otherSpellIdx === -1) {
       return { ok: false, error: 'Sanctioned requires 1 other spell in hand to sacrifice' };
     }
@@ -1002,9 +1103,71 @@ function resolveAttacks(state) {
         pushFx(state, { type: 'block', owner: assign.targetOwner, slot: targetSlot, source });
         return;
       }
-      damageMap.push({ targetOwner: assign.targetOwner, targetSlot, amount: assign.dmg, source });
+
+      // Trial Tower Modifiers: calculate active effects for the player
+      let modDmg = assign.dmg;
+      const isPlayerAttacking = (attackerKey === 'you' || attackerKey === (state.order && state.order[0]));
+      const modifiers = (state.trialTowerModifiers && Array.isArray(state.trialTowerModifiers)) ? state.trialTowerModifiers : [];
+
+      if (isPlayerAttacking && modifiers.length > 0) {
+        // Critical Strike Modifier (40% chance per stack to deal 2x damage)
+        const critCount = modifiers.filter(m => m === 'crit').length;
+        if (critCount > 0 && state._rng && state._rng.next() < Math.min(0.9, 0.40 * critCount)) {
+          modDmg = modDmg * 2;
+          pushFx(state, { type: 'selfBuff', owner: attackerKey, slot, stat: 'dmg', amount: modDmg });
+          pushLog(state, `⚡ CRITICAL STRIKE! ${assign.sourceName} hits for DOUBLE damage (${modDmg})!`);
+        }
+
+        // Vampiric Drain Modifier (heals for 50% of damage dealt per stack)
+        const vampCount = modifiers.filter(m => m === 'vampiric').length;
+        if (vampCount > 0) {
+          lifestealHits.push({ ownerKey: attackerKey, slot, amount: Math.max(1, Math.floor(modDmg * 0.5 * vampCount)) });
+        }
+
+        // Twin Strike Modifier (slot 0 card strikes twice)
+        if (modifiers.includes('twin_strike') && slot === 0) {
+          assign.doubleStrike = true;
+        }
+
+        // Reaper Execution Modifier (enemies at or below 2 HP per stack are executed)
+        const execCount = modifiers.filter(m => m === 'execute').length;
+        if (execCount > 0 && defenderCard && defenderCard.hp <= (2 * execCount)) {
+          modDmg = 999;
+          pushLog(state, `☠️ Reaper Execution instantly obliterates ${defenderCard.name}!`);
+        }
+      }
+
+      damageMap.push({ targetOwner: assign.targetOwner, targetSlot, amount: modDmg, source });
       if (assign.lifesteal) lifestealHits.push({ ownerKey: attackerKey, slot, amount: assign.lifesteal });
       if (cardHasChip(defenderCard, 'chip_reflect')) reflectHits.push({ atkOwner: attackerKey, atkSlot: slot, defOwner: assign.targetOwner, defSlot: targetSlot });
+
+      // Stacking Splash Damage Modifier (hits all other enemy cards)
+      if (isPlayerAttacking && modifiers.includes('splash')) {
+        const splashCount = modifiers.filter(m => m === 'splash').length;
+        const splashAmt = Math.max(1, Math.floor(modDmg * 0.5 * splashCount));
+        const others = defenderP.board.map((c, i) => (c && i !== targetSlot ? i : -1)).filter(i => i >= 0);
+        others.forEach(pick => {
+          damageMap.push({ targetOwner: assign.targetOwner, targetSlot: pick, amount: splashAmt, source: { kind: 'ability-onplay', name: assign.sourceName + ' (Splash Wave)', owner: attackerKey, slot } });
+          pushFx(state, { type: 'ability', targetOwner: assign.targetOwner, targetSlot: pick, source: { kind: 'ability-onplay', name: '🌊 Splash Wave' } });
+        });
+        if (others.length > 0) {
+          pushLog(state, `🌊 Splash Wave blasts ${others.length} adjacent enemy card(s) for ${splashAmt} dmg!`);
+        }
+      }
+
+      // Thorns Matrix Modifier (reflects damage back to attacking enemy)
+      if (!isPlayerAttacking && modifiers.includes('thorns')) {
+        const thornsCount = modifiers.filter(m => m === 'thorns').length;
+        reflectHits.push({ atkOwner: attackerKey, atkSlot: slot, defOwner: assign.targetOwner, defSlot: targetSlot, thornsDmg: 2 * thornsCount });
+      }
+
+      // Solar Ignition Modifier (bonus burn damage)
+      if (isPlayerAttacking && modifiers.includes('blaze')) {
+        const blazeCount = modifiers.filter(m => m === 'blaze').length;
+        damageMap.push({ targetOwner: assign.targetOwner, targetSlot, amount: 2 * blazeCount, source: { kind: 'ability-onplay', name: '🔥 Solar Ignition', owner: attackerKey, slot } });
+        pushFx(state, { type: 'ability', targetOwner: assign.targetOwner, targetSlot, source: { kind: 'ability-onplay', name: '🔥 Solar Ignition' } });
+        pushLog(state, `🔥 Solar Ignition sears target for ${2 * blazeCount} bonus burn!`);
+      }
 
       // v3.11: Red Duelist strikes twice - a second, independent damage
       // instance at the same target, resolved in the same simultaneous
@@ -1048,7 +1211,8 @@ function resolveAttacks(state) {
   reflectHits.forEach(h => {
     const atkCard = state.players[h.atkOwner].board[h.atkSlot];
     if (atkCard) {
-      damageCard(state, h.atkOwner, h.atkSlot, 1, { kind: 'ability-onplay', name: 'Reflect Chip', owner: h.defOwner, slot: h.defSlot });
+      const dmg = h.thornsDmg || 1;
+      damageCard(state, h.atkOwner, h.atkSlot, dmg, { kind: 'ability-onplay', name: h.thornsDmg ? 'Thorns Matrix' : 'Reflect Chip', owner: h.defOwner, slot: h.defSlot });
     }
   });
 
@@ -1163,8 +1327,50 @@ function startPlacementPhase(state) {
       if (stillThere && stillThere === card) card.burnRounds -= 1;
     });
   });
-  // v3.0: no draw step - every remaining deck card has been visible and
-  // placeable/mergeable since round 1 already.
+
+  // Boss Aura Round-Start Triggers
+  if (state.trialTowerModifiers && Array.isArray(state.trialTowerModifiers)) {
+    if (state.trialTowerModifiers.includes('boss_soul_drain')) {
+      const playerP = state.players['you'] || state.players[state.order[0]];
+      const botP = state.players['bot'] || state.players[state.order[1]];
+      if (playerP && botP) {
+        let drainedHp = 0;
+        playerP.board.forEach((c, slot) => {
+          if (c && c.hp > 0) {
+            damageCard(state, 'you', slot, 1, { kind: 'ability-onplay', name: '💀 Soul Drain', owner: 'bot' });
+            drainedHp++;
+          }
+        });
+        if (drainedHp > 0) {
+          const bossUnit = botP.board.find(c => c && (c.isBossCard || c.tier === 5));
+          if (bossUnit) {
+            bossUnit.hp = Math.min(bossUnit.maxHp, bossUnit.hp + drainedHp);
+            pushLog(state, `💀 Soul Drain siphons ${drainedHp} HP from player cards to ${bossUnit.name}!`);
+          }
+        }
+      }
+    }
+    if (state.trialTowerModifiers.includes('boss_hellfire_blast')) {
+      const playerP = state.players['you'] || state.players[state.order[0]];
+      if (playerP) {
+        playerP.board.forEach((c, slot) => {
+          if (c && c.hp > 0) {
+            damageCard(state, 'you', slot, 2, { kind: 'ability-onplay', name: '🌋 Hellfire Blast', owner: 'bot' });
+            pushLog(state, `🌋 Hellfire Blast sears ${c.name} for 2 burn damage!`);
+          }
+        });
+      }
+    }
+  }
+
+  const anyDead = state.order.some(k => {
+    const p = state.players[k];
+    return (boardCount(p) + p.deck.length) === 0;
+  });
+  if (anyDead) {
+    checkWinAndAdvance(state);
+    return;
+  }
 }
 
 // v3.0/v4.0: forcing a merge only makes sense if a legal, blueprint-backed
@@ -1177,6 +1383,37 @@ function isForced(state, playerKey) {
 }
 
 function boardFull(playerState) { return boardCount(playerState) >= BOARD_SIZE; }
+
+function emergencySalvage(state, playerKey, blueprintIndex) {
+  if (state.phase !== 'placement') return { ok: false, error: 'not placement phase' };
+  const p = state.players[playerKey];
+  if (!p) return { ok: false, error: 'invalid player' };
+  
+  const boardEmpty = p.board.every(c => !c);
+  const blueInHand = p.deck.filter(c => c && c.tier === 1).length;
+  const blueprintsInHand = p.deck.filter(c => c && c.tier > 1).length;
+  if (!boardEmpty || blueInHand > 0 || blueprintsInHand === 0) {
+    return { ok: false, error: 'Emergency salvage conditions not met' };
+  }
+  
+  let bpIndex = -1;
+  if (typeof blueprintIndex === 'number' && p.deck[blueprintIndex] && p.deck[blueprintIndex].tier > 1) {
+    bpIndex = blueprintIndex;
+  } else {
+    bpIndex = p.deck.findIndex(c => c && c.tier > 1);
+  }
+  if (bpIndex === -1) return { ok: false, error: 'No blueprint found' };
+  
+  const removed = p.deck.splice(bpIndex, 1)[0];
+  const rngObj = state._rng || { pick: (arr) => arr[Math.floor(Math.random() * arr.length)] };
+  const blue1 = makeUnitCard(1, rngObj);
+  const blue2 = makeUnitCard(1, rngObj);
+  p.deck.push(blue1, blue2);
+  
+  pushFx(state, { type: 'emergencySalvage', owner: playerKey, removedName: removed.name });
+  pushLog(state, `⚠️ ${playerKey} salvages ${removed.name} Blueprint into 2 Blue Units!`);
+  return { ok: true, removedName: removed.name };
+}
 
 // Single entry point used by local UI, the bot, and the network layer so
 // every action flows through one deterministic dispatcher.
@@ -1200,6 +1437,7 @@ function applyAction(state, action) {
     case 'attack': result = setAttack(state, action.player, action.slot, action.targetOwner, action.targetSlot); break;
     case 'readyPlacement': result = readyPlacement(state, action.player); break;
     case 'readyAttack': result = readyAttack(state, action.player); break;
+    case 'emergencySalvage': result = emergencySalvage(state, action.player, action.blueprintIndex); break;
     default: result = { ok: false, error: 'unknown action ' + action.type };
   }
   result.fx = state._fx;

@@ -1726,20 +1726,25 @@ function playerLevelFromXP(xp) {
   while (remaining >= xpNeededForLevel(level)) { remaining -= xpNeededForLevel(level); level++; }
   return { level, into: remaining, need: xpNeededForLevel(level) };
 }
-function grantPlayerXP(amount) {
+function grantPlayerXP(amount, reason) {
   if (!amount) return;
   if (typeof grantBattlePassXP === 'function') grantBattlePassXP(amount);
   const beforeLevel = playerLevelFromXP(loadPlayerXP()).level;
   const newXp = loadPlayerXP() + amount;
   savePlayerXP(newXp);
   const afterInfo = playerLevelFromXP(newXp);
+
+  if (typeof showToast === 'function') {
+    showToast(`⭐ +${amount} XP gained! (Added to Profile & Battle Pass)`, 2600);
+  }
+
   if (afterInfo.level > beforeLevel) {
     const reward = Math.floor((20 + afterInfo.level * 5) / 2);
     addBux(reward);
     recordEconomyChange(reward, `Reached Player Level ${afterInfo.level}`);
     recordRecentActivity(`Reached Player Level ${afterInfo.level} — +${reward} Bux`);
     showToast(`⭐ Player Level ${afterInfo.level}! +${reward} Bux`, 3000);
-    Sound.sparkle();
+    if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
 
     // Trigger tactile breathing pulse on top HUD profile button
     const avatarBtn = document.getElementById('profile-avatar-btn');
@@ -1751,6 +1756,11 @@ function grantPlayerXP(amount) {
         avatarBtn.classList.remove('avatar-level-up-pulse');
       }, 1450);
     }
+  }
+  if (afterInfo.level >= 50 && localStorage.getItem('theme_astral_unlocked') !== 'true') {
+    localStorage.setItem('theme_astral_unlocked', 'true');
+    showToast(`🏆 Reached Level 50! Unlocked Trial Lord (S1) Theme!`, 4000);
+    if (typeof updateThemeButtons === 'function') updateThemeButtons();
   }
   if (typeof updateProfileAvatar === 'function') updateProfileAvatar(); // refresh the prestige "!" badge eligibility
 }
@@ -2119,11 +2129,94 @@ function checkSetBonuses() {
    ============================================================ */
 const TRIAL_TOWER_KEY = 'mehrbod_trial_tower_v1';
 function loadTrialTowerState() {
-  try { const s = JSON.parse(localStorage.getItem(TRIAL_TOWER_KEY) || 'null'); if (s && typeof s.floor === 'number') return s; }
-  catch (e) {}
-  return { floor: 1, best: 0, pendingResult: null, lastRunFloor: 1 };
+  try {
+    const s = JSON.parse(localStorage.getItem(TRIAL_TOWER_KEY) || 'null');
+    if (s && typeof s.floor === 'number') {
+      if (!Array.isArray(s.modifiers)) s.modifiers = [];
+      return s;
+    }
+  } catch (e) {}
+  return { floor: 1, best: 0, pendingResult: null, lastRunFloor: 1, modifiers: [] };
 }
-function saveTrialTowerState(s) { try { localStorage.setItem(TRIAL_TOWER_KEY, JSON.stringify(s)); } catch (e) {} }
+function saveTrialTowerState(s) {
+  try {
+    if (!Array.isArray(s.modifiers)) s.modifiers = [];
+    localStorage.setItem(TRIAL_TOWER_KEY, JSON.stringify(s));
+  } catch (e) {}
+}
+
+const TOWER_MODIFIER_POOL = [
+  {
+    id: 'splash',
+    name: 'Splash Wave',
+    icon: '🌊',
+    tag: 'OFFENSIVE',
+    desc: 'Every attack blasts ALL other enemy cards for 50% splash damage. Stacks up to 100% and 150%!'
+  },
+  {
+    id: 'crit',
+    name: 'Critical Strike',
+    icon: '⚡',
+    tag: 'BURST',
+    desc: '40% chance per attack to deal DOUBLE damage. Stacks trigger chance up to 90%!'
+  },
+  {
+    id: 'vampiric',
+    name: 'Vampiric Drain',
+    icon: '🩸',
+    tag: 'SUSTAIN',
+    desc: 'Heal your attacking cards for 50% of all attack damage dealt. Stacks heal percentage!'
+  },
+  {
+    id: 'overcharge',
+    name: 'Overcharge Surge',
+    icon: '⚔️',
+    tag: 'STATS',
+    desc: 'Every unit you place on the board permanently gains +2 ATK. Stacks +2 ATK per pick!'
+  },
+  {
+    id: 'bastion',
+    name: 'Bastion Plating',
+    icon: '🛡️',
+    tag: 'DEFENSE',
+    desc: 'Every unit you place enters battle with +3 Shield HP. Stacks +3 HP per pick!'
+  },
+  {
+    id: 'twin_strike',
+    name: 'Twin Strike',
+    icon: '⚔️',
+    tag: 'TEMPO',
+    desc: 'Your Slot 0 Vanguard strikes twice every single round!'
+  },
+  {
+    id: 'execute',
+    name: 'Reaper Execution',
+    icon: '☠️',
+    tag: 'LETHAL',
+    desc: 'Instantly obliterates any enemy unit at or below 2 HP. Stacks threshold!'
+  },
+  {
+    id: 'thorns',
+    name: 'Thorns Matrix',
+    icon: '🌵',
+    tag: 'REFLECT',
+    desc: 'Reflects 2 damage back to attackers whenever your units are hit. Stacks reflect damage!'
+  },
+  {
+    id: 'blaze',
+    name: 'Solar Ignition',
+    icon: '🔥',
+    tag: 'BURN',
+    desc: 'Every attack ignites the defender for 2 bonus lingering burn damage. Stacks burn!'
+  }
+];
+
+window.getActiveTowerModifiers = function () {
+  if (!trialTowerActive) return [];
+  const s = loadTrialTowerState();
+  return Array.isArray(s.modifiers) ? s.modifiers : [];
+};
+
 function towerFloorDifficulty(floor) {
   const idx = Math.min(DIFFICULTIES.length - 1, Math.floor((floor - 1) / 3));
   return DIFFICULTIES[idx];
@@ -2132,78 +2225,492 @@ function towerFloorReward(floor) { return Math.floor((15 + floor * 5) / 2); }
 const TOWER_DIFF_COLORS = { Easy: '#4C9A5B', Medium: '#d9b23c', Hard: '#e0752c', Expert: '#c1443c', Master: '#b23cf0' };
 function trialTowerBrickColor(floor) { return TOWER_DIFF_COLORS[towerFloorDifficulty(floor)] || '#3E7CB1'; }
 
+function triggerDustStormEffect() {
+  const container = document.getElementById('screen-game') || document.body;
+  const dustOverlay = document.createElement('div');
+  dustOverlay.className = 'dust-storm-overlay';
+  dustOverlay.innerHTML = `
+    <div class="dust-storm-text">💨 BARBOD THROWS DUST IN YOUR EYES! 💨</div>
+  `;
+  container.appendChild(dustOverlay);
+
+  if (typeof showToast === 'function') {
+    showToast('💨 Barbod throws blinding dust at the screen!', 2500);
+  }
+
+  const screenEl = document.getElementById('screen-game');
+  if (screenEl) {
+    screenEl.classList.add('screen-shake');
+    setTimeout(() => screenEl.classList.remove('screen-shake'), 500);
+  }
+
+  setTimeout(() => {
+    dustOverlay.classList.add('fade-out');
+    setTimeout(() => dustOverlay.remove(), 600);
+  }, 1800);
+}
+window.triggerDustStormEffect = triggerDustStormEffect;
+
+function showBossFloorWarningOverlay(floor, onEngage) {
+  const overlay = document.getElementById('boss-floor-warning-overlay');
+  if (!overlay) {
+    if (onEngage) onEngage();
+    return;
+  }
+
+  const bossDef = typeof getBossDefinition === 'function' ? getBossDefinition(floor) : null;
+  if (!bossDef) {
+    if (onEngage) onEngage();
+    return;
+  }
+
+  const floorEl = document.getElementById('bfw-floor-num');
+  if (floorEl) floorEl.textContent = floor;
+
+  const nameEl = document.getElementById('bfw-boss-name');
+  if (nameEl) nameEl.textContent = bossDef.name;
+
+  const hpEl = document.getElementById('bfw-boss-hp');
+  if (hpEl) hpEl.textContent = `❤️ ${bossDef.bossCard.hp} HP · Boss Tier 👑`;
+
+  const auraEl = document.getElementById('bfw-boss-aura');
+  if (auraEl) {
+    auraEl.innerHTML = `<strong>⚡ ${bossDef.bossModifier.name}</strong><br>${bossDef.bossModifier.desc}`;
+  }
+
+  const iconEl = document.getElementById('bfw-boss-icon');
+  if (iconEl) {
+    iconEl.textContent = floor === 50 ? '👑' : '💀';
+  }
+
+  const engageBtn = document.getElementById('btn-boss-warning-engage');
+  if (engageBtn) {
+    engageBtn.onclick = () => {
+      overlay.classList.add('hidden');
+      if (typeof Sound !== 'undefined' && Sound.meteorBoom) Sound.meteorBoom();
+      if (onEngage) onEngage();
+    };
+  }
+
+  const closeBtn = document.getElementById('btn-boss-warning-close');
+  if (closeBtn) {
+    closeBtn.onclick = () => {
+      overlay.classList.add('hidden');
+    };
+  }
+
+  overlay.classList.remove('hidden');
+  if (typeof Sound !== 'undefined' && Sound.meteorBoom) Sound.meteorBoom();
+  if (typeof vibrate === 'function') vibrate([40, 60, 80]);
+}
+
 let trialTowerActive = false;
-function enterTrialTower() {
+function enterTrialTower(skipBossWarning = false) {
   const s = loadTrialTowerState();
+
+  if (!skipBossWarning && typeof isBossFloor === 'function' && isBossFloor(s.floor)) {
+    showBossFloorWarningOverlay(s.floor, () => {
+      enterTrialTower(true);
+    });
+    return;
+  }
+
   const diff = towerFloorDifficulty(s.floor);
   trialTowerActive = true;
   botDifficulty = diff;
   saveLastDifficulty(diff);
   document.getElementById('trial-tower-overlay')?.remove();
-  openDeckBuilder((config) => startVsBot(0, config));
+  document.getElementById('tower-ascent-modal')?.classList.add('hidden');
+  const deck = (typeof buildDefaultTrialDeckConfig === 'function')
+    ? buildDefaultTrialDeckConfig()
+    : (typeof buildDefaultDeckConfig === 'function' ? buildDefaultDeckConfig() : null);
+  startVsBot(0, deck);
 }
+
+function showTowerAscentModal(clearedFloor, reward, xp, unlockedTheme, unlockedMilestones) {
+  const modal = document.getElementById('tower-ascent-modal');
+  if (!modal) return;
+
+  const s = loadTrialTowerState();
+  const milestonesToAnnounce = unlockedMilestones || s.lastUnlockedMilestones || [];
+
+  const titleEl = document.getElementById('ascent-title');
+  if (titleEl) titleEl.textContent = `Floor ${clearedFloor} Conquered!`;
+
+  const rewardsEl = document.getElementById('ascent-rewards-tag');
+  if (rewardsEl) rewardsEl.textContent = `+${reward} Bux · +${xp} XP`;
+
+  const themeBanner = document.getElementById('ascent-theme-unlock-banner');
+  if (themeBanner) {
+    if (unlockedTheme || (milestonesToAnnounce && milestonesToAnnounce.length > 0)) {
+      themeBanner.classList.remove('hidden');
+      const atuTitle = themeBanner.querySelector('.atu-title');
+      const atuSub = themeBanner.querySelector('.atu-sub');
+      if (milestonesToAnnounce && milestonesToAnnounce.length > 0) {
+        const m = milestonesToAnnounce[0];
+        if (atuTitle) atuTitle.textContent = `🏆 MILESTONE UNLOCKED: ${m.title.toUpperCase()}!`;
+        if (atuSub) atuSub.textContent = `Unlocked ${m.borderName} & ${m.avatarName} Player Icon!`;
+      } else if (unlockedTheme) {
+        if (atuTitle) atuTitle.textContent = `THEME UNLOCKED: ${unlockedTheme.name.toUpperCase()}!`;
+        if (atuSub) atuSub.textContent = `Cosmic milestone reached! Equip ${unlockedTheme.name} anytime in Themes.`;
+      }
+      if (typeof fireConfetti === 'function') fireConfetti();
+      if (typeof updateThemeButtons === 'function') updateThemeButtons();
+    } else {
+      themeBanner.classList.add('hidden');
+    }
+  }
+
+  const activeMods = Array.isArray(s.modifiers) ? s.modifiers : [];
+
+  // Update active tray pills
+  const trayPills = document.getElementById('ascent-active-pills');
+  if (trayPills) {
+    trayPills.innerHTML = '';
+    if (activeMods.length === 0) {
+      trayPills.innerHTML = '<span class="ascent-empty-pill">No modifiers yet</span>';
+    } else {
+      const counts = {};
+      activeMods.forEach(m => { counts[m] = (counts[m] || 0) + 1; });
+      Object.entries(counts).forEach(([mid, count]) => {
+        const def = TOWER_MODIFIER_POOL.find(p => p.id === mid) || { name: mid, icon: '⚡' };
+        const pill = document.createElement('span');
+        pill.className = 'ascent-pill';
+        pill.innerHTML = `<strong>${def.icon} ${def.name}</strong> <span class="pill-badge">x${count}</span>`;
+        trayPills.appendChild(pill);
+      });
+    }
+  }
+
+  const choicesContainer = document.getElementById('ascent-modifier-choices');
+  const nextBtn = document.getElementById('btn-ascent-next');
+  const nextBtnText = document.getElementById('btn-ascent-next-text');
+  let selectedMod = null;
+
+  function renderChoices(choiceList) {
+    if (!choicesContainer) return;
+    choicesContainer.innerHTML = '';
+    choiceList.forEach(mod => {
+      const currentCount = activeMods.filter(m => m === mod.id).length;
+      const card = document.createElement('div');
+      card.className = 'ascent-mod-card';
+      card.dataset.modId = mod.id;
+      card.innerHTML = `
+        <div class="ascent-mod-badge ${mod.tag.toLowerCase()}">${mod.tag}</div>
+        <div class="ascent-mod-icon-wrap"><span class="ascent-mod-icon">${mod.icon}</span></div>
+        <div class="ascent-mod-title">${mod.name}</div>
+        <div class="ascent-mod-desc">${mod.desc}</div>
+        <div class="ascent-mod-footer">
+          ${currentCount > 0 
+            ? `<span class="ascent-stack-chip stacked">Stack x${currentCount} ➜ <strong>x${currentCount + 1}</strong></span>` 
+            : `<span class="ascent-stack-chip new">✨ New Modifier</span>`}
+        </div>
+      `;
+
+      card.addEventListener('click', () => {
+        choicesContainer.querySelectorAll('.ascent-mod-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        selectedMod = mod;
+        if (typeof Sound !== 'undefined' && Sound.chipAttach) Sound.chipAttach();
+        if (typeof vibrate === 'function') vibrate(30);
+
+        if (nextBtn) {
+          nextBtn.disabled = false;
+          if (nextBtnText) {
+            nextBtnText.textContent = `Ascend to Floor ${clearedFloor + 1}`;
+          }
+        }
+      });
+
+      choicesContainer.appendChild(card);
+    });
+  }
+
+  if (nextBtn) {
+    nextBtn.disabled = true;
+    if (nextBtnText) nextBtnText.textContent = 'Select a Modifier to Continue';
+  }
+
+  // Draw 3 distinct random modifiers from pool
+  let currentChoices = [...TOWER_MODIFIER_POOL].sort(() => Math.random() - 0.5).slice(0, 3);
+  renderChoices(currentChoices);
+
+  // Reroll Modifiers Button Listener (50 Bux)
+  const rerollBtn = document.getElementById('btn-ascent-reroll');
+  if (rerollBtn) {
+    rerollBtn.onclick = () => {
+      if (typeof spendBux === 'function') {
+        if (!spendBux(50)) {
+          if (typeof showToast === 'function') showToast(" You need 50 Bux to reroll modifier options!", 3000);
+          if (typeof Sound !== 'undefined' && Sound.buzzer) Sound.buzzer();
+          return;
+        }
+      }
+      if (typeof Sound !== 'undefined' && Sound.counterTick) Sound.counterTick(1);
+      else if (typeof Sound !== 'undefined' && Sound.chipAttach) Sound.chipAttach();
+
+      currentChoices = [...TOWER_MODIFIER_POOL].sort(() => Math.random() - 0.5).slice(0, 3);
+      selectedMod = null;
+      if (nextBtn) {
+        nextBtn.disabled = true;
+        if (nextBtnText) nextBtnText.textContent = 'Select a Modifier to Continue';
+      }
+      renderChoices(currentChoices);
+      if (typeof showToast === 'function') showToast('🎲 Modifiers Rerolled! (-50 Bux)', 2500);
+      if (typeof updateHUD === 'function') updateHUD();
+    };
+  }
+
+  // Next Level button
+  if (nextBtn) {
+    nextBtn.onclick = () => {
+      if (!selectedMod) return;
+      s.modifiers = s.modifiers || [];
+      s.modifiers.push(selectedMod.id);
+      s.floor = clearedFloor + 1;
+      s.pendingResult = null;
+      saveTrialTowerState(s);
+
+      modal.classList.add('hidden');
+      trialTowerActive = true;
+      const diff = towerFloorDifficulty(s.floor);
+      botDifficulty = diff;
+      saveLastDifficulty(diff);
+
+      if (typeof Sound !== 'undefined' && Sound.meteorBoom) Sound.meteorBoom();
+      showToast(`⚡ Floor ${s.floor} Challenge Begins! Modifiers Stacked: ${s.modifiers.length}`, 3000);
+
+      const deck = (typeof buildDefaultTrialDeckConfig === 'function')
+        ? buildDefaultTrialDeckConfig()
+        : (typeof buildDefaultDeckConfig === 'function' ? buildDefaultDeckConfig() : null);
+      startVsBot(0, deck);
+    };
+  }
+
+  // Exit & Save Run button
+  const exitBtn = document.getElementById('btn-ascent-exit');
+  if (exitBtn) {
+    exitBtn.onclick = () => {
+      if (selectedMod) {
+        s.modifiers = s.modifiers || [];
+        s.modifiers.push(selectedMod.id);
+      }
+      s.floor = clearedFloor + 1;
+      s.pendingResult = 'win';
+      saveTrialTowerState(s);
+      modal.classList.add('hidden');
+      trialTowerActive = false;
+      openTrialTowerScreen();
+    };
+  }
+
+  modal.classList.remove('hidden');
+  if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
+}
+
+function renderCastleNodes(activeFloor) {
+  const svg = document.querySelector('.tower-castle-svg');
+  if (!svg) return;
+
+  let nodesGroup = svg.querySelector('.castle-nodes');
+  if (!nodesGroup) {
+    nodesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    nodesGroup.setAttribute('class', 'castle-nodes');
+    svg.appendChild(nodesGroup);
+  }
+
+  const s = loadTrialTowerState();
+  const clearedFloor = s.lastClearedFloor || (s.floor ? s.floor - 1 : 0);
+  
+  const floors = [
+    { f: 1, x: 200, y: 530, label: 'L1' },
+    { f: 5, x: 140, y: 450, label: 'L5' },
+    { f: 10, x: 200, y: 380, label: 'L10' },
+    { f: 15, x: 260, y: 320, label: 'L15' },
+    { f: 20, x: 200, y: 270, label: 'L20' },
+    { f: 30, x: 160, y: 180, label: 'L30' },
+    { f: 50, x: 200, y: 70, label: 'L50' }
+  ];
+
+  nodesGroup.innerHTML = '';
+  floors.forEach(item => {
+    const isCleared = item.f <= clearedFloor;
+    const isCurrent = item.f === activeFloor;
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', `castle-node-group ${isCleared ? 'cleared' : ''} ${isCurrent ? 'current' : ''}`);
+
+    // Stars floating above level node
+    const starText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    starText.setAttribute('x', item.x);
+    starText.setAttribute('y', item.y - 18);
+    starText.setAttribute('text-anchor', 'middle');
+    starText.setAttribute('font-size', '13');
+    starText.setAttribute('fill', isCleared ? '#fbbf24' : (isCurrent ? '#38bdf8' : 'rgba(255,255,255,0.45)'));
+    starText.setAttribute('filter', isCleared ? 'url(#glow)' : '');
+    starText.textContent = isCleared ? '⭐⭐⭐' : (isCurrent ? '⭐' : '★');
+    g.appendChild(starText);
+
+    if (isCleared) {
+      // Level node icon becomes a star when beaten
+      const starIcon = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      starIcon.setAttribute('x', item.x);
+      starIcon.setAttribute('y', item.y + 6);
+      starIcon.setAttribute('text-anchor', 'middle');
+      starIcon.setAttribute('font-size', '18');
+      starIcon.setAttribute('filter', 'url(#glow)');
+      starIcon.textContent = '⭐';
+      g.appendChild(starIcon);
+    } else {
+      // Unbeaten level circle badge
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circle.setAttribute('cx', item.x);
+      circle.setAttribute('cy', item.y);
+      circle.setAttribute('r', isCurrent ? '13' : '10');
+      circle.setAttribute('class', `cnode ${isCurrent ? 'current' : ''}`);
+      circle.setAttribute('fill', isCurrent ? '#38bdf8' : '#1e293b');
+      circle.setAttribute('stroke', isCurrent ? '#ffffff' : 'rgba(255,255,255,0.4)');
+      circle.setAttribute('stroke-width', '2');
+      g.appendChild(circle);
+
+      const labelText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      labelText.setAttribute('x', item.x);
+      labelText.setAttribute('y', item.y + 4);
+      labelText.setAttribute('text-anchor', 'middle');
+      labelText.setAttribute('font-size', '9');
+      labelText.setAttribute('font-weight', 'bold');
+      labelText.setAttribute('fill', '#ffffff');
+      labelText.textContent = item.label;
+      g.appendChild(labelText);
+    }
+
+    nodesGroup.appendChild(g);
+  });
+}
+
+function updatePlayerPawnPosition(floor) {
+  const pawn = document.getElementById('tower-player-pawn');
+  const pawnTag = document.getElementById('pawn-floor-tag');
+  const pawnIcon = document.getElementById('pawn-avatar-icon');
+  if (!pawn) return;
+
+  const f = Math.max(1, Math.min(50, floor));
+  const ratio = Math.min(1, Math.max(0, (f - 1) / 49));
+  const y = 530 - ratio * 460;
+  const x = 200 + Math.sin(ratio * Math.PI * 3) * 60;
+
+  pawn.style.left = `${(x / 400 * 100).toFixed(2)}%`;
+  pawn.style.top = `${(y / 600 * 100).toFixed(2)}%`;
+
+  if (pawnTag) pawnTag.textContent = `Floor ${floor}`;
+
+  let avatar = '⚔️';
+  if (typeof loadUserProfile === 'function') {
+    const prof = loadUserProfile();
+    if (prof && prof.avatar) avatar = prof.avatar;
+  }
+  if (pawnIcon) pawnIcon.textContent = avatar;
+
+  renderCastleNodes(floor);
+}
+
+function triggerTowerClashAnimation(clearedFloor, onDone) {
+  const overlay = document.getElementById('tower-clash-overlay');
+  const pAvatar = document.getElementById('clash-player-avatar');
+  const pName = document.getElementById('clash-player-name');
+  const eAvatar = document.getElementById('clash-enemy-avatar');
+  const eName = document.getElementById('clash-enemy-name');
+
+  if (!overlay) { if (onDone) onDone(); return; }
+
+  let userAvatar = '⚔️';
+  let userName = 'Player';
+  if (typeof loadUserProfile === 'function') {
+    const prof = loadUserProfile();
+    if (prof) {
+      if (prof.avatar) userAvatar = prof.avatar;
+      if (prof.name) userName = prof.name;
+    }
+  }
+  if (pAvatar) pAvatar.textContent = userAvatar;
+  if (pName) pName.textContent = userName;
+
+  const diff = towerFloorDifficulty(clearedFloor);
+  if (eAvatar) eAvatar.textContent = '🤖';
+  if (eName) eName.textContent = `${diff} AI`;
+
+  overlay.classList.remove('hidden');
+  if (typeof Sound !== 'undefined' && Sound.meteorBoom) Sound.meteorBoom();
+
+  setTimeout(() => {
+    overlay.classList.add('hidden');
+    if (onDone) onDone();
+  }, 1100);
+}
+
 function resolveTrialTowerMatch(won) {
-  trialTowerActive = false;
   const s = loadTrialTowerState();
   if (won) {
     const reward = towerFloorReward(s.floor);
+    const intel = towerFloorIntel(s.floor);
     addBux(reward);
+    if (typeof grantPlayerXP === 'function') {
+      grantPlayerXP(intel.xp || 50, `Trial Tower Floor ${s.floor}`);
+    }
     recordEconomyChange(reward, `Trial Tower floor ${s.floor} cleared`);
-    recordRecentActivity(`Cleared Trial Tower floor ${s.floor} — +${reward} Bux`);
-    showToast(`🗼 Floor ${s.floor} cleared! +${reward} Bux`, 3000);
+    recordRecentActivity(`Cleared Trial Tower floor ${s.floor} — +${reward} Bux & +${intel.xp || 50} XP`);
     s.best = Math.max(s.best || 0, s.floor);
     
-    // Check for Trial Tower theme unlocks at floors 10, 15, 30, and 50
+    const newlyUnlockedMilestones = checkAndGrantTowerMilestones(s.floor);
+
+    let newlyUnlockedTheme = null;
     if (s.floor >= 10 || s.best >= 10) {
       if (localStorage.getItem('theme_quantum_unlocked') !== 'true') {
         localStorage.setItem('theme_quantum_unlocked', 'true');
-        setTimeout(() => {
-          showToast('⚡ CONGRATULATIONS! You reached Floor 10 and unlocked the QUANTUM FLUX Theme!', 5000);
-          if (typeof fireConfetti === 'function') fireConfetti();
-          if (typeof updateThemeButtons === 'function') updateThemeButtons();
-        }, 800);
+        newlyUnlockedTheme = { id: 'quantum', name: 'Quantum Flux' };
       }
     }
     if (s.floor >= 15 || s.best >= 15) {
       if (localStorage.getItem('theme_glacier_unlocked') !== 'true') {
         localStorage.setItem('theme_glacier_unlocked', 'true');
-        setTimeout(() => {
-          showToast('❄️ CONGRATULATIONS! You reached Floor 15 and unlocked the GLACIAL FROST Theme!', 5000);
-          if (typeof fireConfetti === 'function') fireConfetti();
-          if (typeof updateThemeButtons === 'function') updateThemeButtons();
-        }, 1200);
+        newlyUnlockedTheme = { id: 'glacier', name: 'Glacial Frost' };
       }
     }
-    if (s.floor >= 30 || s.best >= 30) {
+    if (s.floor >= 50 || s.best >= 50) {
       if (localStorage.getItem('theme_astral_unlocked') !== 'true') {
         localStorage.setItem('theme_astral_unlocked', 'true');
-        setTimeout(() => {
-          showToast('🌌 CONGRATULATIONS! You cleared Floor 30 and unlocked the ASTRAL VOID Theme!', 5000);
-          if (typeof fireConfetti === 'function') fireConfetti();
-          if (typeof updateThemeButtons === 'function') updateThemeButtons();
-        }, 1600);
+        newlyUnlockedTheme = { id: 'astral', name: 'Trial Lord (S1)' };
       }
     }
     if (s.floor >= 50 || s.best >= 50) {
       if (localStorage.getItem('theme_celestial_unlocked') !== 'true') {
         localStorage.setItem('theme_celestial_unlocked', 'true');
-        setTimeout(() => {
-          showToast('👑 CONGRATULATIONS! You conquered Floor 50 and unlocked the CELESTIAL DIVINITY Theme!', 6000);
-          if (typeof fireConfetti === 'function') fireConfetti();
-          if (typeof updateThemeButtons === 'function') updateThemeButtons();
-        }, 2000);
+        newlyUnlockedTheme = { id: 'celestial', name: 'Celestial Divinity' };
       }
     }
 
-    s.floor += 1;
-    s.pendingResult = 'win';
+    s.lastClearedFloor = s.floor;
+    s.lastRewardBux = reward;
+    s.lastRewardXP = intel.xp;
+    s.lastUnlockedTheme = newlyUnlockedTheme;
+    s.lastUnlockedMilestones = newlyUnlockedMilestones;
+    s.pendingResult = 'win_anim';
+    saveTrialTowerState(s);
+
+    // Immediately return player to screen-trial-tower for the clash & ascent sequence
+    setTimeout(() => {
+      document.getElementById('gameover-overlay')?.classList.add('hidden');
+      openTrialTowerScreen();
+    }, 120);
+
   } else {
+    trialTowerActive = false;
     s.lastRunFloor = s.floor;
     if (s.floor > 1) showToast(`🗼 Trial Tower run ended at floor ${s.floor} — back to Floor 1.`, 3000);
     s.floor = 1;
+    s.modifiers = [];
     s.pendingResult = 'loss';
+    saveTrialTowerState(s);
   }
-  saveTrialTowerState(s);
 }
 // Any manual exit from a match (quit, or starting a fresh one via Play
 // Again / Back to menu) should never leave a stale flag around to
@@ -2244,23 +2751,35 @@ function towerFloorIntel(floor) {
 }
 
 function updateTowerConsoleForFloor(floor, isCleared, isCurrent, isLocked, activeFloor, bestRecord) {
-  const diff = towerFloorDifficulty(floor);
+  const isBoss = typeof isBossFloor === 'function' && isBossFloor(floor);
+  const bossDef = isBoss && typeof getBossDefinition === 'function' ? getBossDefinition(floor) : null;
+  const diff = isBoss ? '💀 BOSS' : towerFloorDifficulty(floor);
   const reward = towerFloorReward(floor);
   const intel = towerFloorIntel(floor);
 
   const diffBadge = document.getElementById('tower-console-diff-badge');
   if (diffBadge) {
     diffBadge.textContent = diff;
-    diffBadge.style.background = trialTowerBrickColor(floor);
+    diffBadge.style.background = isBoss ? 'linear-gradient(135deg, #7e22ce, #e11d48)' : trialTowerBrickColor(floor);
   }
 
   const floorTitle = document.getElementById('tower-console-floor-title');
   if (floorTitle) {
-    floorTitle.textContent = isCurrent ? `Floor ${floor} Challenge` : (isCleared ? `Floor ${floor} (Cleared)` : `Floor ${floor} (Upcoming)`);
+    if (isBoss) {
+      floorTitle.textContent = `💀 FLOOR ${floor} BOSS: ${bossDef.name}`;
+    } else {
+      floorTitle.textContent = isCurrent ? `Floor ${floor} Challenge` : (isCleared ? `Floor ${floor} (Cleared)` : `Floor ${floor} (Upcoming)`);
+    }
   }
 
   const descEl = document.getElementById('tower-console-desc');
-  if (descEl) descEl.textContent = intel.desc;
+  if (descEl) {
+    if (isBoss) {
+      descEl.textContent = `⚠️ BOSS ENCOUNTER! ${bossDef.name} (${bossDef.bossCard.hp} HP) awaits. Specialized Boss Aura: ${bossDef.bossModifier.name} (${bossDef.bossModifier.desc}).`;
+    } else {
+      descEl.textContent = intel.desc;
+    }
+  }
 
   const buxEl = document.getElementById('tower-console-bux-val');
   if (buxEl) buxEl.textContent = `+${reward} Bux`;
@@ -2279,17 +2798,23 @@ function updateTowerConsoleForFloor(floor, isCleared, isCurrent, isLocked, activ
 
   const startBtn = document.getElementById('btn-tower-page-begin');
   if (startBtn) {
-    if (isCurrent) {
+    const s = loadTrialTowerState();
+    const modCount = (s && Array.isArray(s.modifiers) && s.modifiers.length > 0) ? ` [⚡ ${s.modifiers.length} Mods]` : '';
+    if (isBoss) {
       startBtn.disabled = false;
-      startBtn.innerHTML = `<span>⚔️ Ascend to Floor ${floor} — vs ${diff} (+${reward} Bux)</span>`;
+      startBtn.innerHTML = `<span style="color:#f43f5e;font-weight:bold;">💀 Battle ${bossDef.name} (Floor ${floor})${modCount}</span>`;
+      startBtn.style.opacity = '1';
+    } else if (isCurrent) {
+      startBtn.disabled = false;
+      startBtn.innerHTML = `<span>Ascend to Floor ${floor}${modCount}</span>`;
       startBtn.style.opacity = '1';
     } else if (isLocked) {
       startBtn.disabled = true;
-      startBtn.innerHTML = `<span>🔒 Floor ${floor} Locked — Clear Floor ${activeFloor} First</span>`;
+      startBtn.innerHTML = `<span>Ascend to Floor ${floor} (Locked)</span>`;
       startBtn.style.opacity = '0.6';
     } else {
       startBtn.disabled = false;
-      startBtn.innerHTML = `<span>⚔️ Resume Active Ascent (Floor ${activeFloor})</span>`;
+      startBtn.innerHTML = `<span>Ascend to Floor ${activeFloor}${modCount}</span>`;
       startBtn.style.opacity = '1';
     }
   }
@@ -2313,10 +2838,12 @@ function renderTrialTowerBricks(container, targetFloor, clearedUpTo) {
   }
 
   for (let f = minFloor; f <= maxFloor; f++) {
+    const isBoss = typeof isBossFloor === 'function' && isBossFloor(f);
+    const bossDef = isBoss && typeof getBossDefinition === 'function' ? getBossDefinition(f) : null;
     const brick = document.createElement('div');
-    brick.className = 'tower-brick';
+    brick.className = `tower-brick ${isBoss ? 'brick-boss-floor' : ''}`;
     brick.dataset.floor = String(f);
-    brick.style.setProperty('--brick-color', trialTowerBrickColor(f));
+    brick.style.setProperty('--brick-color', isBoss ? '#9333ea' : trialTowerBrickColor(f));
     
     const isCleared = f < clearedUpTo;
     const isCurrent = f === clearedUpTo;
@@ -2326,17 +2853,17 @@ function renderTrialTowerBricks(container, targetFloor, clearedUpTo) {
     if (isCurrent) brick.classList.add('current');
     if (isLocked) brick.classList.add('locked-preview');
 
-    const diff = towerFloorDifficulty(f);
+    const diff = isBoss ? '💀 BOSS' : towerFloorDifficulty(f);
     const reward = towerFloorReward(f);
 
     brick.innerHTML = `
       <div class="tower-brick-left">
-        <span class="tower-brick-num">Floor ${f}</span>
-        <span class="tower-brick-diff">${diff}</span>
+        <span class="tower-brick-num">${isBoss ? '💀 BOSS' : ''} Floor ${f}</span>
+        <span class="tower-brick-diff">${isBoss ? bossDef.name : diff}</span>
       </div>
       <div class="tower-brick-right">
         <span class="tower-brick-bounty">+${reward} Bux</span>
-        ${isCleared ? '<span class="tower-brick-check">✓</span>' : (isCurrent ? '<span class="tower-brick-flag">🚩</span>' : '<span style="font-size:0.75rem;opacity:0.6;">🔒</span>')}
+        ${isCleared ? '<span class="tower-brick-check">✓</span>' : (isCurrent ? (isBoss ? '<span class="tower-brick-flag">💀</span>' : '<span class="tower-brick-flag">🚩</span>') : '<span style="font-size:0.75rem;opacity:0.6;">🔒</span>')}
       </div>
     `;
 
@@ -2430,23 +2957,61 @@ function openTrialTowerScreen() {
     const cur = loadTrialTowerState();
     renderTrialTowerBricks(stack, cur.floor, cur.floor);
     updateTowerConsoleForFloor(cur.floor, false, true, false, cur.floor, cur.best);
+
+    // Populate active run modifiers box in Trial Tower citadel
+    const runBox = document.getElementById('tower-active-run-box');
+    const modsRow = document.getElementById('tarb-mods-row');
+    const countBadge = document.getElementById('tarb-count-badge');
+    if (runBox && modsRow) {
+      const curMods = Array.isArray(cur.modifiers) ? cur.modifiers : [];
+      if (curMods.length > 0) {
+        runBox.classList.remove('hidden');
+        if (countBadge) countBadge.textContent = `${curMods.length} Stacked`;
+        modsRow.innerHTML = '';
+        const counts = {};
+        curMods.forEach(m => { counts[m] = (counts[m] || 0) + 1; });
+        Object.entries(counts).forEach(([mid, count]) => {
+          const def = TOWER_MODIFIER_POOL.find(p => p.id === mid) || { name: mid, icon: '⚡' };
+          const pill = document.createElement('div');
+          pill.className = 'tarb-mod-pill';
+          pill.innerHTML = `<span>${def.icon} ${def.name}</span> <span class="tarb-pill-count">x${count}</span>`;
+          modsRow.appendChild(pill);
+        });
+      } else {
+        runBox.classList.add('hidden');
+      }
+    }
   }
 
-  if (s.pendingResult === 'win') {
-    const clearedFloor = s.floor - 1;
-    renderTrialTowerBricks(stack, clearedFloor, clearedFloor);
+  if (s.pendingResult === 'win_anim') {
+    const clearedFloor = s.lastClearedFloor || 1;
+    const newFloor = clearedFloor + 1;
     s.pendingResult = null;
     saveTrialTowerState(s);
-    updateTowerConsoleForFloor(clearedFloor, true, false, false, s.floor, s.best);
-    setTimeout(() => playTowerAdvanceAnimation(stack, clearedFloor, s.floor, settleView), 320);
+
+    updatePlayerPawnPosition(clearedFloor);
+    updateTowerConsoleForFloor(clearedFloor, true, false, false, newFloor, s.best);
+
+    triggerTowerClashAnimation(clearedFloor, () => {
+      // Smoothly ascend player pawn up the castle SVG
+      updatePlayerPawnPosition(newFloor);
+      if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
+
+      setTimeout(() => {
+        showTowerAscentModal(clearedFloor, s.lastRewardBux || towerFloorReward(clearedFloor), s.lastRewardXP || 50, s.lastUnlockedTheme);
+        settleView();
+      }, 750);
+    });
   } else if (s.pendingResult === 'loss') {
     const runFloor = s.lastRunFloor || 1;
     renderTrialTowerBricks(stack, runFloor, runFloor + 1);
     s.pendingResult = null;
     saveTrialTowerState(s);
     updateTowerConsoleForFloor(1, false, true, false, 1, s.best);
+    updatePlayerPawnPosition(1);
     setTimeout(() => playTowerExplodeAnimation(citadelContainer, stack, settleView), 320);
   } else {
+    updatePlayerPawnPosition(s.floor);
     settleView();
   }
 
@@ -2458,6 +3023,44 @@ function openTrialTowerScreen() {
     if (typeof wirePressFeedback === 'function') wirePressFeedback(beginBtn);
   }
 
+  // Bind Milestones track button
+  const milestonesBtn = document.getElementById('btn-tower-open-milestones-modal');
+  if (milestonesBtn && !milestonesBtn.dataset.bound) {
+    milestonesBtn.dataset.bound = 'true';
+    milestonesBtn.addEventListener('click', () => {
+      showTowerMilestonesModal();
+    });
+    if (typeof wirePressFeedback === 'function') wirePressFeedback(milestonesBtn);
+  }
+
+  // Update summary badge states
+  const bestFloor = s.best || 0;
+  [10, 20, 30, 40, 50].forEach(f => {
+    const badge = document.getElementById(`tmsc-badge-${f}`);
+    if (badge) {
+      const isUnlocked = bestFloor >= f || isTowerMilestoneUnlocked(f);
+      badge.classList.toggle('unlocked', isUnlocked);
+      const statusEl = badge.querySelector('.tmsc-badge-status');
+      if (statusEl && isUnlocked) {
+        statusEl.textContent = '✓ Unlocked';
+      }
+    }
+  });
+
+  const loadoutBtn = document.getElementById('btn-tower-edit-loadout');
+  if (loadoutBtn && !loadoutBtn.dataset.bound) {
+    loadoutBtn.dataset.bound = 'true';
+    loadoutBtn.addEventListener('click', () => {
+      if (typeof openDeckBuilder === 'function') {
+        openDeckBuilder((config) => {
+          if (typeof saveActiveTrialTowerDeck === 'function') saveActiveTrialTowerDeck(config);
+          if (typeof openTrialTowerScreen === 'function') openTrialTowerScreen();
+        }, 'screen-trial-tower', true);
+      }
+    });
+    if (typeof wirePressFeedback === 'function') wirePressFeedback(loadoutBtn);
+  }
+
   const backBtn = document.getElementById('btn-trial-tower-back');
   if (backBtn && !backBtn.dataset.bound) {
     backBtn.dataset.bound = 'true';
@@ -2466,6 +3069,111 @@ function openTrialTowerScreen() {
     });
     if (typeof wirePressFeedback === 'function') wirePressFeedback(backBtn);
   }
+}
+
+/* ---------- Trial Tower Milestones Rewards Modal ---------- */
+function showTowerMilestonesModal() {
+  const existing = document.getElementById('tower-milestones-modal');
+  if (existing) existing.remove();
+
+  const s = loadTrialTowerState();
+  const bestFloor = s.best || 0;
+
+  const modal = document.createElement('div');
+  modal.id = 'tower-milestones-modal';
+  modal.style.cssText = `
+    position: fixed; inset: 0; z-index: 100000;
+    background: rgba(4, 6, 12, 0.88); backdrop-filter: blur(14px);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+    animation: fadeInModal 0.25s ease forwards;
+  `;
+
+  modal.innerHTML = `
+    <div style="background: linear-gradient(145deg, #1e1b4b 0%, #0f172a 100%); border: 1px solid rgba(192, 132, 252, 0.4); border-radius: 20px; padding: 28px; max-width: 580px; width: 100%; box-shadow: 0 25px 50px rgba(0,0,0,0.7); color: #fff; max-height: 90vh; overflow-y: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div>
+          <h3 style="font-size: 1.35rem; font-weight: 800; color: #fde047; margin: 0; display: flex; align-items: center; gap: 8px;">
+            <span>🏆 Trial Lord Milestone Rewards</span>
+          </h3>
+          <p style="font-size: 0.8rem; color: #a855f7; margin: 4px 0 0 0;">Highest Tower Floor Record: <b>Floor ${bestFloor}</b></p>
+        </div>
+        <button type="button" class="feature-close" id="btn-close-milestones-modal" style="background:none; border:none; color:#fff; font-size:1.4rem; cursor:pointer;">✕</button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+        ${TOWER_MILESTONE_REWARDS.map(m => {
+          const unlocked = bestFloor >= m.floor || isTowerMilestoneUnlocked(m.floor);
+          const isApex = m.floor === 50;
+          return `
+            <div style="background: ${unlocked ? 'rgba(192, 132, 252, 0.12)' : 'rgba(255,255,255,0.03)'}; border: 1px solid ${unlocked ? (isApex ? '#eab308' : '#a855f7') : 'rgba(255,255,255,0.08)'}; border-radius: 14px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; transition: all 0.2s ease;">
+              <div style="font-size: 2.2rem; min-width: 48px; text-align: center;">${m.icon}</div>
+              <div style="flex: 1; min-width: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                  <span style="font-size: 0.95rem; font-weight: 800; color: ${unlocked ? '#fff' : '#94a3b8'};">Floor ${m.floor} · ${m.title}</span>
+                  <span style="font-size: 0.7rem; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: ${unlocked ? 'rgba(74, 222, 128, 0.2)' : 'rgba(255,255,255,0.08)'}; color: ${unlocked ? '#4ade80' : '#64748b'}; border: 1px solid ${unlocked ? 'rgba(74, 222, 128, 0.4)' : 'transparent'};">
+                    ${unlocked ? 'UNLOCKED ✓' : `LOCKED 🔒 (Reach Floor ${m.floor})`}
+                  </span>
+                </div>
+                <div style="font-size: 0.78rem; color: #cbd5e1; margin-bottom: 8px;">${m.desc}</div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                  <button type="button" class="primary-btn small btn-equip-milestone-avatar" data-avatar-id="${m.avatarId}" ${!unlocked ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : 'style="background: linear-gradient(135deg, #a855f7, #6366f1); border:none;"'}>
+                    ✨ Equip Avatar
+                  </button>
+                  <button type="button" class="secondary-btn small btn-equip-milestone-border" data-frame-class="${m.frameClass}" ${!unlocked ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>
+                    🖼️ Equip Border
+                  </button>
+                  ${m.themeId ? `
+                    <button type="button" class="primary-btn small btn-equip-milestone-theme" data-theme-id="${m.themeId}" ${!unlocked ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : 'style="background: linear-gradient(135deg, #eab308, #f59e0b); border:none; color:#000;"'}>
+                      🌌 Equip Theme
+                    </button>
+                  ` : ''}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      <button type="button" class="secondary-btn" id="btn-close-milestones-bottom" style="width: 100%; justify-content: center; padding: 10px;">Close Milestone Rewards</button>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const doClose = () => modal.remove();
+  modal.querySelector('#btn-close-milestones-modal').onclick = doClose;
+  modal.querySelector('#btn-close-milestones-bottom').onclick = doClose;
+
+  modal.querySelectorAll('.btn-equip-milestone-avatar').forEach(btn => {
+    btn.onclick = () => {
+      const aId = btn.dataset.avatarId;
+      if (typeof ParticleAvatarEngine !== 'undefined' && aId) {
+        ParticleAvatarEngine.setActiveAvatarId(aId);
+        showToast(`✨ Equipped Trial Lord Particle Avatar!`, 2500);
+        if (typeof Sound !== 'undefined' && Sound.playLevelUp) Sound.playLevelUp();
+      }
+    };
+  });
+
+  modal.querySelectorAll('.btn-equip-milestone-border').forEach(btn => {
+    btn.onclick = () => {
+      const fc = btn.dataset.frameClass;
+      setEquippedProfileBorder(fc);
+      showToast(`🖼️ Equipped Trial Lord Cosmetic Border Frame!`, 2500);
+      if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
+    };
+  });
+
+  modal.querySelectorAll('.btn-equip-milestone-theme').forEach(btn => {
+    btn.onclick = () => {
+      const tId = btn.dataset.themeId;
+      if (typeof setTheme === 'function' && tId) {
+        setTheme(tId);
+        showToast(`🌌 Equipped Trial Lord (S1) Theme!`, 2500);
+        if (typeof Sound !== 'undefined' && Sound.themeSwitch) Sound.themeSwitch();
+      }
+    };
+  });
 }
 
 function ensureTrialTowerMenuCard() {
@@ -2678,7 +3386,7 @@ const SHOP_PACK_SIZES = [
   { id: 'pack_standard', name: 'Standard Pack', count: 3,  cost: 32,  art: '📦', tag: 'POPULAR', badge: '3 Cards', desc: 'Balanced 3-card drop with elevated higher-tier chances.' },
   { id: 'pack_large',    name: 'Large Pack',    count: 5,  cost: 55,  art: '🎴', tag: 'BEST VALUE', badge: '5 Cards', desc: '5 unowned cards including guaranteed high-tier synergy.' },
   { id: 'pack_mega',     name: 'Mega Pack',     count: 8,  cost: 90,  art: '💼', tag: 'ELITE HAUL', badge: '8 Cards', desc: 'Substantial 8-card unlock pack for rapid deckbuilding.' },
-  { id: 'pack_ultra',    name: 'Ultra Pack',    count: 12, cost: 140, art: '🏆', tag: 'MYTHIC VAULT', badge: '12 Cards', desc: 'Massive 12-card jackpot to complete your master vault.' },
+  { id: 'pack_ultra',    name: 'Ultra Pack',    count: 12, cost: 140, art: '🏆', tag: 'MYTHIC VAULT', badge: '12 Cards', desc: 'Massive 12-card grand bundle to complete your master vault.' },
 ];
 
 function individualCardPrice(kind, tier) {
@@ -2753,8 +3461,8 @@ const ALL_MEHRBOD_SHOP_CODES = [
     icon: '👑'
   },
   {
-    code: 'jackpot',
-    reward: '💰 High-Roller Bounty: +2,500 Mehrbod Bux Vault Deposit',
+    code: 'grandvault',
+    reward: '💰 Master Tycoon Bounty: +2,500 Mehrbod Bux Vault Deposit',
     icon: '💰'
   },
   {
@@ -3062,11 +3770,11 @@ function redeemShopCode(rawCode) {
       { icon: '🎨', title: 'Valentine Theme', desc: 'Unlocked secret seasonal theme with floating hearts & cupids' }
     ]);
     Sound.sparkle();
-  } else if (cleanCode === 'jackpot') {
+  } else if (cleanCode === 'grandvault' || cleanCode === 'jackpot') {
     addBux(2500);
-    recordEconomyChange(2500, 'Redeemed code: jackpot');
-    recordRecentActivity('Redeemed code "jackpot" — +2,500 Bux');
-    showCodeRewardModal('High-Roller Jackpot', '💰', [
+    recordEconomyChange(2500, 'Redeemed code: grandvault');
+    recordRecentActivity('Redeemed secret code — +2,500 Bux');
+    showCodeRewardModal('Grand Vault Reward', '💰', [
       { icon: '💰', title: '+2,500 Mehrbod Bux', desc: 'Added directly to your vault balance' }
     ]);
     Sound.sparkle();
@@ -3406,6 +4114,9 @@ function redeemShopCode(rawCode) {
     recordRecentActivity('Redeemed code "barbod" — Lost 5 Bux and received 1 worthless dust. Oof!');
     showToast('🗑️ Barbod scam code! You lost 5 Bux and received 1 piece of useless dust.', 4500);
     Sound.select();
+    if (typeof triggerBarbodDustEffect === 'function') {
+      setTimeout(() => triggerBarbodDustEffect(), 400);
+    }
     if (inputEl) inputEl.value = '';
     return;
   } else {
@@ -3616,6 +4327,35 @@ function renderCosmeticsShop() {
         </div>
       </header>
 
+      <!-- SECTION 0: LUCKY SPIN WHEEL -->
+      <section class="fn-section fn-spin-wheel-section" style="margin-bottom: 30px;">
+        <div class="fn-section-bar">
+          <h2 class="fn-section-title">✨ LUCKY SPIN WHEEL</h2>
+          <span class="fn-section-badge" id="spin-wheel-cost-badge">FREE DAILY SPIN AVAILABLE</span>
+        </div>
+        <div class="spin-wheel-container" style="display: flex; flex-direction: row; gap: 30px; background: rgba(15, 23, 42, 0.6); border: 1.5px solid rgba(236, 72, 153, 0.25); border-radius: 20px; padding: 24px; align-items: center; justify-content: center; flex-wrap: wrap; box-shadow: inset 0 0 20px rgba(236, 72, 153, 0.05); margin-top: 12px;">
+          <!-- Canvas Wrapper -->
+          <div style="position: relative; width: 280px; height: 280px; display: flex; align-items: center; justify-content: center;">
+            <canvas id="lucky-spin-canvas" width="280" height="280" style="width: 280px; height: 280px; filter: drop-shadow(0 0 15px rgba(253, 224, 71, 0.25));"></canvas>
+            <!-- Pointer peg at the top -->
+            <div id="lucky-spin-pointer" style="position: absolute; top: -6px; left: 50%; transform: translateX(-50%) rotate(0deg); transform-origin: top center; width: 18px; height: 32px; background: linear-gradient(180deg, #fff350 0%, #d4af37 100%); clip-path: polygon(50% 100%, 0 0, 100% 0); z-index: 10; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); transition: transform 0.05s ease;"></div>
+            <!-- Center golden spin button -->
+            <button type="button" id="btn-spin-wheel-center" style="position: absolute; width: 68px; height: 68px; border-radius: 50%; background: radial-gradient(circle, #fff8d2 0%, #ffd700 40%, #7a5c10 100%); border: 3px solid #1e293b; color: #121008; font-family: var(--font-display, inherit); font-weight: 900; font-size: 0.95rem; cursor: pointer; box-shadow: 0 4px 15px rgba(253, 224, 71, 0.4), inset 0 2px 4px rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center; user-select: none; z-index: 12; transition: transform 0.1s ease;">SPIN</button>
+          </div>
+          <!-- Info Details Box -->
+          <div class="spin-wheel-info" style="flex: 1; min-width: 250px; display: flex; flex-direction: column; justify-content: center; gap: 12px; text-align: left;">
+            <h3 style="margin: 0; font-size: 1.35rem; color: #fff; font-family: var(--font-display, inherit);">Spin Mehrbod's Lucky Wheel!</h3>
+            <p style="margin: 0; font-size: 0.88rem; color: #94a3b8; line-height: 1.5;">Spin the Daily Fortune Wheel every 24 hours for a <strong style="color: #10b981;">FREE</strong> chance at grand prizes! Extra spins can be unlocked for <strong style="color: #ec4899;">100 Bux</strong> each. Everything you win is added directly to your loadout collection or vault balance.</p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button type="button" class="primary-btn" id="btn-spin-wheel-play" style="flex: 1; min-width: 150px; padding: 12px 20px; font-size: 1rem; border-radius: 12px; justify-content: center; background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%); box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3); font-weight: 800; cursor: pointer;">
+                SPIN FOR FREE! 🎁
+              </button>
+            </div>
+            <div id="spin-wheel-timer-text" style="font-size: 0.78rem; color: #f43f5e; font-weight: 700; display: none;">⏱️ Free spin on cooldown. Next free spin in <span id="spin-wheel-timer-val">23:59:59</span></div>
+          </div>
+        </div>
+      </section>
+
       <!-- SECTION 1: 8 FEATURED COSMETICS -->
       <section class="fn-section">
         <div class="fn-section-bar">
@@ -3715,6 +4455,339 @@ function renderCosmeticsShop() {
     codeBtn.addEventListener('click', () => redeemShopCode(codeInput.value));
     codeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') redeemShopCode(codeInput.value); });
   }
+
+  // --- Initialize Lucky Spin Wheel ---
+  function initLuckySpinWheel() {
+    const canvas = document.getElementById('lucky-spin-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const pointer = document.getElementById('lucky-spin-pointer');
+    const playBtn = document.getElementById('btn-spin-wheel-play');
+    const centerBtn = document.getElementById('btn-spin-wheel-center');
+    const badge = document.getElementById('spin-wheel-cost-badge');
+    const timerText = document.getElementById('spin-wheel-timer-text');
+    const timerVal = document.getElementById('spin-wheel-timer-val');
+
+    const slices = [
+      { label: '50 Bux', color: '#ec4899', type: 'bux', amount: 50, icon: '💰' },
+      { label: 'Random Spell', color: '#8b5cf6', type: 'spell', amount: 1, icon: '🔮' },
+      { label: '100 Bux', color: '#06b6d4', type: 'bux', amount: 100, icon: '💰' },
+      { label: 'Scam Dust', color: '#475569', type: 'scam', amount: 0, icon: '🗑️' },
+      { label: '250 Bux', color: '#10b981', type: 'bux', amount: 250, icon: '💰' },
+      { label: 'Small Pack', color: '#f43f5e', type: 'pack', amount: 1, icon: '📦' },
+      { label: '500 GRAND PRIZE!', color: '#eab308', type: 'bux', amount: 500, icon: '👑' },
+      { label: 'Random Chip', color: '#a855f7', type: 'chip', amount: 1, icon: '💾' }
+    ];
+
+    const totalSlices = slices.length;
+    const arcSize = (Math.PI * 2) / totalSlices;
+
+    let currentAngle = 0;
+    let spinVelocity = 0;
+    let isSpinning = false;
+    let lastTickAngle = 0;
+
+    const SPIN_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+    function getSpinCost() {
+      try {
+        const lastSpin = localStorage.getItem('mehrbod_last_spin_time');
+        if (!lastSpin) return 0;
+        const elapsed = Date.now() - parseInt(lastSpin, 10);
+        if (elapsed >= SPIN_COOLDOWN_MS) return 0;
+        return 100;
+      } catch (e) {
+        return 0;
+      }
+    }
+
+    function updateSpinUI() {
+      const cost = getSpinCost();
+      if (cost === 0) {
+        if (playBtn) {
+          playBtn.textContent = 'SPIN FOR FREE! 🎁';
+          playBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+          playBtn.style.boxShadow = '0 4px 15px rgba(16, 185, 129, 0.3)';
+        }
+        if (badge) {
+          badge.textContent = 'FREE DAILY SPIN AVAILABLE';
+          badge.style.background = 'rgba(16, 185, 129, 0.15)';
+          badge.style.color = '#34d399';
+        }
+        if (timerText) timerText.style.display = 'none';
+      } else {
+        if (playBtn) {
+          playBtn.textContent = 'SPIN AGAIN (100 Bux) ◉';
+          playBtn.style.background = 'linear-gradient(135deg, #ec4899 0%, #a855f7 100%)';
+          playBtn.style.boxShadow = '0 4px 15px rgba(236, 72, 153, 0.3)';
+        }
+        if (badge) {
+          badge.textContent = 'SPIN: 100 BUX';
+          badge.style.background = 'rgba(236, 72, 153, 0.15)';
+          badge.style.color = '#f472b6';
+        }
+        if (timerText) {
+          timerText.style.display = 'block';
+          updateTimerCountdown();
+        }
+      }
+    }
+
+    function updateTimerCountdown() {
+      try {
+        const lastSpin = localStorage.getItem('mehrbod_last_spin_time');
+        if (!lastSpin) return;
+        const elapsed = Date.now() - parseInt(lastSpin, 10);
+        const remaining = Math.max(0, SPIN_COOLDOWN_MS - elapsed);
+        if (remaining <= 0) {
+          updateSpinUI();
+          return;
+        }
+        const h = String(Math.floor(remaining / 3600000)).padStart(2, '0');
+        const m = String(Math.floor(remaining / 60000) % 60).padStart(2, '0');
+        const s = String(Math.floor(remaining / 1000) % 60).padStart(2, '0');
+        if (timerVal) timerVal.textContent = `${h}:${m}:${s}`;
+      } catch (e) {}
+    }
+
+    function drawWheel() {
+      const w = canvas.width;
+      const h = canvas.height;
+      const cx = w / 2;
+      const cy = h / 2;
+      const radius = cx - 12;
+
+      ctx.clearRect(0, 0, w, h);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius + 6, 0, Math.PI * 2);
+      const outerGrad = ctx.createRadialGradient(cx, cy, radius, cx, cy, radius + 10);
+      outerGrad.addColorStop(0, '#ffd700');
+      outerGrad.addColorStop(1, '#7a5c10');
+      ctx.fillStyle = outerGrad;
+      ctx.fill();
+      ctx.restore();
+
+      for (let i = 0; i < 24; i++) {
+        const dotAngle = (i * Math.PI * 2) / 24;
+        const dotX = cx + Math.cos(dotAngle) * (radius + 2);
+        const dotY = cy + Math.sin(dotAngle) * (radius + 2);
+        ctx.beginPath();
+        ctx.arc(dotX, dotY, 3, 0, Math.PI * 2);
+        const blink = Math.sin(Date.now() * 0.005 + i) > 0;
+        ctx.fillStyle = blink ? '#ffffff' : '#b8860b';
+        ctx.fill();
+      }
+
+      slices.forEach((slice, idx) => {
+        const angleStart = currentAngle + idx * arcSize;
+        const angleEnd = angleStart + arcSize;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, radius, angleStart, angleEnd);
+        ctx.closePath();
+
+        const sliceGrad = ctx.createRadialGradient(cx, cy, 20, cx, cy, radius);
+        sliceGrad.addColorStop(0, '#1e293b');
+        sliceGrad.addColorStop(1, slice.color);
+        ctx.fillStyle = sliceGrad;
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        const textAngle = angleStart + arcSize / 2;
+        ctx.rotate(textAngle);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 11px var(--font-display, inherit)';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+        ctx.shadowBlur = 4;
+        ctx.fillText(`${slice.icon} ${slice.label}`, radius - 20, 0);
+
+        ctx.restore();
+      });
+
+      for (let i = 0; i < totalSlices; i++) {
+        const pegAngle = currentAngle + i * arcSize;
+        const pegX = cx + Math.cos(pegAngle) * (radius - 5);
+        const pegY = cy + Math.sin(pegAngle) * (radius - 5);
+        ctx.beginPath();
+        ctx.arc(pegX, pegY, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 2;
+        ctx.fill();
+      }
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, 38, 0, Math.PI * 2);
+      ctx.fillStyle = '#0f172a';
+      ctx.fill();
+      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function animateSpin() {
+      if (!isSpinning) return;
+
+      currentAngle += spinVelocity;
+      spinVelocity *= 0.983;
+
+      const normalizedAngle = (currentAngle - Math.PI / 2) % (Math.PI * 2);
+      const tickIndex = Math.floor(normalizedAngle / arcSize);
+      if (tickIndex !== lastTickAngle) {
+        lastTickAngle = tickIndex;
+        if (typeof Sound !== 'undefined' && typeof Sound.tone === 'function') {
+          const pitch = 300 + (spinVelocity * 150);
+          Sound.tone(pitch, 0.02, 'sine', 0.08);
+        }
+        if (pointer) {
+          pointer.style.transform = 'translateX(-50%) rotate(-15deg)';
+          setTimeout(() => {
+            if (pointer) pointer.style.transform = 'translateX(-50%) rotate(0deg)';
+          }, 40);
+        }
+      }
+
+      drawWheel();
+
+      if (spinVelocity < 0.002) {
+        spinVelocity = 0;
+        isSpinning = false;
+        drawWheel();
+        resolvePrize();
+      } else {
+        requestAnimationFrame(animateSpin);
+      }
+    }
+
+    function resolvePrize() {
+      let normalized = (Math.PI * 2.5 - (currentAngle % (Math.PI * 2))) % (Math.PI * 2);
+      const sliceIdx = Math.floor(normalized / arcSize) % totalSlices;
+      const wonPrize = slices[sliceIdx];
+
+      let prizeTitle = '';
+      let prizeDesc = '';
+      let prizeIcon = wonPrize.icon;
+
+      if (wonPrize.type === 'bux') {
+        addBux(wonPrize.amount);
+        if (typeof recordEconomyChange === 'function') {
+          recordEconomyChange(wonPrize.amount, `Daily Spin prize: ${wonPrize.label}`);
+        }
+        prizeTitle = `+${wonPrize.amount} Mehrbod Bux`;
+        prizeDesc = 'Credited directly to your vault balance. Spend them in the shop!';
+      } else if (wonPrize.type === 'spell') {
+        const col = loadCollection();
+        const randomSpellId = ALL_SPELL_IDS[Math.floor(Math.random() * ALL_SPELL_IDS.length)];
+        if (!col.spells.includes(randomSpellId)) {
+          col.spells.push(randomSpellId);
+          saveCollection(col);
+        }
+        const spellDef = SPELL_DEFS.find(s => s.id === randomSpellId);
+        prizeTitle = `${spellDef ? spellDef.name : 'Random Spell'} Spell`;
+        prizeDesc = 'Unlocked & added directly to your loadout collection!';
+      } else if (wonPrize.type === 'chip') {
+        const col = loadCollection();
+        const randomChipId = ALL_CHIP_IDS[Math.floor(Math.random() * ALL_CHIP_IDS.length)];
+        if (!col.chips.includes(randomChipId)) {
+          col.chips.push(randomChipId);
+          saveCollection(col);
+        }
+        const chipDef = CHIP_DEFS.find(c => c.id === randomChipId);
+        prizeTitle = `${chipDef ? chipDef.name : 'Random Chip'} Chip`;
+        prizeDesc = 'Unlocked & added directly to your loadout collection!';
+      } else if (wonPrize.type === 'pack') {
+        const size = SHOP_PACK_SIZES.find(p => p.id === 'pack_small') || { count: 2, cost: 20, name: 'Small Pack' };
+        buyCardPackSized(size.count, 0, size.name);
+        prizeTitle = 'Small Card Pack';
+        prizeDesc = 'Check out your newly opened cards inside the Collection Book!';
+      } else {
+        prizeTitle = 'Barbod\'s worthless dust';
+        prizeDesc = 'A handful of fine gray dust. Actually worth absolutely zero Bux. Oof!';
+        if (typeof triggerBarbodDustEffect === 'function') {
+          setTimeout(() => triggerBarbodDustEffect(), 2000);
+        }
+      }
+
+      if (typeof Sound !== 'undefined') {
+        if (wonPrize.type === 'scam') {
+          if (Sound.buzzer) Sound.buzzer();
+        } else {
+          if (Sound.sparkle) Sound.sparkle();
+          if (Sound.coin) Sound.coin();
+        }
+      }
+
+      showCodeRewardModal('Lucky Spin Winner', prizeIcon, [
+        { icon: prizeIcon, title: prizeTitle, desc: prizeDesc }
+      ]);
+
+      const cost = getSpinCost();
+      if (cost === 0) {
+        localStorage.setItem('mehrbod_last_spin_time', String(Date.now()));
+      }
+
+      updateSpinUI();
+      updateThemeButtons();
+      if (typeof renderCollectionScreen === 'function') renderCollectionScreen();
+    }
+
+    function startSpin() {
+      if (isSpinning) return;
+
+      const cost = getSpinCost();
+      if (cost > 0) {
+        if (!spendBux(cost)) {
+          showToast("You don't have enough Mehrbod Bux to spin!");
+          return;
+        }
+        if (typeof recordEconomyChange === 'function') {
+          recordEconomyChange(-cost, 'Paid 100 Bux for Lucky Spin Wheel');
+        }
+      }
+
+      isSpinning = true;
+      spinVelocity = 0.35 + Math.random() * 0.25;
+      lastTickAngle = -1;
+
+      if (typeof Sound !== 'undefined' && Sound.select) Sound.select();
+
+      requestAnimationFrame(animateSpin);
+    }
+
+    if (playBtn) playBtn.addEventListener('click', startSpin);
+    if (centerBtn) centerBtn.addEventListener('click', startSpin);
+
+    const timerInterval = setInterval(() => {
+      if (!document.getElementById('lucky-spin-canvas')) {
+        clearInterval(timerInterval);
+        return;
+      }
+      updateTimerCountdown();
+    }, 1000);
+
+    drawWheel();
+    updateSpinUI();
+  }
+
+  // Run initialization
+  setTimeout(initLuckySpinWheel, 50);
 }
 
 /* ============================================================
@@ -3806,10 +4879,24 @@ function updateProfileAvatar() {
     btn.appendChild(frame);
   }
   frame.className = 'profile-frame';
-  const rank = arenaRankIndexFromRP(loadArenaRankState().rp);
-  if (rank >= 6) frame.classList.add('frame-gold');
-  else if (rank >= 4) frame.classList.add('frame-silver');
-  else if (rank >= 2) frame.classList.add('frame-bronze');
+  const eqBorder = getEquippedProfileBorder();
+  if (eqBorder && eqBorder !== 'auto') {
+    frame.classList.add(eqBorder);
+  } else {
+    const s = loadTrialTowerState();
+    const highest = Math.max(s.best || 0, s.floor || 1);
+    if (highest >= 50 || isTowerMilestoneUnlocked(50)) frame.classList.add('frame-trial-lord-apex');
+    else if (highest >= 40 || isTowerMilestoneUnlocked(40)) frame.classList.add('frame-trial-lord-sovereign');
+    else if (highest >= 30 || isTowerMilestoneUnlocked(30)) frame.classList.add('frame-trial-lord-conqueror');
+    else if (highest >= 20 || isTowerMilestoneUnlocked(20)) frame.classList.add('frame-trial-lord-sentinel');
+    else if (highest >= 10 || isTowerMilestoneUnlocked(10)) frame.classList.add('frame-trial-lord-novice');
+    else {
+      const rank = arenaRankIndexFromRP(loadArenaRankState().rp);
+      if (rank >= 6) frame.classList.add('frame-gold');
+      else if (rank >= 4) frame.classList.add('frame-silver');
+      else if (rank >= 2) frame.classList.add('frame-bronze');
+    }
+  }
   
   if (badge) badge.classList.toggle('hidden', !canPrestigeNow());
 
@@ -4060,6 +5147,115 @@ function formatDuration(ms) {
 }
 
 // ============================================================================
+// TRIAL LORD TOWER MILESTONE REWARDS DATA REGISTRY
+// ============================================================================
+const TOWER_MILESTONE_REWARDS = [
+  {
+    floor: 10,
+    title: 'Trial Lord Initiate',
+    icon: '🥉',
+    borderId: 'border_trial_lord_novice',
+    borderName: 'Trial Lord Novice Border',
+    frameClass: 'frame-trial-lord-novice',
+    sleeveId: 'sleeve_trial_lord_novice',
+    avatarId: 'trial-lord-initiate',
+    avatarName: 'Trial Lord Initiate',
+    desc: 'Exclusive Bronze Runic Spire Cosmetic Border & Initiate Player Icon!'
+  },
+  {
+    floor: 20,
+    title: 'Trial Lord Sentinel',
+    icon: '🥈',
+    borderId: 'border_trial_lord_sentinel',
+    borderName: 'Trial Lord Sentinel Border',
+    frameClass: 'frame-trial-lord-sentinel',
+    sleeveId: 'sleeve_trial_lord_sentinel',
+    avatarId: 'trial-lord-sentinel',
+    avatarName: 'Trial Lord Sentinel',
+    desc: 'Exclusive Cybernetic Electro-Cyan Cosmetic Border & Sentinel Player Icon!'
+  },
+  {
+    floor: 30,
+    title: 'Trial Lord Conqueror',
+    icon: '🥇',
+    borderId: 'border_trial_lord_conqueror',
+    borderName: 'Trial Lord Conqueror Border',
+    frameClass: 'frame-trial-lord-conqueror',
+    sleeveId: 'sleeve_trial_lord_conqueror',
+    avatarId: 'trial-lord-conqueror',
+    avatarName: 'Trial Lord Conqueror',
+    desc: 'Exclusive Solar Flare Gilded Cosmetic Border & Conqueror Player Icon!'
+  },
+  {
+    floor: 40,
+    title: 'Trial Lord Sovereign',
+    icon: '💎',
+    borderId: 'border_trial_lord_sovereign',
+    borderName: 'Trial Lord Sovereign Border',
+    frameClass: 'frame-trial-lord-sovereign',
+    sleeveId: 'sleeve_trial_lord_sovereign',
+    avatarId: 'trial-lord-sovereign',
+    avatarName: 'Trial Lord Sovereign',
+    desc: 'Exclusive Deep Void Singularity Cosmetic Border & Sovereign Player Icon!'
+  },
+  {
+    floor: 50,
+    title: 'Trial Lord Supreme Apex',
+    icon: '👑',
+    themeId: 'astral',
+    themeName: 'Trial Lord (S1)',
+    borderId: 'border_trial_lord_apex',
+    borderName: 'Trial Lord Apex Sovereign Border',
+    frameClass: 'frame-trial-lord-apex',
+    sleeveId: 'sleeve_trial_lord_apex',
+    avatarId: 'trial-lord-apex',
+    avatarName: 'Trial Lord Supreme Monarch',
+    desc: 'The Ultimate Trial Lord Apex Sovereign Crown Border, Particle Avatar, and Season 1 Trial Lord Theme!'
+  }
+];
+
+function isTowerMilestoneUnlocked(floor) {
+  const key = `tower_milestone_${floor}_unlocked`;
+  if (localStorage.getItem(key) === 'true') return true;
+  const s = typeof loadTrialTowerState === 'function' ? loadTrialTowerState() : { best: 0, floor: 1 };
+  return (s.best || 0) >= floor || (s.floor || 1) >= floor;
+}
+
+function checkAndGrantTowerMilestones(floorVal) {
+  const newlyUnlocked = [];
+  TOWER_MILESTONE_REWARDS.forEach(m => {
+    if (floorVal >= m.floor) {
+      const key = `tower_milestone_${m.floor}_unlocked`;
+      if (localStorage.getItem(key) !== 'true') {
+        localStorage.setItem(key, 'true');
+        localStorage.setItem(`border_${m.borderId}_unlocked`, 'true');
+        localStorage.setItem(`avatar_${m.avatarId}_unlocked`, 'true');
+        if (m.themeId) {
+          localStorage.setItem(`theme_${m.themeId}_unlocked`, 'true');
+        }
+        newlyUnlocked.push(m);
+      }
+    }
+  });
+  return newlyUnlocked;
+}
+
+function getEquippedProfileBorder() {
+  try {
+    return localStorage.getItem('mehrbod_equipped_profile_border') || 'auto';
+  } catch (e) {
+    return 'auto';
+  }
+}
+
+function setEquippedProfileBorder(borderClass) {
+  try {
+    localStorage.setItem('mehrbod_equipped_profile_border', borderClass);
+  } catch (e) {}
+  if (typeof updateProfileAvatar === 'function') updateProfileAvatar();
+}
+
+// ============================================================================
 // ANIMATED PARTICLE AVATARS ENGINE
 // High-performance canvas particle systems for player profiles and match HUD
 // ============================================================================
@@ -4173,6 +5369,67 @@ const PARTICLE_AVATARS = [
     glowColor: '#f472b6',
     palette: ['#f472b6', '#fb7185', '#fda4af', '#34d399', '#ffffff'],
     type: 'flutter'
+  },
+  /* --- Trial Lord Milestone Avatars --- */
+  {
+    id: 'trial-lord-initiate',
+    name: 'Trial Lord Initiate',
+    element: 'Spire / Bronze',
+    icon: '🗼',
+    desc: 'Bronze runic spire particle aura with warm ember sparks unlocked at Trial Tower Floor 10.',
+    coreColor: '#451a03',
+    glowColor: '#d97706',
+    palette: ['#d97706', '#f59e0b', '#fbbf24', '#fef08a', '#ffffff'],
+    type: 'orbit',
+    requiredFloor: 10
+  },
+  {
+    id: 'trial-lord-sentinel',
+    name: 'Trial Lord Sentinel',
+    element: 'Spire / Arc',
+    icon: '⚡',
+    desc: 'Electro-cyan cyber spire particle aura with crackling plasma arcs unlocked at Trial Tower Floor 20.',
+    coreColor: '#0c4a6e',
+    glowColor: '#38bdf8',
+    palette: ['#38bdf8', '#0284c7', '#7dd3fc', '#bae6fd', '#ffffff'],
+    type: 'electric',
+    requiredFloor: 20
+  },
+  {
+    id: 'trial-lord-conqueror',
+    name: 'Trial Lord Conqueror',
+    element: 'Spire / Solar',
+    icon: '🔥',
+    desc: 'Gilded solar prominence particle aura with golden coronal flares unlocked at Trial Tower Floor 30.',
+    coreColor: '#78350f',
+    glowColor: '#fbbf24',
+    palette: ['#fbbf24', '#f59e0b', '#fef08a', '#ffffff', '#eab308'],
+    type: 'burst',
+    requiredFloor: 30
+  },
+  {
+    id: 'trial-lord-sovereign',
+    name: 'Trial Lord Sovereign',
+    element: 'Spire / Void',
+    icon: '🌌',
+    desc: 'Deep cosmic void singularity particle aura with swirling violet stardust unlocked at Trial Tower Floor 40.',
+    coreColor: '#3b0764',
+    glowColor: '#c084fc',
+    palette: ['#c084fc', '#a855f7', '#e879f9', '#f0abfc', '#ffffff'],
+    type: 'spiral',
+    requiredFloor: 40
+  },
+  {
+    id: 'trial-lord-apex',
+    name: 'Trial Lord Supreme Monarch',
+    element: 'Spire / Monarch',
+    icon: '👑',
+    desc: 'Master Spire Monarch particle aura with orbiting golden crowns and celestial stardust unlocked at Trial Tower Floor 50.',
+    coreColor: '#451a03',
+    glowColor: '#eab308',
+    palette: ['#eab308', '#facc15', '#fef08a', '#c084fc', '#ffffff'],
+    type: 'radiate',
+    requiredFloor: 50
   }
 ];
 
@@ -4350,23 +5607,33 @@ const ParticleAvatarEngine = (function() {
   function renderLoop(now) {
     animFrameId = null;
     if (attachedCanvases.size === 0) return;
-    if (document.hidden) {
-      return; // Stop animation loop when tab is hidden
+    if (document.hidden || (typeof omegaPerformanceMode !== 'undefined' && omegaPerformanceMode)) {
+      // Clear canvases and suspend loop in omega potato mode
+      for (const [canvas, state] of attachedCanvases.entries()) {
+        try {
+          state.ctx.clearRect(0, 0, canvas.width, canvas.height);
+        } catch (_) {}
+      }
+      return;
     }
     const dt = Math.min(0.05, (now - lastTime) / 1000);
     lastTime = now;
 
+    let visibleCount = 0;
     for (const [canvas, state] of attachedCanvases.entries()) {
       if (!canvas.isConnected) {
         attachedCanvases.delete(canvas);
         continue;
       }
       if (canvas.offsetWidth === 0 && canvas.offsetHeight === 0) continue;
+      visibleCount++;
       renderState(state, dt);
     }
 
-    if (attachedCanvases.size > 0) {
+    if (visibleCount > 0) {
       animFrameId = requestAnimationFrame(renderLoop);
+    } else {
+      animFrameId = null; // Suspend loop when no canvases are currently visible/rendered
     }
   }
 
@@ -4565,8 +5832,9 @@ const ParticleAvatarEngine = (function() {
       <div class="particle-avatars-grid" id="particle-avatars-grid">
         ${PARTICLE_AVATARS.map(av => {
           const isEquipped = av.id === activeId;
+          const isLocked = av.requiredFloor ? !isTowerMilestoneUnlocked(av.requiredFloor) : false;
           return `
-            <div class="particle-avatar-card ${isEquipped ? 'equipped' : ''}" data-avatar-id="${av.id}">
+            <div class="particle-avatar-card ${isEquipped ? 'equipped' : ''} ${isLocked ? 'locked' : ''}" data-avatar-id="${av.id}">
               <div class="pac-canvas-wrapper">
                 <canvas class="pac-preview-canvas" data-avatar-id="${av.id}" width="128" height="128"></canvas>
               </div>
@@ -4577,8 +5845,8 @@ const ParticleAvatarEngine = (function() {
                 </div>
                 <div class="pac-desc">${av.desc}</div>
                 <div style="display:flex; gap:6px; margin-top:6px;">
-                  <button type="button" class="pac-equip-btn ${isEquipped ? 'active' : ''}" style="flex:1;">
-                    ${isEquipped ? '✓ Equipped' : 'Equip Avatar'}
+                  <button type="button" class="pac-equip-btn ${isEquipped ? 'active' : ''} ${isLocked ? 'locked-btn' : ''}" style="flex:1;" ${isLocked ? 'disabled' : ''}>
+                    ${isEquipped ? '✓ Equipped' : (isLocked ? `🔒 Floor ${av.requiredFloor}` : 'Equip Avatar')}
                   </button>
                   ${av.id === 'solar-phoenix' ? `<button type="button" class="secondary-btn small" id="btn-customize-fire" style="padding:4px 8px; font-size:0.7rem;" title="Choose Custom Fire Color">🎨 Color</button>` : ''}
                 </div>
@@ -4605,6 +5873,12 @@ const ParticleAvatarEngine = (function() {
       card.addEventListener('click', (e) => {
         const aId = card.dataset.avatarId;
         if (!aId) return;
+
+        const av = PARTICLE_AVATARS.find(a => a.id === aId);
+        if (av && av.requiredFloor && !isTowerMilestoneUnlocked(av.requiredFloor)) {
+          showToast(`🔒 Reach Floor ${av.requiredFloor} in Trial Tower to unlock!`, 2500);
+          return;
+        }
 
         const isColorBtn = e.target.closest('#btn-customize-fire');
         if (aId === 'solar-phoenix' && (isColorBtn || !e.target.closest('.pac-equip-btn'))) {
@@ -7055,6 +8329,11 @@ window.playSkeletonStaffAnimation = playSkeletonStaffAnimation;
   }
 
   function updateThemeParallax() {
+    if (typeof performanceMode !== 'undefined' && (performanceMode || omegaPerformanceMode)) {
+      animId = null;
+      return; // Skip theme parallax computations completely in performance modes
+    }
+
     if (!isTabActive || document.hidden) {
       setTimeout(() => {
         if (isTabActive && !document.hidden) {
@@ -7075,8 +8354,25 @@ window.playSkeletonStaffAnimation = playSkeletonStaffAnimation;
     }
 
     // Smooth lerp interpolation for 60fps cinematic fluidity
-    mouseX += (targetX - mouseX) * 0.12;
-    mouseY += (targetY - mouseY) * 0.12;
+    const diffX = targetX - mouseX;
+    const diffY = targetY - mouseY;
+    const isMoving = Math.abs(diffX) > 0.0005 || Math.abs(diffY) > 0.0005;
+
+    if (isMoving) {
+      mouseX += diffX * 0.12;
+      mouseY += diffY * 0.12;
+    } else {
+      if (window.__lastParallaxMoving !== false) {
+        mouseX = targetX;
+        mouseY = targetY;
+        window.__lastParallaxMoving = false;
+      } else {
+        // Skip DOM writes entirely if mouse is idle
+        animId = requestAnimationFrame(updateThemeParallax);
+        return;
+      }
+    }
+    window.__lastParallaxMoving = true;
 
     const rotX = (-mouseY * 3.0).toFixed(2);
     const rotY = (mouseX * 3.5).toFixed(2);
@@ -7186,7 +8482,7 @@ function initRayGunSystem() {
 
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
   renderer.setSize(420, 380);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setPixelRatio(1); // Set to 1 to reduce fragment shader overhead by up to 75% on Retina displays
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.2;
   container.appendChild(renderer.domElement);
@@ -7844,6 +9140,24 @@ function initRayGunSystem() {
     if (!window.__rayGunActive) return;
     requestAnimationFrame(animate);
 
+    if (document.hidden) return; // Pause rendering if tab is hidden to save power
+
+    const gameScreen = document.getElementById('screen-game');
+    const xrScreen = document.getElementById('screen-webxr-arena');
+    const isGameActive = (gameScreen && gameScreen.classList.contains('active-screen')) || 
+                         (xrScreen && xrScreen.classList.contains('active-screen'));
+    
+    if (isGameActive) {
+      if (container.style.display !== 'none') {
+        container.style.display = 'none';
+      }
+      return; // Skip rendering frame when user is actively playing to maximize FPS
+    } else {
+      if (container.style.display === 'none') {
+        container.style.display = 'block';
+      }
+    }
+
     const t = Date.now() * 0.0025;
     // Gentle floating idle breathing sway
     const idleY = Math.sin(t) * 0.04;
@@ -8095,6 +9409,323 @@ function initRayGunSystem() {
 
   showToast('🔫 BEAUTY OF ANNIHILATION! Ray Gun Mark I online.', 4000);
 }
+
+/* ---------- Barbod's Scam Dust Overlay & Screen Wiping Effect ---------- */
+function triggerBarbodDustEffect() {
+  if (document.getElementById('barbod-dust-overlay')) return;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'barbod-dust-overlay';
+  overlay.style.cssText = `
+    position: fixed; inset: 0; z-index: 999999;
+    background: transparent;
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    pointer-events: auto;
+    font-family: var(--font-display, inherit);
+    padding: 24px; box-sizing: border-box;
+    transition: opacity 0.5s ease;
+  `;
+
+  const header = document.createElement('div');
+  header.style.cssText = `
+    background: rgba(15, 23, 42, 0.95);
+    border: 1.5px solid #ef4444;
+    border-radius: 12px;
+    padding: 12px 24px;
+    text-align: center;
+    color: #fff;
+    font-weight: 800;
+    font-size: 0.95rem;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    pointer-events: none;
+    line-height: 1.4;
+    z-index: 10;
+    position: relative;
+  `;
+  header.innerHTML = `⚠️ SCREEN CONTAMINATED BY BARBOD'S SCAM DUST!<br><span style="color:#94a3b8; font-size:0.78rem; font-weight:500;">👉 Use your mouse or finger to swipe and wipe the gray dust smudges off the glass!</span>`;
+  overlay.appendChild(header);
+
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = `
+    position: absolute; inset: 0; z-index: 1;
+    cursor: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><circle cx='16' cy='16' r='12' fill='rgba(255,255,255,0.2)' stroke='white' stroke-width='2'/></svg>") 16 16, auto;
+  `;
+  const w = canvas.width = window.innerWidth;
+  const h = canvas.height = window.innerHeight;
+  overlay.appendChild(canvas);
+
+  const footer = document.createElement('button');
+  footer.type = 'button';
+  footer.style.cssText = `
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 9999px;
+    padding: 10px 24px;
+    color: #fff;
+    font-weight: 800;
+    font-size: 0.85rem;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+    transition: transform 0.1s ease;
+    z-index: 10;
+    position: relative;
+  `;
+  footer.textContent = '💨 Use Bux Blower (1,000 Bux) ◉';
+  footer.onclick = () => {
+    const cost = 1000;
+    if (typeof spendBux === 'function' && spendBux(cost)) {
+      if (typeof recordEconomyChange === 'function') {
+        recordEconomyChange(-cost, 'Used Bux Blower to clear Scam Dust');
+      }
+      fadeOutAndRemove();
+    } else {
+      if (typeof Sound !== 'undefined' && Sound.buzzer) Sound.buzzer();
+      showToast('❌ Not enough Bux! You must wipe the dust with your fingers!', 3500);
+    }
+  };
+  overlay.appendChild(footer);
+
+  document.body.appendChild(overlay);
+
+  const ctx = canvas.getContext('2d');
+  const DUST_STORAGE_KEY = 'mehrbod_scam_dust_particles_v2';
+  let particles = [];
+  const debris = [];
+
+  try {
+    const raw = localStorage.getItem(DUST_STORAGE_KEY);
+    if (raw) {
+      particles = JSON.parse(raw);
+    }
+  } catch (e) {}
+
+  if (!particles || !particles.length) {
+    // Generate 600 dust particles (WAY more dust!)
+    for (let i = 0; i < 600; i++) {
+      particles.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        r: 5 + Math.random() * 25,
+        alpha: 0.45 + Math.random() * 0.4,
+        color: Math.random() > 0.5 ? '#52525b' : '#71717a',
+        wiped: false
+      });
+    }
+    try {
+      localStorage.setItem(DUST_STORAGE_KEY, JSON.stringify(particles));
+    } catch (e) {}
+  }
+
+  // --- Highly Optimized Cached Offscreen Buffer Drawing ---
+  const bufferCanvas = document.createElement('canvas');
+  bufferCanvas.width = w;
+  bufferCanvas.height = h;
+  const bCtx = bufferCanvas.getContext('2d');
+
+  function drawDustToBuffer() {
+    bCtx.clearRect(0, 0, w, h);
+    particles.forEach(p => {
+      if (!p.wiped) {
+        bCtx.save();
+        bCtx.beginPath();
+        bCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        const grad = bCtx.createRadialGradient(p.x, p.y, p.r * 0.25, p.x, p.y, p.r);
+        grad.addColorStop(0, `rgba(113, 113, 122, ${p.alpha})`);
+        grad.addColorStop(0.5, `rgba(113, 113, 122, ${p.alpha * 0.6})`);
+        grad.addColorStop(1, 'rgba(113, 113, 122, 0)');
+        bCtx.fillStyle = grad;
+        bCtx.fill();
+        bCtx.restore();
+      }
+    });
+  }
+
+  // Pre-render the initial static dust smudges
+  drawDustToBuffer();
+
+  let animationId = null;
+
+  function render() {
+    ctx.clearRect(0, 0, w, h);
+
+    // Fast Single Call Bitmap Transfer instead of 600 costly loops
+    ctx.drawImage(bufferCanvas, 0, 0);
+
+    // Draw little floating debris (dynamic sparks only)
+    for (let i = debris.length - 1; i >= 0; i--) {
+      const d = debris[i];
+      d.x += d.vx;
+      d.y += d.vy;
+      d.vy += 0.12; // gravity
+      d.life -= 1;
+      if (d.life <= 0) {
+        debris.splice(i, 1);
+      } else {
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(161, 161, 170, ${d.life / 30})`;
+        ctx.fill();
+      }
+    }
+
+    let activeCount = 0;
+    particles.forEach(p => { if (!p.wiped) activeCount++; });
+
+    if (activeCount / particles.length < 0.08) {
+      fadeOutAndRemove();
+    } else {
+      // Loop Suspend Optimizer: Pause frame renders when static and idle
+      if (debris.length > 0 || isWiping) {
+        animationId = requestAnimationFrame(render);
+      } else {
+        animationId = null;
+      }
+    }
+  }
+
+  function fadeOutAndRemove() {
+    if (animationId) cancelAnimationFrame(animationId);
+    overlay.style.opacity = '0';
+    try {
+      localStorage.removeItem(DUST_STORAGE_KEY);
+    } catch (e) {}
+    if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
+    showToast('✨ Screen cleaned successfully!');
+    setTimeout(() => {
+      overlay.remove();
+    }, 500);
+  }
+
+  let isWiping = false;
+  let lastWipeTime = 0;
+
+  function handleWipe(clientX, clientY) {
+    const brushRadius = 38;
+    let didWipeAny = false;
+
+    // Use fast squared distance comparison (no Math.sqrt!) to avoid math locks
+    const r2 = brushRadius * brushRadius;
+    particles.forEach(p => {
+      if (!p.wiped) {
+        const dx = clientX - p.x;
+        const dy = clientY - p.y;
+        if (dx * dx + dy * dy < r2) {
+          p.wiped = true;
+          didWipeAny = true;
+
+          // Spawn floating sparks
+          for (let k = 0; k < 2; k++) {
+            debris.push({
+              x: p.x + (Math.random() - 0.5) * 15,
+              y: p.y + (Math.random() - 0.5) * 15,
+              vx: (Math.random() - 0.5) * 3,
+              vy: -1 - Math.random() * 2,
+              size: 1 + Math.random() * 2,
+              life: 20 + Math.random() * 15
+            });
+          }
+        }
+      }
+    });
+
+    // INSTANT GRAPHICS BOOSTER: Erase directly from the offscreen canvas in 0.01 milliseconds
+    // using hardware-accelerated destination-out composite operation! No more loops!
+    bCtx.save();
+    bCtx.globalCompositeOperation = 'destination-out';
+    bCtx.beginPath();
+    bCtx.arc(clientX, clientY, brushRadius, 0, Math.PI * 2);
+    bCtx.fill();
+    bCtx.restore();
+
+    if (didWipeAny) {
+      const now = Date.now();
+      if (now - lastWipeTime > 90) {
+        lastWipeTime = now;
+        playWipeSound();
+      }
+
+      try {
+        localStorage.setItem(DUST_STORAGE_KEY, JSON.stringify(particles));
+      } catch (e) {}
+
+      // Restart frame renderer if paused
+      if (animationId === null) {
+        animationId = requestAnimationFrame(render);
+      }
+    } else {
+      // Force redraw of dynamic elements (sparks/debris) on wipe movements
+      if (animationId === null) {
+        animationId = requestAnimationFrame(render);
+      }
+    }
+  }
+
+  function playWipeSound() {
+    if (typeof Sound === 'undefined') return;
+    const c = Sound.ensureCtx ? Sound.ensureCtx() : (window.ctx || new (window.AudioContext || window.webkitAudioContext)());
+    if (!c || Sound.muted) return;
+    try {
+      const bufferSize = c.sampleRate * 0.06;
+      const buffer = c.createBuffer(1, bufferSize, c.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * 0.03 * (1 - i / bufferSize);
+      }
+      const src = c.createBufferSource();
+      src.buffer = buffer;
+      const filter = c.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(900, c.currentTime);
+      filter.Q.setValueAtTime(2.5, c.currentTime);
+      src.connect(filter).connect(c.destination);
+      src.start();
+    } catch (e) {}
+  }
+
+  overlay.addEventListener('mousedown', (e) => {
+    isWiping = true;
+    handleWipe(e.clientX, e.clientY);
+  });
+  overlay.addEventListener('mousemove', (e) => {
+    if (isWiping) handleWipe(e.clientX, e.clientY);
+  });
+  window.addEventListener('mouseup', () => { isWiping = false; });
+
+  overlay.addEventListener('touchstart', (e) => {
+    isWiping = true;
+    const touch = e.touches[0];
+    handleWipe(touch.clientX, touch.clientY);
+  });
+  overlay.addEventListener('touchmove', (e) => {
+    if (isWiping) {
+      const touch = e.touches[0];
+      handleWipe(touch.clientX, touch.clientY);
+    }
+  });
+  window.addEventListener('touchend', () => { isWiping = false; });
+
+  window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    bufferCanvas.width = window.innerWidth;
+    bufferCanvas.height = window.innerHeight;
+    drawDustToBuffer();
+    if (animationId === null) {
+      animationId = requestAnimationFrame(render);
+    }
+  });
+
+  render();
+}
+
+// Auto-reinitialize persistent scam dust on startup if active
+(function initPersistentScamDust() {
+  try {
+    if (localStorage.getItem('mehrbod_scam_dust_particles_v2')) {
+      setTimeout(() => triggerBarbodDustEffect(), 1500);
+    }
+  } catch (e) {}
+})();
 
 
 

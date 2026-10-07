@@ -9,7 +9,8 @@
   --tier2: #10b981;
   --tier3: #ef4444;
   --tier4: #f59e0b;
-  --accent: #f59e0b;
+  --accent: #38bdf8;
+  --theme-accent: #38bdf8;
   --bg-grad-1: #131b2e;
   --bg-grad-2: #080c14;
   --font-display: 'Chakra Petch', 'Outfit', sans-serif;
@@ -31,28 +32,29 @@
    variable set, so every component in the app re-themes automatically -
    nothing else needs to change per-theme. */
 html.theme-light {
-  --bg: #f4f1ea;
+  --bg: #f8fafc;
   --bg2: #ffffff;
   --panel: #ffffff;
-  --line: #ddd6c9;
-  --text: #24211c;
-  --muted: #6b6558;
-  --tier1: #2f6fa8;
-  --tier2: #3f8a4f;
-  --tier3: #b83a32;
-  --tier4: #c97821;
-  --accent: #c97821;
-  --bg-grad-1: #fdfbf6;
-  --bg-grad-2: #ece6d8;
+  --line: rgba(0, 0, 0, 0.12);
+  --text: #0f172a;
+  --muted: #475569;
+  --tier1: #0284c7;
+  --tier2: #10b981;
+  --tier3: #ef4444;
+  --tier4: #f59e0b;
+  --accent: #0284c7;
+  --theme-accent: #0284c7;
+  --bg-grad-1: #f1f5f9;
+  --bg-grad-2: #e2e8f0;
 
   /* 3D Liquid Glass for Light Theme */
-  --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.45) 100%), rgba(245, 243, 238, 0.82);
-  --glass-bg-hover: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.6) 100%), rgba(255, 255, 255, 0.92);
-  --glass-border: rgba(0, 0, 0, 0.12);
+  --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.75) 100%), rgba(248, 250, 252, 0.95);
+  --glass-bg-hover: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.88) 100%), rgba(255, 255, 255, 0.98);
+  --glass-border: rgba(0, 0, 0, 0.14);
   --glass-border-highlight: rgba(255, 255, 255, 0.95);
   --glass-specular: inset 0 1px 1px 0 rgba(255, 255, 255, 0.9);
   --glass-inner-bevel: inset 0 -1px 2px 0 rgba(0, 0, 0, 0.08);
-  --glass-shadow-3d: 0 12px 30px -4px rgba(50, 45, 35, 0.15), 0 2px 6px -1px rgba(50, 45, 35, 0.1);
+  --glass-shadow-3d: 0 12px 30px -4px rgba(0, 0, 0, 0.1), 0 2px 6px -1px rgba(0, 0, 0, 0.06);
 }
 /* Verdant - reward for beating Easy. The gentlest reward: a fresh, simple
    green palette with no special effects, fitting for the entry difficulty. */
@@ -1231,202 +1233,348 @@ html.theme-magma .menu-footer .footer-dot {
    glowing stardust nebulas, gravitationally lensed orbiting particles, and
    shooting chromatic starbursts. ---------- */
 html.theme-astral {
-  --bg: #04010a;
-  --bg2: #0b0417;
-  --panel: #110724;
-  --line: #331557;
+  --bg: #030009;
+  --bg2: #080214;
+  --panel: rgba(18, 7, 36, 0.82);
+  --line: rgba(192, 132, 252, 0.4);
   --text: #f5f3ff;
-  --muted: #a78bfa;
+  --muted: #c084fc;
   --tier1: #38bdf8;
   --tier2: #34d399;
   --tier3: #f43f5e;
-  --tier4: #c084fc;
-  --accent: #a855f7;
-  --bg-grad-1: #190736;
-  --bg-grad-2: #020006;
+  --tier4: #e879f9;
+  --accent: #c084fc;
+  --bg-grad-1: #1d0742;
+  --bg-grad-2: #020007;
 }
 #theme-astral-bg { display: none; }
 html.theme-astral #theme-astral-bg {
-  display: block; position: fixed; inset: 0; z-index: 2; pointer-events: none; overflow: hidden;
+  display: block; position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden;
 }
 
-.astral-space-gradient {
+/* Hyper-cosmic space warp backdrop */
+.astral-space-warp {
   position: absolute; inset: 0;
-  background: radial-gradient(circle at 50% 35%, rgba(60, 16, 110, 0.45) 0%, rgba(17, 6, 38, 0.75) 45%, rgba(4, 1, 10, 0.98) 100%);
+  background:
+    radial-gradient(circle at 50% 38%, rgba(147, 51, 234, 0.22) 0%, rgba(30, 10, 60, 0.65) 45%, rgba(3, 0, 9, 0.98) 100%),
+    linear-gradient(180deg, #020006 0%, #080214 50%, #030009 100%);
 }
 
+/* Multi-chromatic deep stellar nebulae */
+.astral-nebula-field {
+  position: absolute; inset: 0; filter: blur(75px); pointer-events: none;
+}
 .astral-nebula {
-  position: absolute; border-radius: 50%; filter: blur(65px); pointer-events: none;
+  position: absolute; border-radius: 50%; opacity: 0.65;
 }
-.astral-nebula.n1 {
-  width: 580px; height: 580px; top: 8%; left: 15%;
-  background: radial-gradient(circle, rgba(168, 85, 247, 0.28) 0%, rgba(56, 189, 248, 0.16) 55%, transparent 80%);
-  animation: astralNebulaDrift 20s ease-in-out infinite alternate;
+.astral-nebula.n-violet {
+  width: 680px; height: 680px; top: -5%; left: 10%;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.42) 0%, rgba(139, 92, 246, 0.2) 50%, transparent 80%);
+  animation: astralNebulaDrift 22s ease-in-out infinite alternate;
 }
-.astral-nebula.n2 {
-  width: 650px; height: 500px; bottom: 8%; right: 8%;
-  background: radial-gradient(circle, rgba(244, 63, 94, 0.22) 0%, rgba(192, 132, 252, 0.18) 50%, transparent 80%);
-  animation: astralNebulaDrift 24s ease-in-out infinite alternate-reverse;
+.astral-nebula.n-cyan {
+  width: 720px; height: 600px; bottom: -10%; right: 5%;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.35) 0%, rgba(99, 102, 241, 0.2) 55%, transparent 80%);
+  animation: astralNebulaDrift 26s ease-in-out infinite alternate-reverse;
 }
-.astral-nebula.n3 {
-  width: 420px; height: 420px; top: 48%; left: 52%;
-  background: radial-gradient(circle, rgba(52, 211, 153, 0.18) 0%, rgba(139, 92, 246, 0.16) 60%, transparent 80%);
-  animation: astralNebulaDrift 16s ease-in-out infinite alternate;
+.astral-nebula.n-rose {
+  width: 520px; height: 520px; top: 40%; left: 45%;
+  background: radial-gradient(circle, rgba(244, 63, 94, 0.25) 0%, rgba(217, 70, 239, 0.18) 50%, transparent 80%);
+  animation: astralNebulaDrift 19s ease-in-out infinite alternate;
+}
+.astral-nebula.n-gold {
+  width: 440px; height: 440px; top: 20%; right: 25%;
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.2) 0%, rgba(168, 85, 247, 0.15) 60%, transparent 80%);
+  animation: astralNebulaDrift 28s ease-in-out infinite alternate-reverse;
+}
+.astral-nebula.n-deep {
+  width: 850px; height: 850px; top: 15%; left: 20%;
+  background: radial-gradient(circle, rgba(76, 29, 149, 0.35) 0%, transparent 75%);
+  animation: astralNebulaDrift 34s ease-in-out infinite alternate;
 }
 @keyframes astralNebulaDrift {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(45px, -35px) scale(1.15); }
-  100% { transform: translate(-35px, 45px) scale(0.9); }
+  0% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  50% { transform: translate(55px, -45px) scale(1.18) rotate(15deg); }
+  100% { transform: translate(-45px, 50px) scale(0.92) rotate(-10deg); }
 }
 
-/* Central rotating singularity and accretion vortex */
-.astral-vortex-outer {
-  position: absolute; top: 35%; left: 50%; width: 480px; height: 480px;
-  margin: -240px 0 0 -240px;
-  border-radius: 50%;
-  border: 1.5px dashed rgba(192, 132, 252, 0.35);
-  box-shadow: 0 0 60px rgba(168, 85, 247, 0.3), inset 0 0 60px rgba(56, 189, 248, 0.25);
-  animation: astralSpin 40s linear infinite;
-}
-.astral-vortex-inner {
-  position: absolute; top: 35%; left: 50%; width: 300px; height: 300px;
-  margin: -150px 0 0 -150px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(56, 189, 248, 0.4);
-  box-shadow: 0 0 40px rgba(244, 63, 94, 0.3);
-  animation: astralSpinRev 25s linear infinite;
-}
-.astral-accretion-disk {
-  position: absolute; top: 35%; left: 50%; width: 380px; height: 100px;
-  margin: -50px 0 0 -190px;
-  border-radius: 50%;
-  background: radial-gradient(ellipse, rgba(236, 72, 153, 0.4) 0%, rgba(168, 85, 247, 0.25) 50%, transparent 80%);
-  filter: blur(10px);
-  transform: rotate(-25deg);
-  animation: accretionPulse 5s ease-in-out infinite alternate;
-}
-.astral-singularity-core {
-  position: absolute; top: 35%; left: 50%; width: 80px; height: 80px;
-  margin: -40px 0 0 -40px;
-  border-radius: 50%;
-  background: #020005;
-  box-shadow: 0 0 30px 10px rgba(168, 85, 247, 0.9), 0 0 70px 22px rgba(56, 189, 248, 0.55);
-  animation: singularityBreathe 4s ease-in-out infinite alternate;
-}
-@keyframes astralSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-@keyframes astralSpinRev { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
-@keyframes accretionPulse {
-  0% { transform: rotate(-25deg) scale(0.9); opacity: 0.6; }
-  100% { transform: rotate(-25deg) scale(1.15); opacity: 1; filter: blur(6px); }
-}
-@keyframes singularityBreathe {
-  0% { transform: scale(0.9); box-shadow: 0 0 24px 8px rgba(168, 85, 247, 0.7), 0 0 50px 15px rgba(56, 189, 248, 0.4); }
-  100% { transform: scale(1.12); box-shadow: 0 0 42px 15px rgba(192, 132, 252, 1), 0 0 85px 30px rgba(244, 63, 94, 0.6); }
+/* Transcendent Central Astral Singularity Rig */
+.astral-singularity-rig {
+  position: absolute; top: 38%; left: 50%; width: 500px; height: 500px;
+  margin: -250px 0 0 -250px;
+  pointer-events: none;
 }
 
-/* Pulsar energy beams */
-.astral-pulsar-beam {
-  position: absolute; top: 35%; left: 50%; pointer-events: none;
+/* Gravitational Lensing Distortion Ring */
+.astral-grav-lens {
+  position: absolute; inset: -40px; border-radius: 50%;
+  background: radial-gradient(circle, transparent 40%, rgba(192, 132, 252, 0.15) 60%, rgba(56, 189, 248, 0.12) 80%, transparent 95%);
+  box-shadow: inset 0 0 80px rgba(168, 85, 247, 0.35), 0 0 100px rgba(56, 189, 248, 0.25);
+  animation: gravLensPulse 6s ease-in-out infinite alternate;
 }
-.astral-pulsar-beam.v {
-  width: 2.5px; height: 100vh; margin: -50vh 0 0 -1.25px;
-  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.7) 35%, #fff 50%, rgba(192, 132, 252, 0.7) 65%, transparent 100%);
+@keyframes gravLensPulse {
+  0% { transform: scale(0.95); opacity: 0.7; }
+  100% { transform: scale(1.06); opacity: 1; }
+}
+
+/* Outer & Core Relativistic Accretion Disks */
+.astral-accretion-outer {
+  position: absolute; top: 50%; left: 50%; width: 440px; height: 130px;
+  margin: -65px 0 0 -220px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(236, 72, 153, 0.5) 0%, rgba(168, 85, 247, 0.4) 40%, rgba(56, 189, 248, 0.25) 70%, transparent 85%);
+  filter: blur(12px);
+  transform: rotate(-28deg);
+  animation: accretionSpinWave 8s ease-in-out infinite alternate;
+}
+.astral-accretion-core {
+  position: absolute; top: 50%; left: 50%; width: 320px; height: 80px;
+  margin: -40px 0 0 -160px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #ffffff 0%, rgba(192, 132, 252, 0.9) 30%, rgba(56, 189, 248, 0.6) 65%, transparent 85%);
+  filter: blur(5px);
+  transform: rotate(-28deg);
+  animation: accretionSpinWave 5s ease-in-out infinite alternate-reverse;
+}
+@keyframes accretionSpinWave {
+  0% { transform: rotate(-28deg) scale(0.92); opacity: 0.75; }
+  100% { transform: rotate(-28deg) scale(1.14); opacity: 1; }
+}
+
+/* Radiant Gold/Cyan Photon Sphere */
+.astral-photon-sphere {
+  position: absolute; top: 50%; left: 50%; width: 150px; height: 150px;
+  margin: -75px 0 0 -75px;
+  border-radius: 50%;
+  border: 2px solid rgba(251, 191, 36, 0.65);
+  box-shadow: 0 0 30px 6px rgba(251, 191, 36, 0.8), 0 0 60px 15px rgba(168, 85, 247, 0.7), inset 0 0 25px rgba(56, 189, 248, 0.6);
+  animation: photonSpin 20s linear infinite;
+}
+@keyframes photonSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Event Horizon Black Hole Core */
+.astral-singularity-void {
+  position: absolute; top: 50%; left: 50%; width: 110px; height: 110px;
+  margin: -55px 0 0 -55px;
+  border-radius: 50%;
+  background: #010003;
+  box-shadow: 0 0 35px 12px rgba(168, 85, 247, 0.95), 0 0 85px 30px rgba(56, 189, 248, 0.65), 0 0 140px 45px rgba(244, 63, 94, 0.45);
+  animation: singularityCorona 4.5s ease-in-out infinite alternate;
+}
+@keyframes singularityCorona {
+  0% { transform: scale(0.94); box-shadow: 0 0 30px 10px rgba(168, 85, 247, 0.85), 0 0 75px 25px rgba(56, 189, 248, 0.55); }
+  100% { transform: scale(1.08); box-shadow: 0 0 45px 18px rgba(236, 72, 153, 1), 0 0 110px 40px rgba(56, 189, 248, 0.85); }
+}
+
+/* Hyper-relativistic Jet Beams */
+.astral-jet-beam {
+  position: absolute; left: 50%; width: 3px; pointer-events: none;
+}
+.astral-jet-beam.top {
+  top: 0; height: 50vh; margin-left: -1.5px;
+  background: linear-gradient(0deg, #ffffff 0%, rgba(56, 189, 248, 0.9) 25%, rgba(168, 85, 247, 0.6) 65%, transparent 100%);
   filter: blur(1.5px);
-  animation: pulsarBeamFlicker 3s ease-in-out infinite alternate;
+  box-shadow: 0 0 20px 4px rgba(56, 189, 248, 0.8);
+  animation: jetPulse 2.8s ease-in-out infinite alternate;
 }
-.astral-pulsar-beam.h {
-  width: 100vw; height: 2px; margin: -1px 0 0 -50vw;
-  background: linear-gradient(90deg, transparent 0%, rgba(244, 63, 94, 0.5) 35%, #fff 50%, rgba(168, 85, 247, 0.5) 65%, transparent 100%);
-  filter: blur(1px);
-  animation: pulsarBeamFlicker 4.2s ease-in-out infinite alternate-reverse;
+.astral-jet-beam.btm {
+  bottom: 0; height: 50vh; margin-left: -1.5px;
+  background: linear-gradient(180deg, #ffffff 0%, rgba(244, 63, 94, 0.9) 25%, rgba(168, 85, 247, 0.6) 65%, transparent 100%);
+  filter: blur(1.5px);
+  box-shadow: 0 0 20px 4px rgba(244, 63, 94, 0.8);
+  animation: jetPulse 3.4s ease-in-out infinite alternate-reverse;
 }
-@keyframes pulsarBeamFlicker {
-  0% { opacity: 0.4; transform: scaleY(0.92); }
-  100% { opacity: 0.95; transform: scaleY(1.08); }
-}
-
-/* Celestial runes / geometric glyphs */
-.astral-glyph {
-  position: absolute; border: 1.5px solid rgba(168, 85, 247, 0.35); border-radius: 50%;
-}
-.astral-glyph.g1 {
-  top: 18%; left: 14%; width: 150px; height: 150px;
-  border-top-color: rgba(56, 189, 248, 0.8);
-  box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
-  animation: astralSpin 30s linear infinite;
-}
-.astral-glyph.g2 {
-  bottom: 22%; right: 16%; width: 190px; height: 190px;
-  border-bottom-color: rgba(244, 63, 94, 0.75);
-  box-shadow: 0 0 18px rgba(244, 63, 94, 0.2);
-  animation: astralSpinRev 36s linear infinite;
+@keyframes jetPulse {
+  0% { opacity: 0.6; transform: scaleX(0.85); }
+  100% { opacity: 1; transform: scaleX(1.35); filter: blur(0.8px); }
 }
 
-/* Stars */
+/* Pulsar energy burst wave */
+.astral-pulsar-burst {
+  position: absolute; top: 50%; left: 50%; width: 200px; height: 200px;
+  margin: -100px 0 0 -100px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(192, 132, 252, 0.8);
+  box-shadow: 0 0 30px rgba(168, 85, 247, 0.5);
+  animation: pulsarWaveOut 6s cubic-bezier(0.1, 0.8, 0.2, 1) infinite;
+}
+@keyframes pulsarWaveOut {
+  0% { transform: scale(0.5); opacity: 0.9; }
+  100% { transform: scale(2.8); opacity: 0; }
+}
+
+/* Sacred Astro-Geometry Orbital Rings */
+.astral-halo-ring {
+  position: absolute; top: 50%; left: 50%; border-radius: 50%; pointer-events: none;
+}
+.astral-halo-ring.r1 {
+  width: 380px; height: 380px; margin: -190px 0 0 -190px;
+  border: 1px dashed rgba(168, 85, 247, 0.4);
+  box-shadow: 0 0 25px rgba(168, 85, 247, 0.2);
+  animation: photonSpin 35s linear infinite;
+}
+.astral-halo-ring.r2 {
+  width: 480px; height: 480px; margin: -240px 0 0 -240px;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-left-color: transparent; border-right-color: transparent;
+  animation: photonSpinRev 45s linear infinite;
+}
+.astral-halo-ring.r3 {
+  width: 580px; height: 580px; margin: -290px 0 0 -290px;
+  border: 1px dotted rgba(244, 63, 94, 0.3);
+  animation: photonSpin 60s linear infinite;
+}
+@keyframes photonSpinRev {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+/* Constellation Astrological Geometry */
+.astral-const-line {
+  position: absolute; pointer-events: none;
+}
+.astral-const-line.cl1 {
+  top: 15%; left: 12%; width: 140px; height: 1px;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.6), transparent);
+  transform: rotate(35deg);
+}
+.astral-const-line.cl2 {
+  bottom: 25%; right: 15%; width: 180px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.6));
+  transform: rotate(-25deg);
+}
+.astral-const-line.cl3 {
+  top: 30%; right: 18%; width: 110px; height: 1px;
+  background: linear-gradient(90deg, rgba(244, 63, 94, 0.5), transparent);
+  transform: rotate(65deg);
+}
+
+/* Twinkling Starfield */
 .astral-star {
   position: absolute; border-radius: 50%; background: #ffffff;
-  box-shadow: 0 0 6px 2px rgba(192, 132, 252, 0.85);
-  animation: astralStarTwinkle 3.8s ease-in-out infinite alternate;
+  box-shadow: 0 0 8px 2px rgba(192, 132, 252, 0.9), 0 0 16px 4px rgba(56, 189, 248, 0.5);
+  animation: astralStarTwinkle 4s ease-in-out infinite alternate;
 }
-.astral-star.as1 { top: 8%;  left: 12%; width: 3px; height: 3px; animation-delay: 0.2s; }
-.astral-star.as2 { top: 15%; left: 78%; width: 4px; height: 4px; animation-delay: 1.1s; }
-.astral-star.as3 { top: 22%; left: 38%; width: 2px; height: 2px; animation-delay: 2.3s; }
-.astral-star.as4 { top: 32%; left: 88%; width: 3px; height: 3px; animation-delay: 0.7s; }
-.astral-star.as5 { top: 48%; left: 14%; width: 4px; height: 4px; animation-delay: 1.8s; }
-.astral-star.as6 { top: 58%; left: 82%; width: 2px; height: 2px; animation-delay: 2.9s; }
-.astral-star.as7 { top: 68%; left: 28%; width: 3px; height: 3px; animation-delay: 0.4s; }
-.astral-star.as8 { top: 78%; left: 72%; width: 4px; height: 4px; animation-delay: 1.5s; }
-.astral-star.as9 { top: 86%; left: 45%; width: 3px; height: 3px; animation-delay: 2.1s; }
-.astral-star.as10{ top: 92%; left: 18%; width: 2px; height: 2px; animation-delay: 0.9s; }
-.astral-star.as11{ top: 12%; left: 52%; width: 3px; height: 3px; animation-delay: 1.7s; }
-.astral-star.as12{ top: 42%; left: 6%;  width: 4px; height: 4px; animation-delay: 2.6s; }
-.astral-star.as13{ top: 62%; left: 94%; width: 3px; height: 3px; animation-delay: 0.5s; }
-.astral-star.as14{ top: 82%; left: 62%; width: 2px; height: 2px; animation-delay: 1.3s; }
+.astral-star.as1 { top: 7%;  left: 14%; width: 3.5px; height: 3.5px; animation-delay: 0.2s; }
+.astral-star.as2 { top: 14%; left: 82%; width: 4.5px; height: 4.5px; animation-delay: 1.1s; }
+.astral-star.as3 { top: 22%; left: 35%; width: 2.5px; height: 2.5px; animation-delay: 2.3s; }
+.astral-star.as4 { top: 31%; left: 91%; width: 3.5px; height: 3.5px; animation-delay: 0.7s; }
+.astral-star.as5 { top: 46%; left: 11%; width: 4.5px; height: 4.5px; animation-delay: 1.8s; }
+.astral-star.as6 { top: 57%; left: 85%; width: 2.5px; height: 2.5px; animation-delay: 2.9s; }
+.astral-star.as7 { top: 69%; left: 26%; width: 3.5px; height: 3.5px; animation-delay: 0.4s; }
+.astral-star.as8 { top: 79%; left: 74%; width: 4.5px; height: 4.5px; animation-delay: 1.5s; }
+.astral-star.as9 { top: 88%; left: 42%; width: 3px;   height: 3px;   animation-delay: 2.1s; }
+.astral-star.as10{ top: 93%; left: 16%; width: 2.5px; height: 2.5px; animation-delay: 0.9s; }
+.astral-star.as11{ top: 11%; left: 54%; width: 3.5px; height: 3.5px; animation-delay: 1.7s; }
+.astral-star.as12{ top: 41%; left: 5%;  width: 4px;   height: 4px;   animation-delay: 2.6s; }
+.astral-star.as13{ top: 63%; left: 95%; width: 3.5px; height: 3.5px; animation-delay: 0.5s; }
+.astral-star.as14{ top: 83%; left: 60%; width: 2.5px; height: 2.5px; animation-delay: 1.3s; }
+.astral-star.as15{ top: 26%; left: 72%; width: 3.5px; height: 3.5px; animation-delay: 3.1s; }
+.astral-star.as16{ top: 52%; left: 38%; width: 4.5px; height: 4.5px; animation-delay: 0.8s; }
+.astral-star.as17{ top: 75%; left: 12%; width: 3px;   height: 3px;   animation-delay: 2.4s; }
+.astral-star.as18{ top: 19%; left: 23%; width: 2px;   height: 2px;   animation-delay: 1.6s; }
+.astral-star.as19{ top: 64%; left: 49%; width: 3.5px; height: 3.5px; animation-delay: 2.7s; }
+.astral-star.as20{ top: 37%; left: 79%; width: 4px;   height: 4px;   animation-delay: 1.2s; }
 
 @keyframes astralStarTwinkle {
-  0% { opacity: 0.3; transform: scale(0.8); }
-  50% { opacity: 1; transform: scale(1.4); box-shadow: 0 0 12px 4px rgba(56, 189, 248, 1); }
-  100% { opacity: 0.4; transform: scale(0.9); }
+  0% { opacity: 0.3; transform: scale(0.75); }
+  50% { opacity: 1; transform: scale(1.55); box-shadow: 0 0 16px 5px rgba(56, 189, 248, 1), 0 0 24px 8px rgba(192, 132, 252, 0.9); }
+  100% { opacity: 0.45; transform: scale(0.85); }
 }
 
-/* Comets */
+/* Floating Stardust Motes */
+.astral-mote {
+  position: absolute; border-radius: 50%;
+  background: radial-gradient(circle, #ffffff, rgba(168, 85, 247, 0.6));
+  animation: moteFloat 18s ease-in-out infinite;
+  opacity: 0.5;
+}
+.astral-mote.m1 { top: 80%; left: 20%; width: 6px; height: 6px; animation-delay: 0s; }
+.astral-mote.m2 { top: 70%; left: 50%; width: 5px; height: 5px; animation-delay: 4s; }
+.astral-mote.m3 { top: 85%; left: 75%; width: 7px; height: 7px; animation-delay: 8s; }
+.astral-mote.m4 { top: 90%; left: 35%; width: 4px; height: 4px; animation-delay: 12s; }
+.astral-mote.m5 { top: 65%; left: 85%; width: 6px; height: 6px; animation-delay: 6s; }
+.astral-mote.m6 { top: 75%; left: 10%; width: 5px; height: 5px; animation-delay: 10s; }
+@keyframes moteFloat {
+  0% { transform: translateY(0) scale(0.8); opacity: 0.2; }
+  50% { transform: translateY(-160px) scale(1.2); opacity: 0.7; }
+  100% { transform: translateY(-320px) scale(0.6); opacity: 0; }
+}
+
+/* Shooting Stars / Comets */
 .astral-comet {
-  position: absolute; height: 2px;
-  background: linear-gradient(90deg, rgba(255,255,255,0.95), rgba(192, 132, 252, 0.7), transparent);
+  position: absolute; height: 2.5px;
+  background: linear-gradient(90deg, #ffffff, rgba(56, 189, 248, 0.9), rgba(168, 85, 247, 0.6), transparent);
   border-radius: 50%; filter: blur(0.5px);
-  transform: rotate(-35deg);
-  opacity: 0;
+  transform: rotate(-35deg); opacity: 0;
 }
 .astral-comet.ac1 {
-  width: 150px; top: 10%; left: 82%;
-  animation: astralCometShoot 8.5s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+  width: 180px; top: 12%; left: 80%;
+  animation: astralCometShoot 7.5s cubic-bezier(0.25, 1, 0.5, 1) infinite;
   animation-delay: 1s;
 }
 .astral-comet.ac2 {
-  width: 190px; top: 44%; left: 96%;
-  animation: astralCometShoot 11s cubic-bezier(0.25, 1, 0.5, 1) infinite;
-  animation-delay: 6s;
+  width: 240px; top: 40%; left: 95%;
+  animation: astralCometShoot 10s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+  animation-delay: 4.5s;
+}
+.astral-comet.ac3 {
+  width: 160px; top: 25%; left: 45%;
+  animation: astralCometShoot 8.5s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+  animation-delay: 6.8s;
+}
+.astral-comet.ac4 {
+  width: 210px; top: 60%; left: 88%;
+  animation: astralCometShoot 12s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+  animation-delay: 9s;
 }
 @keyframes astralCometShoot {
   0% { opacity: 0; transform: translate(0, 0) rotate(-35deg); }
-  5% { opacity: 1; }
-  22% { transform: translate(-360px, 240px) rotate(-35deg); opacity: 0; }
+  6% { opacity: 1; }
+  24% { transform: translate(-420px, 280px) rotate(-35deg); opacity: 0; }
   100% { opacity: 0; }
 }
 
-/* Card tactile reactivity in Astral Void theme */
+/* Cards tactile reactivity in Astral Apex theme */
 html.theme-astral .card {
-  border-color: rgba(168, 85, 247, 0.45);
-  background: linear-gradient(145deg, #15082e 0%, #0c041b 100%);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.85), 0 0 16px rgba(168, 85, 247, 0.25);
-  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  border-color: rgba(168, 85, 247, 0.5);
+  background: linear-gradient(145deg, rgba(22, 9, 46, 0.92) 0%, rgba(11, 4, 25, 0.95) 100%);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.88), 0 0 18px rgba(168, 85, 247, 0.35);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
 }
 html.theme-astral .card:hover {
   border-color: #c084fc;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.92), 0 0 26px rgba(192, 132, 252, 0.7), inset 0 0 14px rgba(56, 189, 248, 0.35);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.95), 0 0 30px rgba(192, 132, 252, 0.8), inset 0 0 16px rgba(56, 189, 248, 0.4);
+  transform: translateY(-4px) scale(1.02);
 }
 
-/* Elevated menu-footer in Astral Void theme */
+/* Board slots in Astral Apex */
+html.theme-astral .slot {
+  border-color: rgba(168, 85, 247, 0.4);
+  background: rgba(14, 5, 31, 0.6);
+  box-shadow: inset 0 0 18px rgba(168, 85, 247, 0.2);
+}
+html.theme-astral .slot:hover {
+  border-color: #38bdf8;
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.45), inset 0 0 22px rgba(168, 85, 247, 0.35);
+}
+
+/* Menu card styling in Astral Apex */
+html.theme-astral .menu-card {
+  border-color: rgba(168, 85, 247, 0.35);
+  background: linear-gradient(135deg, rgba(20, 8, 42, 0.75) 0%, rgba(10, 3, 22, 0.85) 100%);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), 0 0 15px rgba(168, 85, 247, 0.2);
+}
+html.theme-astral .menu-card:hover {
+  border-color: #c084fc;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.75), 0 0 28px rgba(192, 132, 252, 0.6);
+}
+
+/* Elevated menu-footer in Astral Apex theme */
 html.theme-astral .menu-footer {
   background: rgba(13, 6, 28, 0.88) !important;
   backdrop-filter: blur(20px) !important;
@@ -2627,20 +2775,21 @@ input, textarea {
   align-items: center;
   gap: 16px;
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%), rgba(15, 22, 36, 0.85) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
   border: 1px solid rgba(255, 255, 255, 0.15) !important;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.45), inset 0 1px 1px 0 rgba(255, 255, 255, 0.25) !important;
   cursor: pointer;
   color: var(--text);
   text-align: left;
-  transform: translateY(0);
-  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 0.2s ease,
-              background 0.2s ease;
-  will-change: transform, box-shadow;
-  
+  transform: translate3d(0, 0, 0) !important;
+  backface-visibility: hidden !important;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.15s ease,
+              background 0.15s ease !important;
+  will-change: transform;
+  contain: layout style;
+
   --card-color: var(--accent);
 }
 
@@ -2648,41 +2797,45 @@ input, textarea {
   border-radius: 16px !important;
 }
 
-/* Subtle corner highlight */
+/* Soft corner glow */
 .menu-card::before {
   content: '';
   position: absolute;
   top: 0;
   right: 0;
-  width: 90px;
-  height: 90px;
-  background: radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--card-color) 25%, transparent), transparent 70%);
+  width: 140px;
+  height: 140px;
+  border-radius: inherit;
+  background: radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--card-color) 22%, transparent), transparent 70%);
   pointer-events: none;
   z-index: 1;
-  transition: opacity 0.22s ease, transform 0.22s ease;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
 }
 
-/* Silky Sheen Sweep on Hover */
+/* Light Glimmer Ray Sweep Across Entire Button Surface */
 .menu-card::after {
   content: '';
   position: absolute;
-  top: -50%;
-  left: -100%;
-  width: 50%;
-  height: 200%;
+  top: -100%;
+  left: -120%;
+  width: 100%;
+  height: 300%;
   background: linear-gradient(
-    105deg,
+    115deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.03) 30%,
-    rgba(255, 255, 255, 0.18) 50%,
-    rgba(255, 255, 255, 0.03) 70%,
+    rgba(255, 255, 255, 0.0) 20%,
+    rgba(255, 255, 255, 0.25) 42%,
+    rgba(255, 255, 255, 0.65) 50%,
+    rgba(255, 255, 255, 0.25) 58%,
+    rgba(255, 255, 255, 0.0) 80%,
     transparent 100%
   );
-  transform: rotate(25deg);
+  transform: translate3d(0, 0, 0) rotate(25deg);
   opacity: 0;
-  transition: opacity 0.2s ease, transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: none;
-  z-index: 2;
+  z-index: 3;
+  transition: transform 0s ease, opacity 0.15s ease;
 }
 
 /* Modern Glowing Glass Icon Pod */
@@ -2822,42 +2975,44 @@ html.theme-light .menu-card-sub {
 
 /* Hover & Interactive States */
 .menu-card:hover {
-  transform: translateY(-4px) scale(1.015);
-  border-color: rgba(255, 255, 255, 0.35) !important;
-  box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.65), 0 0 24px -4px color-mix(in srgb, var(--card-color) 40%, transparent), inset 0 1px 2px 0 rgba(255, 255, 255, 0.4) !important;
+  transform: translate3d(0, -4px, 0) scale(1.015) !important;
+  border-color: rgba(255, 255, 255, 0.38) !important;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.45), 0 0 16px color-mix(in srgb, var(--card-color) 30%, transparent) !important;
+  transition-delay: 0s !important;
 }
 
 .menu-card:hover .menu-icon-pod {
-  transform: scale(1.08);
+  transform: translate3d(0, 0, 0) scale(1.08) !important;
   box-shadow: 0 0 20px -2px color-mix(in srgb, var(--card-color) 60%, transparent), inset 0 1px 2px rgba(255, 255, 255, 0.5);
-  border-color: color-mix(in srgb, var(--card-color) 70%, rgba(255, 255, 255, 0.5));
+  border-color: rgba(255, 255, 255, 0.65);
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--card-color) 0%, color-mix(in srgb, var(--card-color) 70%, #000) 100%);
+  transition-delay: 0s !important;
 }
 
 .menu-card:hover .menu-card-arrow {
   color: #ffffff;
   background: var(--card-color);
-  border-color: var(--card-color);
-  transform: translateX(4px);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translate3d(4px, 0, 0) !important;
   box-shadow: 0 0 16px -2px var(--card-color);
+  transition-delay: 0s !important;
 }
 
 .menu-card:hover .menu-card-arrow svg {
-  transform: translateX(2px);
-}
-
-.menu-card:hover::after {
-  opacity: 1;
-  transform: rotate(25deg) translate(250%, 0);
+  transform: translate3d(2px, 0, 0) !important;
+  transition-delay: 0s !important;
 }
 
 .menu-card:hover::before {
-  transform: scale(1.2);
-  background: linear-gradient(135deg, transparent 50%, color-mix(in srgb, var(--card-color) 85%, #ffffff) 50%);
+  opacity: 1 !important;
 }
 
 .menu-card:hover::after {
-  opacity: 1;
-  transform: rotate(20deg) translateX(360%);
+  opacity: 1 !important;
+  transform: translate3d(260%, 0, 0) rotate(25deg) !important;
+  transition: transform 0.75s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease !important;
+  transition-delay: 0s !important;
 }
 
 .menu-card:hover .menu-card-title {
@@ -2865,113 +3020,48 @@ html.theme-light .menu-card-sub {
   text-shadow: 0 0 12px var(--card-color);
 }
 
-.menu-card:hover .menu-icon-pod {
-  color: #ffffff;
-  background: linear-gradient(135deg, var(--card-color) 0%, color-mix(in srgb, var(--card-color) 70%, #000) 100%);
-  border-color: rgba(255, 255, 255, 0.65);
-}
-
 .menu-card:hover .menu-icon-pod .glass-icon {
   transform: scale(1.1);
 }
 
-.menu-card:hover .menu-card-arrow {
-  transform: translateX(4px);
-  color: #ffffff;
-  background: var(--card-color);
-  border-color: rgba(255, 255, 255, 0.5);
-}
-
 .menu-card.pressed,
 .menu-card:active {
-  transform: translateY(1px) scale(0.985) !important;
+  transform: translate3d(0, 1px, 0) scale(0.985) !important;
   box-shadow: none !important;
 }
 
 /* ==========================================================================
-   Vibrant Color Personalities & Gradients
+   Active Theme Matching Menu Tiles & Dynamic Colorways
    ========================================================================== */
 
-/* Main Menu */
-#btn-single-player {
-  --card-color: #00f0ff;
-  --card-bg-gradient: linear-gradient(135deg, rgba(0, 240, 255, 0.28) 0%, rgba(14, 165, 233, 0.12) 50%, rgba(8, 18, 30, 0.88) 100%);
-  --card-bg-hover: linear-gradient(135deg, rgba(0, 240, 255, 0.44) 0%, rgba(14, 165, 233, 0.24) 50%, rgba(10, 24, 40, 0.92) 100%);
-  --card-pod-bg: linear-gradient(135deg, rgba(0, 240, 255, 0.45) 0%, rgba(14, 165, 233, 0.18) 100%);
+.menu-card {
+  --card-color: var(--theme-accent, var(--accent, #f59e0b));
+  --card-bg-gradient: linear-gradient(135deg, color-mix(in srgb, var(--card-color) 22%, transparent) 0%, color-mix(in srgb, var(--card-color) 8%, rgba(15, 22, 36, 0.88)) 100%);
+  --card-bg-hover: linear-gradient(135deg, color-mix(in srgb, var(--card-color) 38%, transparent) 0%, color-mix(in srgb, var(--card-color) 16%, rgba(20, 29, 48, 0.92)) 100%);
+  --card-pod-bg: linear-gradient(135deg, color-mix(in srgb, var(--card-color) 35%, rgba(255, 255, 255, 0.08)) 0%, color-mix(in srgb, var(--card-color) 16%, rgba(15, 22, 36, 0.6)) 100%);
 }
 
-#btn-shop {
-  --card-color: #ffbe00;
-  --card-bg-gradient: linear-gradient(135deg, rgba(255, 190, 0, 0.28) 0%, rgba(245, 158, 11, 0.12) 50%, rgba(30, 20, 8, 0.88) 100%);
-  --card-bg-hover: linear-gradient(135deg, rgba(255, 190, 0, 0.44) 0%, rgba(245, 158, 11, 0.24) 50%, rgba(40, 28, 10, 0.92) 100%);
-  --card-pod-bg: linear-gradient(135deg, rgba(255, 190, 0, 0.45) 0%, rgba(245, 158, 11, 0.18) 100%);
+.menu-icon-pod {
+  color: var(--card-color) !important;
+  border-color: color-mix(in srgb, var(--card-color) 45%, rgba(255, 255, 255, 0.2)) !important;
+  background: var(--card-pod-bg) !important;
 }
 
-#btn-multiplayer {
-  --card-color: #ff0077;
-  --card-bg-gradient: linear-gradient(135deg, rgba(255, 0, 119, 0.28) 0%, rgba(236, 72, 153, 0.12) 50%, rgba(30, 8, 20, 0.88) 100%);
-  --card-bg-hover: linear-gradient(135deg, rgba(255, 0, 119, 0.44) 0%, rgba(236, 72, 153, 0.24) 50%, rgba(40, 10, 28, 0.92) 100%);
-  --card-pod-bg: linear-gradient(135deg, rgba(255, 0, 119, 0.45) 0%, rgba(236, 72, 153, 0.18) 100%);
+.menu-icon-pod .glass-icon,
+.menu-icon-pod svg {
+  stroke: var(--card-color) !important;
+  color: var(--card-color) !important;
 }
 
-/* Single Player & Modes */
-#btn-story-mode {
-  --card-color: #38bdf8;
-  --card-bg-gradient: linear-gradient(135deg, rgba(56, 189, 248, 0.28) 0%, rgba(2, 132, 199, 0.12) 50%, rgba(8, 20, 32, 0.88) 100%);
-  --card-bg-hover: linear-gradient(135deg, rgba(56, 189, 248, 0.44) 0%, rgba(2, 132, 199, 0.24) 50%, rgba(10, 26, 42, 0.92) 100%);
-  --card-pod-bg: linear-gradient(135deg, rgba(56, 189, 248, 0.45) 0%, rgba(2, 132, 199, 0.18) 100%);
+.menu-card:hover .menu-icon-pod {
+  background: linear-gradient(135deg, var(--card-color) 0%, color-mix(in srgb, var(--card-color) 70%, #000) 100%) !important;
+  border-color: color-mix(in srgb, var(--card-color) 80%, #ffffff) !important;
 }
 
-#btn-practice-bot {
-  --card-color: #10b981;
-  --card-bg-gradient: linear-gradient(135deg, rgba(16, 185, 129, 0.28) 0%, rgba(5, 150, 105, 0.12) 50%, rgba(6, 26, 16, 0.88) 100%);
-  --card-bg-hover: linear-gradient(135deg, rgba(16, 185, 129, 0.44) 0%, rgba(5, 150, 105, 0.24) 50%, rgba(8, 34, 22, 0.92) 100%);
-  --card-pod-bg: linear-gradient(135deg, rgba(16, 185, 129, 0.45) 0%, rgba(5, 150, 105, 0.18) 100%);
-}
-
-#btn-trial-tower-menu {
-  --card-color: #a855f7;
-  --card-bg-gradient: linear-gradient(135deg, rgba(168, 85, 247, 0.28) 0%, rgba(126, 34, 206, 0.12) 50%, rgba(22, 10, 32, 0.88) 100%);
-  --card-bg-hover: linear-gradient(135deg, rgba(168, 85, 247, 0.44) 0%, rgba(126, 34, 206, 0.24) 50%, rgba(30, 14, 42, 0.92) 100%);
-  --card-pod-bg: linear-gradient(135deg, rgba(168, 85, 247, 0.45) 0%, rgba(126, 34, 206, 0.18) 100%);
-}
-
-#btn-bot-mode-normal,
-#btn-host-mode-normal,
-#btn-collection-book-cards {
-  --card-color: #3b82f6;
-  --card-bg-gradient: linear-gradient(135deg, rgba(59, 130, 246, 0.28) 0%, rgba(29, 78, 216, 0.12) 50%, rgba(8, 16, 32, 0.88) 100%);
-  --card-bg-hover: linear-gradient(135deg, rgba(59, 130, 246, 0.44) 0%, rgba(29, 78, 216, 0.24) 50%, rgba(10, 22, 42, 0.92) 100%);
-  --card-pod-bg: linear-gradient(135deg, rgba(59, 130, 246, 0.45) 0%, rgba(29, 78, 216, 0.18) 100%);
-}
-
-#btn-bot-mode-wager,
-#btn-host-mode-wager {
-  --card-color: #eab308;
-  --card-bg-gradient: linear-gradient(135deg, rgba(234, 179, 8, 0.28) 0%, rgba(161, 98, 7, 0.12) 50%, rgba(28, 20, 6, 0.88) 100%);
-  --card-bg-hover: linear-gradient(135deg, rgba(234, 179, 8, 0.44) 0%, rgba(161, 98, 7, 0.24) 50%, rgba(38, 26, 8, 0.92) 100%);
-  --card-pod-bg: linear-gradient(135deg, rgba(234, 179, 8, 0.45) 0%, rgba(161, 98, 7, 0.18) 100%);
-}
-
-#btn-host-menu {
-  --card-color: #06b6d4;
-  --card-bg-gradient: linear-gradient(135deg, rgba(6, 182, 212, 0.28) 0%, rgba(14, 116, 144, 0.12) 50%, rgba(6, 22, 28, 0.88) 100%);
-  --card-bg-hover: linear-gradient(135deg, rgba(6, 182, 212, 0.44) 0%, rgba(14, 116, 144, 0.24) 50%, rgba(8, 28, 36, 0.92) 100%);
-  --card-pod-bg: linear-gradient(135deg, rgba(6, 182, 212, 0.45) 0%, rgba(14, 116, 144, 0.18) 100%);
-}
-
-#btn-join-menu {
-  --card-color: #f43f5e;
-  --card-bg-gradient: linear-gradient(135deg, rgba(244, 63, 94, 0.28) 0%, rgba(190, 18, 60, 0.12) 50%, rgba(30, 8, 16, 0.88) 100%);
-  --card-bg-hover: linear-gradient(135deg, rgba(244, 63, 94, 0.44) 0%, rgba(190, 18, 60, 0.24) 50%, rgba(40, 10, 22, 0.92) 100%);
-  --card-pod-bg: linear-gradient(135deg, rgba(244, 63, 94, 0.45) 0%, rgba(190, 18, 60, 0.18) 100%);
-}
-
-#btn-collection-book-themes {
-  --card-color: #10b981;
-  --card-bg-gradient: linear-gradient(135deg, rgba(16, 185, 129, 0.28) 0%, rgba(5, 150, 105, 0.12) 50%, rgba(6, 26, 16, 0.88) 100%);
-  --card-bg-hover: linear-gradient(135deg, rgba(16, 185, 129, 0.44) 0%, rgba(5, 150, 105, 0.24) 50%, rgba(8, 34, 22, 0.92) 100%);
-  --card-pod-bg: linear-gradient(135deg, rgba(16, 185, 129, 0.45) 0%, rgba(5, 150, 105, 0.18) 100%);
+.menu-card:hover .menu-icon-pod .glass-icon,
+.menu-card:hover .menu-icon-pod svg {
+  stroke: #ffffff !important;
+  color: #ffffff !important;
 }
 
 /* Subtle Ambient Card Floating (Zero Drop Shadows) */
@@ -6396,8 +6486,51 @@ html.theme-light .theme-btn {
   border-color: rgba(0, 0, 0, 0.16) !important;
 }
 html.theme-light .theme-btn.active {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.22) 0%, rgba(255, 255, 255, 0.9) 100%) !important;
-  border-color: #f59e0b !important;
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.22) 0%, rgba(255, 255, 255, 0.9) 100%) !important;
+  border-color: #0284c7 !important;
+  box-shadow: 0 0 12px rgba(2, 132, 199, 0.3) !important;
+}
+
+/* Light Theme High Contrast & Readability Rules */
+html.theme-light body,
+html.theme-light .screen {
+  color: #0f172a !important;
+}
+
+html.theme-light .game-title,
+html.theme-light .menu-card-title,
+html.theme-light h1,
+html.theme-light h2,
+html.theme-light h3,
+html.theme-light h4,
+html.theme-light .modal-title,
+html.theme-light .ascent-title,
+html.theme-light .db-simple-title,
+html.theme-light .section-heading,
+html.theme-light .card-name {
+  color: #0f172a !important;
+  text-shadow: none !important;
+}
+
+html.theme-light .menu-card-sub,
+html.theme-light .sub,
+html.theme-light p,
+html.theme-light .desc,
+html.theme-light .muted,
+html.theme-light label {
+  color: #475569 !important;
+}
+
+html.theme-light .menu-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(241, 245, 249, 0.9) 100%) !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06) !important;
+}
+
+html.theme-light .menu-card:hover {
+  background: #ffffff !important;
+  border-color: #0284c7 !important;
+  box-shadow: 0 8px 24px rgba(2, 132, 199, 0.18) !important;
 }
 html.theme-light .dcard {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.75) 100%), rgba(246, 244, 239, 0.94) !important;
@@ -6709,14 +6842,9 @@ html.theme-prism .sc-card {
   position: relative;
   overflow: hidden;
   border-radius: 12px;
-  border: 2px solid transparent !important;
-  background-image:
-    linear-gradient(rgba(15, 23, 42, 0.05), rgba(15, 23, 42, 0.05)),
-    linear-gradient(135deg, #00f0ff 0%, #ec4899 25%, #f59e0b 50%, #10b981 75%, #a855f7 100%, #00f0ff 100%);
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
-  background-size: 100% 100%, 200% 200%;
-  animation: prismGradientBorderShift 5s linear infinite;
+  border: 2px solid #00f0ff !important;
+  background: rgba(15, 23, 42, 0.88) !important;
+  animation: prismBorderColorShift 5s linear infinite;
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.25),
     0 0 18px rgba(0, 240, 255, 0.4),
@@ -6731,7 +6859,7 @@ html.theme-prism .card.active,
 html.theme-prism .card:hover,
 html.theme-prism .card.selected,
 html.theme-prism .sc-card:hover {
-  animation-duration: 2.2s;
+  animation: prismBorderColorShift 2.2s linear infinite;
   box-shadow:
     0 0 0 1.5px #ffffff,
     0 0 25px rgba(0, 240, 255, 0.8),
@@ -6741,10 +6869,13 @@ html.theme-prism .sc-card:hover {
     0 16px 40px rgba(0, 0, 0, 0.95) !important;
 }
 
-@keyframes prismGradientBorderShift {
-  0%   { background-position: 0% 0%, 0% 0%; }
-  50%  { background-position: 0% 0%, 100% 100%; }
-  100% { background-position: 0% 0%, 200% 0%; }
+@keyframes prismBorderColorShift {
+  0%   { border-color: #00f0ff !important; }
+  20%  { border-color: #ec4899 !important; }
+  40%  { border-color: #f59e0b !important; }
+  60%  { border-color: #10b981 !important; }
+  80%  { border-color: #a855f7 !important; }
+  100% { border-color: #00f0ff !important; }
 }
 
 html.theme-darkmatter .card,
@@ -13043,6 +13174,28 @@ button,
 }
 
 /* Power Bar & Health Balance Gauge */
+#power-bar-label {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  width: 100% !important;
+  padding: 0 6px 2px !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.03em !important;
+  text-transform: uppercase !important;
+  color: #94a3b8 !important;
+  box-sizing: border-box !important;
+}
+#power-bar-label span:nth-of-type(1) {
+  color: #38bdf8 !important;
+  text-align: left !important;
+}
+#power-bar-label span:nth-of-type(2) {
+  color: #f87171 !important;
+  text-align: right !important;
+  margin-left: auto !important;
+}
 #power-bar {
   display: flex !important;
   height: 10px !important;
@@ -13190,15 +13343,18 @@ button,
   height: 22px !important;
   stroke-width: 2.2 !important;
   flex-shrink: 0 !important;
-  color: #38bdf8 !important;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4)) !important;
-  transition: transform 0.2s ease, color 0.2s ease !important;
+  color: var(--theme-accent, var(--accent, #f59e0b)) !important;
+  stroke: var(--theme-accent, var(--accent, #f59e0b)) !important;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4)) drop-shadow(0 0 6px var(--theme-accent, var(--accent, #f59e0b))) !important;
+  transition: transform 0.2s ease, color 0.2s ease, filter 0.2s ease !important;
 }
 
 .menu-footer .glass-pill-btn:hover .glass-btn-icon,
 .footer-squircle-btn:hover .glass-btn-icon {
   transform: scale(1.12) !important;
-  color: #7dd3fc !important;
+  color: var(--theme-accent, var(--accent, #f59e0b)) !important;
+  stroke: var(--theme-accent, var(--accent, #f59e0b)) !important;
+  filter: drop-shadow(0 0 10px var(--theme-accent, var(--accent, #f59e0b))) !important;
 }
 
 /* Text Underneath */
@@ -13657,493 +13813,6 @@ button,
 /* ==========================================================================
    2.5D STORY MODE: CHRONICLES OF MEHRBOD
    ========================================================================== */
-#screen-story-mode {
-  padding: 1.5rem 1rem;
-  max-width: 1240px;
-  margin: 0 auto;
-  min-height: 85vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.story-mode-layout {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  width: 100%;
-}
-
-.story-mode-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.story-title-cluster {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.story-main-heading {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #ffffff 0%, #38bdf8 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.story-sub-heading {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #94a3b8;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.story-daily-bounty-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.6rem 1rem;
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.18) 0%, rgba(180, 83, 9, 0.28) 100%);
-  border: 1px solid rgba(251, 191, 36, 0.4);
-  border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.15);
-  backdrop-filter: blur(12px);
-  margin-top: 4px;
-}
-
-.sdbb-content {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.sdbb-badge {
-  font-size: 0.65rem;
-  font-weight: 800;
-  color: #fbbf24;
-  letter-spacing: 0.06em;
-}
-
-.sdbb-title {
-  font-size: 0.92rem;
-  font-weight: 800;
-  color: #ffffff;
-}
-
-.sdbb-mutator {
-  font-size: 0.75rem;
-  color: #fef08a;
-  opacity: 0.9;
-}
-
-.sdbb-btn {
-  padding: 0.45rem 0.95rem;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 10px;
-  color: #0f172a;
-  font-size: 0.78rem;
-  font-weight: 800;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s ease;
-}
-
-.sdbb-btn:hover {
-  transform: translateY(-1px) scale(1.03);
-  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.5);
-}
-
-.sdbb-btn.completed {
-  background: rgba(16, 185, 129, 0.2);
-  border-color: #10b981;
-  color: #34d399;
-  cursor: default;
-}
-
-.story-chapter-tabs-bar {
-  display: flex;
-  gap: 0.5rem;
-  overflow-x: auto;
-  padding-bottom: 4px;
-  scrollbar-width: thin;
-}
-
-.story-ch-tab {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.55rem 1.15rem;
-  background: rgba(15, 23, 42, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 12px;
-  color: #94a3b8;
-  font-size: 0.85rem;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(12px);
-}
-
-.story-ch-tab:hover {
-  background: rgba(30, 41, 59, 0.8);
-  color: #f8fafc;
-  border-color: rgba(56, 189, 248, 0.4);
-}
-
-.story-ch-tab.active {
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.25) 0%, rgba(3, 105, 161, 0.35) 100%);
-  border-color: #38bdf8;
-  color: #ffffff;
-  box-shadow: 0 0 16px rgba(56, 189, 248, 0.3);
-}
-
-.story-ch-tab .ch-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  background: #10b981;
-  color: #ffffff;
-  border-radius: 50%;
-  font-size: 0.65rem;
-  font-weight: 800;
-}
-
-.story-viewport-grid {
-  display: grid;
-  grid-template-columns: 1fr 340px;
-  gap: 1.25rem;
-  align-items: start;
-}
-
-@media (max-width: 900px) {
-  .story-viewport-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.story-canvas-container {
-  position: relative;
-  border-radius: 18px;
-  overflow: hidden;
-  background: #090d16;
-  border: 1px solid rgba(56, 189, 248, 0.25);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
-  min-height: 380px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#story-2d5-canvas {
-  width: 100%;
-  height: 440px;
-  display: block;
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.story-canvas-floating-controls {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  z-index: 10;
-}
-
-.scfc-btn {
-  width: 36px;
-  height: 36px;
-  background: rgba(15, 23, 42, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  border-radius: 10px;
-  font-size: 1rem;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  backdrop-filter: blur(8px);
-}
-
-.scfc-btn:hover {
-  background: rgba(56, 189, 248, 0.3);
-  border-color: #38bdf8;
-  transform: scale(1.05);
-}
-
-.scfc-btn:active {
-  transform: scale(0.95);
-}
-
-@media (max-width: 768px) {
-  #screen-story-mode {
-    padding: 0.75rem 0.5rem;
-    min-height: auto;
-  }
-
-  .story-mode-layout {
-    gap: 0.85rem;
-  }
-
-  .story-main-heading {
-    font-size: 1.25rem;
-  }
-
-  .story-chapter-tabs-bar {
-    gap: 0.35rem;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .story-ch-tab {
-    padding: 0.45rem 0.85rem;
-    font-size: 0.78rem;
-    min-height: 44px;
-  }
-
-  .story-canvas-container {
-    min-height: 300px;
-    height: 320px;
-  }
-
-  #story-2d5-canvas {
-    height: 320px;
-  }
-
-  .story-canvas-hint {
-    font-size: 0.68rem;
-    padding: 0.25rem 0.65rem;
-    bottom: 8px;
-  }
-
-  .story-inspector-card {
-    padding: 1rem;
-    gap: 0.75rem;
-  }
-
-  .story-node-title {
-    font-size: 1.1rem;
-  }
-}
-
-.story-canvas-hint {
-  position: absolute;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(15, 23, 42, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  padding: 0.35rem 0.9rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  color: #94a3b8;
-  backdrop-filter: blur(8px);
-  pointer-events: none;
-  white-space: nowrap;
-}
-
-.story-inspector-panel {
-  display: flex;
-  flex-direction: column;
-}
-
-.story-inspector-card {
-  background: rgba(15, 23, 42, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 18px;
-  padding: 1.35rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(16px);
-}
-
-.story-inspector-card.boss-node {
-  border-color: rgba(248, 113, 113, 0.4);
-  box-shadow: 0 0 24px rgba(239, 68, 68, 0.15);
-}
-
-.story-inspector-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.75rem;
-}
-
-.story-node-tag {
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: #38bdf8;
-  letter-spacing: 0.05em;
-}
-
-.story-node-title {
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: #ffffff;
-  margin-top: 2px;
-}
-
-.story-node-status-badge {
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 0.3rem 0.75rem;
-  border-radius: 12px;
-}
-
-.story-node-status-badge.cleared {
-  background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.3);
-}
-
-.story-node-status-badge.ready {
-  background: rgba(56, 189, 248, 0.15);
-  color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.3);
-}
-
-.story-node-status-badge.locked {
-  background: rgba(148, 163, 184, 0.1);
-  color: #94a3b8;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-}
-
-.story-inspector-dialogue-preview {
-  display: flex;
-  gap: 0.75rem;
-  background: rgba(30, 41, 59, 0.5);
-  border-radius: 12px;
-  padding: 0.75rem 0.9rem;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.sid-avatar {
-  font-size: 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.sid-body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.sid-speaker {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #cbd5e1;
-}
-
-.sid-text {
-  font-size: 0.8rem;
-  font-style: italic;
-  color: #94a3b8;
-  line-height: 1.35;
-}
-
-.story-enemy-brief {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 0.75rem 0.9rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  font-size: 0.82rem;
-  color: #cbd5e1;
-}
-
-.seb-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.seb-difficulty {
-  font-size: 0.7rem;
-  font-weight: 800;
-  padding: 0.15rem 0.5rem;
-  border-radius: 8px;
-}
-
-.difficulty-easy { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
-.difficulty-medium { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
-.difficulty-hard { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
-.difficulty-expert { background: rgba(248, 113, 113, 0.15); color: #f87171; }
-.difficulty-master { background: rgba(192, 132, 252, 0.15); color: #c084fc; }
-
-.seb-mutator {
-  color: #38bdf8;
-  font-size: 0.78rem;
-  margin-top: 2px;
-}
-
-.story-rewards-box {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.srb-title {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #facc15;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.srb-items {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
-.srb-item {
-  background: rgba(250, 204, 21, 0.1);
-  border: 1px solid rgba(250, 204, 21, 0.25);
-  color: #fef08a;
-  font-size: 0.74rem;
-  font-weight: 700;
-  padding: 0.25rem 0.6rem;
-  border-radius: 8px;
-}
-
-.story-deploy-btn {
-  width: 100%;
-  padding: 0.75rem 1.25rem;
-  font-size: 0.95rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-}
-
-.story-deploy-btn.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  background: rgba(71, 85, 105, 0.5);
-  border-color: rgba(71, 85, 105, 0.7);
-}
-
 /* ==========================================================================
    MOBILE RESPONSIVE CONTAINMENT & TYPOGRAPHY SCALING
    ========================================================================== */
@@ -14277,6 +13946,357 @@ button,
     padding: 5px 10px !important;
     font-size: 0.74rem !important;
   }
+}
+
+/* ============================================================================
+   TRIAL LORD MILESTONE REWARDS (FLOORS 10, 20, 30, 40, 50)
+   ============================================================================ */
+.sleeve-preview-hero.sleeve-trial-lord-novice,
+.sleeve-trial-lord-novice {
+  border: 2px solid #cd7f32 !important;
+  box-shadow: 0 0 20px rgba(205, 127, 50, 0.75), inset 0 0 12px rgba(205, 127, 50, 0.4) !important;
+  background: linear-gradient(150deg, #2e1808 0%, #120902 100%) !important;
+}
+
+.sleeve-preview-hero.sleeve-trial-lord-sentinel,
+.sleeve-trial-lord-sentinel {
+  border: 2px solid #38bdf8 !important;
+  box-shadow: 0 0 24px rgba(56, 189, 248, 0.85), inset 0 0 14px rgba(56, 189, 248, 0.5) !important;
+  background: linear-gradient(150deg, #072a40 0%, #02121d 100%) !important;
+}
+
+.sleeve-preview-hero.sleeve-trial-lord-conqueror,
+.sleeve-trial-lord-conqueror {
+  border: 2px solid #fbbf24 !important;
+  box-shadow: 0 0 28px rgba(251, 191, 36, 0.9), inset 0 0 16px rgba(251, 191, 36, 0.55) !important;
+  background: linear-gradient(150deg, #3d2403 0%, #170c00 100%) !important;
+  animation: goldPulse 2s ease-in-out infinite !important;
+}
+
+.sleeve-preview-hero.sleeve-trial-lord-sovereign,
+.sleeve-trial-lord-sovereign {
+  border: 2px solid #c084fc !important;
+  box-shadow: 0 0 32px rgba(192, 132, 252, 0.95), inset 0 0 18px rgba(192, 132, 252, 0.6) !important;
+  background: radial-gradient(circle at center, #23083d 0%, #0a0114 100%) !important;
+  animation: voidPulse 2.5s ease-in-out infinite !important;
+}
+
+.sleeve-preview-hero.sleeve-trial-lord-apex,
+.sleeve-trial-lord-apex {
+  border: 2px solid #eab308 !important;
+  box-shadow: 0 0 36px rgba(234, 179, 8, 1), inset 0 0 22px rgba(234, 179, 8, 0.7) !important;
+  background: radial-gradient(circle at center, #3f2203 0%, #170a00 100%) !important;
+  animation: apexBorderPulse 2s infinite ease-in-out !important;
+}
+
+/* Profile Avatar Frame Milestones */
+.profile-frame.frame-trial-lord-novice {
+  border: 2px solid #cd7f32 !important;
+  box-shadow: 0 0 12px rgba(205, 127, 50, 0.8), inset 0 0 6px rgba(205, 127, 50, 0.5) !important;
+}
+.profile-frame.frame-trial-lord-sentinel {
+  border: 2px solid #38bdf8 !important;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.85), inset 0 0 8px rgba(56, 189, 248, 0.5) !important;
+}
+.profile-frame.frame-trial-lord-conqueror {
+  border: 2px solid #fbbf24 !important;
+  box-shadow: 0 0 16px rgba(251, 191, 36, 0.9), inset 0 0 10px rgba(251, 191, 36, 0.6) !important;
+}
+.profile-frame.frame-trial-lord-sovereign {
+  border: 2px solid #c084fc !important;
+  box-shadow: 0 0 18px rgba(192, 132, 252, 0.95), inset 0 0 12px rgba(192, 132, 252, 0.7) !important;
+}
+.profile-frame.frame-trial-lord-apex {
+  border: 2px solid #eab308 !important;
+  box-shadow: 0 0 22px rgba(234, 179, 8, 1), inset 0 0 14px rgba(234, 179, 8, 0.8) !important;
+  animation: apexBorderPulse 2s infinite ease-in-out !important;
+}
+
+@keyframes apexBorderPulse {
+  0%, 100% { box-shadow: 0 0 15px rgba(234, 179, 8, 0.8), inset 0 0 10px rgba(234, 179, 8, 0.5); }
+  50% { box-shadow: 0 0 28px rgba(234, 179, 8, 1), inset 0 0 16px rgba(250, 204, 21, 0.9); }
+}
+
+/* Tower Milestone Summary Bar */
+.tower-milestones-card {
+  margin-top: 12px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(192, 132, 252, 0.3);
+  border-radius: 14px;
+  padding: 12px 14px;
+  backdrop-filter: blur(10px);
+}
+.tmsc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.tmsc-title {
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: #e9d5ff;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tmsc-track-row {
+  display: flex;
+  gap: 6px;
+  justify-content: space-between;
+}
+.tmsc-badge-item {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 6px 4px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+.tmsc-badge-item.unlocked {
+  background: rgba(192, 132, 252, 0.15);
+  border-color: rgba(192, 132, 252, 0.5);
+  box-shadow: 0 0 10px rgba(192, 132, 252, 0.2);
+}
+.tmsc-badge-floor {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #a855f7;
+}
+.tmsc-badge-item.unlocked .tmsc-badge-floor {
+  color: #fde047;
+}
+.tmsc-badge-icon {
+  font-size: 1.1rem;
+  margin: 2px 0;
+}
+.tmsc-badge-status {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.tmsc-badge-item.unlocked .tmsc-badge-status {
+  color: #4ade80;
+}
+
+/* Boss Floor & Boss Card Styling */
+.card.tier5,
+.card.boss-card {
+  background: linear-gradient(135deg, #3b0764 0%, #831843 50%, #581c87 100%) !important;
+  border: 2px solid #facc15 !important;
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.7), inset 0 0 12px rgba(253, 224, 71, 0.4) !important;
+  position: relative;
+  overflow: hidden;
+}
+.card.tier5 .card-name,
+.card.boss-card .card-name {
+  color: #fef08a !important;
+  font-weight: 900 !important;
+  text-shadow: 0 0 6px rgba(234, 179, 8, 0.8);
+}
+.card.tier5 .hp,
+.card.boss-card .hp {
+  color: #f43f5e !important;
+  font-weight: 900 !important;
+  font-size: 1.1rem !important;
+  text-shadow: 0 0 8px rgba(244, 63, 94, 0.9);
+}
+
+.brick-boss-floor {
+  background: linear-gradient(135deg, #7e22ce 0%, #be123c 100%) !important;
+  border: 2px solid #f43f5e !important;
+  animation: bossPulse 2s infinite ease-in-out;
+}
+
+@keyframes bossPulse {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(225, 29, 72, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 22px rgba(168, 85, 247, 0.85);
+  }
+}
+
+/* Boss Floor Warning Overlay Styles */
+.boss-warning-card {
+  background: linear-gradient(145deg, #1e092b 0%, #0f0318 100%);
+  border: 2px solid #f43f5e;
+  box-shadow: 0 0 45px rgba(244, 63, 94, 0.6), inset 0 0 25px rgba(168, 85, 247, 0.35);
+  border-radius: 20px;
+  padding: 28px 24px;
+  max-width: 440px;
+  width: 100%;
+  text-align: center;
+  position: relative;
+  animation: bossCardPop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes bossCardPop {
+  0% { transform: scale(0.8) translateY(25px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.boss-warning-icon-wrap {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  margin: 0 auto 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.boss-warning-icon {
+  font-size: 3.8rem;
+  line-height: 1;
+  animation: bossIconPulse 1.8s infinite ease-in-out;
+  filter: drop-shadow(0 0 14px #f43f5e);
+}
+
+@keyframes bossIconPulse {
+  0%, 100% { transform: scale(1) translateY(0); filter: drop-shadow(0 0 12px #f43f5e); }
+  50% { transform: scale(1.18) translateY(-6px); filter: drop-shadow(0 0 26px #a855f7); }
+}
+
+.boss-warning-flame-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px dashed #f43f5e;
+  animation: flameRingSpin 8s linear infinite, flameRingGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes flameRingSpin {
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes flameRingGlow {
+  0% { box-shadow: 0 0 10px #f43f5e, inset 0 0 10px #f43f5e; }
+  100% { box-shadow: 0 0 25px #a855f7, inset 0 0 20px #a855f7; }
+}
+
+.boss-warning-tag {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #f43f5e;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  text-shadow: 0 0 8px rgba(244, 63, 94, 0.6);
+}
+
+.boss-warning-title {
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #ffffff;
+  margin: 0 0 14px;
+  text-shadow: 0 0 15px rgba(244, 63, 94, 0.8);
+}
+.boss-warning-title span {
+  color: #facc15;
+}
+
+.boss-warning-details {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.boss-warning-boss-name {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: #fef08a;
+  margin-bottom: 6px;
+  text-shadow: 0 0 10px rgba(250, 204, 21, 0.6);
+}
+
+.boss-warning-hp-badge {
+  display: inline-block;
+  background: rgba(244, 63, 94, 0.2);
+  border: 1px solid #f43f5e;
+  border-radius: 20px;
+  padding: 4px 14px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #fecdd3;
+  margin-bottom: 10px;
+}
+
+.boss-warning-aura-desc {
+  font-size: 0.82rem;
+  color: #e2e8f0;
+  line-height: 1.45;
+  margin: 0;
+}
+.boss-warning-aura-desc strong {
+  color: #c084fc;
+  font-weight: 800;
+}
+
+.boss-engage-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #be123c 0%, #7e22ce 100%);
+  border: 2px solid #facc15;
+  border-radius: 12px;
+  padding: 14px 20px;
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: #ffffff;
+  cursor: pointer;
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 0 20px rgba(225, 29, 72, 0.6);
+  transition: all 0.2s ease;
+}
+.boss-engage-btn:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 0 32px rgba(225, 29, 72, 0.95);
+}
+
+/* Barbod Dust Storm Overlay */
+.dust-storm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9990;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(180, 130, 60, 0.65) 0%, rgba(120, 80, 30, 0.85) 70%, rgba(60, 40, 10, 0.98) 100%);
+  backdrop-filter: blur(5px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: dustIn 0.35s ease-out forwards;
+}
+.dust-storm-overlay.fade-out {
+  animation: dustOut 0.6s ease-in forwards;
+}
+@keyframes dustIn {
+  0% { opacity: 0; transform: scale(1.15); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes dustOut {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.dust-storm-text {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #fef08a;
+  text-shadow: 0 0 12px #ca8a04, 0 0 20px #000;
+  text-align: center;
+  padding: 14px 28px;
+  background: rgba(15, 8, 3, 0.85);
+  border: 2px solid #eab308;
+  border-radius: 14px;
+  box-shadow: 0 0 25px rgba(234, 179, 8, 0.6);
+  animation: dustTextPulse 0.5s ease-in-out infinite alternate;
+}
+@keyframes dustTextPulse {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.06); }
 }
 
 

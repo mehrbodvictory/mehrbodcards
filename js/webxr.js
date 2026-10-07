@@ -487,7 +487,7 @@ function createThemeFloorTexture(theme) {
       ctx.fill();
     }
   } else if (theme === 'mrmoney' || theme === 'sovereign') {
-    // Luxury Emerald Casino Velvet & Inlaid Gold Coin Medallions
+    // Luxury Emerald Velvet & Inlaid Gold Coin Medallions
     ctx.fillStyle = (theme === 'sovereign') ? '#180a2b' : '#02241b';
     ctx.fillRect(0, 0, 512, 512);
 
@@ -3834,7 +3834,7 @@ function animateXR() {
       const prizeList = [
         { name: '100 Bux', bux: 100 },
         { name: '250 Bux', bux: 250 },
-        { name: '500 Bux Jackpot', bux: 500 },
+        { name: '500 Bux Grand Prize', bux: 500 },
         { name: 'Exclusive Velvet Sleeve', bux: 200 },
         { name: '150 Bux', bux: 150 },
         { name: 'Mythic Crown Bonus (+350 Bux)', bux: 350 }

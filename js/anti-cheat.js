@@ -106,20 +106,17 @@ const AntiCheat = (function() {
     return { valid: true };
   }
 
-  // --- Layer 5: Spell Points (SP/Mana) & Cooldown Anti-Exhaustion Guard ---
+  // --- Layer 5: Spell Points (SP/Mana) & Hand Verification Guard ---
   function validateSpellCostAndCooldown(gameState, action) {
     const actType = action.type || action.kind;
     if (actType !== 'spell') return { valid: true };
     const { player, spellId } = action;
     if (!gameState) return { valid: true };
     const pState = (gameState.players && gameState.players[player]) || gameState[player];
-    if (!pState) return { valid: true };
-    if (typeof SPELL_DEFS === 'undefined') return { valid: true };
-    const spellDef = Array.isArray(SPELL_DEFS) ? SPELL_DEFS.find(s => s && s.id === spellId) : SPELL_DEFS[spellId];
-    if (!spellDef) return { valid: true }; // Allow through if def is handled elsewhere
-    const cost = spellDef.cost || 0;
-    if ((pState.sp || 0) < cost) {
-      return { valid: false, reason: `Insufficient SP for ${spellDef.name} (requires ${cost}, have ${pState.sp || 0})` };
+    if (!pState || !Array.isArray(pState.spells)) return { valid: true };
+    const hasSpell = pState.spells.some(s => s && (s.id === spellId || s.defId === spellId));
+    if (!hasSpell) {
+      return { valid: false, reason: 'Spell is not in player hand' };
     }
     return { valid: true };
   }
@@ -141,7 +138,8 @@ const AntiCheat = (function() {
     }
   }
 
-  function validateCardPlacementQuota(player, archetypeId) {
+  function validateCardPlacementQuota(player, archetypeId, cardTier) {
+    if (cardTier === 1) return { valid: true }; // Blue cards are replenishable
     const tracker = matchDeckUsage.get(player);
     if (!tracker || !tracker.allocated) return { valid: true }; // Single player / unconstrained fallback
     const idStr = String(archetypeId);
@@ -358,7 +356,7 @@ const AntiCheat = (function() {
       if (!slotCheck.valid) return slotCheck;
 
       if (action.archetypeId) {
-        const quotaCheck = validateCardPlacementQuota(action.player, action.archetypeId);
+        const quotaCheck = validateCardPlacementQuota(action.player, action.archetypeId, action.tier || 1);
         if (!quotaCheck.valid) return quotaCheck;
       }
     }

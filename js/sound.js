@@ -1116,7 +1116,7 @@ const Sound = (function () {
       };
     },
 
-    // 13. MR MONEY: Velvet high-roller lounge pad & subtle golden coin shimmers
+    // 13. MR MONEY: Velvet grand tycoon lounge pad & subtle golden coin shimmers
     mrmoney(c, dest) {
       const t0 = c.currentTime;
       const trackGain = c.createGain();
@@ -3347,7 +3347,7 @@ const Sound = (function () {
     },
     cashRain() {
       duckAmbient(3000, 0.2);
-      // Continuous coin clinks + register KA-CHING + jackpot fanfare
+      // Continuous coin clinks + register KA-CHING + grand victory fanfare
       [0, 0.12, 0.25, 0.38, 0.52, 0.68, 0.85, 1.05, 1.25, 1.5, 1.8].forEach((d, i) => {
         tone(2400 + (i % 4) * 400, 0.06, 'sine', 0.09, d);
         tone(3600 + (i % 3) * 500, 0.05, 'triangle', 0.07, d + 0.015);

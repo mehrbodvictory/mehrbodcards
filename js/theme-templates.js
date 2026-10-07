@@ -322,34 +322,68 @@ window.THEME_TEMPLATES = {
   `,
   astral: `
     <div id="theme-astral-bg" aria-hidden="true">
-      <div class="astral-space-gradient"></div>
-      <div class="astral-nebula n1"></div>
-      <div class="astral-nebula n2"></div>
-      <div class="astral-nebula n3"></div>
-      <div class="astral-vortex-outer"></div>
-      <div class="astral-vortex-inner"></div>
-      <div class="astral-accretion-disk"></div>
-      <div class="astral-singularity-core"></div>
-      <div class="astral-pulsar-beam v"></div>
-      <div class="astral-pulsar-beam h"></div>
-      <div class="astral-glyph g1"></div>
-      <div class="astral-glyph g2"></div>
-      <div class="astral-star as1"></div>
-      <div class="astral-star as2"></div>
-      <div class="astral-star as3"></div>
-      <div class="astral-star as4"></div>
-      <div class="astral-star as5"></div>
-      <div class="astral-star as6"></div>
-      <div class="astral-star as7"></div>
-      <div class="astral-star as8"></div>
-      <div class="astral-star as9"></div>
-      <div class="astral-star as10"></div>
-      <div class="astral-star as11"></div>
-      <div class="astral-star as12"></div>
-      <div class="astral-star as13"></div>
-      <div class="astral-star as14"></div>
-      <div class="astral-comet ac1"></div>
-      <div class="astral-comet ac2"></div>
+      <div class="astral-space-warp"></div>
+      <div class="astral-nebula-field">
+        <div class="astral-nebula n-violet"></div>
+        <div class="astral-nebula n-cyan"></div>
+        <div class="astral-nebula n-rose"></div>
+        <div class="astral-nebula n-gold"></div>
+        <div class="astral-nebula n-deep"></div>
+      </div>
+      <div class="astral-singularity-rig">
+        <div class="astral-grav-lens"></div>
+        <div class="astral-accretion-outer"></div>
+        <div class="astral-accretion-core"></div>
+        <div class="astral-photon-sphere"></div>
+        <div class="astral-singularity-void"></div>
+        <div class="astral-jet-beam top"></div>
+        <div class="astral-jet-beam btm"></div>
+        <div class="astral-pulsar-burst"></div>
+        <div class="astral-halo-ring r1"></div>
+        <div class="astral-halo-ring r2"></div>
+        <div class="astral-halo-ring r3"></div>
+      </div>
+      <div class="astral-constellations">
+        <div class="astral-const-line cl1"></div>
+        <div class="astral-const-line cl2"></div>
+        <div class="astral-const-line cl3"></div>
+      </div>
+      <div class="astral-star-field">
+        <div class="astral-star as1"></div>
+        <div class="astral-star as2"></div>
+        <div class="astral-star as3"></div>
+        <div class="astral-star as4"></div>
+        <div class="astral-star as5"></div>
+        <div class="astral-star as6"></div>
+        <div class="astral-star as7"></div>
+        <div class="astral-star as8"></div>
+        <div class="astral-star as9"></div>
+        <div class="astral-star as10"></div>
+        <div class="astral-star as11"></div>
+        <div class="astral-star as12"></div>
+        <div class="astral-star as13"></div>
+        <div class="astral-star as14"></div>
+        <div class="astral-star as15"></div>
+        <div class="astral-star as16"></div>
+        <div class="astral-star as17"></div>
+        <div class="astral-star as18"></div>
+        <div class="astral-star as19"></div>
+        <div class="astral-star as20"></div>
+      </div>
+      <div class="astral-motes">
+        <div class="astral-mote m1"></div>
+        <div class="astral-mote m2"></div>
+        <div class="astral-mote m3"></div>
+        <div class="astral-mote m4"></div>
+        <div class="astral-mote m5"></div>
+        <div class="astral-mote m6"></div>
+      </div>
+      <div class="astral-comets">
+        <div class="astral-comet ac1"></div>
+        <div class="astral-comet ac2"></div>
+        <div class="astral-comet ac3"></div>
+        <div class="astral-comet ac4"></div>
+      </div>
     </div>
   `,
   verdant: `
