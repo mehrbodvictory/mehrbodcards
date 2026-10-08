@@ -3761,6 +3761,12 @@ function spawnCastEffect(ownerKey, slot, kind, amount, tier) {
     slotEl.appendChild(fx);
     setTimeout(() => fx.remove(), 500);
     Sound.defend();
+  } else if (kind === 'dustStorm' || kind === 'soulHarvest' || kind === 'doubleStrike' || kind === 'hellfireBlast' || kind === 'goldenTouch') {
+    const fx = document.createElement('div');
+    fx.className = `${kind}-fx`;
+    slotEl.appendChild(fx);
+    setTimeout(() => fx.remove(), 800);
+    Sound.abilityPing();
   } else if (kind === 'merge') {
     const fx = document.createElement('div');
     fx.className = 'merge-fx';
@@ -3832,6 +3838,12 @@ function playFx(fxList) {
   trackDamageStats(fxList);
   (fxList || []).forEach(evt => {
     switch (evt.type) {
+      case 'barbodsDust': {
+        if (typeof window.triggerDustStormEffect === 'function') {
+          window.triggerDustStormEffect();
+        }
+        break;
+      }
       case 'merge': {
         const cardCount = evt.cardCount || 2;
         const big = cardCount > 2 || evt.resultTier === 4;
@@ -3932,6 +3944,10 @@ function playFx(fxList) {
         const whose = evt.owner === localKey ? 'your' : (mode === 'bot' ? "the bot's" : "your opponent's");
         showToast(`🗑 ${evt.cardName} removed from ${whose} deck`, 1600);
         Sound.block();
+        break;
+      }
+      case 'bossSpecialty': {
+        spawnCastEffect(evt.owner, evt.slot, evt.kind);
         break;
       }
       case 'suddenDeath': {
@@ -8807,7 +8823,7 @@ const SPELL_RARITIES = {
   bolt5:       { class: 'epic',     name: 'EPIC',     effectText: '5 DMG' },
   mend3:       { class: 'uncommon', name: 'UNCOMMON', effectText: '3 HEAL' },
   purge:       { class: 'rare',     name: 'RARE',     effectText: 'REFRESH DEF' },
-  chainbolt:   { class: 'epic',     name: 'EPIC',     effectText: '2+1 SPLASH' },
+  splashbolt:   { class: 'epic',     name: 'EPIC',     effectText: '2+1 SPLASH' },
   massmend:    { class: 'legendary',name: 'LEGENDARY',effectText: 'ALL HEAL 2' },
   weaken:      { class: 'rare',     name: 'RARE',     effectText: '-2 DMG' },
   adrenaline:  { class: 'exotic',   name: 'EXOTIC',   effectText: '+3 DMG' },

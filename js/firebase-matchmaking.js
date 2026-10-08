@@ -291,8 +291,8 @@ class FirebaseRealtimeSession {
           actions: updated,
           updatedAt: Date.now()
         });
-      }).catch(() => {});
-    } catch (e) {}
+      }).catch((err) => console.error('[Firebase] submitAction transaction failed:', err));
+    } catch (e) { console.error('[Firebase] submitAction transaction error:', e); }
   }
 
   sendSignal(type, payload = {}) {

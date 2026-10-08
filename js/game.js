@@ -1101,7 +1101,15 @@ function setAttack(state, playerKey, slot, targetOwnerKey, targetSlot) {
   // spell/chip before the simultaneous resolution runs, its queued attack
   // (resolved at the start of next placement round) still uses these values.
   const lifestealAmount = cardHasChip(card, 'chip_vampiric') ? 2 : (cardHasChip(card, 'chip_lifeblood') ? 1 : 0);
-  p.attackAssignments[slot] = { targetOwner: targetOwnerKey, targetSlot, dmg: card.dmg, pierce: card.ability === 'onattack_pierce', splash: card.ability === 'red_onattack_splash1', doubleStrike: card.ability === 'red_onattack_doublestrike', lifesteal: lifestealAmount, sourceName: card.name };
+  
+  let dmg = card.dmg;
+  const bossBaneCount = (state.trialTowerModifiers && Array.isArray(state.trialTowerModifiers)) ? state.trialTowerModifiers.filter(m => m === 'boss_bane').length : 0;
+  const target = state.players[targetOwnerKey].board[targetSlot];
+  if (target && (target.isBossCard || target.tier === 5) && bossBaneCount > 0) {
+    dmg += bossBaneCount * 2;
+  }
+  
+  p.attackAssignments[slot] = { targetOwner: targetOwnerKey, targetSlot, dmg: dmg, pierce: card.ability === 'onattack_pierce', splash: card.ability === 'red_onattack_splash1', doubleStrike: card.ability === 'red_onattack_doublestrike', lifesteal: lifestealAmount, sourceName: card.name };
   return { ok: true };
 }
 
@@ -1424,6 +1432,7 @@ function startPlacementPhase(state) {
           if (bossUnit) {
             bossUnit.hp = Math.min(bossUnit.maxHp, bossUnit.hp + drainedHp);
             pushLog(state, `💀 Soul Drain siphons ${drainedHp} HP from player cards to ${bossUnit.name}!`);
+            pushFx(state, { type: 'bossSpecialty', owner: 'bot', slot: botP.board.indexOf(bossUnit), kind: 'soulHarvest' });
           }
         }
       }
@@ -1437,12 +1446,20 @@ function startPlacementPhase(state) {
             pushLog(state, `🌋 Hellfire Blast sears ${c.name} for 2 burn damage!`);
           }
         });
+        const bossUnit = botP.board.find(c => c && (c.isBossCard || c.tier === 5));
+        if (bossUnit) {
+          pushFx(state, { type: 'bossSpecialty', owner: 'bot', slot: botP.board.indexOf(bossUnit), kind: 'hellfireBlast' });
+        }
       }
     }
     if (state.trialTowerModifiers.includes('boss_iron_wall')) {
       // Trigger dust storm on round 4, 8, 12, etc. (every 4 rounds)
       if (state.round > 1 && (state.round % 4 === 0)) {
         pushLog(state, `💨 Barbod throws blinding scam dust at the screen!`);
+        const bossUnit = botP.board.find(c => c && (c.isBossCard || c.tier === 5));
+        if (bossUnit) {
+          pushFx(state, { type: 'bossSpecialty', owner: 'bot', slot: botP.board.indexOf(bossUnit), kind: 'dustStorm' });
+        }
         if (typeof window !== 'undefined' && typeof window.triggerBarbodDustEffect === 'function') {
           setTimeout(() => {
             window.triggerBarbodDustEffect();

@@ -514,8 +514,12 @@ class NetSession {
     this.onApplied = (action) => {
       if (!action) return;
       const actId = action.id || `act_${action.player || ''}_${action.type || ''}_${action.slot ?? ''}_${action.spellId ?? ''}_${action.chipId ?? ''}`;
-      if (this.processedActionIds.has(actId)) return;
+      if (this.processedActionIds.has(actId)) {
+        console.log('[NetSession] Action filtered (already processed):', actId);
+        return;
+      }
       this.processedActionIds.add(actId);
+      console.log('[NetSession] Action applied:', actId);
       if (onApplied) onApplied(action);
     };
 

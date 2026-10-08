@@ -2237,6 +2237,76 @@ const TOWER_MODIFIER_POOL = [
     icon: '[SB]',
     tag: 'STATS',
     desc: 'Every unit you place on the board gains +2 ATK and +2 HP. Stacks stats!'
+  },
+  {
+    id: 'boss_bane',
+    name: 'Boss Bane',
+    icon: '[BB]',
+    tag: 'BOSS',
+    desc: 'Your units deal +2 damage to Boss units. Stacks damage!'
+  },
+  {
+    id: 'mana_surge',
+    name: 'Mana Surge',
+    icon: '[MS]',
+    tag: 'MANA',
+    desc: 'Start battles with +1 extra Mana. Stacks mana!'
+  },
+  {
+    id: 'quick_draw',
+    name: 'Quick Draw',
+    icon: '[QD]',
+    tag: 'DRAW',
+    desc: 'Draw 1 extra card at the start of each round. Stacks draw!'
+  },
+  {
+    id: 'lucky_strike',
+    name: 'Lucky Strike',
+    icon: '[LS]',
+    tag: 'CRIT',
+    desc: '10% chance for units to deal double damage. Stacks chance!'
+  },
+  {
+    id: 'hasty_retreat',
+    name: 'Hasty Retreat',
+    icon: '[HR]',
+    tag: 'SURVIVE',
+    desc: 'Units return to hand on fatal damage (once per battle). Stacks charges!'
+  },
+  {
+    id: 'vampiric_touch',
+    name: 'Vampiric Touch',
+    icon: '[VT]',
+    tag: 'HEAL',
+    desc: 'Attacks heal for 1 HP. Stacks healing!'
+  },
+  {
+    id: 'armor_pierce',
+    name: 'Armor Pierce',
+    icon: '[AP]',
+    tag: 'PEN',
+    desc: 'Attacks ignore 1 Shield HP. Stacks penetration!'
+  },
+  {
+    id: 'echo_chamber',
+    name: 'Echo Chamber',
+    icon: '[EC]',
+    tag: 'SPELL',
+    desc: 'The first spell you cast each round is played twice. Stacks!'
+  },
+  {
+    id: 'crystal_heart',
+    name: 'Crystal Heart',
+    icon: '[CH]',
+    tag: 'HP',
+    desc: 'All units gain +5 Max HP. Stacks HP!'
+  },
+  {
+    id: 'shadow_step',
+    name: 'Shadow Step',
+    icon: '[SS]',
+    tag: 'SPEED',
+    desc: 'Units gain +1 Speed (attack sooner). Stacks speed!'
   }
 ];
 
