@@ -4210,6 +4210,7 @@ async function beginHost(wagerAmount, hostDeckConfig) {
       if (currentWager > 0) { addBux(currentWager); currentWager = 0; }
     },
     onForfeit: () => handleOpponentForfeit(),
+    onEmote: (emoji) => triggerEmote(remoteKey, emoji),
     onPing: (latency) => updatePingUI(latency),
     onRematchOffer: () => handleIncomingRematchOffer(),
     onRematchAccept: () => handleIncomingRematchAccept(),
@@ -4285,6 +4286,7 @@ document.getElementById('btn-join-confirm').addEventListener('click', async () =
     },
     onPeerError: (err) => { document.getElementById('join-status').textContent = err.message || ('Notice: ' + err.type); },
     onForfeit: () => handleOpponentForfeit(),
+    onEmote: (emoji) => triggerEmote(remoteKey, emoji),
     onPing: (latency) => updatePingUI(latency),
     onRematchOffer: () => handleIncomingRematchOffer(),
     onRematchAccept: () => handleIncomingRematchAccept(),
@@ -4463,6 +4465,7 @@ async function handleHostLanMatch(roomName, hostDeckConfig) {
       showToast(err.message || ('Notice: ' + err.type));
     },
     onForfeit: () => handleOpponentForfeit(),
+    onEmote: (emoji) => triggerEmote(remoteKey, emoji),
     onPing: (latency) => updatePingUI(latency, true),
     onRematchOffer: () => handleIncomingRematchOffer(),
     onRematchAccept: () => handleIncomingRematchAccept(),
@@ -4524,6 +4527,7 @@ async function handleJoinLanMatch(code, roomInfo) {
       showToast(err.message || ('Notice: ' + err.type));
     },
     onForfeit: () => handleOpponentForfeit(),
+    onEmote: (emoji) => triggerEmote(remoteKey, emoji),
     onPing: (latency) => updatePingUI(latency, true),
     onRematchOffer: () => handleIncomingRematchOffer(),
     onRematchAccept: () => handleIncomingRematchAccept(),
@@ -4978,6 +4982,7 @@ async function beginMatchmaking(deckConfig) {
           console.warn('[Matchmaking Guest Notice]:', err);
         },
         onForfeit: () => handleOpponentForfeit(),
+        onEmote: (emoji) => triggerEmote(remoteKey, emoji),
         onPing: (latency) => updatePingUI(latency),
         onRematchOffer: () => handleIncomingRematchOffer(),
         onRematchAccept: () => handleIncomingRematchAccept(),
@@ -5090,6 +5095,7 @@ async function startHostingMatchmaking(deckConfig) {
       console.warn('[Matchmaking Host Notice]:', err);
     },
     onForfeit: () => handleOpponentForfeit(),
+    onEmote: (emoji) => triggerEmote(remoteKey, emoji),
     onPing: (latency) => updatePingUI(latency),
     onRematchOffer: () => handleIncomingRematchOffer(),
     onRematchAccept: () => handleIncomingRematchAccept(),
@@ -6523,6 +6529,7 @@ function playCombatAnimation(snapshot, fx, doneCallback, playbackSpeedModifier =
 
 let _lastRenderedPhaseRound = null;
 function render() {
+  if (isTabHidden) return;
   if (!state) return;
   
   const currentPR = state.phase + ':' + state.round;
@@ -12687,10 +12694,15 @@ function ensurePlayerNameThen(action) {
   else showPlayerNamePrompt(action);
 }
 
+let isTabHidden = false;
 restoreInventoryBackupIfTampered();
 window.addEventListener('focus', restoreInventoryBackupIfTampered);
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) restoreInventoryBackupIfTampered();
+  isTabHidden = document.hidden;
+  if (!document.hidden) {
+    restoreInventoryBackupIfTampered();
+    if (typeof state !== 'undefined' && state) render();
+  }
 });
 
 if (!hasTutorialBeenSeen()) {

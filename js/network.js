@@ -163,8 +163,8 @@ class ServerRelaySession {
     if (!action.id) {
       action.id = 'act_' + (this.isHost ? 'host' : 'guest') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
     }
+    this.onApplied(action);
     if (this.isHost) {
-      this.onApplied(action);
       this._sendMsg({ type: 'applied', action });
     } else {
       this._sendMsg({ type: 'intent', action });
@@ -840,9 +840,7 @@ class NetSession {
     if (!action.id) {
       action.id = 'act_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
     }
-    if (this.isHost) {
-      this.onApplied(action);
-    }
+    this.onApplied(action);
     if (this.firebaseSession) {
       this.firebaseSession.submitAction(action);
     }

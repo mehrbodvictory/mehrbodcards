@@ -277,6 +277,8 @@ class FirebaseRealtimeSession {
       action.id = 'act_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
     }
 
+    this.onApplied(action);
+
     try {
       const roomRef = doc(db, 'mp_rooms', this.roomCode);
       runTransaction(db, async (txn) => {
