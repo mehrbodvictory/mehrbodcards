@@ -2278,6 +2278,11 @@ function showBossFloorWarningOverlay(floor, onEngage) {
     auraEl.innerHTML = `<strong>⚡ ${bossDef.bossModifier.name}</strong><br>${bossDef.bossModifier.desc}`;
   }
 
+  const tauntEl = document.getElementById('bfw-boss-taunt');
+  if (tauntEl) {
+    tauntEl.textContent = `"${bossDef.taunt || 'Prepare to face your doom!'}"`;
+  }
+
   const iconEl = document.getElementById('bfw-boss-icon');
   if (iconEl) {
     iconEl.textContent = floor === 50 ? '👑' : '💀';
@@ -2300,6 +2305,9 @@ function showBossFloorWarningOverlay(floor, onEngage) {
   }
 
   overlay.classList.remove('hidden');
+  overlay.style.animation = 'none';
+  overlay.offsetHeight;
+  overlay.style.animation = '';
   if (typeof Sound !== 'undefined' && Sound.meteorBoom) Sound.meteorBoom();
   if (typeof vibrate === 'function') vibrate([40, 60, 80]);
 }

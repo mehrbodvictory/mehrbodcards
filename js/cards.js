@@ -16,6 +16,7 @@ const BOSS_DEFINITIONS = {
     floor: 10,
     name: 'Barbod',
     avatar: '🌪️',
+    taunt: "Feel the fury of the blinding dust storm! You won't survive this floor.",
     bossCard: {
       archetypeId: 'boss_barbod',
       kind: 'unit',
@@ -41,6 +42,7 @@ const BOSS_DEFINITIONS = {
     floor: 20,
     name: 'Big Chungus',
     avatar: '🥕',
+    taunt: "You dare challenge Big Chungus? Prepare to be crushed into carrots!",
     bossCard: {
       archetypeId: 'boss_big_chungus',
       kind: 'unit',
@@ -66,6 +68,7 @@ const BOSS_DEFINITIONS = {
     floor: 30,
     name: 'Diddy',
     avatar: '🎩',
+    taunt: "Double strike, double trouble! Your cards won't even see it coming.",
     bossCard: {
       archetypeId: 'boss_diddy',
       kind: 'unit',
@@ -91,6 +94,7 @@ const BOSS_DEFINITIONS = {
     floor: 40,
     name: 'Zeus',
     avatar: '⚡',
+    taunt: "Feel the wrath of the heavens! Let the lightning consume your cards!",
     bossCard: {
       archetypeId: 'boss_zeus',
       kind: 'unit',
@@ -116,6 +120,7 @@ const BOSS_DEFINITIONS = {
     floor: 50,
     name: 'Midas',
     avatar: '👑',
+    taunt: "Everything I touch turns to gold—including your defeat! Kneel before Midas!",
     bossCard: {
       archetypeId: 'boss_midas',
       kind: 'unit',

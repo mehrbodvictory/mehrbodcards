@@ -1031,6 +1031,9 @@ function setDefend(state, playerKey, slot) {
   const p = state.players[playerKey];
   const card = p.board[slot];
   if (!card) return { ok: false, error: 'no card in slot' };
+  if (card.isBossCard || card.tier === 5 || (typeof trialTowerActive !== 'undefined' && trialTowerActive && playerKey !== localKey)) {
+    return { ok: false, error: 'Trial Tower bosses and boss cards cannot defend' };
+  }
   if (card.cannotDefend || card.sanctioned) return { ok: false, error: 'this card is Sanctioned and cannot defend for the entire match' };
   if (card.disabledTurns > 0) return { ok: false, error: 'this card is under All Aura and cannot defend' };
   const tierInfo = TIERS[card.tier];
@@ -1082,8 +1085,9 @@ function readyPlacement(state, playerKey) {
   if (blocked) return blocked;
   const p = state.players[playerKey];
   const hasPlayable = (p.deck || []).some(c => c && c.tier === 1) || (p.spells || []).length > 0 || (p.chips || []).length > 0;
-  if (!p.didActionThisRound && hasPlayable) {
-    return { ok: false, error: 'You must place, merge, cast a spell, or attach a chip before readying up!' };
+  const hasDefending = p.defendingSlots && Object.values(p.defendingSlots).some(Boolean);
+  if (hasDefending && !p.didActionThisRound && hasPlayable) {
+    return { ok: false, error: 'You must place, merge, cast a spell, or attach a chip while defending before readying up!' };
   }
   p.readyPlacement = true;
   const allReady = state.order.every(k => state.players[k].readyPlacement);
