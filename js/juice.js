@@ -2133,17 +2133,32 @@ function loadTrialTowerState() {
     const s = JSON.parse(localStorage.getItem(TRIAL_TOWER_KEY) || 'null');
     if (s && typeof s.floor === 'number') {
       if (!Array.isArray(s.modifiers)) s.modifiers = [];
+      if (!s.activeDebuff) s.activeDebuff = null;
       return s;
     }
   } catch (e) {}
-  return { floor: 1, best: 0, pendingResult: null, lastRunFloor: 1, modifiers: [] };
+  return { floor: 1, best: 0, pendingResult: null, lastRunFloor: 1, modifiers: [], activeDebuff: null };
 }
 function saveTrialTowerState(s) {
   try {
     if (!Array.isArray(s.modifiers)) s.modifiers = [];
+    if (!s.activeDebuff) s.activeDebuff = null;
     localStorage.setItem(TRIAL_TOWER_KEY, JSON.stringify(s));
   } catch (e) {}
 }
+
+const TOWER_DEBUFF_POOL = [
+  { id: 'd1', name: 'Weakness', desc: 'All units -1 ATK.' },
+  { id: 'd2', name: 'Fragility', desc: 'All units -1 HP.' },
+  { id: 'd3', name: 'Slowness', desc: 'Attacks happen slower.' },
+  { id: 'd4', name: 'Curse', desc: 'Units deal -2 damage.' },
+  { id: 'd5', name: 'Poison', desc: 'Units lose 1 HP every turn.' },
+  { id: 'd6', name: 'Blindness', desc: 'Accuracy reduced.' },
+  { id: 'd7', name: 'Silence', desc: 'Abilities disabled.' },
+  { id: 'd8', name: 'Vulnerability', desc: 'Damage taken +1.' },
+  { id: 'd9', name: 'Exhaustion', desc: 'Cannot attack every turn.' },
+  { id: 'd10', name: 'Decay', desc: 'Healing reduced by 50%.' }
+];
 
 const TOWER_MODIFIER_POOL = [
   {
@@ -2208,6 +2223,20 @@ const TOWER_MODIFIER_POOL = [
     icon: '[SI]',
     tag: 'BURN',
     desc: 'Every attack ignites the defender for 2 bonus lingering burn damage. Stacks burn!'
+  },
+  {
+    id: 'berserker',
+    name: 'Berserker Rage',
+    icon: '[R]',
+    tag: 'BURST',
+    desc: 'Every unit you place on the board gains +2 ATK, but -1 HP. Stacks stats!'
+  },
+  {
+    id: 'spirit',
+    name: 'Spirit Bond',
+    icon: '[SB]',
+    tag: 'STATS',
+    desc: 'Every unit you place on the board gains +2 ATK and +2 HP. Stacks stats!'
   }
 ];
 
@@ -2215,6 +2244,12 @@ window.getActiveTowerModifiers = function () {
   if (!trialTowerActive) return [];
   const s = loadTrialTowerState();
   return Array.isArray(s.modifiers) ? s.modifiers : [];
+};
+
+window.getActiveTowerDebuff = function () {
+  if (!trialTowerActive) return null;
+  const s = loadTrialTowerState();
+  return s.activeDebuff;
 };
 
 function towerFloorDifficulty(floor) {
@@ -2476,6 +2511,9 @@ function showTowerAscentModal(clearedFloor, reward, xp, unlockedTheme, unlockedM
       s.modifiers = s.modifiers || [];
       s.modifiers.push(selectedMod.id);
       s.floor = clearedFloor + 1;
+      if (s.floor % 10 === 0) {
+        s.activeDebuff = TOWER_DEBUFF_POOL[Math.floor(Math.random() * TOWER_DEBUFF_POOL.length)].id;
+      }
       s.pendingResult = null;
       saveTrialTowerState(s);
 

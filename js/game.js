@@ -69,6 +69,9 @@ function createMatch(seed, p1id = 'p1', p2id = 'p2', deckConfigs = {}) {
   if (typeof trialTowerActive !== 'undefined' && trialTowerActive && typeof getActiveTowerModifiers === 'function') {
     state.trialTowerModifiers = getActiveTowerModifiers().slice();
   }
+  if (typeof trialTowerActive !== 'undefined' && trialTowerActive && typeof getActiveTowerDebuff === 'function') {
+    state.activeDebuff = getActiveTowerDebuff();
+  }
   if (deckConfigs && deckConfigs.trialTowerModifiers) {
     state.trialTowerModifiers = deckConfigs.trialTowerModifiers.slice();
   }
@@ -528,6 +531,27 @@ function placeCard(state, playerKey, deckIndex, slot, cardId, archetypeId) {
         card.hp = Math.min(card.hp, card.maxHp);
         pushLog(state, `👑 Apex Supremacy Aura: ${card.name} max HP reduced to ${card.maxHp}!`);
       }
+      
+      const berserkCount = state.trialTowerModifiers.filter(m => m === 'berserker').length;
+      if (berserkCount > 0) {
+        card.dmg += 2 * berserkCount;
+        card.hp = Math.max(1, card.hp - 1 * berserkCount);
+        card.maxHp = Math.max(1, card.maxHp - 1 * berserkCount);
+        pushLog(state, `🔥 Berserker Rage: ${card.name} +${2 * berserkCount} ATK, -${1 * berserkCount} HP!`);
+      }
+      
+      const spiritCount = state.trialTowerModifiers.filter(m => m === 'spirit').length;
+      if (spiritCount > 0) {
+        card.dmg += 2 * spiritCount;
+        card.hp += 2 * spiritCount;
+        card.maxHp += 2 * spiritCount;
+        pushLog(state, `✨ Spirit Bond: ${card.name} +${2 * spiritCount} ATK, +${2 * spiritCount} HP!`);
+      }
+      
+      if (state.activeDebuff) {
+        applyDebuff(state, state.activeDebuff, card);
+        pushLog(state, `⚠️ Active Debuff: applied to ${card.name}!`);
+      }
     }
     if (playerKey === 'bot' || playerKey === state.order[1]) {
       if (card.name === 'Barbod' || card.archetypeId === 'boss_barbod') {
@@ -871,7 +895,7 @@ function castSpell(state, playerKey, spellInstanceId, targetOwnerKey, targetSlot
       const pBoard = state.players[pk].board;
       if (Array.isArray(pBoard)) {
         pBoard.forEach(c => {
-          if (c) c.hp = 1;
+          if (c && !c.isBossCard && c.tier !== 5) c.hp = 1;
         });
       }
     });
@@ -1477,6 +1501,21 @@ function emergencySalvage(state, playerKey, blueprintIndex) {
   pushFx(state, { type: 'emergencySalvage', owner: playerKey, removedName: removed.name });
   pushLog(state, `⚠️ ${playerKey} salvages ${removed.name} Blueprint into 2 Blue Units!`);
   return { ok: true, removedName: removed.name };
+}
+
+function applyDebuff(state, debuffId, card) {
+  switch (debuffId) {
+    case 'd1': card.atk = Math.max(0, card.atk - 1); break;
+    case 'd2': card.hp = Math.max(1, card.hp - 1); break;
+    case 'd3': card.atk = Math.max(0, card.atk - 1); card.hp = Math.max(1, card.hp - 1); break;
+    case 'd4': card.atk = Math.max(0, card.atk - 2); break;
+    case 'd5': card.hp = Math.max(1, card.hp - 1); break;
+    case 'd6': /* Accuracy reduction */ break;
+    case 'd7': /* Abilities disabled */ break;
+    case 'd8': /* Damage taken +1 */ break;
+    case 'd9': /* Cannot attack */ break;
+    case 'd10': /* Healing reduction */ break;
+  }
 }
 
 // Single entry point used by local UI, the bot, and the network layer so
