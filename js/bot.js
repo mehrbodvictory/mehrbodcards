@@ -266,7 +266,9 @@ function runBotAttack(state, botKey, difficulty, rng) {
     }
   });
 
-  readyAttack(state, botKey);
+  if (!state.players[botKey].readyAttack) {
+    readyAttack(state, botKey);
+  }
 }
 
 function executeSmartSpells(state, botKey, phase, rng, level) {
