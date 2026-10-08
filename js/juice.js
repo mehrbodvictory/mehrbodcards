@@ -2149,63 +2149,63 @@ const TOWER_MODIFIER_POOL = [
   {
     id: 'splash',
     name: 'Splash Wave',
-    icon: '🌊',
+    icon: '[W]',
     tag: 'OFFENSIVE',
     desc: 'Every attack blasts ALL other enemy cards for 50% splash damage. Stacks up to 100% and 150%!'
   },
   {
     id: 'crit',
     name: 'Critical Strike',
-    icon: '⚡',
+    icon: '[C]',
     tag: 'BURST',
     desc: '40% chance per attack to deal DOUBLE damage. Stacks trigger chance up to 90%!'
   },
   {
     id: 'vampiric',
     name: 'Vampiric Drain',
-    icon: '🩸',
+    icon: '[V]',
     tag: 'SUSTAIN',
     desc: 'Heal your attacking cards for 50% of all attack damage dealt. Stacks heal percentage!'
   },
   {
     id: 'overcharge',
     name: 'Overcharge Surge',
-    icon: '⚔️',
+    icon: '[O]',
     tag: 'STATS',
     desc: 'Every unit you place on the board permanently gains +2 ATK. Stacks +2 ATK per pick!'
   },
   {
     id: 'bastion',
     name: 'Bastion Plating',
-    icon: '🛡️',
+    icon: '[B]',
     tag: 'DEFENSE',
     desc: 'Every unit you place enters battle with +3 Shield HP. Stacks +3 HP per pick!'
   },
   {
     id: 'twin_strike',
     name: 'Twin Strike',
-    icon: '⚔️',
+    icon: '[2X]',
     tag: 'TEMPO',
     desc: 'Your Slot 0 Vanguard strikes twice every single round!'
   },
   {
     id: 'execute',
     name: 'Reaper Execution',
-    icon: '☠️',
+    icon: '[EX]',
     tag: 'LETHAL',
     desc: 'Instantly obliterates any enemy unit at or below 2 HP. Stacks threshold!'
   },
   {
     id: 'thorns',
     name: 'Thorns Matrix',
-    icon: '🌵',
+    icon: '[TH]',
     tag: 'REFLECT',
     desc: 'Reflects 2 damage back to attackers whenever your units are hit. Stacks reflect damage!'
   },
   {
     id: 'blaze',
     name: 'Solar Ignition',
-    icon: '🔥',
+    icon: '[SI]',
     tag: 'BURN',
     desc: 'Every attack ignites the defender for 2 bonus lingering burn damage. Stacks burn!'
   }
@@ -2603,7 +2603,7 @@ function updatePlayerPawnPosition(floor) {
 
   if (pawnTag) pawnTag.textContent = `Floor ${floor}`;
 
-  let avatar = '⚔️';
+  let avatar = 'P';
   if (typeof loadUserProfile === 'function') {
     const prof = loadUserProfile();
     if (prof && prof.avatar) avatar = prof.avatar;
@@ -2622,7 +2622,7 @@ function triggerTowerClashAnimation(clearedFloor, onDone) {
 
   if (!overlay) { if (onDone) onDone(); return; }
 
-  let userAvatar = '⚔️';
+  let userAvatar = 'P';
   let userName = 'Player';
   if (typeof loadUserProfile === 'function') {
     const prof = loadUserProfile();
@@ -2635,7 +2635,7 @@ function triggerTowerClashAnimation(clearedFloor, onDone) {
   if (pName) pName.textContent = userName;
 
   const diff = towerFloorDifficulty(clearedFloor);
-  if (eAvatar) eAvatar.textContent = '🤖';
+  if (eAvatar) eAvatar.textContent = 'AI';
   if (eName) eName.textContent = `${diff} AI`;
 
   overlay.classList.remove('hidden');
@@ -2753,7 +2753,7 @@ function towerFloorIntel(floor) {
 function updateTowerConsoleForFloor(floor, isCleared, isCurrent, isLocked, activeFloor, bestRecord) {
   const isBoss = typeof isBossFloor === 'function' && isBossFloor(floor);
   const bossDef = isBoss && typeof getBossDefinition === 'function' ? getBossDefinition(floor) : null;
-  const diff = isBoss ? '💀 BOSS' : towerFloorDifficulty(floor);
+  const diff = isBoss ? 'BOSS' : towerFloorDifficulty(floor);
   const reward = towerFloorReward(floor);
   const intel = towerFloorIntel(floor);
 
@@ -2766,7 +2766,7 @@ function updateTowerConsoleForFloor(floor, isCleared, isCurrent, isLocked, activ
   const floorTitle = document.getElementById('tower-console-floor-title');
   if (floorTitle) {
     if (isBoss) {
-      floorTitle.textContent = `💀 FLOOR ${floor} BOSS: ${bossDef.name}`;
+      floorTitle.textContent = `FLOOR ${floor} BOSS: ${bossDef.name}`;
     } else {
       floorTitle.textContent = isCurrent ? `Floor ${floor} Challenge` : (isCleared ? `Floor ${floor} (Cleared)` : `Floor ${floor} (Upcoming)`);
     }
@@ -2775,7 +2775,7 @@ function updateTowerConsoleForFloor(floor, isCleared, isCurrent, isLocked, activ
   const descEl = document.getElementById('tower-console-desc');
   if (descEl) {
     if (isBoss) {
-      descEl.textContent = `⚠️ BOSS ENCOUNTER! ${bossDef.name} (${bossDef.bossCard.hp} HP) awaits. Specialized Boss Aura: ${bossDef.bossModifier.name} (${bossDef.bossModifier.desc}).`;
+      descEl.textContent = `BOSS ENCOUNTER! ${bossDef.name} (${bossDef.bossCard.hp} HP) awaits. Specialized Boss Aura: ${bossDef.bossModifier.name} (${bossDef.bossModifier.desc}).`;
     } else {
       descEl.textContent = intel.desc;
     }
@@ -2799,10 +2799,10 @@ function updateTowerConsoleForFloor(floor, isCleared, isCurrent, isLocked, activ
   const startBtn = document.getElementById('btn-tower-page-begin');
   if (startBtn) {
     const s = loadTrialTowerState();
-    const modCount = (s && Array.isArray(s.modifiers) && s.modifiers.length > 0) ? ` [⚡ ${s.modifiers.length} Mods]` : '';
+    const modCount = (s && Array.isArray(s.modifiers) && s.modifiers.length > 0) ? ` [${s.modifiers.length} Mods]` : '';
     if (isBoss) {
       startBtn.disabled = false;
-      startBtn.innerHTML = `<span style="color:#f43f5e;font-weight:bold;">💀 Battle ${bossDef.name} (Floor ${floor})${modCount}</span>`;
+      startBtn.innerHTML = `<span style="color:#f43f5e;font-weight:bold;">Battle ${bossDef.name} (Floor ${floor})${modCount}</span>`;
       startBtn.style.opacity = '1';
     } else if (isCurrent) {
       startBtn.disabled = false;
@@ -2853,17 +2853,17 @@ function renderTrialTowerBricks(container, targetFloor, clearedUpTo) {
     if (isCurrent) brick.classList.add('current');
     if (isLocked) brick.classList.add('locked-preview');
 
-    const diff = isBoss ? '💀 BOSS' : towerFloorDifficulty(f);
+    const diff = isBoss ? 'BOSS' : towerFloorDifficulty(f);
     const reward = towerFloorReward(f);
 
     brick.innerHTML = `
       <div class="tower-brick-left">
-        <span class="tower-brick-num">${isBoss ? '💀 BOSS' : ''} Floor ${f}</span>
+        <span class="tower-brick-num">${isBoss ? 'BOSS' : ''} Floor ${f}</span>
         <span class="tower-brick-diff">${isBoss ? bossDef.name : diff}</span>
       </div>
       <div class="tower-brick-right">
         <span class="tower-brick-bounty">+${reward} Bux</span>
-        ${isCleared ? '<span class="tower-brick-check">✓</span>' : (isCurrent ? (isBoss ? '<span class="tower-brick-flag">💀</span>' : '<span class="tower-brick-flag">🚩</span>') : '<span style="font-size:0.75rem;opacity:0.6;">🔒</span>')}
+        ${isCleared ? '<span class="tower-brick-check">✓</span>' : (isCurrent ? (isBoss ? '<span class="tower-brick-flag">BOSS</span>' : '<span class="tower-brick-flag">NOW</span>') : '<span style="font-size:0.75rem;opacity:0.6;">✦</span>')}
       </div>
     `;
 
@@ -2911,7 +2911,7 @@ function playTowerAdvanceAnimation(stack, clearedFloor, newFloor, onDone) {
       </div>
       <div class="tower-brick-right">
         <span class="tower-brick-bounty">+${reward} Bux</span>
-        <span class="tower-brick-flag">🚩</span>
+        <span class="tower-brick-flag">NOW</span>
       </div>
     `;
     stack.insertBefore(newBrick, stack.firstChild);
@@ -3095,7 +3095,7 @@ function showTowerMilestonesModal() {
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
         <div>
           <h3 style="font-size: 1.35rem; font-weight: 800; color: #fde047; margin: 0; display: flex; align-items: center; gap: 8px;">
-            <span>🏆 Trial Lord Milestone Rewards</span>
+            <span>Trial Lord Milestone Rewards</span>
           </h3>
           <p style="font-size: 0.8rem; color: #a855f7; margin: 4px 0 0 0;">Highest Tower Floor Record: <b>Floor ${bestFloor}</b></p>
         </div>
@@ -3113,20 +3113,20 @@ function showTowerMilestonesModal() {
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
                   <span style="font-size: 0.95rem; font-weight: 800; color: ${unlocked ? '#fff' : '#94a3b8'};">Floor ${m.floor} · ${m.title}</span>
                   <span style="font-size: 0.7rem; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: ${unlocked ? 'rgba(74, 222, 128, 0.2)' : 'rgba(255,255,255,0.08)'}; color: ${unlocked ? '#4ade80' : '#64748b'}; border: 1px solid ${unlocked ? 'rgba(74, 222, 128, 0.4)' : 'transparent'};">
-                    ${unlocked ? 'UNLOCKED ✓' : `LOCKED 🔒 (Reach Floor ${m.floor})`}
+                    ${unlocked ? 'UNLOCKED' : `LOCKED (Reach Floor ${m.floor})`}
                   </span>
                 </div>
                 <div style="font-size: 0.78rem; color: #cbd5e1; margin-bottom: 8px;">${m.desc}</div>
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                   <button type="button" class="primary-btn small btn-equip-milestone-avatar" data-avatar-id="${m.avatarId}" ${!unlocked ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : 'style="background: linear-gradient(135deg, #a855f7, #6366f1); border:none;"'}>
-                    ✨ Equip Avatar
+                    Equip Avatar
                   </button>
                   <button type="button" class="secondary-btn small btn-equip-milestone-border" data-frame-class="${m.frameClass}" ${!unlocked ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>
-                    🖼️ Equip Border
+                    Equip Border
                   </button>
                   ${m.themeId ? `
                     <button type="button" class="primary-btn small btn-equip-milestone-theme" data-theme-id="${m.themeId}" ${!unlocked ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : 'style="background: linear-gradient(135deg, #eab308, #f59e0b); border:none; color:#000;"'}>
-                      🌌 Equip Theme
+                      Equip Theme
                     </button>
                   ` : ''}
                 </div>

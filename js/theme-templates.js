@@ -576,10 +576,6 @@ window.THEME_TEMPLATES = {
         <div class="chronos-gear-clockwork cg4"></div>
         <div class="chronos-dial-center">
           <div class="chronos-clock-face">
-            <span class="chronos-numeral num-12">XII</span>
-            <span class="chronos-numeral num-3">III</span>
-            <span class="chronos-numeral num-6">VI</span>
-            <span class="chronos-numeral num-9">IX</span>
           </div>
           <div class="chronos-clock-hand hand-h"></div>
           <div class="chronos-clock-hand hand-m"></div>
@@ -635,10 +631,6 @@ window.THEME_TEMPLATES = {
         <div class="chronos-gear-clockwork cg4"></div>
         <div class="chronos-dial-center">
           <div class="chronos-clock-face">
-            <span class="chronos-numeral num-12">XII</span>
-            <span class="chronos-numeral num-3">III</span>
-            <span class="chronos-numeral num-6">VI</span>
-            <span class="chronos-numeral num-9">IX</span>
           </div>
           <div class="chronos-clock-hand hand-h"></div>
           <div class="chronos-clock-hand hand-m"></div>

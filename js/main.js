@@ -3624,7 +3624,7 @@ function triggerChainLightningArcs(targetOwner, targetSlot, fxList) {
 
   const activeSlots = [];
   [localKey, remoteKey].forEach(owner => {
-    for (let slot = 0; slot < 5; slot++) {
+    for (let slot = 0; slot < 6; slot++) {
       const slotEl = getSlotEl(owner, slot);
       if (slotEl && slotEl.querySelector('.card')) {
         activeSlots.push({ owner, slot, el: slotEl });

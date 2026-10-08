@@ -34,6 +34,7 @@ function newPlayerState(deck, config = {}) {
     defendingSlots: {},     // slotIndex -> true : this card is defending itself this round
     everMergedUp: false,    // true forever, from the moment this player's first merge creates a non-Blue card
     mergesThisRound: 0,     // NEW: at most MAX_MERGES_PER_ROUND merges are allowed per player per round - reset every placement phase
+    didActionThisRound: false,
     playerName: config.playerName || 'Player',
     playerAvatar: config.playerAvatar || 'P',
     playerGradient: config.playerGradient || null,
@@ -506,6 +507,7 @@ function placeCard(state, playerKey, deckIndex, slot, cardId, archetypeId) {
 
   const card = p.deck.splice(targetIdx, 1)[0];
   p.board[slot] = card;
+  p.didActionThisRound = true;
 
   // Trial Tower Modifiers on card placement
   if (state.trialTowerModifiers && Array.isArray(state.trialTowerModifiers)) {
@@ -654,6 +656,7 @@ function mergeCards(state, playerKey, slots, blueprintIndex) {
     chipsAttached: [],
   };
   p.board[primarySlot] = merged;
+  p.didActionThisRound = true;
   otherSlots.forEach(s => {
     p.board[s] = null;
     delete p.attackAssignments[s];
@@ -978,6 +981,7 @@ function castSpell(state, playerKey, spellInstanceId, targetOwnerKey, targetSlot
       p.graveyardSpells.push(removed);
     }
   }
+  p.didActionThisRound = true;
   pushLog(state, `${playerKey} casts ${spell.name}`);
   return { ok: true };
 }
@@ -1008,6 +1012,7 @@ function attachChip(state, playerKey, chipInstanceId, targetOwnerKey, targetSlot
   p.chips.splice(idx, 1);
   p.graveyardChips = p.graveyardChips || [];
   p.graveyardChips.push(chip);
+  p.didActionThisRound = true;
   pushFx(state, { type: 'chipAttach', owner: targetOwnerKey, slot: targetSlot, chipName: chip.name, dmgAmount: chip.dmg || 0, hpAmount: chip.hp || 0, lifesteal: !!chip.lifesteal, bonusDefend: chip.bonusDefend || 0 });
   pushLog(state, `${playerKey} attaches ${chip.name} to ${targetCard.name}`);
   return { ok: true };
@@ -1075,7 +1080,12 @@ function setAttack(state, playerKey, slot, targetOwnerKey, targetSlot) {
 function readyPlacement(state, playerKey) {
   const blocked = forcedBlock(state, playerKey);
   if (blocked) return blocked;
-  state.players[playerKey].readyPlacement = true;
+  const p = state.players[playerKey];
+  const hasPlayable = (p.deck || []).some(c => c && c.tier === 1) || (p.spells || []).length > 0 || (p.chips || []).length > 0;
+  if (!p.didActionThisRound && hasPlayable) {
+    return { ok: false, error: 'You must place, merge, cast a spell, or attach a chip before readying up!' };
+  }
+  p.readyPlacement = true;
   const allReady = state.order.every(k => state.players[k].readyPlacement);
   if (allReady) {
     state.phase = 'attack';
@@ -1323,7 +1333,10 @@ function startPlacementPhase(state) {
   state.phase = 'placement';
   // NEW: the once-per-round merge limit resets at the start of every
   // placement phase, for both players.
-  state.order.forEach(k => { state.players[k].mergesThisRound = 0; });
+  state.order.forEach(k => {
+    state.players[k].mergesThisRound = 0;
+    state.players[k].didActionThisRound = false;
+  });
   // Resolve queued attacks (from cards that died mid-swing last attack phase)
   // before any new placement actions happen this cycle.
   const queue = state.pendingQueuedAttacks;
