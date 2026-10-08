@@ -79,7 +79,7 @@ const ABILITY_SHORT = {
   green_onplay_healall1: 'Play: heal all allies 1',
   green_ondeath_draw1: 'Death: heal weakest ally 1',
   green_onplay_selftoughen1: 'Play: self +1 max HP',
-  green_onplay_discard1: "Play: remove a foe's Blue from deck",
+  green_onplay_discard1: 'Play: throw barbods dust',
   red_onplay_dmgall1: 'Play: 1 dmg to all foes',
   red_ondeath_thorns1: 'Death: 1 dmg to attacker',
   red_onplay_buffallies_dmg1: 'Play: allies +1 dmg',

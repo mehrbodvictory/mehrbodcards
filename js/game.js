@@ -149,7 +149,8 @@ function abilityTrigger(state, playerKey, card, trigger, slot, deathSource) {
       pushFx(state, { type: 'selfBuff', owner: playerKey, slot, stat: 'hp', amount: 1 });
       pushLog(state, `${card.name} gains +1 max HP`);
     } else if (a === 'green_onplay_discard1') {
-      discardRandomFromDeck(state, enemyKey, source);
+      pushFx(state, { type: 'barbodsDust', owner: enemyKey });
+      pushLog(state, `${card.name} throws barbods dust onto the enemy's screen`);
     } else if (a === 'red_onplay_dmgall1') {
       damageAllEnemies(state, enemyKey, 1, source);
       pushLog(state, `${card.name} deals 1 dmg to every enemy card`);

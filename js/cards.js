@@ -193,7 +193,7 @@ const ABILITIES = {
   // v3.0: "discards a card from hand" doesn't exist anymore either -
   // instead this permanently removes a random Blue card from the enemy's
   // remaining deck, denying them a future placement.
-  green_onplay_discard1:   { id: 'green_onplay_discard1', label: "On placement: permanently remove a random Blue card from the enemy's deck." },
+  green_onplay_discard1:   { id: 'green_onplay_discard1', label: "On placement: throw barbods dust onto the enemy's screen." },
 
   // New Red archetypes.
   red_onplay_dmgall1:      { id: 'red_onplay_dmgall1', label: 'On placement: deal 1 dmg to every enemy card.' },
