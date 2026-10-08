@@ -688,11 +688,47 @@ function mergeCards(state, playerKey, slots, blueprintIndex) {
 function autoResolveForcedMerges(state, playerKey) {
   const p = state.players[playerKey];
   let guard = 0;
-  while (guard++ < 20 && isForced(state, playerKey)) {
-    const blueSlots = p.board.map((c, i) => (c && c.tier === 1 ? i : -1)).filter(i => i >= 0);
-    if (blueSlots.length < 2) break;
-    const res = mergeCards(state, playerKey, [blueSlots[0], blueSlots[1]]);
-    if (!res.ok) break; // no blueprint available for this pairing - avoid spinning
+  while (guard++ < 30 && isForced(state, playerKey)) {
+    const filled = p.board.map((c, i) => (c ? i : -1)).filter(i => i >= 0 && p.board[i].tier !== 4);
+    let merged = false;
+    
+    // Prioritize merges that include at least one Blue card (tier 1) to resolve the forced condition
+    for (let size = Math.min(4, filled.length); size >= 2; size--) {
+      const combos = kCombinations(filled, size);
+      for (const combo of combos) {
+        const sum = combo.reduce((s, i) => s + p.board[i].tier, 0);
+        if (sum >= 2 && sum <= 4 && p.deck.some(c => c.tier === sum)) {
+          if (combo.some(i => p.board[i].tier === 1)) {
+            const res = mergeCards(state, playerKey, combo);
+            if (res && res.ok) {
+              merged = true;
+              break;
+            }
+          }
+        }
+      }
+      if (merged) break;
+    }
+    
+    if (!merged) {
+      // Fallback: merge any other valid combination of cards to free up slots/blueprints
+      for (let size = Math.min(4, filled.length); size >= 2; size--) {
+        const combos = kCombinations(filled, size);
+        for (const combo of combos) {
+          const sum = combo.reduce((s, i) => s + p.board[i].tier, 0);
+          if (sum >= 2 && sum <= 4 && p.deck.some(c => c.tier === sum)) {
+            const res = mergeCards(state, playerKey, combo);
+            if (res && res.ok) {
+              merged = true;
+              break;
+            }
+          }
+        }
+        if (merged) break;
+      }
+    }
+    
+    if (!merged) break; // Avoid infinite loop if nothing can be merged
   }
 }
 
@@ -1359,6 +1395,17 @@ function startPlacementPhase(state) {
             pushLog(state, `🌋 Hellfire Blast sears ${c.name} for 2 burn damage!`);
           }
         });
+      }
+    }
+    if (state.trialTowerModifiers.includes('boss_iron_wall')) {
+      // Trigger dust storm on round 4, 8, 12, etc. (every 4 rounds)
+      if (state.round > 1 && (state.round % 4 === 0)) {
+        pushLog(state, `💨 Barbod throws blinding scam dust at the screen!`);
+        if (typeof window !== 'undefined' && typeof window.triggerBarbodDustEffect === 'function') {
+          setTimeout(() => {
+            window.triggerBarbodDustEffect();
+          }, 800);
+        }
       }
     }
   }

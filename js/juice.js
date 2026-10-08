@@ -2989,6 +2989,8 @@ function openTrialTowerScreen() {
     s.pendingResult = null;
     saveTrialTowerState(s);
 
+    // Render immediately to populate the view before animation triggers, avoiding flashes/lag
+    renderTrialTowerBricks(stack, clearedFloor, clearedFloor);
     updatePlayerPawnPosition(clearedFloor);
     updateTowerConsoleForFloor(clearedFloor, true, false, false, newFloor, s.best);
 
@@ -9412,6 +9414,7 @@ function initRayGunSystem() {
 
 /* ---------- Barbod's Scam Dust Overlay & Screen Wiping Effect ---------- */
 function triggerBarbodDustEffect() {
+  window.triggerBarbodDustEffect = triggerBarbodDustEffect;
   if (document.getElementById('barbod-dust-overlay')) return;
 
   const overlay = document.createElement('div');

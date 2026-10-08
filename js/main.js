@@ -6474,6 +6474,50 @@ function playCombatAnimation(snapshot, fx, doneCallback, playbackSpeedModifier =
     });
   }
 
+  // Draw splash lines from the primary target card to the splashed cards
+  const splashJobs = [];
+  fx.forEach(evt => {
+    if (evt.type === 'damage' && evt.source && evt.source.name && 
+        (evt.source.name.includes('Splash Wave') || evt.source.name.includes('(splash)') || evt.source.name.toLowerCase().includes('splash')) &&
+        evt.source.slot != null) {
+      
+      const attackerOwner = evt.source.owner;
+      const attackerSlot = evt.source.slot;
+      const defenderOwner = evt.targetOwner;
+      const defenderSlot = evt.targetSlot;
+      
+      const attackerSnap = snapshot[attackerOwner];
+      if (attackerSnap && attackerSnap.attackAssignments) {
+        const primaryTargetSlot = attackerSnap.attackAssignments[attackerSlot];
+        if (primaryTargetSlot != null && primaryTargetSlot !== defenderSlot) {
+          splashJobs.push({
+            fromOwner: defenderOwner,
+            fromSlot: primaryTargetSlot,
+            toOwner: defenderOwner,
+            toSlot: defenderSlot
+          });
+        }
+      }
+    }
+  });
+
+  if (!reducedMotion && splashJobs.length) {
+    setTimeout(() => {
+      splashJobs.forEach(job => {
+        const fromEl = getSlotEl(job.fromOwner, job.fromSlot);
+        const toEl = getSlotEl(job.toOwner, job.toSlot);
+        if (fromEl && toEl) {
+          spawnAttackLine(fromEl, toEl, false);
+          const targetCard = toEl.querySelector('.card');
+          if (targetCard) {
+            targetCard.classList.add('anim-hit');
+            setTimeout(() => targetCard.classList.remove('anim-hit'), 400);
+          }
+        }
+      });
+    }, 240); // perfectly timed fluid delay
+  }
+
   combatAnimTimer = setTimeout(() => { animatingCombat = false; doneCallback(); }, (reducedMotion ? 150 : COMBAT_ANIM_MS) / playbackSpeedModifier);
 }
 
