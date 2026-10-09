@@ -8539,6 +8539,21 @@ html.theme-verity #btn-open-collection, html.theme-verity #btn-open-quests-menu,
   color: #fff;
 }
 
+#tower-round-upgrade-modal .rl-round-modal-title {
+  font-size: 1.95rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f8fafc;
+  text-shadow: 0 0 20px rgba(251, 191, 36, 0.6), 0 0 35px rgba(245, 158, 11, 0.35);
+  margin: 0;
+}
+
+#tower-round-upgrade-modal .rl-round-modal-badge,
+#tower-round-upgrade-modal .rl-round-modal-sub {
+  display: none !important;
+}
+
 .rl-round-modal-sub {
   margin: 0;
   font-size: 0.85rem;
@@ -8814,6 +8829,12 @@ html.theme-verity #btn-open-collection, html.theme-verity #btn-open-quests-menu,
 .tbh-mods-pill:hover {
   transform: scale(1.05);
   box-shadow: 0 0 10px currentColor;
+}
+
+#tbh-floor-badge,
+.tbh-floor-badge,
+#tower-battle-hud #tbh-modifiers-tray span {
+  display: none !important;
 }
 
 

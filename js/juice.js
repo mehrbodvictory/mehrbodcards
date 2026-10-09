@@ -2611,7 +2611,17 @@ function openRoundUpgradeModal(round, matchState, onDone) {
   }
 
   const badge = document.getElementById('rl-round-num-badge');
-  if (badge) badge.textContent = `⚡ ROUND ${round} AUGMENT · CHOOSE 1 UPGRADE`;
+  if (badge) {
+    badge.textContent = '';
+    badge.style.display = 'none';
+  }
+  const modalTitle = modal.querySelector('.rl-round-modal-title');
+  if (modalTitle) modalTitle.textContent = 'PICK YOUR UPGRADE';
+  const modalSub = modal.querySelector('.rl-round-modal-sub');
+  if (modalSub) {
+    modalSub.textContent = '';
+    modalSub.style.display = 'none';
+  }
 
   const cardsContainer = document.getElementById('rl-round-upgrade-cards');
   const rerollBtn = document.getElementById('btn-rl-reroll-round-upgrade');
@@ -2702,58 +2712,130 @@ function spawnBattleFloatingText(text) {
   setTimeout(() => el.remove(), 1800);
 }
 
+const BOSS_TAUNTS = [
+  "\"Your futile tactics amuse me, mortal.\"",
+  "\"This spire is your eternal tomb.\"",
+  "\"Bow before absolute supremacy!\"",
+  "\"Pain is merely the prelude to your destruction.\"",
+  "\"You cannot defeat what has already conquered death.\"",
+  "\"Your mana fades, and your hope with it.\"",
+  "\"Feel the crushing weight of the Spire!\"",
+  "\"Another challenger, another harvest for the abyss.\"",
+  "\"Your cards are fragile leaves in a hurricane.\"",
+  "\"Despair is the only reward for your ascent.\""
+];
+
+let _lastBossTauntTime = 0;
+let _currentBossTaunt = "\"Your futile tactics amuse me, mortal.\"";
+
+window.triggerBossHealthBarShake = function() {
+  if (typeof trialTowerActive === 'undefined' || !trialTowerActive) return;
+  const bossBarEl = document.getElementById('trial-boss-health-bar');
+  if (bossBarEl) {
+    bossBarEl.classList.remove('trial-boss-shake');
+    void bossBarEl.offsetWidth;
+    bossBarEl.classList.add('trial-boss-shake');
+    setTimeout(() => bossBarEl.classList.remove('trial-boss-shake'), 400);
+  }
+
+  if (typeof BOSS_TAUNTS !== 'undefined' && BOSS_TAUNTS.length > 0) {
+    let nextTaunt = _currentBossTaunt;
+    if (BOSS_TAUNTS.length > 1) {
+      while (nextTaunt === _currentBossTaunt) {
+        nextTaunt = BOSS_TAUNTS[Math.floor(Math.random() * BOSS_TAUNTS.length)];
+      }
+    } else {
+      nextTaunt = BOSS_TAUNTS[0];
+    }
+    _currentBossTaunt = nextTaunt;
+    _lastBossTauntTime = Date.now();
+    const tauntEl = document.getElementById('tbh-boss-taunt');
+    if (tauntEl) {
+      tauntEl.textContent = _currentBossTaunt;
+      tauntEl.style.animation = 'none';
+      void tauntEl.offsetWidth;
+      tauntEl.style.animation = 'tauntFadeIn 0.4s ease';
+    }
+  }
+};
+
 function updateCombatRoguelikeHUD(matchState) {
   if (!trialTowerActive) return;
   const hud = document.getElementById('tower-battle-hud');
   if (!hud) return;
 
-  const r = loadRoguelikeRun();
   const floorBadge = document.getElementById('tbh-floor-badge');
+  if (floorBadge) floorBadge.remove();
   const tray = document.getElementById('tbh-modifiers-tray');
+  if (tray) tray.innerHTML = '';
 
-  hud.classList.remove('hidden');
-  if (floorBadge) {
-    const curBux = typeof loadBux === 'function' ? loadBux() : 0;
-    floorBadge.innerHTML = `🗼 Chamber ${r.floor} · Round ${matchState ? matchState.round : 1} &nbsp;|&nbsp; 💰 ${curBux} Mehrbod Bux &nbsp;|&nbsp; ⚡ Sudden Death`;
-  }
+  const bossBar = document.getElementById('trial-boss-health-bar');
+  if (!bossBar) return;
 
-  if (tray) {
-    tray.innerHTML = '';
-    if (r.activeDebuffs && r.activeDebuffs.length > 0) {
-      const dDef = ROGUELIKE_DEBUFFS.find(x => x.id === r.activeDebuffs[0]);
-      if (dDef) {
-        const hazardPill = document.createElement('span');
-        hazardPill.className = 'tbh-hazard-pill';
-        hazardPill.style.cssText = 'background: rgba(239, 68, 68, 0.3); border: 1px solid #f87171; color: #fca5a5; font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; font-weight: 800; cursor: pointer;';
-        hazardPill.innerHTML = `⚠️ ${dDef.name}`;
-        hazardPill.title = dDef.desc;
-        hazardPill.onclick = () => showToast(`⚠️ Hazard: ${dDef.name} — ${dDef.desc}`, 3000);
-        tray.appendChild(hazardPill);
+  const r = loadRoguelikeRun();
+  const currentFloor = r.floor || 1;
+  const isBossLvl = (typeof isBossFloor === 'function' && isBossFloor(currentFloor)) || 
+    (matchState && matchState.players && Object.values(matchState.players).some(p => p.board && p.board.some(c => c && (c.isBossCard || c.tier === 5))));
+
+  if (isBossLvl && matchState && matchState.players) {
+    let bossCard = null;
+    let bossName = '💀 TOWER BOSS';
+    for (const pKey of Object.keys(matchState.players)) {
+      if (pKey === 'you') continue;
+      const p = matchState.players[pKey];
+      if (!p || !p.board) continue;
+      const found = p.board.find(c => c && (c.isBossCard || c.tier === 5));
+      if (found) {
+        bossCard = found;
+        bossName = `💀 ${found.name || 'TOWER BOSS'}`;
+        break;
+      }
+      if (p.deck) {
+        const foundDeck = p.deck.find(c => c && (c.isBossCard || c.tier === 5));
+        if (foundDeck) {
+          bossCard = foundDeck;
+          bossName = `💀 ${foundDeck.name || 'TOWER BOSS'}`;
+          break;
+        }
       }
     }
 
-    const totalMods = (r.roundUpgradesThisMatch || []).length + (r.permanentUpgrades || []).length;
-    if (totalMods > 0) {
-      const upPill = document.createElement('span');
-      upPill.className = 'tbh-mods-pill';
-      upPill.style.cssText = 'background: rgba(168, 85, 247, 0.3); border: 1px solid #c084fc; color: #e9d5ff; font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; font-weight: 800; cursor: pointer;';
-      upPill.innerHTML = `⚡ ${totalMods} Augments`;
-      upPill.onclick = () => {
-        const names = [...(r.roundUpgradesThisMatch || []), ...(r.permanentUpgrades || [])].map(id => {
-          const u = ROGUELIKE_UPGRADES.find(x => x.id === id);
-          return u ? u.name : id;
-        });
-        showToast(`⚡ Active Augments: ${names.join(', ')}`, 4000);
-      };
-      tray.appendChild(upPill);
+    if (bossCard) {
+      bossBar.classList.remove('hidden');
+      const nameEl = document.getElementById('tbh-boss-name');
+      const hpTextEl = document.getElementById('tbh-boss-hp-text');
+      const fillEl = document.getElementById('tbh-boss-fill');
+      const tauntEl = document.getElementById('tbh-boss-taunt');
+
+      if (nameEl) nameEl.textContent = bossName;
+      const hp = bossCard.hp !== undefined ? bossCard.hp : 50;
+      const maxHp = bossCard.maxHp !== undefined ? bossCard.maxHp : 50;
+      if (hpTextEl) hpTextEl.textContent = `${hp} / ${maxHp} HP`;
+      if (fillEl) {
+        const pct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
+        fillEl.style.width = `${pct}%`;
+      }
+
+      const now = Date.now();
+      if (!_currentBossTaunt || (now - _lastBossTauntTime > 7000)) {
+        _currentBossTaunt = BOSS_TAUNTS[Math.floor(Math.random() * BOSS_TAUNTS.length)];
+        _lastBossTauntTime = now;
+      }
+      if (tauntEl) {
+        tauntEl.textContent = _currentBossTaunt;
+      }
+    } else {
+      bossBar.classList.add('hidden');
     }
+  } else {
+    bossBar.classList.add('hidden');
   }
 }
 
 function applySelectedRoundUpgrade(up, matchState) {
   const r = loadRoguelikeRun();
-  r.roundUpgradesThisMatch = r.roundUpgradesThisMatch || [];
-  r.roundUpgradesThisMatch.push(up.id);
+  r.permanentUpgrades = r.permanentUpgrades || [];
+  r.permanentUpgrades.push(up.id);
   saveRoguelikeRun(r);
 
   if (matchState) {
@@ -2853,6 +2935,7 @@ function openRoguelikeEventModal(node) {
 
   function advanceChamber() {
     modal.classList.add('hidden');
+    const oldFloor = r.floor;
     r.floor += 1;
     r.best = Math.max(r.best, r.floor);
     r.chamberChoices = generateChamberChoices(r.floor);
@@ -2860,6 +2943,11 @@ function openRoguelikeEventModal(node) {
     r.chamberChoicesFloor = r.floor;
     r.selectedNodeIndex = 0;
     saveRoguelikeRun(r);
+    window.pendingTowerAdvanceAnim = {
+      fromFloor: oldFloor,
+      toFloor: r.floor,
+      won: true
+    };
     openTrialTowerScreen();
   }
 
@@ -3633,8 +3721,15 @@ function resolveTrialTowerMatch(won) {
 
     setTimeout(() => {
       document.getElementById('gameover-overlay')?.classList.add('hidden');
-      trialTowerActive = false;
-      openTrialTowerScreen();
+      if (typeof openRoundUpgradeModal === 'function') {
+        openRoundUpgradeModal(clearedFloor, null, () => {
+          trialTowerActive = false;
+          openTrialTowerScreen();
+        });
+      } else {
+        trialTowerActive = false;
+        openTrialTowerScreen();
+      }
     }, 120);
 
   } else {

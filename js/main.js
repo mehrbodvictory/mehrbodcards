@@ -3929,6 +3929,9 @@ function playFx(fxList) {
         break;
       }
       case 'damage': {
+        if (typeof trialTowerActive !== 'undefined' && trialTowerActive && evt.targetOwner !== localKey && typeof window.triggerBossHealthBarShake === 'function') {
+          window.triggerBossHealthBarShake();
+        }
         if (evt.source && evt.source.chainLightning) break;
         if (evt.source && (evt.source.kind === 'attack' || evt.source.kind === 'queued-attack')) break;
         const slotEl = getSlotEl(evt.targetOwner, evt.targetSlot);
@@ -6398,6 +6401,13 @@ function playCombatAnimation(snapshot, fx, doneCallback, playbackSpeedModifier =
   fx = fx || [];
   trackDamageStats(fx);
 
+  if (typeof trialTowerActive !== 'undefined' && trialTowerActive) {
+    const bossHit = fx.some(e => e.type === 'damage' && e.targetOwner !== localKey && (e.targetTier === 5 || (state.players[e.targetOwner]?.board[e.targetSlot]?.isBossCard)));
+    if (bossHit && typeof window.triggerBossHealthBarShake === 'function') {
+      window.triggerBossHealthBarShake();
+    }
+  }
+
   // ---- NEW FEATURE: Kill Combo callout ----
   // If 2+ of the LOCAL player's own attacks land a kill in this same
   // simultaneous resolution, call it out - a nice little dopamine hit that
@@ -6568,9 +6578,7 @@ function render() {
     if (!wasInitial && state.phase === 'placement' && typeof Sound !== 'undefined' && Sound.turnStart) {
       Sound.turnStart();
     }
-    if (state.phase === 'placement' && typeof window.checkAndTriggerRoundUpgradeDraft === 'function') {
-      window.checkAndTriggerRoundUpgradeDraft(state);
-    }
+
   }
 
   if (typeof trialTowerActive !== 'undefined' && trialTowerActive && typeof updateCombatRoguelikeHUD === 'function') {

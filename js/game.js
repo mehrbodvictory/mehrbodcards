@@ -359,6 +359,11 @@ function damageCard(state, ownerKey, slot, amount, source) {
     return;
   }
   const cleanDmg = Math.max(0, amount);
+  if (cleanDmg > 0 && (card.isBossCard || card.tier === 5)) {
+    if (typeof window !== 'undefined' && typeof window.triggerBossHealthBarShake === 'function') {
+      window.triggerBossHealthBarShake();
+    }
+  }
   const prevHp = card.hp;
   card.hp = Math.max(0, card.hp - cleanDmg);
   const killed = card.hp <= 0;
@@ -452,6 +457,8 @@ function canPerformAnyMerge(state, playerKey) {
 }
 
 function forcedBlock(state, playerKey) {
+  if (!state || state.phase !== 'placement') return null;
+  if (playerKey === 'bot' || (state.order && state.order[1] === playerKey)) return null;
   if (isForced(state, playerKey)) {
     return { ok: false, error: 'You have too many Blue cards — merge two of them before doing anything else.' };
   }
@@ -1122,8 +1129,6 @@ function cancelDefend(state, playerKey, slot) {
 // ---- Attack phase -----------------------------------------------------------
 
 function setAttack(state, playerKey, slot, targetOwnerKey, targetSlot) {
-  const blocked = forcedBlock(state, playerKey);
-  if (blocked) return blocked;
   const p = state.players[playerKey];
   const card = p.board[slot];
   if (!card) return { ok: false, error: 'no card in slot' };
@@ -1164,8 +1169,6 @@ function readyPlacement(state, playerKey) {
 }
 
 function readyAttack(state, playerKey) {
-  const blocked = forcedBlock(state, playerKey);
-  if (blocked) return blocked;
   state.players[playerKey].readyAttack = true;
   const allReady = state.order.every(k => state.players[k].readyAttack);
   if (allReady) {
