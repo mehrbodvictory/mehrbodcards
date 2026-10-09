@@ -360,6 +360,243 @@
           <div class="clash-hit-fx" id="clash-hit-fx">KO!</div>
         </div>
 
+        <!-- SVG SPIRE VISUALIZER: Player Profile Ascent & Tower Detonation Stage -->
+        <div class="tower-svg-stage-card" id="tower-svg-stage-card">
+          <div class="tower-svg-header-bar">
+            <div class="tsh-title-group">
+              <span class="tsh-badge" id="tower-svg-floor-indicator">STAGE 1: OBSIDIAN KEEP</span>
+              <span class="tsh-sub">Ascension Citadel Visualizer</span>
+            </div>
+            <button type="button" class="link-btn small glass-pill-btn" id="btn-replay-climb-anim" title="Replay Ascent Animation" style="font-size:0.75rem; padding:5px 12px; border-color:rgba(192,132,252,0.4); color:#e9d5ff; background:rgba(168,85,247,0.14);">
+              <span>🎬 Replay Ascent</span>
+            </button>
+          </div>
+          <div class="tower-svg-canvas-container" id="tower-svg-canvas-container">
+            <svg id="trial-tower-svg" viewBox="0 0 480 680" preserveAspectRatio="xMidYMid meet" class="trial-tower-svg">
+              <defs>
+                <!-- Gradients & Glow Filters -->
+                <radialGradient id="spire-sky-glow" cx="50%" cy="30%" r="70%">
+                  <stop offset="0%" stop-color="#312e81" stop-opacity="0.45"/>
+                  <stop offset="55%" stop-color="#0f172a" stop-opacity="0.85"/>
+                  <stop offset="100%" stop-color="#050811" stop-opacity="0.98"/>
+                </radialGradient>
+                <linearGradient id="grad-obsidian" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#262626"/>
+                  <stop offset="60%" stop-color="#171717"/>
+                  <stop offset="100%" stop-color="#0a0a0a"/>
+                </linearGradient>
+                <linearGradient id="grad-lava" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#fef08a"/>
+                  <stop offset="35%" stop-color="#f97316"/>
+                  <stop offset="100%" stop-color="#dc2626"/>
+                </linearGradient>
+                <linearGradient id="grad-colosseum" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#881337"/>
+                  <stop offset="50%" stop-color="#4c0519"/>
+                  <stop offset="100%" stop-color="#1f020a"/>
+                </linearGradient>
+                <linearGradient id="grad-whisper" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#0284c7"/>
+                  <stop offset="50%" stop-color="#0369a1"/>
+                  <stop offset="100%" stop-color="#082f49"/>
+                </linearGradient>
+                <linearGradient id="grad-campfire" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#d97706"/>
+                  <stop offset="70%" stop-color="#78350f"/>
+                  <stop offset="100%" stop-color="#271a0c"/>
+                </linearGradient>
+                <linearGradient id="grad-boss" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#7e22ce"/>
+                  <stop offset="60%" stop-color="#4c1d95"/>
+                  <stop offset="100%" stop-color="#1e1035"/>
+                </linearGradient>
+                <radialGradient id="blast-fire-grad" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#ffffff"/>
+                  <stop offset="25%" stop-color="#fef08a"/>
+                  <stop offset="65%" stop-color="#f97316"/>
+                  <stop offset="90%" stop-color="#dc2626"/>
+                  <stop offset="100%" stop-color="rgba(185,28,28,0)"/>
+                </radialGradient>
+                <linearGradient id="player-avatar-grad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#ec4899"/>
+                  <stop offset="100%" stop-color="#8b5cf6"/>
+                </linearGradient>
+                <filter id="svg-glow-soft" x="-30%" y="-30%" width="160%" height="160%">
+                  <feGaussianBlur stdDeviation="3.5" result="blur"/>
+                  <feMerge>
+                    <feMergeNode in="blur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                  </feMerge>
+                </filter>
+                <filter id="svg-glow-intense" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="7" result="blur1"/>
+                  <feGaussianBlur stdDeviation="3" result="blur2"/>
+                  <feMerge>
+                    <feMergeNode in="blur1"/>
+                    <feMergeNode in="blur2"/>
+                    <feMergeNode in="SourceGraphic"/>
+                  </feMerge>
+                </filter>
+              </defs>
+
+              <!-- Atmosphere backdrop -->
+              <rect width="480" height="680" rx="14" fill="url(#spire-sky-glow)"/>
+              <!-- Apex Dark Moon -->
+              <circle cx="240" cy="50" r="28" fill="#4338ca" opacity="0.35" filter="url(#svg-glow-intense)"/>
+              <circle cx="240" cy="50" r="16" fill="#e0e7ff" opacity="0.75"/>
+
+              <!-- Ascent Energy Conduit Paths connecting tiers -->
+              <g id="svg-ascent-conduits" opacity="0.6">
+                <line x1="240" y1="570" x2="240" y2="445" stroke="#f97316" stroke-width="3" stroke-dasharray="6 4" class="conduit-line c-line-1"/>
+                <line x1="240" y1="445" x2="240" y2="320" stroke="#f43f5e" stroke-width="3" stroke-dasharray="6 4" class="conduit-line c-line-2"/>
+                <line x1="240" y1="320" x2="240" y2="200" stroke="#38bdf8" stroke-width="3" stroke-dasharray="6 4" class="conduit-line c-line-3"/>
+                <line x1="240" y1="200" x2="240" y2="85" stroke="#c084fc" stroke-width="3" stroke-dasharray="6 4" class="conduit-line c-line-4"/>
+              </g>
+
+              <!-- ===== TIER 5: APEX TITAN CITADEL ===== -->
+              <g id="svg-tier-group-5" class="svg-tier-group" data-floor="5">
+                <g id="svg-tier-intact-5" class="svg-tier-intact">
+                  <polygon points="240,32 208,82 272,82" fill="url(#grad-boss)" stroke="#c084fc" stroke-width="1.8"/>
+                  <rect x="180" y="78" width="120" height="26" rx="4" fill="#1e1035" stroke="#a855f7" stroke-width="1.6"/>
+                  <polygon points="186,78 194,68 202,78 210,68 218,78 226,68 234,78 246,68 254,78 262,68 270,78 278,68 286,78" fill="#a855f7"/>
+                  <circle cx="240" cy="62" r="6" fill="#f43f5e" filter="url(#svg-glow-soft)"/>
+                  <rect x="190" y="96" width="100" height="15" rx="3" fill="rgba(15,23,42,0.85)" stroke="#7e22ce" stroke-width="1"/>
+                  <text x="240" y="106" text-anchor="middle" font-size="8.5" font-weight="900" fill="#e9d5ff" letter-spacing="1">FLOOR 5 · APEX BOSS</text>
+                </g>
+                <g id="svg-tier-ruins-5" class="svg-tier-ruins" style="display:none;">
+                  <polygon points="210,95 240,78 268,95 255,102 215,102" fill="#2d1645" stroke="#7e22ce" stroke-width="1"/>
+                  <circle cx="230" cy="88" r="4" fill="#382947"/>
+                  <circle cx="250" cy="85" r="5" fill="#382947"/>
+                  <text x="240" y="106" text-anchor="middle" font-size="8" font-weight="900" fill="#a855f7" letter-spacing="0.5">💥 APEX CONQUERED</text>
+                </g>
+              </g>
+
+              <!-- ===== TIER 4: SANCTUARY CAMPFIRE ===== -->
+              <g id="svg-tier-group-4" class="svg-tier-group" data-floor="4">
+                <g id="svg-tier-intact-4" class="svg-tier-intact">
+                  <path d="M 160,205 Q 240,185 320,205 L 305,225 Q 240,212 175,225 Z" fill="url(#grad-campfire)" stroke="#f59e0b" stroke-width="1.5"/>
+                  <polygon points="188,206 200,186 212,206" fill="#b45309" stroke="#fbbf24" stroke-width="1"/>
+                  <circle cx="240" cy="198" r="9" fill="#f59e0b" filter="url(#svg-glow-soft)"/>
+                  <circle cx="240" cy="198" r="5" fill="#fef08a"/>
+                  <polygon points="270,208 277,192 284,208" fill="#475569" stroke="#94a3b8" stroke-width="1"/>
+                  <rect x="185" y="218" width="110" height="15" rx="3" fill="rgba(15,23,42,0.85)" stroke="#d97706" stroke-width="1"/>
+                  <text x="240" y="228" text-anchor="middle" font-size="8.5" font-weight="900" fill="#fef3c7" letter-spacing="1">FLOOR 4 · SANCTUARY CAMP</text>
+                </g>
+                <g id="svg-tier-ruins-4" class="svg-tier-ruins" style="display:none;">
+                  <polygon points="180,222 210,210 240,214 270,210 295,222" fill="#2d2010" stroke="#b45309" stroke-width="1"/>
+                  <text x="240" y="228" text-anchor="middle" font-size="8" font-weight="900" fill="#f59e0b" letter-spacing="0.5">💥 CAMP PASSED</text>
+                </g>
+              </g>
+
+              <!-- ===== TIER 3: WHISPERING SHRINE ===== -->
+              <g id="svg-tier-group-3" class="svg-tier-group" data-floor="3">
+                <g id="svg-tier-intact-3" class="svg-tier-intact">
+                  <rect x="150" y="322" width="180" height="28" rx="5" fill="url(#grad-whisper)" stroke="#38bdf8" stroke-width="1.8"/>
+                  <!-- Mystic Obelisks -->
+                  <polygon points="168,322 173,285 180,322" fill="#0c4a6e" stroke="#38bdf8" stroke-width="1.2"/>
+                  <polygon points="300,322 307,285 312,322" fill="#0c4a6e" stroke="#38bdf8" stroke-width="1.2"/>
+                  <!-- Torii / Arcane Gate Crossbar -->
+                  <rect x="195" y="290" width="90" height="6" rx="2" fill="#0284c7" stroke="#7dd3fc" stroke-width="1"/>
+                  <rect x="206" y="296" width="68" height="4" fill="#0369a1"/>
+                  <!-- Resonant Orb -->
+                  <circle cx="240" cy="310" r="11" fill="#38bdf8" filter="url(#svg-glow-soft)"/>
+                  <circle cx="240" cy="310" r="6" fill="#ffffff"/>
+                  <rect x="175" y="340" width="130" height="15" rx="3" fill="rgba(15,23,42,0.88)" stroke="#0284c7" stroke-width="1"/>
+                  <text x="240" y="350" text-anchor="middle" font-size="8.5" font-weight="900" fill="#e0f2fe" letter-spacing="1">FLOOR 3 · WHISPERING SHRINE</text>
+                </g>
+                <g id="svg-tier-ruins-3" class="svg-tier-ruins" style="display:none;">
+                  <polygon points="165,345 195,332 235,336 270,332 305,345" fill="#082f49" stroke="#0284c7" stroke-width="1"/>
+                  <circle cx="205" cy="338" r="5" fill="#0369a1"/>
+                  <circle cx="275" cy="338" r="5" fill="#0369a1"/>
+                  <text x="240" y="350" text-anchor="middle" font-size="8" font-weight="900" fill="#38bdf8" letter-spacing="0.5">💥 SHRINE TRANSCENDED</text>
+                </g>
+              </g>
+
+              <!-- ===== TIER 2: DREAD COLOSSEUM ===== -->
+              <g id="svg-tier-group-2" class="svg-tier-group" data-floor="2">
+                <g id="svg-tier-intact-2" class="svg-tier-intact">
+                  <!-- Colosseum Base & Pillars -->
+                  <rect x="135" y="445" width="210" height="34" rx="6" fill="url(#grad-colosseum)" stroke="#e11d48" stroke-width="1.8"/>
+                  <rect x="145" y="420" width="14" height="26" fill="#881337" stroke="#fb7185" stroke-width="1"/>
+                  <rect x="180" y="420" width="14" height="26" fill="#881337" stroke="#fb7185" stroke-width="1"/>
+                  <rect x="286" y="420" width="14" height="26" fill="#881337" stroke="#fb7185" stroke-width="1"/>
+                  <rect x="321" y="420" width="14" height="26" fill="#881337" stroke="#fb7185" stroke-width="1"/>
+                  <!-- Crimson Banners -->
+                  <polygon points="210,420 220,442 230,420" fill="#dc2626" stroke="#fbbf24" stroke-width="1"/>
+                  <polygon points="250,420 260,442 270,420" fill="#dc2626" stroke="#fbbf24" stroke-width="1"/>
+                  <!-- Golden Gladiator Laurel Crest -->
+                  <circle cx="240" cy="433" r="7" fill="#fbbf24" stroke="#d97706" stroke-width="1"/>
+                  <!-- Braziers with flame -->
+                  <circle cx="152" cy="415" r="5" fill="#f97316" filter="url(#svg-glow-soft)"/>
+                  <circle cx="328" cy="415" r="5" fill="#f97316" filter="url(#svg-glow-soft)"/>
+                  <rect x="170" y="468" width="140" height="15" rx="3" fill="rgba(15,23,42,0.88)" stroke="#be123c" stroke-width="1"/>
+                  <text x="240" y="478" text-anchor="middle" font-size="8.5" font-weight="900" fill="#ffe4e6" letter-spacing="1">FLOOR 2 · DREAD COLOSSEUM</text>
+                </g>
+                <g id="svg-tier-ruins-2" class="svg-tier-ruins" style="display:none;">
+                  <polygon points="140,475 175,455 210,462 250,452 285,462 330,475" fill="#2d0510" stroke="#be123c" stroke-width="1"/>
+                  <circle cx="190" cy="465" r="6" fill="#4c0519"/>
+                  <circle cx="290" cy="464" r="6" fill="#4c0519"/>
+                  <text x="240" y="478" text-anchor="middle" font-size="8" font-weight="900" fill="#f43f5e" letter-spacing="0.5">💥 COLOSSEUM DESTROYED</text>
+                </g>
+              </g>
+
+              <!-- ===== TIER 1: OBSIDIAN KEEP ===== -->
+              <g id="svg-tier-group-1" class="svg-tier-group" data-floor="1">
+                <g id="svg-tier-intact-1" class="svg-tier-intact">
+                  <!-- Volcanic Crag Base -->
+                  <polygon points="90,650 120,580 360,580 390,650" fill="#18181b" stroke="#3f3f46" stroke-width="1.8"/>
+                  <!-- Obsidian Bastion Walls -->
+                  <rect x="120" y="572" width="240" height="42" rx="6" fill="url(#grad-obsidian)" stroke="#f97316" stroke-width="2"/>
+                  <!-- Crenellations / Battlements -->
+                  <rect x="125" y="556" width="20" height="18" fill="#171717" stroke="#f97316" stroke-width="1"/>
+                  <rect x="165" y="556" width="20" height="18" fill="#171717" stroke="#f97316" stroke-width="1"/>
+                  <rect x="295" y="556" width="20" height="18" fill="#171717" stroke="#f97316" stroke-width="1"/>
+                  <rect x="335" y="556" width="20" height="18" fill="#171717" stroke="#f97316" stroke-width="1"/>
+                  <!-- Iron Portcullis Gateway with Magma Fissure Glow -->
+                  <path d="M 215,614 Q 240,590 265,614 L 265,614 Z" fill="#000000" stroke="#f97316" stroke-width="2"/>
+                  <path d="M 140,588 L 180,594 L 210,588" fill="none" stroke="url(#grad-lava)" stroke-width="2.5" filter="url(#svg-glow-soft)"/>
+                  <path d="M 270,592 L 310,586 L 340,592" fill="none" stroke="url(#grad-lava)" stroke-width="2.5" filter="url(#svg-glow-soft)"/>
+                  <!-- Wall Torches with flame -->
+                  <circle cx="135" cy="550" r="6" fill="#f97316" filter="url(#svg-glow-intense)"/>
+                  <circle cx="135" cy="550" r="3" fill="#fef08a"/>
+                  <circle cx="345" cy="550" r="6" fill="#f97316" filter="url(#svg-glow-intense)"/>
+                  <circle cx="345" cy="550" r="3" fill="#fef08a"/>
+                  <!-- Banner Plate -->
+                  <rect x="170" y="604" width="140" height="16" rx="3" fill="rgba(10,10,10,0.92)" stroke="#ea580c" stroke-width="1.2"/>
+                  <text x="240" y="615" text-anchor="middle" font-size="8.5" font-weight="900" fill="#fed7aa" letter-spacing="1">FLOOR 1 · OBSIDIAN KEEP</text>
+                </g>
+                <g id="svg-tier-ruins-1" class="svg-tier-ruins" style="display:none;">
+                  <!-- Shattered Crumbled Volcanic Rubble -->
+                  <polygon points="105,640 140,612 185,622 225,608 265,620 310,610 365,640" fill="#18181b" stroke="#ea580c" stroke-width="1.5"/>
+                  <circle cx="160" cy="625" r="8" fill="#27272a"/>
+                  <circle cx="220" cy="620" r="10" fill="#27272a"/>
+                  <circle cx="280" cy="622" r="9" fill="#27272a"/>
+                  <path d="M 180,630 L 210,634 L 245,630" stroke="#f97316" stroke-width="2" fill="none" opacity="0.6"/>
+                  <text x="240" y="616" text-anchor="middle" font-size="8.5" font-weight="900" fill="#fb923c" letter-spacing="0.5">💥 OBSIDIAN BLOWN TO ASHES</text>
+                </g>
+              </g>
+
+              <!-- ===== DYNAMIC EXPLOSION FX LAYER ===== -->
+              <g id="svg-explosion-layer" pointer-events="none"></g>
+
+              <!-- ===== PLAYER PROFILE MARKER ===== -->
+              <g id="svg-player-profile-marker" class="svg-player-marker" transform="translate(240, 560)">
+                <!-- Ambient Pulsing Glow Circle -->
+                <circle cx="0" cy="0" r="24" fill="#fbbf24" opacity="0.28" filter="url(#svg-glow-intense)" class="player-marker-halo"/>
+                <!-- Outer Golden Crest Ring -->
+                <circle cx="0" cy="0" r="20" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="5 2" class="player-marker-ring"/>
+                <!-- Inner Avatar Background Circle -->
+                <circle cx="0" cy="0" r="17" fill="url(#player-avatar-grad)" class="player-marker-core"/>
+                <!-- Player Avatar Text / Initial -->
+                <text id="svg-player-avatar-text" x="0" y="0.5" text-anchor="middle" dominant-baseline="central" font-size="15" font-weight="900" fill="#ffffff">P</text>
+                <!-- "YOU" Badge Pill -->
+                <rect x="-16" y="17" width="32" height="13" rx="4" fill="rgba(15,23,42,0.92)" stroke="#f59e0b" stroke-width="1.2"/>
+                <text x="0" y="25.5" text-anchor="middle" dominant-baseline="central" font-size="8" font-weight="900" fill="#fef08a" letter-spacing="0.6">YOU</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+
         <!-- Selected Chamber Action Console -->
         <div class="tower-command-console rl-command-console" id="tower-command-console">
           <div class="tower-mission-card rl-mission-card">
@@ -378,26 +615,26 @@
               </div>
             </div>
 
-            <!-- Rewards Grid -->
+            <!-- Rewards Grid (Mehrbod Bux Only - Spire Shards Removed) -->
             <div class="tmc-rewards-grid">
               <div class="tmc-reward-item">
                 <span class="tri-icon">
                   <svg class="glass-icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"></circle><path d="M18.09 10.37A6 6 0 1 1 10.34 18"></path><path d="M7 6h2v4H7z"></path></svg>
                 </span>
-                <span class="tri-val" id="tower-console-bux-val">+10 Bux</span>
+                <span class="tri-val" id="tower-console-bux-val">+25 Mehrbod Bux</span>
                 <span class="tri-label">Clear Bounty</span>
               </div>
               <div class="tmc-reward-item">
                 <span class="tri-icon">
                   <svg class="glass-icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
                 </span>
-                <span class="tri-val" id="tower-console-xp-val">+45 XP</span>
+                <span class="tri-val" id="tower-console-xp-val">+50 XP</span>
                 <span class="tri-label">Profile &amp; Pass</span>
               </div>
               <div class="tmc-reward-item">
-                <span class="tri-icon">💎</span>
-                <span class="tri-val" id="tower-console-shards-val">+25 Shards</span>
-                <span class="tri-label">Spire Shards</span>
+                <span class="tri-icon">💰</span>
+                <span class="tri-val" id="tower-console-shards-val">+50 Mehrbod Bux</span>
+                <span class="tri-label">Ascension Bonus</span>
               </div>
             </div>
 

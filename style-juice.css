@@ -800,16 +800,186 @@ html.theme-valentine .brand-mark {
 }
 
 .tower-page-layout.rl-layout {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(360px, 480px) minmax(320px, 460px);
+  gap: 24px;
   justify-content: center;
-  align-items: center;
-  max-width: 620px;
+  align-items: start;
+  max-width: 1040px;
   margin: 0 auto;
   width: 100%;
 }
 
+@media (max-width: 860px) {
+  .tower-page-layout.rl-layout {
+    grid-template-columns: 1fr;
+    max-width: 520px;
+  }
+}
+
 .tower-page-layout.rl-layout .tower-command-console {
   width: 100%;
+}
+
+/* ===== SVG SPIRE VISUALIZER STYLES ===== */
+.tower-svg-stage-card {
+  background: linear-gradient(180deg, rgba(22, 27, 46, 0.88) 0%, rgba(10, 14, 26, 0.96) 100%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  border-radius: 18px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.tower-svg-stage-card.tower-shake {
+  animation: svgScreenShake 0.65s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+.tower-svg-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tsh-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tsh-badge {
+  font: 900 0.82rem var(--font-display, sans-serif);
+  color: #fbbf24;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: 0 0 12px rgba(251, 191, 36, 0.4);
+}
+
+.tsh-sub {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.tower-svg-canvas-container {
+  width: 100%;
+  position: relative;
+  background: radial-gradient(circle at 50% 15%, #1e1b4b 0%, #080c16 85%);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.trial-tower-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  max-height: 580px;
+}
+
+/* Conduit pulsing lines */
+.conduit-line {
+  animation: conduitDash 2s linear infinite;
+}
+@keyframes conduitDash {
+  to { stroke-dashoffset: -20; }
+}
+
+/* Player Profile Marker Animations */
+.player-marker-halo {
+  animation: playerGlowPulse 2s ease-in-out infinite alternate;
+}
+@keyframes playerGlowPulse {
+  0% { transform: scale(0.9); opacity: 0.2; }
+  100% { transform: scale(1.15); opacity: 0.45; }
+}
+
+.player-marker-ring {
+  transform-origin: 0 0;
+  animation: playerRingSpin 10s linear infinite;
+}
+@keyframes playerRingSpin {
+  100% { transform: rotate(360deg); }
+}
+
+.svg-player-marker {
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: transform;
+}
+
+/* Detonation pre-rumble for collapsing tower */
+.svg-tier-rumble {
+  animation: towerTierRumble 0.35s infinite linear;
+  transform-origin: 240px center;
+}
+@keyframes towerTierRumble {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(-3px, 2px) rotate(-1deg); }
+  50% { transform: translate(3px, -2px) rotate(1deg); }
+  75% { transform: translate(-2px, -1px) rotate(-0.5deg); }
+  100% { transform: translate(2px, 1px) rotate(0.5deg); }
+}
+
+/* Shockwave blast rings */
+.svg-blast-wave {
+  animation: svgBlastWaveExpand 0.75s ease-out forwards;
+  transform-origin: center;
+}
+@keyframes svgBlastWaveExpand {
+  0% { r: 10; opacity: 1; stroke-width: 8; }
+  50% { opacity: 0.8; stroke-width: 5; }
+  100% { r: 120; opacity: 0; stroke-width: 1; }
+}
+
+/* Flying debris chunks */
+.svg-debris-chunk {
+  animation: svgDebrisChunkFly 0.9s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+@keyframes svgDebrisChunkFly {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  70% { opacity: 0.9; }
+  100% { transform: translate(var(--dx), var(--dy)) rotate(var(--drot)); opacity: 0; }
+}
+
+/* Billowing smoke puffs */
+.svg-smoke-puff {
+  animation: svgSmokeRise 1.2s ease-out forwards;
+}
+@keyframes svgSmokeRise {
+  0% { transform: scale(0.4) translateY(0); opacity: 0.85; }
+  50% { opacity: 0.5; }
+  100% { transform: scale(2.2) translateY(-45px); opacity: 0; }
+}
+
+/* Card screen shake */
+@keyframes svgScreenShake {
+  10%, 90% { transform: translate3d(-2px, 0, 0) rotate(-0.5deg); }
+  20%, 80% { transform: translate3d(4px, 2px, 0) rotate(0.8deg); }
+  30%, 50%, 70% { transform: translate3d(-6px, -3px, 0) rotate(-1deg); }
+  40%, 60% { transform: translate3d(6px, 3px, 0) rotate(1deg); }
+}
+
+/* Celebration floating text in SVG */
+.svg-conquer-text {
+  animation: svgConquerTextRise 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes svgConquerTextRise {
+  0% { transform: translateY(10px) scale(0.8); opacity: 0; }
+  20% { transform: translateY(0) scale(1.1); opacity: 1; }
+  35% { transform: translateY(-4px) scale(1); opacity: 1; }
+  80% { transform: translateY(-24px); opacity: 1; }
+  100% { transform: translateY(-40px); opacity: 0; }
 }
 
 /* Visual Citadel Column (3D Liquid Glass) */

@@ -2148,7 +2148,7 @@ const ROGUELIKE_UPGRADES = [
   { id: 'speed_gale', name: 'Gale Momentum', icon: '🌪️', tag: 'SPEED', rarity: 'common', desc: 'Your units strike first with +1 bonus ATK.' },
   { id: 'molten_burn', name: 'Solar Immolation', icon: '🔥', tag: 'BURN', rarity: 'rare', desc: 'All enemy cards suffer 2 burn damage every turn.' },
   { id: 'regrowth', name: 'Wild Regrowth', icon: '🌿', tag: 'HEAL', rarity: 'common', desc: 'Restore +3 HP to every friendly card on the board.' },
-  { id: 'shard_siphon', name: 'Shard Extraction', icon: '💎', tag: 'ECONOMY', rarity: 'common', desc: 'Extract +25 Spire Shards from the chamber.' },
+  { id: 'shard_siphon', name: 'Bux Extraction', icon: '💰', tag: 'ECONOMY', rarity: 'common', desc: 'Extract +40 Mehrbod Bux from the chamber.' },
   { id: 'wild_gambit', name: 'Chaos Infusion', icon: '🎲', tag: 'RISK/REWARD', rarity: 'epic', desc: 'A random unit gains +5 ATK and +2 Shield HP.' },
   { id: 'defense_refresh', name: 'Aegis Refresh', icon: '🌀', tag: 'DEFENSE', rarity: 'common', desc: 'Refresh all defense charges on your board.' },
   { id: 'titan_slayer', name: 'Titan Slayer', icon: '👑', tag: 'BOSS', rarity: 'legendary', desc: 'Deal +4 bonus damage against Elite and Boss units.' },
@@ -2164,7 +2164,7 @@ const ROGUELIKE_RELICS = [
   { id: 'relic_tesla', name: 'Tesla Coil', icon: '⚡', rarity: 'rare', desc: 'The first spell cast each combat deals 3 splash damage to all enemies.' },
   { id: 'relic_vorpal', name: 'Vorpal Blade', icon: '🗡️', rarity: 'epic', desc: 'Every friendly attack deals +1 permanent bonus damage.' },
   { id: 'relic_shell', name: 'Aegis Carapace', icon: '🛡️', rarity: 'rare', desc: 'The first attack against your board each round is blocked completely.' },
-  { id: 'relic_coin', name: 'Midas Talisman', icon: '💰', rarity: 'common', desc: 'Earn 50% more Spire Shards and Bux from victories.' },
+  { id: 'relic_coin', name: 'Midas Talisman', icon: '💰', rarity: 'common', desc: 'Earn 50% more Mehrbod Bux from victories.' },
   { id: 'relic_rosary', name: 'Purity Rosary', icon: '📿', rarity: 'epic', desc: 'Cleanse 1 random curse when entering a new chamber tier.' },
   { id: 'relic_axe', name: "Executioner's Greataxe", icon: '🪓', rarity: 'legendary', desc: 'Instantly executes any enemy that falls below 20% HP.' },
   { id: 'relic_lantern', name: 'Soul Lantern', icon: '🕯️', rarity: 'epic', desc: 'Revives 1 fallen card per combat with 3 HP.' },
@@ -2182,7 +2182,7 @@ const ROGUELIKE_DEBUFFS = [
   { id: 'curse_terror_gaze', name: 'Terror Gaze', icon: '👁️', desc: 'Enemy units enter play with +1 ATK and +1 Shield.' },
   { id: 'curse_shattered_shields', name: 'Corroded Armor', icon: '🛡️', desc: 'Friendly units cannot gain bonus Shield HP.' },
   { id: 'curse_sandstorm', name: 'Dust Storm', icon: '🌪️', desc: 'Attacks have a 20% chance to miss.' },
-  { id: 'curse_greed', name: "Greed's Tax", icon: '💸', desc: 'Lose 5 Spire Shards each combat round.' }
+  { id: 'curse_greed', name: "Greed's Tax", icon: '💸', desc: 'Lose 5 Mehrbod Bux each combat round.' }
 ];
 
 const TOWER_DEBUFF_POOL = ROGUELIKE_DEBUFFS;
@@ -2193,7 +2193,6 @@ function createFreshRoguelikeRun(best = 1) {
   return {
     active: true,
     floor: 1,
-    shards: 20,
     relics: [],
     permanentUpgrades: [],
     roundUpgradesThisMatch: [],
@@ -2308,7 +2307,7 @@ function getChamberForFloor(floor) {
       icon: '⚔️',
       tag: 'STANDARD COMBAT',
       flavor: 'Dark volcanic fortress guarded by sentinel constructs. Defeat them to ascend.',
-      loot: `+${20 + f * 4} Shards · Round Augments`,
+      loot: `+${20 + f * 5} Mehrbod Bux · Round Augments`,
       debuff: loopNum > 1 ? ROGUELIKE_DEBUFFS[(f - 1) % ROGUELIKE_DEBUFFS.length] : null,
       diff: towerFloorDifficulty(f)
     };
@@ -2324,7 +2323,7 @@ function getChamberForFloor(floor) {
       icon: '💀',
       tag: 'ELITE CHAMBER',
       flavor: 'A bloodstained colosseum ruled by fierce champions. High stakes; yields guaranteed Relics!',
-      loot: `+${45 + f * 5} Shards · Guaranteed Relic`,
+      loot: `+${45 + f * 5} Mehrbod Bux · Guaranteed Relic`,
       debuff: d,
       diff: f <= 2 ? 'Medium' : (f <= 7 ? 'Hard' : 'Expert')
     };
@@ -2337,8 +2336,8 @@ function getChamberForFloor(floor) {
       name: `Whispering Shrine${loopSuffix}`,
       icon: '⛩️',
       tag: 'MYSTERY SHRINE',
-      flavor: 'An ancient stone altar humming with esoteric power. Channel Shards or offer prayers for blessings.',
-      loot: 'Relic Prayer · Shards · Purify',
+      flavor: 'An ancient stone altar humming with esoteric power. Channel power or offer prayers for blessings.',
+      loot: 'Relic Prayer · Mehrbod Bux · Purify',
       debuff: null,
       diff: 'SAFE'
     };
@@ -2384,7 +2383,7 @@ function renderRoguelikeSpireScreen() {
   const floorText = document.getElementById('rl-floor-text');
   const headerBest = document.getElementById('tower-header-best');
 
-  if (shardsText) shardsText.textContent = `${r.shards} Shards`;
+  if (shardsText) shardsText.textContent = `${typeof loadBux === 'function' ? loadBux() : 0} Mehrbod Bux`;
   if (floorText) floorText.textContent = `Chamber ${r.floor}`;
   if (headerBest) headerBest.textContent = `Floor ${r.best}`;
 
@@ -2507,13 +2506,13 @@ function updateConsoleForSelectedChamber(node, r) {
     if (hazardBanner) hazardBanner.classList.add('hidden');
   }
 
-  const rewardBux = 15 + r.floor * 5;
+  const rewardBux = 20 + r.floor * 5;
   const rewardXP = 45 + r.floor * 6;
-  const shardsVal = node.type === 'elite' ? 45 : (node.type === 'boss' ? 75 : 25);
+  const bonusBux = node.type === 'elite' ? 60 : (node.type === 'boss' ? 100 : 35);
 
-  if (buxEl) buxEl.textContent = `+${rewardBux} Bux`;
+  if (buxEl) buxEl.textContent = `+${rewardBux} Mehrbod Bux`;
   if (xpEl) xpEl.textContent = `+${rewardXP} XP`;
-  if (shardsEl) shardsEl.textContent = `+${shardsVal} Shards`;
+  if (shardsEl) shardsEl.textContent = `+${bonusBux} Mehrbod Bux`;
   if (bestEl) bestEl.textContent = `Floor ${r.best}`;
 
   if (startBtn) {
@@ -2653,16 +2652,15 @@ function openRoundUpgradeModal(round, matchState, onDone) {
 
   if (rerollBtn) {
     rerollBtn.onclick = () => {
-      const cur = loadRoguelikeRun();
-      if (cur.shards < 15) {
-        showToast('💎 You need 15 Spire Shards to reroll!', 2500);
+      const curBux = typeof loadBux === 'function' ? loadBux() : 0;
+      if (curBux < 15) {
+        showToast('💰 You need 15 Mehrbod Bux to reroll!', 2500);
         if (typeof Sound !== 'undefined' && Sound.buzzer) Sound.buzzer();
         return;
       }
-      cur.shards -= 15;
-      saveRoguelikeRun(cur);
+      if (typeof addBux === 'function') addBux(-15);
       if (typeof Sound !== 'undefined' && Sound.counterTick) Sound.counterTick(1);
-      showToast('🎲 Augments Rerolled! (-15 Shards)', 2000);
+      showToast('🎲 Augments Rerolled! (-15 Mehrbod Bux)', 2000);
       renderDraftCards();
     };
   }
@@ -2715,7 +2713,8 @@ function updateCombatRoguelikeHUD(matchState) {
 
   hud.classList.remove('hidden');
   if (floorBadge) {
-    floorBadge.innerHTML = `🗼 Chamber ${r.floor} · Round ${matchState ? matchState.round : 1} &nbsp;|&nbsp; 💎 ${r.shards} Shards &nbsp;|&nbsp; ⚡ Sudden Death`;
+    const curBux = typeof loadBux === 'function' ? loadBux() : 0;
+    floorBadge.innerHTML = `🗼 Chamber ${r.floor} · Round ${matchState ? matchState.round : 1} &nbsp;|&nbsp; 💰 ${curBux} Mehrbod Bux &nbsp;|&nbsp; ⚡ Sudden Death`;
   }
 
   if (tray) {
@@ -2799,9 +2798,8 @@ function applySelectedRoundUpgrade(up, matchState) {
       });
       spawnBattleFloatingText('🩸 LIFE SIPHON TRIGGERED!');
     } else if (up.id === 'shard_siphon') {
-      r.shards += 30;
-      saveRoguelikeRun(r);
-      spawnBattleFloatingText('💎 +30 SPIRE SHARDS EXTRACTED!');
+      if (typeof addBux === 'function') addBux(40);
+      spawnBattleFloatingText('💰 +40 MEHRBOD BUX EXTRACTED!');
     } else if (up.id === 'wild_gambit') {
       const living = playerP.board.filter(Boolean);
       if (living.length > 0) {
@@ -2874,16 +2872,16 @@ function openRoguelikeEventModal(node) {
     opt1.className = 'rl-event-opt-btn';
     opt1.innerHTML = `
       <div>
-        <span class="rl-event-opt-title">💎 Spire Infusion</span>
-        <span class="rl-event-opt-sub">Commune with the humming spire crystal. Channel raw shards into your pouch.</span>
+        <span class="rl-event-opt-title">💰 Spire Bux Reservoir</span>
+        <span class="rl-event-opt-sub">Commune with the humming spire crystal. Channel direct wealth into your coin pouch.</span>
       </div>
-      <span class="rl-event-opt-badge" style="background:rgba(56,189,248,0.25);color:#7dd3fc;">+40 💎 Shards</span>
+      <span class="rl-event-opt-badge" style="background:rgba(234,179,8,0.25);color:#fde047;">+50 Mehrbod Bux</span>
     `;
     opt1.onclick = () => {
-      r.shards += 40;
+      if (typeof addBux === 'function') addBux(50);
       saveRoguelikeRun(r);
       if (typeof Sound !== 'undefined' && Sound.coin) Sound.coin();
-      showToast('💎 Spire crystal resonant! +40 Spire Shards acquired.', 3000);
+      showToast('💰 Spire crystal resonant! +50 Mehrbod Bux acquired.', 3000);
       advanceChamber();
     };
 
@@ -2892,16 +2890,17 @@ function openRoguelikeEventModal(node) {
     opt2.innerHTML = `
       <div>
         <span class="rl-event-opt-title">🔮 Arcane Prayer</span>
-        <span class="rl-event-opt-sub">Offer 20 Spire Shards to summon an ancient Relic into your possession.</span>
+        <span class="rl-event-opt-sub">Offer 25 Mehrbod Bux to summon an ancient Relic into your possession.</span>
       </div>
-      <span class="rl-event-opt-badge" style="background:rgba(168,85,247,0.25);color:#e9d5ff;">-20 💎 ➜ 1 Relic</span>
+      <span class="rl-event-opt-badge" style="background:rgba(168,85,247,0.25);color:#e9d5ff;">-25 Bux ➜ 1 Relic</span>
     `;
     opt2.onclick = () => {
-      if (r.shards < 20) {
-        showToast('💎 You need 20 Spire Shards for the prayer!', 2500);
+      const curBux = typeof loadBux === 'function' ? loadBux() : 0;
+      if (curBux < 25) {
+        showToast('💰 You need 25 Mehrbod Bux for the prayer!', 2500);
         return;
       }
-      r.shards -= 20;
+      if (typeof addBux === 'function') addBux(-25);
       const unownedRelics = ROGUELIKE_RELICS.filter(x => !r.relics.includes(x.id));
       const chosen = unownedRelics[Math.floor(Math.random() * unownedRelics.length)] || ROGUELIKE_RELICS[0];
       if (chosen && !r.relics.includes(chosen.id)) r.relics.push(chosen.id);
@@ -2956,16 +2955,16 @@ function openRoguelikeEventModal(node) {
     opt2.innerHTML = `
       <div>
         <span class="rl-event-opt-title">🧘 Deep Meditation</span>
-        <span class="rl-event-opt-sub">Focus your spirit to cleanse 1 affliction and gain +15 Spire Shards.</span>
+        <span class="rl-event-opt-sub">Focus your spirit to cleanse 1 affliction and earn +30 Mehrbod Bux.</span>
       </div>
-      <span class="rl-event-opt-badge" style="background:rgba(168,85,247,0.25);color:#e9d5ff;">Cleanse &amp; +15 💎</span>
+      <span class="rl-event-opt-badge" style="background:rgba(168,85,247,0.25);color:#e9d5ff;">Cleanse &amp; +30 Bux</span>
     `;
     opt2.onclick = () => {
       r.activeDebuffs = [];
-      r.shards += 15;
+      if (typeof addBux === 'function') addBux(30);
       saveRoguelikeRun(r);
       if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
-      showToast('🧘 Mind steeled! Afflictions cleansed & +15 Shards.', 3000);
+      showToast('🧘 Mind steeled! Afflictions cleansed & +30 Mehrbod Bux.', 3000);
       advanceChamber();
     };
 
@@ -2999,14 +2998,15 @@ function openRoguelikeEventModal(node) {
         <span class="rl-event-opt-title">⚡ Tactical Augment Crate</span>
         <span class="rl-event-opt-sub">Purchase a combat augment crate with permanent battle upgrades.</span>
       </div>
-      <span class="rl-event-opt-badge" style="background:rgba(16,185,129,0.25);color:#6ee7b7;">20 💎</span>
+      <span class="rl-event-opt-badge" style="background:rgba(16,185,129,0.25);color:#6ee7b7;">25 Mehrbod Bux</span>
     `;
     opt1.onclick = () => {
-      if (r.shards < 20) {
-        showToast('💎 Not enough Shards for the augment crate!', 2500);
+      const curBux = typeof loadBux === 'function' ? loadBux() : 0;
+      if (curBux < 25) {
+        showToast('💰 Not enough Mehrbod Bux for the augment crate!', 2500);
         return;
       }
-      r.shards -= 20;
+      if (typeof addBux === 'function') addBux(-25);
       r.permanentUpgrades = r.permanentUpgrades || [];
       const pool = ['overclock', 'bastion', 'speed_gale', 'defense_refresh', 'armor_pierce'];
       const picked = pool[Math.floor(Math.random() * pool.length)];
@@ -3024,14 +3024,15 @@ function openRoguelikeEventModal(node) {
         <span class="rl-event-opt-title">💎 Smuggled Relic</span>
         <span class="rl-event-opt-sub">Purchase an exotic artifact smuggled from the upper spire.</span>
       </div>
-      <span class="rl-event-opt-badge" style="background:rgba(168,85,247,0.25);color:#e9d5ff;">35 💎</span>
+      <span class="rl-event-opt-badge" style="background:rgba(168,85,247,0.25);color:#e9d5ff;">40 Mehrbod Bux</span>
     `;
     opt2.onclick = () => {
-      if (r.shards < 35) {
-        showToast('💎 Not enough Shards for the relic!', 2500);
+      const curBux = typeof loadBux === 'function' ? loadBux() : 0;
+      if (curBux < 40) {
+        showToast('💰 Not enough Mehrbod Bux for the relic!', 2500);
         return;
       }
-      r.shards -= 35;
+      if (typeof addBux === 'function') addBux(-40);
       const unownedRelics = ROGUELIKE_RELICS.filter(x => !r.relics.includes(x.id));
       const chosen = unownedRelics[Math.floor(Math.random() * unownedRelics.length)] || ROGUELIKE_RELICS[0];
       if (chosen && !r.relics.includes(chosen.id)) r.relics.push(chosen.id);
@@ -3048,14 +3049,15 @@ function openRoguelikeEventModal(node) {
         <span class="rl-event-opt-title">📿 Curse-Breaker Incense</span>
         <span class="rl-event-opt-sub">Burn sacred incense to shatter all active curses & afflictions.</span>
       </div>
-      <span class="rl-event-opt-badge" style="background:rgba(245,158,11,0.25);color:#fcd34d;">25 💎</span>
+      <span class="rl-event-opt-badge" style="background:rgba(245,158,11,0.25);color:#fcd34d;">25 Mehrbod Bux</span>
     `;
     opt3.onclick = () => {
-      if (r.shards < 25) {
-        showToast('💎 Not enough Shards for the incense!', 2500);
+      const curBux = typeof loadBux === 'function' ? loadBux() : 0;
+      if (curBux < 25) {
+        showToast('💰 Not enough Mehrbod Bux for the incense!', 2500);
         return;
       }
-      r.shards -= 25;
+      if (typeof addBux === 'function') addBux(-25);
       r.activeDebuffs = [];
       saveRoguelikeRun(r);
       if (typeof Sound !== 'undefined' && Sound.counterTick) Sound.counterTick(1);
@@ -3574,16 +3576,15 @@ function resolveTrialTowerMatch(won) {
   const isBoss = currentChamber.type === 'boss' || (typeof isBossFloor === 'function' && isBossFloor(clearedFloor));
 
   if (won) {
-    const shardBounty = isBoss ? 75 : (isElite ? 45 : 25);
-    const rewardBux = towerFloorReward(clearedFloor);
+    const bonusBux = isBoss ? 100 : (isElite ? 60 : 35);
+    const rewardBux = towerFloorReward(clearedFloor) + bonusBux;
     const xpReward = 50 + clearedFloor * 8;
 
     if (typeof addBux === 'function') addBux(rewardBux);
     if (typeof grantPlayerXP === 'function') grantPlayerXP(xpReward, `Trial Spire Floor ${clearedFloor}`);
     if (typeof recordEconomyChange === 'function') recordEconomyChange(rewardBux, `Trial Spire Chamber ${clearedFloor} cleared`);
-    if (typeof recordRecentActivity === 'function') recordRecentActivity(`Conquered Chamber ${clearedFloor} — +${rewardBux} Bux & +${shardBounty} Shards`);
+    if (typeof recordRecentActivity === 'function') recordRecentActivity(`Conquered Chamber ${clearedFloor} — +${rewardBux} Mehrbod Bux`);
 
-    r.shards += shardBounty;
     r.floorsClearedInRun = (r.floorsClearedInRun || 0) + 1;
     r.best = Math.max(r.best, clearedFloor + 1);
     r.floor = clearedFloor + 1;
@@ -3593,6 +3594,13 @@ function resolveTrialTowerMatch(won) {
     r.currentChamber = r.chamberChoices[0];
     r.chamberChoicesFloor = r.floor;
     r.selectedNodeIndex = 0;
+
+    // Queue cinematic animation for the SVG Spire Visualizer upon returning to the trial main screen!
+    window.pendingTowerAdvanceAnim = {
+      fromFloor: clearedFloor,
+      toFloor: r.floor,
+      won: true
+    };
 
     const newlyUnlockedMilestones = (typeof checkAndGrantTowerMilestones === 'function') ? checkAndGrantTowerMilestones(clearedFloor) : [];
 
@@ -3621,7 +3629,7 @@ function resolveTrialTowerMatch(won) {
     }
 
     saveRoguelikeRun(r);
-    showToast(`🗼 Chamber ${clearedFloor} Conquered! +${shardBounty} Shards · +${rewardBux} Bux!`, 3200);
+    showToast(`🗼 Chamber ${clearedFloor} Conquered! +${rewardBux} Mehrbod Bux · +${xpReward} XP!`, 3200);
 
     setTimeout(() => {
       document.getElementById('gameover-overlay')?.classList.add('hidden');
@@ -3869,6 +3877,285 @@ function playTowerExplodeAnimation(wrapper, stack, onDone) {
   setTimeout(() => { stack.innerHTML = ''; onDone(); }, bricks.length * 40 + 650);
 }
 
+/* ============================================================
+   TRIAL TOWER SVG CITADEL VISUALIZER & DETONATION ENGINE
+   - Climbs up each level with the player's profile avatar marker
+   - Previous tower level shakes and blows up with fiery debris
+   - Triumphant landing at the new level platform
+   ============================================================ */
+
+function getSpireTierCoords(tier) {
+  const t = Math.max(1, Math.min(5, Number(tier) || 1));
+  switch (t) {
+    case 1: return { x: 240, y: 560, name: 'Obsidian Keep' };
+    case 2: return { x: 240, y: 435, name: 'Dread Colosseum' };
+    case 3: return { x: 240, y: 315, name: 'Whispering Shrine' };
+    case 4: return { x: 240, y: 195, name: 'Sanctuary Camp' };
+    case 5: return { x: 240, y: 75, name: 'Apex Titan Boss' };
+    default: return { x: 240, y: 560, name: 'Obsidian Keep' };
+  }
+}
+
+function updateSvgPlayerAvatar() {
+  const textEl = document.getElementById('svg-player-avatar-text');
+  if (!textEl) return;
+  let pName = 'Player';
+  if (typeof loadPlayerName === 'function') {
+    const n = loadPlayerName();
+    if (n) pName = n;
+  }
+  const initial = (pName[0] || 'P').toUpperCase();
+  textEl.textContent = initial;
+}
+
+function renderTowerVisualState(floor) {
+  const f = Math.max(1, Number(floor) || 1);
+  const activeTier = ((f - 1) % 5) + 1;
+  const chamber = typeof getChamberForFloor === 'function' ? getChamberForFloor(f) : { name: `Floor ${f}` };
+
+  updateSvgPlayerAvatar();
+
+  const indicator = document.getElementById('tower-svg-floor-indicator');
+  if (indicator) {
+    indicator.textContent = `STAGE ${f}: ${chamber.name.toUpperCase()}`;
+  }
+
+  // Position player marker on active tier platform
+  const coords = getSpireTierCoords(activeTier);
+  const marker = document.getElementById('svg-player-profile-marker');
+  if (marker) {
+    marker.setAttribute('transform', `translate(${coords.x}, ${coords.y})`);
+    marker.style.opacity = '1';
+  }
+
+  // Configure intact vs ruined states for all 5 tiers
+  for (let t = 1; t <= 5; t++) {
+    const intact = document.getElementById(`svg-tier-intact-${t}`);
+    const ruins = document.getElementById(`svg-tier-ruins-${t}`);
+    if (!intact || !ruins) continue;
+
+    intact.classList.remove('svg-tier-rumble');
+
+    if (t < activeTier) {
+      // Completed tiers have blown up! Show smoking ruins
+      intact.style.display = 'none';
+      ruins.style.display = 'inline';
+    } else {
+      // Active and upcoming tiers are intact
+      intact.style.display = 'inline';
+      ruins.style.display = 'none';
+    }
+  }
+
+  // Clear any residual explosion elements
+  const fxLayer = document.getElementById('svg-explosion-layer');
+  if (fxLayer) fxLayer.innerHTML = '';
+}
+
+function playTowerAdvanceCinematic(fromFloor, toFloor, onComplete) {
+  const fFrom = Math.max(1, Number(fromFloor) || 1);
+  const fTo = Math.max(fFrom, Number(toFloor) || (fFrom + 1));
+  const prevTier = ((fFrom - 1) % 5) + 1;
+  const nextTier = ((fTo - 1) % 5) + 1;
+
+  const prevCoords = getSpireTierCoords(prevTier);
+  const nextCoords = getSpireTierCoords(nextTier);
+  const prevChamber = typeof getChamberForFloor === 'function' ? getChamberForFloor(fFrom) : { name: `Floor ${fFrom}` };
+  const nextChamber = typeof getChamberForFloor === 'function' ? getChamberForFloor(fTo) : { name: `Floor ${fTo}` };
+
+  updateSvgPlayerAvatar();
+
+  const card = document.getElementById('tower-svg-stage-card');
+  const indicator = document.getElementById('tower-svg-floor-indicator');
+  const fxLayer = document.getElementById('svg-explosion-layer');
+  const marker = document.getElementById('svg-player-profile-marker');
+
+  if (fxLayer) fxLayer.innerHTML = '';
+  if (indicator) indicator.textContent = `💥 DEMOLISHING STAGE ${fFrom}...`;
+
+  // Start with previous tier intact and marker positioned there
+  const prevIntact = document.getElementById(`svg-tier-intact-${prevTier}`);
+  const prevRuins = document.getElementById(`svg-tier-ruins-${prevTier}`);
+  if (prevIntact) prevIntact.style.display = 'inline';
+  if (prevRuins) prevRuins.style.display = 'none';
+
+  if (marker) {
+    marker.setAttribute('transform', `translate(${prevCoords.x}, ${prevCoords.y})`);
+    marker.style.opacity = '1';
+  }
+
+  // 1. Pre-detonation tremor: previous tower begins rumbling
+  if (prevIntact) prevIntact.classList.add('svg-tier-rumble');
+
+  setTimeout(() => {
+    // 2. DETONATION: KABOOM!
+    if (prevIntact) {
+      prevIntact.classList.remove('svg-tier-rumble');
+      prevIntact.style.display = 'none';
+    }
+    if (prevRuins) prevRuins.style.display = 'inline';
+
+    if (card) {
+      card.classList.remove('tower-shake');
+      void card.offsetWidth; // Reflow
+      card.classList.add('tower-shake');
+      setTimeout(() => card.classList.remove('tower-shake'), 700);
+    }
+
+    if (typeof Sound !== 'undefined' && Sound.meteorBoom) Sound.meteorBoom();
+
+    // Spawn dramatic explosion elements in SVG layer
+    if (fxLayer) {
+      // Blast Shockwave rings
+      const ring1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      ring1.setAttribute('cx', prevCoords.x);
+      ring1.setAttribute('cy', prevCoords.y + 10);
+      ring1.setAttribute('r', '15');
+      ring1.setAttribute('fill', 'none');
+      ring1.setAttribute('stroke', '#fbbf24');
+      ring1.setAttribute('class', 'svg-blast-wave');
+      fxLayer.appendChild(ring1);
+
+      const ring2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      ring2.setAttribute('cx', prevCoords.x);
+      ring2.setAttribute('cy', prevCoords.y + 10);
+      ring2.setAttribute('r', '25');
+      ring2.setAttribute('fill', 'url(#blast-fire-grad)');
+      ring2.setAttribute('opacity', '0.9');
+      ring2.setAttribute('class', 'svg-blast-wave');
+      fxLayer.appendChild(ring2);
+
+      // Flying debris fragments (24 chunks)
+      const colors = ['#27272a', '#71717a', '#ea580c', '#dc2626', '#f59e0b', '#18181b'];
+      for (let i = 0; i < 24; i++) {
+        const chunk = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        const sz = 6 + Math.random() * 8;
+        chunk.setAttribute('x', prevCoords.x - sz / 2);
+        chunk.setAttribute('y', prevCoords.y + 10 - sz / 2);
+        chunk.setAttribute('width', sz);
+        chunk.setAttribute('height', sz);
+        chunk.setAttribute('rx', '2');
+        chunk.setAttribute('fill', colors[i % colors.length]);
+        chunk.setAttribute('class', 'svg-debris-chunk');
+
+        const angle = (Math.PI * 2 * i) / 24 + (Math.random() - 0.5) * 0.4;
+        const dist = 75 + Math.random() * 95;
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist + 15;
+        const rot = (Math.random() - 0.5) * 720;
+        chunk.style.setProperty('--dx', `${dx}px`);
+        chunk.style.setProperty('--dy', `${dy}px`);
+        chunk.style.setProperty('--drot', `${rot}deg`);
+        fxLayer.appendChild(chunk);
+      }
+
+      // Billowing smoke puffs
+      for (let s = 0; s < 8; s++) {
+        const smoke = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        const ox = (Math.random() - 0.5) * 40;
+        const oy = (Math.random() - 0.5) * 20;
+        smoke.setAttribute('cx', prevCoords.x + ox);
+        smoke.setAttribute('cy', prevCoords.y + oy);
+        smoke.setAttribute('r', '14');
+        smoke.setAttribute('fill', '#334155');
+        smoke.setAttribute('class', 'svg-smoke-puff');
+        smoke.style.animationDelay = `${s * 0.08}s`;
+        fxLayer.appendChild(smoke);
+      }
+    }
+
+    // 3. PLAYER ASCENT CLIMB: Launch upward to next level
+    setTimeout(() => {
+      const startTime = performance.now();
+      const duration = 950; // ms
+      const startX = prevCoords.x;
+      const startY = prevCoords.y;
+      const targetX = nextCoords.x;
+      const targetY = nextCoords.y;
+      const arcWidth = 35; // horizontal arc swing
+
+      function stepClimb(now) {
+        const elapsed = now - startTime;
+        const p = Math.min(1, elapsed / duration);
+        // Smooth easeInOutQuad
+        const ease = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+
+        const currentY = startY + (targetY - startY) * ease;
+        const currentX = startX + Math.sin(p * Math.PI) * arcWidth;
+        const scale = 1 + 0.3 * Math.sin(p * Math.PI);
+
+        if (marker) {
+          marker.setAttribute('transform', `translate(${currentX.toFixed(1)}, ${currentY.toFixed(1)}) scale(${scale.toFixed(2)})`);
+        }
+
+        // Emit small spark trails during flight
+        if (fxLayer && Math.random() < 0.4) {
+          const spark = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          spark.setAttribute('cx', currentX);
+          spark.setAttribute('cy', currentY + 16);
+          spark.setAttribute('r', '3');
+          spark.setAttribute('fill', '#f59e0b');
+          spark.setAttribute('opacity', '0.8');
+          fxLayer.appendChild(spark);
+          setTimeout(() => spark.remove(), 400);
+        }
+
+        if (p < 1) {
+          requestAnimationFrame(stepClimb);
+        } else {
+          // 4. TRIUMPHANT IMPACT LANDING AT TARGET TIER
+          if (marker) {
+            marker.setAttribute('transform', `translate(${targetX}, ${targetY})`);
+          }
+
+          if (typeof Sound !== 'undefined' && Sound.playLevelUp) Sound.playLevelUp();
+
+          // Landing dust ring
+          if (fxLayer) {
+            const landRing = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            landRing.setAttribute('cx', targetX);
+            landRing.setAttribute('cy', targetY + 14);
+            landRing.setAttribute('r', '10');
+            landRing.setAttribute('fill', 'none');
+            landRing.setAttribute('stroke', '#38bdf8');
+            landRing.setAttribute('class', 'svg-blast-wave');
+            fxLayer.appendChild(landRing);
+
+            // Celebration Floating Text in SVG
+            const cheerText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            cheerText.setAttribute('x', targetX);
+            cheerText.setAttribute('y', targetY - 28);
+            cheerText.setAttribute('text-anchor', 'middle');
+            cheerText.setAttribute('font-size', '12');
+            cheerText.setAttribute('font-weight', '900');
+            cheerText.setAttribute('fill', '#fef08a');
+            cheerText.setAttribute('filter', 'url(#svg-glow-soft)');
+            cheerText.setAttribute('class', 'svg-conquer-text');
+            cheerText.textContent = `🏆 STAGE ${fTo}: ${nextChamber.name.toUpperCase()} REACHED!`;
+            fxLayer.appendChild(cheerText);
+          }
+
+          if (indicator) {
+            indicator.textContent = `STAGE ${fTo}: ${nextChamber.name.toUpperCase()}`;
+          }
+
+          // Highlight and update Action Console
+          const consoleEl = document.getElementById('tower-command-console');
+          if (consoleEl) {
+            consoleEl.style.boxShadow = '0 0 28px rgba(251, 191, 36, 0.45)';
+            setTimeout(() => { consoleEl.style.boxShadow = ''; }, 1200);
+          }
+
+          if (onComplete) onComplete();
+        }
+      }
+
+      requestAnimationFrame(stepClimb);
+    }, 220);
+
+  }, 420);
+}
+
 function openTrialTowerScreen() {
   if (typeof showScreen === 'function') {
     showScreen('screen-trial-tower');
@@ -3880,6 +4167,29 @@ function openTrialTowerScreen() {
   // Render the Roguelike Spire HUD, Shelves, Chamber Choices, and Console
   renderRoguelikeSpireScreen();
 
+  const r = loadRoguelikeRun();
+
+  // SVG Visualizer: Check if returning from match with pending climb & explosion animation!
+  if (window.pendingTowerAdvanceAnim) {
+    const anim = window.pendingTowerAdvanceAnim;
+    window.pendingTowerAdvanceAnim = null;
+    playTowerAdvanceCinematic(anim.fromFloor, anim.toFloor);
+  } else {
+    renderTowerVisualState(r.floor);
+  }
+
+  // Wire Replay Ascent Animation Button
+  const replayBtn = document.getElementById('btn-replay-climb-anim');
+  if (replayBtn && !replayBtn.dataset.bound) {
+    replayBtn.dataset.bound = 'true';
+    replayBtn.addEventListener('click', () => {
+      const curRun = loadRoguelikeRun();
+      const fromF = Math.max(1, curRun.floor - 1);
+      playTowerAdvanceCinematic(fromF, curRun.floor);
+    });
+    if (typeof wirePressFeedback === 'function') wirePressFeedback(replayBtn);
+  }
+
   const beginBtn = document.getElementById('btn-tower-page-begin');
   const abandonBtn = document.getElementById('btn-rl-abandon-run');
   const backBtn = document.getElementById('btn-trial-tower-back');
@@ -3890,8 +4200,8 @@ function openTrialTowerScreen() {
   if (beginBtn) {
     beginBtn.onclick = (e) => {
       e?.preventDefault();
-      const r = loadRoguelikeRun();
-      const node = (r.chamberChoices && r.chamberChoices[0]) || (typeof getChamberForFloor === 'function' ? getChamberForFloor(r.floor) : null);
+      const currentRun = loadRoguelikeRun();
+      const node = (currentRun.chamberChoices && currentRun.chamberChoices[0]) || (typeof getChamberForFloor === 'function' ? getChamberForFloor(currentRun.floor) : null);
       if (node) enterSelectedChamber(node);
     };
     if (typeof wirePressFeedback === 'function') wirePressFeedback(beginBtn);
@@ -3901,11 +4211,12 @@ function openTrialTowerScreen() {
   if (abandonBtn && !abandonBtn.dataset.bound) {
     abandonBtn.dataset.bound = 'true';
     abandonBtn.addEventListener('click', () => {
-      const r = loadRoguelikeRun();
-      if (confirm(`Abandon this Roguelike Spire run? (Current: Chamber ${r.floor}, ${r.shards} Shards)\nYour all-time deepest floor record (Floor ${r.best}) will be preserved.`)) {
-        const fresh = createFreshRoguelikeRun(r.best);
+      const curRun = loadRoguelikeRun();
+      if (confirm(`Abandon this Roguelike Spire run? (Current: Chamber ${curRun.floor})\nYour all-time deepest floor record (Floor ${curRun.best}) will be preserved.`)) {
+        const fresh = createFreshRoguelikeRun(curRun.best);
         saveRoguelikeRun(fresh);
         renderRoguelikeSpireScreen();
+        renderTowerVisualState(fresh.floor);
         showToast('🏳️ Spire run abandoned. A fresh ascension begins at Floor 1.', 3000);
         if (typeof Sound !== 'undefined' && Sound.meteorBoom) Sound.meteorBoom();
       }
