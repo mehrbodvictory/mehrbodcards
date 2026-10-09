@@ -513,19 +513,45 @@ function placeCard(state, playerKey, deckIndex, slot, cardId, archetypeId) {
   p.board[slot] = card;
   p.didActionThisRound = true;
 
-  // Trial Tower Modifiers on card placement
+  // Trial Tower Roguelike Modifiers & Relics on card placement
   if (state.trialTowerModifiers && Array.isArray(state.trialTowerModifiers)) {
     if (playerKey === 'you' || playerKey === state.order[0]) {
-      const ocCount = state.trialTowerModifiers.filter(m => m === 'overcharge').length;
+      const ocCount = state.trialTowerModifiers.filter(m => m === 'overcharge' || m === 'overclock').length;
       if (ocCount > 0) {
         card.dmg += 2 * ocCount;
-        pushLog(state, `⚔️ Overcharge Surge: ${card.name} +${2 * ocCount} ATK!`);
+        pushLog(state, `⚔️ Vanguard Overclock: ${card.name} +${2 * ocCount} ATK!`);
       }
       const bastCount = state.trialTowerModifiers.filter(m => m === 'bastion').length;
       if (bastCount > 0) {
         card.hp += 3 * bastCount;
         card.maxHp += 3 * bastCount;
         pushLog(state, `🛡️ Bastion Plating: ${card.name} +${3 * bastCount} Shield HP!`);
+      }
+      const galeCount = state.trialTowerModifiers.filter(m => m === 'speed_gale').length;
+      if (galeCount > 0) {
+        card.dmg += 1 * galeCount;
+        pushLog(state, `🌪️ Gale Momentum: ${card.name} +${1 * galeCount} ATK!`);
+      }
+      const vorpalCount = state.trialTowerModifiers.filter(m => m === 'relic_vorpal').length;
+      if (vorpalCount > 0) {
+        card.dmg += 1 * vorpalCount;
+        pushLog(state, `🗡️ Vorpal Blade: ${card.name} +${1 * vorpalCount} ATK!`);
+      }
+      if (state.trialTowerModifiers.includes('relic_chalice') && slot === 0) {
+        card.hp += 5;
+        card.maxHp += 5;
+        pushLog(state, `🍷 Chalice of Vitality: Vanguard ${card.name} +5 Shield HP!`);
+      }
+      if (state.trialTowerModifiers.includes('relic_crown') && (slot === 1 || slot === 2)) {
+        card.dmg += 2;
+        card.hp += 2;
+        card.maxHp += 2;
+        pushLog(state, `👑 Crown of Ascension: Center slot ${card.name} +2 ATK / +2 HP!`);
+      }
+      if (state.trialTowerModifiers.includes('relic_heart')) {
+        card.hp += 2;
+        card.maxHp += 2;
+        pushLog(state, `💖 Heart of the Titan: ${card.name} +2 Max HP!`);
       }
       if (state.trialTowerModifiers.includes('boss_apex_supremacy')) {
         card.maxHp = Math.max(1, card.maxHp - 1);
@@ -550,11 +576,17 @@ function placeCard(state, playerKey, deckIndex, slot, cardId, archetypeId) {
       }
       
       if (state.activeDebuff) {
-        applyDebuff(state, state.activeDebuff, card);
+        applyDebuff(state, state.activeDebuff, card, slot);
         pushLog(state, `⚠️ Active Debuff: applied to ${card.name}!`);
       }
     }
     if (playerKey === 'bot' || playerKey === state.order[1]) {
+      if (state.activeDebuff === 'curse_terror_gaze') {
+        card.hp += 1;
+        card.maxHp += 1;
+        card.dmg += 1;
+        pushLog(state, `👁️ Terror Gaze: Enemy ${card.name} enters with +1 ATK & +1 Shield!`);
+      }
       if (card.name === 'Barbod' || card.archetypeId === 'boss_barbod') {
         pushLog(state, `💨 Barbod throws blinding dust at the screen!`);
         if (typeof window !== 'undefined' && typeof window.triggerDustStormEffect === 'function') {
@@ -1187,22 +1219,55 @@ function resolveAttacks(state) {
         return;
       }
 
-      // Trial Tower Modifiers: calculate active effects for the player
+      // Trial Tower Modifiers & Relics: calculate active effects for the player
       let modDmg = assign.dmg;
       const isPlayerAttacking = (attackerKey === 'you' || attackerKey === (state.order && state.order[0]));
       const modifiers = (state.trialTowerModifiers && Array.isArray(state.trialTowerModifiers)) ? state.trialTowerModifiers : [];
 
+      // Curse Sandstorm: 20% miss chance on player attacks
+      if (isPlayerAttacking && (state.activeDebuff === 'curse_sandstorm' || modifiers.includes('curse_sandstorm'))) {
+        if (state._rng && state._rng.next() < 0.20) {
+          pushFx(state, { type: 'miss', owner: attackerKey, slot, source });
+          pushLog(state, `🌪️ Dust Storm! ${assign.sourceName}'s attack missed in the blinding sand!`);
+          return;
+        }
+      }
+
+      // Relic Shadow Cloak: 20% evasion chance against enemy attacks aimed at player
+      if (!isPlayerAttacking && modifiers.includes('relic_cloak')) {
+        if (state._rng && state._rng.next() < 0.20) {
+          pushFx(state, { type: 'evade', owner: assign.targetOwner, slot: targetSlot, source });
+          pushLog(state, `🥋 Shadow Cloak! ${defenderCard.name} agilely evaded the incoming blow!`);
+          return;
+        }
+      }
+
+      // Relic Aegis Carapace: first attack against player board blocked
+      if (!isPlayerAttacking && modifiers.includes('relic_shell') && !state._relicShellTriggeredThisRound) {
+        state._relicShellTriggeredThisRound = true;
+        blockedSlots[assign.targetOwner].add(targetSlot);
+        pushFx(state, { type: 'block', owner: assign.targetOwner, slot: targetSlot, source });
+        pushLog(state, `🛡️ Aegis Carapace! First attack against your board this round is negated!`);
+        return;
+      }
+
       if (isPlayerAttacking && modifiers.length > 0) {
-        // Critical Strike Modifier (40% chance per stack to deal 2x damage)
-        const critCount = modifiers.filter(m => m === 'crit').length;
-        if (critCount > 0 && state._rng && state._rng.next() < Math.min(0.9, 0.40 * critCount)) {
-          modDmg = modDmg * 2;
+        // Deadly Precision / Critical Strike Modifier
+        const critCount = modifiers.filter(m => m === 'crit' || m === 'deadly_crit').length;
+        if (critCount > 0 && state._rng && state._rng.next() < Math.min(0.9, 0.45 * critCount)) {
+          modDmg = Math.round(modDmg * 2.2);
           pushFx(state, { type: 'selfBuff', owner: attackerKey, slot, stat: 'dmg', amount: modDmg });
-          pushLog(state, `⚡ CRITICAL STRIKE! ${assign.sourceName} hits for DOUBLE damage (${modDmg})!`);
+          pushLog(state, `⚡ CRITICAL STRIKE! ${assign.sourceName} hits for CRITICAL damage (${modDmg})!`);
         }
 
-        // Vampiric Drain Modifier (heals for 50% of damage dealt per stack)
-        const vampCount = modifiers.filter(m => m === 'vampiric').length;
+        // Titan Slayer: +4 bonus damage against Tier 2+ units and bosses
+        if (modifiers.includes('titan_slayer') && defenderCard && (defenderCard.tier >= 2 || defenderCard.isBossCard)) {
+          modDmg += 4;
+          pushLog(state, `👑 Titan Slayer! +4 bonus damage against elite ${defenderCard.name}!`);
+        }
+
+        // Vampiric Drain / Life Siphon Modifier (heals for 50% of damage dealt per stack)
+        const vampCount = modifiers.filter(m => m === 'vampiric' || m === 'siphon').length;
         if (vampCount > 0) {
           lifestealHits.push({ ownerKey: attackerKey, slot, amount: Math.max(1, Math.floor(modDmg * 0.5 * vampCount)) });
         }
@@ -1212,11 +1277,17 @@ function resolveAttacks(state) {
           assign.doubleStrike = true;
         }
 
-        // Reaper Execution Modifier (enemies at or below 2 HP per stack are executed)
-        const execCount = modifiers.filter(m => m === 'execute').length;
-        if (execCount > 0 && defenderCard && defenderCard.hp <= (2 * execCount)) {
+        // Reaper Execution Modifier
+        const execCount = modifiers.filter(m => m === 'execute' || m === 'executioner').length;
+        if (execCount > 0 && defenderCard && defenderCard.hp <= (3 * execCount)) {
           modDmg = 999;
           pushLog(state, `☠️ Reaper Execution instantly obliterates ${defenderCard.name}!`);
+        }
+
+        // Relic: Executioner's Greataxe (executes below 25% max HP)
+        if (modifiers.includes('relic_axe') && defenderCard && defenderCard.hp <= Math.ceil(defenderCard.maxHp * 0.25)) {
+          modDmg = 999;
+          pushLog(state, `🪓 Executioner's Greataxe severs ${defenderCard.name}!`);
         }
       }
 
@@ -1368,12 +1439,26 @@ function checkWinAndAdvance(state) {
 function startPlacementPhase(state) {
   state.round++;
   state.phase = 'placement';
+  state._relicShellTriggeredThisRound = false;
   // NEW: the once-per-round merge limit resets at the start of every
   // placement phase, for both players.
   state.order.forEach(k => {
     state.players[k].mergesThisRound = 0;
     state.players[k].didActionThisRound = false;
   });
+
+  // Roguelike Doom Bell curse: enemy units gain +2 ATK on round 3+
+  if (state.activeDebuff === 'curse_doom_clock' && state.round >= 3) {
+    const botP = state.players['bot'] || (state.order && state.players[state.order[1]]);
+    if (botP) {
+      botP.board.forEach(c => {
+        if (c) {
+          c.dmg += 2;
+          pushLog(state, `⏳ Doom Bell tolls! Enemy ${c.name} gains +2 ATK!`);
+        }
+      });
+    }
+  }
   // Resolve queued attacks (from cards that died mid-swing last attack phase)
   // before any new placement actions happen this cycle.
   const queue = state.pendingQueuedAttacks;
@@ -1521,18 +1606,44 @@ function emergencySalvage(state, playerKey, blueprintIndex) {
   return { ok: true, removedName: removed.name };
 }
 
-function applyDebuff(state, debuffId, card) {
+function applyDebuff(state, debuffId, card, slot = -1) {
   switch (debuffId) {
-    case 'd1': card.atk = Math.max(0, card.atk - 1); break;
-    case 'd2': card.hp = Math.max(1, card.hp - 1); break;
-    case 'd3': card.atk = Math.max(0, card.atk - 1); card.hp = Math.max(1, card.hp - 1); break;
-    case 'd4': card.atk = Math.max(0, card.atk - 2); break;
-    case 'd5': card.hp = Math.max(1, card.hp - 1); break;
-    case 'd6': /* Accuracy reduction */ break;
-    case 'd7': /* Abilities disabled */ break;
-    case 'd8': /* Damage taken +1 */ break;
-    case 'd9': /* Cannot attack */ break;
-    case 'd10': /* Healing reduction */ break;
+    case 'curse_miasma':
+    case 'd2':
+    case 'd5':
+      card.maxHp = Math.max(1, card.maxHp - 1);
+      card.hp = Math.min(card.hp, card.maxHp);
+      break;
+    case 'curse_shackles':
+      if (slot === 0) {
+        card.dmg = Math.max(0, card.dmg - 2);
+      }
+      break;
+    case 'curse_corroded':
+    case 'curse_shattered_shields':
+      card.bonusDefendCharge = 0;
+      break;
+    case 'curse_withering':
+    case 'd10':
+      card.withering = true;
+      break;
+    case 'curse_sandstorm':
+    case 'd6':
+      card.missChance = 0.20;
+      break;
+    case 'd1':
+    case 'd4':
+      card.dmg = Math.max(0, card.dmg - 1);
+      break;
+    case 'd3':
+      card.dmg = Math.max(0, card.dmg - 1);
+      card.hp = Math.max(1, card.hp - 1);
+      break;
+    case 'd8':
+      card.vulnerable = true;
+      break;
+    default:
+      break;
   }
 }
 

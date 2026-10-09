@@ -2220,6 +2220,16 @@ function renderCosmeticsShop() {
 
 document.getElementById('btn-how-to-play')?.addEventListener('click', () => startFullTutorial());
 document.getElementById('btn-single-player')?.addEventListener('click', () => showScreen('screen-single-player'));
+document.getElementById('btn-trial-tower-back')?.addEventListener('click', () => showScreen('screen-single-player'));
+document.getElementById('btn-trial-tower-menu')?.addEventListener('click', () => {
+  if (typeof openTrialTowerScreen === 'function') {
+    openTrialTowerScreen();
+  } else if (typeof window.openTrialTowerScreen === 'function') {
+    window.openTrialTowerScreen();
+  } else {
+    showScreen('screen-trial-tower');
+  }
+});
 document.getElementById('btn-multiplayer')?.addEventListener('click', () => showScreen('screen-multiplayer'));
 function openModernShop() {
   if (typeof Sound !== 'undefined' && Sound.coin) Sound.coin();
@@ -3161,6 +3171,9 @@ function startVsBot(wagerAmount = 0, deckConfig = null) {
   botRng = new RngStream(seed + 999);
   botActedKey = null;
   resetSelections();
+  if (typeof trialTowerActive !== 'undefined' && trialTowerActive && typeof window.resetMatchRoundDrafts === 'function') {
+    window.resetMatchRoundDrafts();
+  }
   showScreen('screen-game');
   const eff = getEffectiveBotDifficulty(botDifficulty);
   if (typeof trialTowerActive !== 'undefined' && trialTowerActive && typeof loadTrialTowerState === 'function') {
@@ -6555,6 +6568,13 @@ function render() {
     if (!wasInitial && state.phase === 'placement' && typeof Sound !== 'undefined' && Sound.turnStart) {
       Sound.turnStart();
     }
+    if (state.phase === 'placement' && typeof window.checkAndTriggerRoundUpgradeDraft === 'function') {
+      window.checkAndTriggerRoundUpgradeDraft(state);
+    }
+  }
+
+  if (typeof trialTowerActive !== 'undefined' && trialTowerActive && typeof updateCombatRoguelikeHUD === 'function') {
+    updateCombatRoguelikeHUD(state);
   }
 
   const gameScreen = document.getElementById('screen-game');

@@ -1584,17 +1584,22 @@ function loadDailyLoginState() {
 function saveDailyLoginState(s) {
   try { localStorage.setItem(DAILY_LOGIN_KEY, JSON.stringify(s)); } catch (e) {}
 }
+function _todayKeySafe() {
+  if (typeof todayKey === 'function') return todayKey();
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
 function _dailyLoginYesterdayKey() {
   const d = new Date();
   d.setDate(d.getDate() - 1);
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 }
 function isDailyLoginClaimedToday() {
-  return loadDailyLoginState().lastClaimDate === todayKey();
+  return loadDailyLoginState().lastClaimDate === _todayKeySafe();
 }
 function pendingDailyLoginCycleDay() {
   const s = loadDailyLoginState();
-  if (s.lastClaimDate === todayKey()) return s.cycleDay || 1;
+  if (s.lastClaimDate === _todayKeySafe()) return s.cycleDay || 1;
   if (s.lastClaimDate === _dailyLoginYesterdayKey()) return (s.cycleDay % 7) + 1;
   return 1;
 }
@@ -2128,199 +2133,997 @@ function checkSetBonuses() {
    5 practice difficulties.
    ============================================================ */
 const TRIAL_TOWER_KEY = 'mehrbod_trial_tower_v1';
-function loadTrialTowerState() {
+const ROGUELIKE_TOWER_KEY = 'mehrbod_trial_tower_roguelike_v2';
+
+/* ============================================================
+   ROGUELIKE TRIAL SPIRE: CORE DATA POOLS & STATE
+   ============================================================ */
+const ROGUELIKE_UPGRADES = [
+  { id: 'overclock', name: 'Vanguard Overclock', icon: '⚡', tag: 'OFFENSIVE', rarity: 'rare', desc: 'All units on your board gain +2 ATK immediately.' },
+  { id: 'bastion', name: 'Bastion Plating', icon: '🛡️', tag: 'DEFENSE', rarity: 'common', desc: 'Your lowest-HP unit gains +4 Shield HP and Ward.' },
+  { id: 'siphon', name: 'Life Siphon', icon: '🩸', tag: 'SUSTAIN', rarity: 'rare', desc: 'Steal 2 HP from all enemy cards to heal your board.' },
+  { id: 'arcane_flux', name: 'Arcane Surge', icon: '🔮', tag: 'SPELL', rarity: 'rare', desc: 'Draw 1 bonus tactical Spell card into your hand right now.' },
+  { id: 'executioner', name: 'Reaper Execution', icon: '🗡️', tag: 'LETHAL', rarity: 'epic', desc: 'Instantly obliterate any enemy card at or below 3 HP.' },
+  { id: 'deadly_crit', name: 'Deadly Precision', icon: '🎯', tag: 'CRIT', rarity: 'rare', desc: '50% chance for your units to strike for 2.5x Critical damage.' },
+  { id: 'speed_gale', name: 'Gale Momentum', icon: '🌪️', tag: 'SPEED', rarity: 'common', desc: 'Your units strike first with +1 bonus ATK.' },
+  { id: 'molten_burn', name: 'Solar Immolation', icon: '🔥', tag: 'BURN', rarity: 'rare', desc: 'All enemy cards suffer 2 burn damage every turn.' },
+  { id: 'regrowth', name: 'Wild Regrowth', icon: '🌿', tag: 'HEAL', rarity: 'common', desc: 'Restore +3 HP to every friendly card on the board.' },
+  { id: 'shard_siphon', name: 'Shard Extraction', icon: '💎', tag: 'ECONOMY', rarity: 'common', desc: 'Extract +25 Spire Shards from the chamber.' },
+  { id: 'wild_gambit', name: 'Chaos Infusion', icon: '🎲', tag: 'RISK/REWARD', rarity: 'epic', desc: 'A random unit gains +5 ATK and +2 Shield HP.' },
+  { id: 'defense_refresh', name: 'Aegis Refresh', icon: '🌀', tag: 'DEFENSE', rarity: 'common', desc: 'Refresh all defense charges on your board.' },
+  { id: 'titan_slayer', name: 'Titan Slayer', icon: '👑', tag: 'BOSS', rarity: 'legendary', desc: 'Deal +4 bonus damage against Elite and Boss units.' },
+  { id: 'chain_blast', name: 'Chain Detonation', icon: '💥', tag: 'BURST', rarity: 'epic', desc: 'When an enemy card falls, blast adjacent enemies for 2 damage.' },
+  { id: 'thorns_spikes', name: 'Thorns Matrix', icon: '🌵', tag: 'REFLECT', rarity: 'common', desc: 'Reflect 2 damage back to attackers whenever hit.' },
+  { id: 'spell_echo', name: 'Echo Influx', icon: '✨', tag: 'SPELL', rarity: 'legendary', desc: 'The next spell you cast triggers twice at zero extra cost.' },
+  { id: 'armor_pierce', name: 'Armor Pierce', icon: '⚔️', tag: 'PENETRATION', rarity: 'common', desc: 'All friendly attacks bypass enemy shields.' },
+  { id: 'mana_surge', name: 'Mana Overcharge', icon: '🔋', tag: 'MANA', rarity: 'common', desc: 'Start each phase with +2 SP charge.' }
+];
+
+const ROGUELIKE_RELICS = [
+  { id: 'relic_chalice', name: 'Chalice of Vitality', icon: '🍷', rarity: 'rare', desc: 'Slot 0 Vanguard enters every combat with +5 Shield HP.' },
+  { id: 'relic_tesla', name: 'Tesla Coil', icon: '⚡', rarity: 'rare', desc: 'The first spell cast each combat deals 3 splash damage to all enemies.' },
+  { id: 'relic_vorpal', name: 'Vorpal Blade', icon: '🗡️', rarity: 'epic', desc: 'Every friendly attack deals +1 permanent bonus damage.' },
+  { id: 'relic_shell', name: 'Aegis Carapace', icon: '🛡️', rarity: 'rare', desc: 'The first attack against your board each round is blocked completely.' },
+  { id: 'relic_coin', name: 'Midas Talisman', icon: '💰', rarity: 'common', desc: 'Earn 50% more Spire Shards and Bux from victories.' },
+  { id: 'relic_rosary', name: 'Purity Rosary', icon: '📿', rarity: 'epic', desc: 'Cleanse 1 random curse when entering a new chamber tier.' },
+  { id: 'relic_axe', name: "Executioner's Greataxe", icon: '🪓', rarity: 'legendary', desc: 'Instantly executes any enemy that falls below 20% HP.' },
+  { id: 'relic_lantern', name: 'Soul Lantern', icon: '🕯️', rarity: 'epic', desc: 'Revives 1 fallen card per combat with 3 HP.' },
+  { id: 'relic_crown', name: 'Crown of Ascension', icon: '👑', rarity: 'legendary', desc: 'Units placed in center slots gain +2 ATK and +2 HP.' },
+  { id: 'relic_heart', name: 'Heart of the Titan', icon: '💖', rarity: 'rare', desc: 'All friendly units enter play with +2 bonus Max HP.' },
+  { id: 'relic_cloak', name: 'Shadow Cloak', icon: '🥋', rarity: 'epic', desc: '20% evasion chance against enemy attacks.' }
+];
+
+const ROGUELIKE_DEBUFFS = [
+  { id: 'curse_miasma', name: 'Toxic Miasma', icon: '🌫️', desc: 'All friendly units enter play with -1 Max HP.' },
+  { id: 'curse_blood_hex', name: 'Blood Hex', icon: '🩸', desc: 'Whenever you cast a spell card, your cards take 1 recoil damage.' },
+  { id: 'curse_shackles', name: 'Iron Shackles', icon: '⛓️', desc: 'Slot 0 is chained and cannot receive unit placements.' },
+  { id: 'curse_doom_clock', name: 'Doom Bell', icon: '⏳', desc: 'If combat exceeds 3 rounds, enemy units deal +3 damage.' },
+  { id: 'curse_withering', name: 'Withering Frost', icon: '🥀', desc: 'Friendly healing effects are reduced by 50%.' },
+  { id: 'curse_terror_gaze', name: 'Terror Gaze', icon: '👁️', desc: 'Enemy units enter play with +1 ATK and +1 Shield.' },
+  { id: 'curse_shattered_shields', name: 'Corroded Armor', icon: '🛡️', desc: 'Friendly units cannot gain bonus Shield HP.' },
+  { id: 'curse_sandstorm', name: 'Dust Storm', icon: '🌪️', desc: 'Attacks have a 20% chance to miss.' },
+  { id: 'curse_greed', name: "Greed's Tax", icon: '💸', desc: 'Lose 5 Spire Shards each combat round.' }
+];
+
+const TOWER_DEBUFF_POOL = ROGUELIKE_DEBUFFS;
+const TOWER_MODIFIER_POOL = ROGUELIKE_UPGRADES;
+
+function createFreshRoguelikeRun(best = 1) {
+  const c1 = typeof getChamberForFloor === 'function' ? getChamberForFloor(1) : null;
+  return {
+    active: true,
+    floor: 1,
+    shards: 20,
+    relics: [],
+    permanentUpgrades: [],
+    roundUpgradesThisMatch: [],
+    activeDebuffs: [],
+    modifiers: [],
+    currentChamber: c1,
+    chamberChoices: c1 ? [c1] : [],
+    best: Math.max(best || 1, 1),
+    floorsClearedInRun: 0,
+    pendingResult: null
+  };
+}
+
+function loadRoguelikeRun() {
   try {
-    const s = JSON.parse(localStorage.getItem(TRIAL_TOWER_KEY) || 'null');
-    if (s && typeof s.floor === 'number') {
-      if (!Array.isArray(s.modifiers)) s.modifiers = [];
-      if (!s.activeDebuff) s.activeDebuff = null;
-      return s;
+    const raw = localStorage.getItem(ROGUELIKE_TOWER_KEY);
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s && typeof s.floor === 'number') {
+        s.floor = Math.max(1, s.floor || 1);
+        s.shards = typeof s.shards === 'number' ? s.shards : 0;
+        s.relics = Array.isArray(s.relics) ? s.relics : [];
+        s.permanentUpgrades = Array.isArray(s.permanentUpgrades) ? s.permanentUpgrades : [];
+        s.roundUpgradesThisMatch = Array.isArray(s.roundUpgradesThisMatch) ? s.roundUpgradesThisMatch : [];
+        s.activeDebuffs = Array.isArray(s.activeDebuffs) ? s.activeDebuffs : [];
+        s.modifiers = Array.isArray(s.modifiers) ? s.modifiers : [];
+        s.best = Math.max(s.best || 0, s.floor || 1);
+        if (typeof getChamberForFloor === 'function') {
+          s.currentChamber = getChamberForFloor(s.floor);
+          s.chamberChoices = [s.currentChamber];
+        }
+        return s;
+      }
     }
   } catch (e) {}
-  return { floor: 1, best: 0, pendingResult: null, lastRunFloor: 1, modifiers: [], activeDebuff: null };
-}
-function saveTrialTowerState(s) {
+
+  let legacyBest = 1;
   try {
-    if (!Array.isArray(s.modifiers)) s.modifiers = [];
-    if (!s.activeDebuff) s.activeDebuff = null;
-    localStorage.setItem(TRIAL_TOWER_KEY, JSON.stringify(s));
+    const leg = JSON.parse(localStorage.getItem(TRIAL_TOWER_KEY) || '{}');
+    if (leg && leg.best) legacyBest = leg.best;
+  } catch (e) {}
+
+  const fresh = createFreshRoguelikeRun(legacyBest);
+  saveRoguelikeRun(fresh);
+  return fresh;
+}
+
+function saveRoguelikeRun(s) {
+  try {
+    s.best = Math.max(s.best || 0, s.floor || 1);
+    localStorage.setItem(ROGUELIKE_TOWER_KEY, JSON.stringify(s));
+    localStorage.setItem(TRIAL_TOWER_KEY, JSON.stringify({
+      floor: s.floor,
+      best: s.best,
+      modifiers: [...(s.permanentUpgrades || []), ...(s.roundUpgradesThisMatch || [])],
+      activeDebuff: (s.activeDebuffs && s.activeDebuffs[0]) || null,
+      lastRunFloor: s.floor
+    }));
   } catch (e) {}
 }
 
-const TOWER_DEBUFF_POOL = [
-  { id: 'd1', name: 'Weakness', desc: 'All units -1 ATK.' },
-  { id: 'd2', name: 'Fragility', desc: 'All units -1 HP.' },
-  { id: 'd3', name: 'Slowness', desc: 'Attacks happen slower.' },
-  { id: 'd4', name: 'Curse', desc: 'Units deal -2 damage.' },
-  { id: 'd5', name: 'Poison', desc: 'Units lose 1 HP every turn.' },
-  { id: 'd6', name: 'Blindness', desc: 'Accuracy reduced.' },
-  { id: 'd7', name: 'Silence', desc: 'Abilities disabled.' },
-  { id: 'd8', name: 'Vulnerability', desc: 'Damage taken +1.' },
-  { id: 'd9', name: 'Exhaustion', desc: 'Cannot attack every turn.' },
-  { id: 'd10', name: 'Decay', desc: 'Healing reduced by 50%.' }
-];
+function loadTrialTowerState() {
+  const r = loadRoguelikeRun();
+  return {
+    floor: r.floor,
+    best: r.best,
+    modifiers: [...(r.permanentUpgrades || []), ...(r.roundUpgradesThisMatch || [])],
+    activeDebuff: (r.activeDebuffs && r.activeDebuffs[0]) || null,
+    shards: r.shards,
+    relics: r.relics,
+    lastRunFloor: r.floor,
+    pendingResult: r.pendingResult
+  };
+}
 
-const TOWER_MODIFIER_POOL = [
-  {
-    id: 'splash',
-    name: 'Splash Wave',
-    icon: '[W]',
-    tag: 'OFFENSIVE',
-    desc: 'Every attack blasts ALL other enemy cards for 50% splash damage. Stacks up to 100% and 150%!'
-  },
-  {
-    id: 'crit',
-    name: 'Critical Strike',
-    icon: '[C]',
-    tag: 'BURST',
-    desc: '40% chance per attack to deal DOUBLE damage. Stacks trigger chance up to 90%!'
-  },
-  {
-    id: 'vampiric',
-    name: 'Vampiric Drain',
-    icon: '[V]',
-    tag: 'SUSTAIN',
-    desc: 'Heal your attacking cards for 50% of all attack damage dealt. Stacks heal percentage!'
-  },
-  {
-    id: 'overcharge',
-    name: 'Overcharge Surge',
-    icon: '[O]',
-    tag: 'STATS',
-    desc: 'Every unit you place on the board permanently gains +2 ATK. Stacks +2 ATK per pick!'
-  },
-  {
-    id: 'bastion',
-    name: 'Bastion Plating',
-    icon: '[B]',
-    tag: 'DEFENSE',
-    desc: 'Every unit you place enters battle with +3 Shield HP. Stacks +3 HP per pick!'
-  },
-  {
-    id: 'twin_strike',
-    name: 'Twin Strike',
-    icon: '[2X]',
-    tag: 'TEMPO',
-    desc: 'Your Slot 0 Vanguard strikes twice every single round!'
-  },
-  {
-    id: 'execute',
-    name: 'Reaper Execution',
-    icon: '[EX]',
-    tag: 'LETHAL',
-    desc: 'Instantly obliterates any enemy unit at or below 2 HP. Stacks threshold!'
-  },
-  {
-    id: 'thorns',
-    name: 'Thorns Matrix',
-    icon: '[TH]',
-    tag: 'REFLECT',
-    desc: 'Reflects 2 damage back to attackers whenever your units are hit. Stacks reflect damage!'
-  },
-  {
-    id: 'blaze',
-    name: 'Solar Ignition',
-    icon: '[SI]',
-    tag: 'BURN',
-    desc: 'Every attack ignites the defender for 2 bonus lingering burn damage. Stacks burn!'
-  },
-  {
-    id: 'berserker',
-    name: 'Berserker Rage',
-    icon: '[R]',
-    tag: 'BURST',
-    desc: 'Every unit you place on the board gains +2 ATK, but -1 HP. Stacks stats!'
-  },
-  {
-    id: 'spirit',
-    name: 'Spirit Bond',
-    icon: '[SB]',
-    tag: 'STATS',
-    desc: 'Every unit you place on the board gains +2 ATK and +2 HP. Stacks stats!'
-  },
-  {
-    id: 'boss_bane',
-    name: 'Boss Bane',
-    icon: '[BB]',
-    tag: 'BOSS',
-    desc: 'Your units deal +2 damage to Boss units. Stacks damage!'
-  },
-  {
-    id: 'mana_surge',
-    name: 'Mana Surge',
-    icon: '[MS]',
-    tag: 'MANA',
-    desc: 'Start battles with +1 extra Mana. Stacks mana!'
-  },
-  {
-    id: 'quick_draw',
-    name: 'Quick Draw',
-    icon: '[QD]',
-    tag: 'DRAW',
-    desc: 'Draw 1 extra card at the start of each round. Stacks draw!'
-  },
-  {
-    id: 'lucky_strike',
-    name: 'Lucky Strike',
-    icon: '[LS]',
-    tag: 'CRIT',
-    desc: '10% chance for units to deal double damage. Stacks chance!'
-  },
-  {
-    id: 'hasty_retreat',
-    name: 'Hasty Retreat',
-    icon: '[HR]',
-    tag: 'SURVIVE',
-    desc: 'Units return to hand on fatal damage (once per battle). Stacks charges!'
-  },
-  {
-    id: 'vampiric_touch',
-    name: 'Vampiric Touch',
-    icon: '[VT]',
-    tag: 'HEAL',
-    desc: 'Attacks heal for 1 HP. Stacks healing!'
-  },
-  {
-    id: 'armor_pierce',
-    name: 'Armor Pierce',
-    icon: '[AP]',
-    tag: 'PEN',
-    desc: 'Attacks ignore 1 Shield HP. Stacks penetration!'
-  },
-  {
-    id: 'echo_chamber',
-    name: 'Echo Chamber',
-    icon: '[EC]',
-    tag: 'SPELL',
-    desc: 'The first spell you cast each round is played twice. Stacks!'
-  },
-  {
-    id: 'crystal_heart',
-    name: 'Crystal Heart',
-    icon: '[CH]',
-    tag: 'HP',
-    desc: 'All units gain +5 Max HP. Stacks HP!'
-  },
-  {
-    id: 'shadow_step',
-    name: 'Shadow Step',
-    icon: '[SS]',
-    tag: 'SPEED',
-    desc: 'Units gain +1 Speed (attack sooner). Stacks speed!'
-  }
-];
+function saveTrialTowerState(s) {
+  const r = loadRoguelikeRun();
+  if (typeof s.floor === 'number') r.floor = s.floor;
+  if (typeof s.best === 'number') r.best = Math.max(r.best, s.best);
+  if (Array.isArray(s.modifiers)) r.modifiers = s.modifiers;
+  if (s.pendingResult !== undefined) r.pendingResult = s.pendingResult;
+  saveRoguelikeRun(r);
+}
 
 window.getActiveTowerModifiers = function () {
   if (!trialTowerActive) return [];
-  const s = loadTrialTowerState();
-  return Array.isArray(s.modifiers) ? s.modifiers : [];
+  const r = loadRoguelikeRun();
+  return [...(r.permanentUpgrades || []), ...(r.roundUpgradesThisMatch || []), ...(r.relics || [])];
 };
 
 window.getActiveTowerDebuff = function () {
   if (!trialTowerActive) return null;
-  const s = loadTrialTowerState();
-  return s.activeDebuff;
+  const r = loadRoguelikeRun();
+  return (r.activeDebuffs && r.activeDebuffs[0]) || null;
 };
+
+/* ============================================================
+   ROGUELIKE TRIAL SPIRE: SEQUENTIAL PROGRESSION ENGINE
+   Sequence: Obsidian Keep -> Dread Colosseum -> Whispering Shrine -> Campfire -> Boss
+   ============================================================ */
+function getChamberForFloor(floor) {
+  const f = Math.max(1, floor || 1);
+  const cycleIndex = ((f - 1) % 5) + 1;
+  const loopNum = Math.floor((f - 1) / 5) + 1;
+  const loopSuffix = loopNum > 1 ? ` · Tier ${loopNum}` : '';
+
+  if (cycleIndex === 1) {
+    return {
+      id: `chamber_${f}_obsidian`,
+      type: 'combat',
+      name: `Obsidian Keep${loopSuffix}`,
+      icon: '⚔️',
+      tag: 'STANDARD COMBAT',
+      flavor: 'Dark volcanic fortress guarded by sentinel constructs. Defeat them to ascend.',
+      loot: `+${20 + f * 4} Shards · Round Augments`,
+      debuff: loopNum > 1 ? ROGUELIKE_DEBUFFS[(f - 1) % ROGUELIKE_DEBUFFS.length] : null,
+      diff: towerFloorDifficulty(f)
+    };
+  }
+
+  if (cycleIndex === 2) {
+    const debuffPool = [...ROGUELIKE_DEBUFFS];
+    const d = debuffPool[(f - 1) % debuffPool.length] || debuffPool[0];
+    return {
+      id: `chamber_${f}_dread`,
+      type: 'elite',
+      name: `Dread Colosseum${loopSuffix}`,
+      icon: '💀',
+      tag: 'ELITE CHAMBER',
+      flavor: 'A bloodstained colosseum ruled by fierce champions. High stakes; yields guaranteed Relics!',
+      loot: `+${45 + f * 5} Shards · Guaranteed Relic`,
+      debuff: d,
+      diff: f <= 2 ? 'Medium' : (f <= 7 ? 'Hard' : 'Expert')
+    };
+  }
+
+  if (cycleIndex === 3) {
+    return {
+      id: `chamber_${f}_whispering`,
+      type: 'shrine',
+      name: `Whispering Shrine${loopSuffix}`,
+      icon: '⛩️',
+      tag: 'MYSTERY SHRINE',
+      flavor: 'An ancient stone altar humming with esoteric power. Channel Shards or offer prayers for blessings.',
+      loot: 'Relic Prayer · Shards · Purify',
+      debuff: null,
+      diff: 'SAFE'
+    };
+  }
+
+  if (cycleIndex === 4) {
+    return {
+      id: `chamber_${f}_campfire`,
+      type: 'rest',
+      name: `Sanctuary Campfire${loopSuffix}`,
+      icon: '⛺',
+      tag: 'REST SITE',
+      flavor: 'Warm crackling embers. Fortify unit shields, meditate to purge curses, or sharpen armaments.',
+      loot: 'Fortify Shields · Cleanse · +1 ATK',
+      debuff: null,
+      diff: 'SAFE'
+    };
+  }
+
+  // cycleIndex === 5: Boss Chamber
+  const bossDef = typeof getBossDefinition === 'function' ? getBossDefinition(f) : null;
+  const bName = bossDef ? bossDef.name : (f === 5 ? 'Barbod Dust-Lord' : `Floor ${f} Spire Titan`);
+  return {
+    id: `chamber_${f}_boss`,
+    type: 'boss',
+    name: `👑 ${bName}${loopSuffix}`,
+    icon: '👑',
+    tag: 'BOSS CHAMBER',
+    flavor: bossDef ? (bossDef.taunt || 'A colossal Spire Guardian blocks your path!') : 'The supreme gatekeeper of this stratum.',
+    loot: 'Apex Relic · Massive Bux & XP',
+    debuff: bossDef ? { id: bossDef.bossModifier.id, name: bossDef.bossModifier.name, icon: '⚡', desc: bossDef.bossModifier.desc } : ROGUELIKE_DEBUFFS[0],
+    diff: 'BOSS'
+  };
+}
+
+function generateChamberChoices(floor) {
+  return [getChamberForFloor(floor)];
+}
+
+function renderRoguelikeSpireScreen() {
+  const r = loadRoguelikeRun();
+  const shardsText = document.getElementById('rl-shards-text');
+  const floorText = document.getElementById('rl-floor-text');
+  const headerBest = document.getElementById('tower-header-best');
+
+  if (shardsText) shardsText.textContent = `${r.shards} Shards`;
+  if (floorText) floorText.textContent = `Chamber ${r.floor}`;
+  if (headerBest) headerBest.textContent = `Floor ${r.best}`;
+
+  // Relics Shelf (if present)
+  const relicsTray = document.getElementById('rl-relics-tray');
+  const relicsCount = document.getElementById('rl-relics-count');
+  if (relicsCount) relicsCount.textContent = r.relics.length;
+  if (relicsTray) {
+    relicsTray.innerHTML = '';
+    if (r.relics.length === 0) {
+      relicsTray.innerHTML = '<span class="rl-empty-shelf">No relics yet. Defeat Elites or visit Shrines to earn Relics!</span>';
+    } else {
+      r.relics.forEach(relicId => {
+        const relic = ROGUELIKE_RELICS.find(x => x.id === relicId) || { id: relicId, name: relicId, icon: '🔮', desc: 'Artifact of power', rarity: 'rare' };
+        const badge = document.createElement('div');
+        badge.className = `rl-relic-badge ${relic.rarity || 'rare'}`;
+        badge.title = `${relic.name}: ${relic.desc}`;
+        badge.innerHTML = `<span class="rl-badge-icon">${relic.icon}</span><span class="rl-badge-name">${relic.name}</span>`;
+        badge.onclick = () => showToast(`🔮 ${relic.name}: ${relic.desc}`, 3000);
+        relicsTray.appendChild(badge);
+      });
+    }
+  }
+
+  // Active Debuffs Shelf (if present)
+  const debuffsTray = document.getElementById('rl-debuffs-tray');
+  const debuffsCount = document.getElementById('rl-debuffs-count');
+  const activeDebuffs = r.activeDebuffs || [];
+  if (debuffsCount) debuffsCount.textContent = activeDebuffs.length;
+  if (debuffsTray) {
+    debuffsTray.innerHTML = '';
+    if (activeDebuffs.length === 0) {
+      debuffsTray.innerHTML = '<span class="rl-empty-shelf" style="color:#6ee7b7;">✓ Pure — No active afflictions on this chamber</span>';
+    } else {
+      activeDebuffs.forEach(dId => {
+        const def = ROGUELIKE_DEBUFFS.find(x => x.id === dId) || { id: dId, name: dId, icon: '⚠️', desc: 'Affliction' };
+        const badge = document.createElement('div');
+        badge.className = 'rl-debuff-badge';
+        badge.title = `${def.name}: ${def.desc}`;
+        badge.innerHTML = `<span class="rl-badge-icon">${def.icon}</span><span class="rl-badge-name">${def.name}</span>`;
+        badge.onclick = () => showToast(`⚠️ ${def.name}: ${def.desc}`, 3000);
+        debuffsTray.appendChild(badge);
+      });
+    }
+  }
+
+  // Stacked Upgrades Shelf (if present)
+  const upgradesTray = document.getElementById('rl-upgrades-tray');
+  const upgradesCount = document.getElementById('rl-upgrades-count');
+  const allUps = [...(r.permanentUpgrades || []), ...(r.roundUpgradesThisMatch || [])];
+  if (upgradesCount) upgradesCount.textContent = allUps.length;
+  if (upgradesTray) {
+    upgradesTray.innerHTML = '';
+    if (allUps.length === 0) {
+      upgradesTray.innerHTML = '<span class="rl-empty-shelf">Pick upgrades each round during combat!</span>';
+    } else {
+      const counts = {};
+      allUps.forEach(u => { counts[u] = (counts[u] || 0) + 1; });
+      Object.entries(counts).forEach(([uId, cnt]) => {
+        const def = ROGUELIKE_UPGRADES.find(x => x.id === uId) || { id: uId, name: uId, icon: '⚡', desc: 'Battle augment' };
+        const badge = document.createElement('div');
+        badge.className = 'rl-upgrade-badge';
+        badge.title = `${def.name}: ${def.desc}`;
+        badge.innerHTML = `<span class="rl-badge-icon">${def.icon}</span><span class="rl-badge-name">${def.name} x${cnt}</span>`;
+        badge.onclick = () => showToast(`⚡ ${def.name}: ${def.desc}`, 3000);
+        upgradesTray.appendChild(badge);
+      });
+    }
+  }
+
+  // Linear Chamber Progression - Automatically selects current floor's chamber
+  const currentChamber = getChamberForFloor(r.floor);
+  r.currentChamber = currentChamber;
+  r.chamberChoices = [currentChamber];
+  r.chamberChoicesFloor = r.floor;
+  r.selectedNodeIndex = 0;
+  saveRoguelikeRun(r);
+
+  // If chamber node container exists in DOM, render current node
+  const container = document.getElementById('rl-chamber-nodes-container');
+  if (container) {
+    container.innerHTML = '';
+  }
+
+  updateConsoleForSelectedChamber(currentChamber, r);
+}
+
+function updateConsoleForSelectedChamber(node, r) {
+  const diffBadge = document.getElementById('tower-console-diff-badge');
+  const typeBadge = document.getElementById('rl-console-type-badge');
+  const floorTitle = document.getElementById('tower-console-floor-title');
+  const descEl = document.getElementById('tower-console-desc');
+  const hazardBanner = document.getElementById('rl-chamber-hazard-banner');
+  const hazardIcon = document.querySelector('.rl-hazard-icon');
+  const hazardTitle = document.getElementById('rl-hazard-title');
+  const hazardDesc = document.getElementById('rl-hazard-desc');
+  const buxEl = document.getElementById('tower-console-bux-val');
+  const xpEl = document.getElementById('tower-console-xp-val');
+  const shardsEl = document.getElementById('tower-console-shards-val');
+  const bestEl = document.getElementById('tower-console-best-val');
+  const startBtn = document.getElementById('btn-tower-page-begin');
+
+  if (diffBadge) {
+    diffBadge.textContent = node.diff;
+    diffBadge.style.background = node.type === 'boss' ? 'linear-gradient(135deg, #7e22ce, #e11d48)' : (node.type === 'elite' ? '#e11d48' : '#3E7CB1');
+  }
+  if (typeBadge) {
+    typeBadge.textContent = node.tag;
+    typeBadge.className = `rl-node-type-badge rl-tag-${node.type}`;
+  }
+  if (floorTitle) floorTitle.textContent = `Chamber ${r.floor}: ${node.name}`;
+  if (descEl) descEl.textContent = node.flavor;
+
+  if (node.debuff) {
+    if (hazardBanner) hazardBanner.classList.remove('hidden');
+    if (hazardIcon) hazardIcon.textContent = node.debuff.icon;
+    if (hazardTitle) hazardTitle.textContent = `CHAMBER HAZARD: ${node.debuff.name.toUpperCase()}`;
+    if (hazardDesc) hazardDesc.textContent = node.debuff.desc;
+  } else {
+    if (hazardBanner) hazardBanner.classList.add('hidden');
+  }
+
+  const rewardBux = 15 + r.floor * 5;
+  const rewardXP = 45 + r.floor * 6;
+  const shardsVal = node.type === 'elite' ? 45 : (node.type === 'boss' ? 75 : 25);
+
+  if (buxEl) buxEl.textContent = `+${rewardBux} Bux`;
+  if (xpEl) xpEl.textContent = `+${rewardXP} XP`;
+  if (shardsEl) shardsEl.textContent = `+${shardsVal} Shards`;
+  if (bestEl) bestEl.textContent = `Floor ${r.best}`;
+
+  if (startBtn) {
+    startBtn.onclick = () => {
+      enterSelectedChamber(node);
+    };
+    const beginText = document.getElementById('btn-tower-page-begin-text');
+    if (beginText) {
+      beginText.textContent = (node.type === 'shrine' || node.type === 'rest' || node.type === 'merchant')
+        ? `Enter ${node.name}`
+        : `Ascend & Battle (${node.name})`;
+    }
+  }
+}
+
+function enterSelectedChamber(node) {
+  const r = loadRoguelikeRun();
+  if (node.type === 'shrine' || node.type === 'rest' || node.type === 'merchant') {
+    openRoguelikeEventModal(node);
+    return;
+  }
+
+  // Combat, Elite, Boss
+  r.currentChamber = node;
+  if (node.debuff) {
+    r.activeDebuffs = [node.debuff.id];
+  } else {
+    r.activeDebuffs = [];
+  }
+  r.roundUpgradesThisMatch = [];
+  saveRoguelikeRun(r);
+
+  trialTowerActive = true;
+  botDifficulty = node.diff === 'BOSS' ? 'Master' : (node.diff || towerFloorDifficulty(r.floor));
+  saveLastDifficulty(botDifficulty);
+
+  if (node.type === 'boss') {
+    showBossFloorWarningOverlay(r.floor, () => {
+      launchTrialCombatMatch();
+    });
+  } else {
+    launchTrialCombatMatch();
+  }
+}
+
+function launchTrialCombatMatch() {
+  document.getElementById('trial-tower-overlay')?.remove();
+  document.getElementById('tower-ascent-modal')?.classList.add('hidden');
+  document.getElementById('tower-event-modal')?.classList.add('hidden');
+  document.getElementById('tower-round-upgrade-modal')?.classList.add('hidden');
+  document.getElementById('tower-run-summary-modal')?.classList.add('hidden');
+
+  if (typeof Sound !== 'undefined' && Sound.meteorBoom) Sound.meteorBoom();
+
+  const deck = (typeof buildDefaultTrialDeckConfig === 'function')
+    ? buildDefaultTrialDeckConfig()
+    : (typeof buildDefaultDeckConfig === 'function' ? buildDefaultDeckConfig() : null);
+
+  if (typeof resetMatchRoundDrafts === 'function') resetMatchRoundDrafts();
+
+  startVsBot(0, deck);
+}
+
+/* ============================================================
+   IN-BATTLE ROUND UPGRADE DRAFTING SYSTEM (EACH ROUND!)
+   ============================================================ */
+let _draftedRoundsInMatch = new Set();
+let _isDraftModalOpen = false;
+
+window.resetMatchRoundDrafts = function() {
+  _draftedRoundsInMatch = new Set();
+  _isDraftModalOpen = false;
+};
+
+window.checkAndTriggerRoundUpgradeDraft = function(matchState) {
+  if (!trialTowerActive) return;
+  if (!matchState || matchState.phase !== 'placement') return;
+  const round = matchState.round || 1;
+  if (_draftedRoundsInMatch.has(round)) return;
+  if (_isDraftModalOpen) return;
+
+  _draftedRoundsInMatch.add(round);
+  _isDraftModalOpen = true;
+
+  openRoundUpgradeModal(round, matchState, () => {
+    _isDraftModalOpen = false;
+    if (typeof render === 'function') render();
+  });
+};
+
+function openRoundUpgradeModal(round, matchState, onDone) {
+  const modal = document.getElementById('tower-round-upgrade-modal');
+  if (!modal) {
+    if (onDone) onDone();
+    return;
+  }
+
+  const badge = document.getElementById('rl-round-num-badge');
+  if (badge) badge.textContent = `⚡ ROUND ${round} AUGMENT · CHOOSE 1 UPGRADE`;
+
+  const cardsContainer = document.getElementById('rl-round-upgrade-cards');
+  const rerollBtn = document.getElementById('btn-rl-reroll-round-upgrade');
+  const skipBtn = document.getElementById('btn-rl-skip-round-upgrade');
+
+  const r = loadRoguelikeRun();
+  const stacked = [...(r.permanentUpgrades || []), ...(r.roundUpgradesThisMatch || [])];
+
+  function renderDraftCards() {
+    if (!cardsContainer) return;
+    cardsContainer.innerHTML = '';
+
+    const pool = [...ROGUELIKE_UPGRADES].sort(() => Math.random() - 0.5);
+    const choices = pool.slice(0, 3);
+
+    choices.forEach(up => {
+      const currentStack = stacked.filter(x => x === up.id).length;
+      const card = document.createElement('div');
+      card.className = `rl-round-card ${up.rarity || 'common'}`;
+      card.innerHTML = `
+        <div class="rl-round-card-icon">${up.icon}</div>
+        <h4 class="rl-round-card-title">${up.name}</h4>
+        <p class="rl-round-card-desc">${up.desc}</p>
+        <div class="rl-round-card-tag">${up.tag} ${currentStack > 0 ? `· Stack x${currentStack + 1}` : ''}</div>
+      `;
+
+      card.onclick = () => {
+        applySelectedRoundUpgrade(up, matchState);
+        modal.classList.add('hidden');
+        if (onDone) onDone();
+      };
+
+      cardsContainer.appendChild(card);
+    });
+  }
+
+  renderDraftCards();
+
+  if (rerollBtn) {
+    rerollBtn.onclick = () => {
+      const cur = loadRoguelikeRun();
+      if (cur.shards < 15) {
+        showToast('💎 You need 15 Spire Shards to reroll!', 2500);
+        if (typeof Sound !== 'undefined' && Sound.buzzer) Sound.buzzer();
+        return;
+      }
+      cur.shards -= 15;
+      saveRoguelikeRun(cur);
+      if (typeof Sound !== 'undefined' && Sound.counterTick) Sound.counterTick(1);
+      showToast('🎲 Augments Rerolled! (-15 Shards)', 2000);
+      renderDraftCards();
+    };
+  }
+
+  if (skipBtn) {
+    skipBtn.onclick = () => {
+      modal.classList.add('hidden');
+      if (onDone) onDone();
+    };
+  }
+
+  modal.classList.remove('hidden');
+  if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
+}
+
+function spawnBattleFloatingText(text) {
+  const container = document.getElementById('screen-game') || document.body;
+  const el = document.createElement('div');
+  el.className = 'rl-float-announcement';
+  el.style.cssText = `
+    position: fixed;
+    top: 35%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, rgba(88, 28, 135, 0.95), rgba(15, 23, 42, 0.95));
+    border: 2px solid #a855f7;
+    color: #fff;
+    font-weight: 900;
+    font-size: 1.25rem;
+    padding: 10px 24px;
+    border-radius: 999px;
+    box-shadow: 0 0 30px rgba(168, 85, 247, 0.7);
+    z-index: 10000;
+    pointer-events: none;
+    animation: rlModalPop 0.3s ease-out;
+  `;
+  el.textContent = text;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 1800);
+}
+
+function updateCombatRoguelikeHUD(matchState) {
+  if (!trialTowerActive) return;
+  const hud = document.getElementById('tower-battle-hud');
+  if (!hud) return;
+
+  const r = loadRoguelikeRun();
+  const floorBadge = document.getElementById('tbh-floor-badge');
+  const tray = document.getElementById('tbh-modifiers-tray');
+
+  hud.classList.remove('hidden');
+  if (floorBadge) {
+    floorBadge.innerHTML = `🗼 Chamber ${r.floor} · Round ${matchState ? matchState.round : 1} &nbsp;|&nbsp; 💎 ${r.shards} Shards &nbsp;|&nbsp; ⚡ Sudden Death`;
+  }
+
+  if (tray) {
+    tray.innerHTML = '';
+    if (r.activeDebuffs && r.activeDebuffs.length > 0) {
+      const dDef = ROGUELIKE_DEBUFFS.find(x => x.id === r.activeDebuffs[0]);
+      if (dDef) {
+        const hazardPill = document.createElement('span');
+        hazardPill.className = 'tbh-hazard-pill';
+        hazardPill.style.cssText = 'background: rgba(239, 68, 68, 0.3); border: 1px solid #f87171; color: #fca5a5; font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; font-weight: 800; cursor: pointer;';
+        hazardPill.innerHTML = `⚠️ ${dDef.name}`;
+        hazardPill.title = dDef.desc;
+        hazardPill.onclick = () => showToast(`⚠️ Hazard: ${dDef.name} — ${dDef.desc}`, 3000);
+        tray.appendChild(hazardPill);
+      }
+    }
+
+    const totalMods = (r.roundUpgradesThisMatch || []).length + (r.permanentUpgrades || []).length;
+    if (totalMods > 0) {
+      const upPill = document.createElement('span');
+      upPill.className = 'tbh-mods-pill';
+      upPill.style.cssText = 'background: rgba(168, 85, 247, 0.3); border: 1px solid #c084fc; color: #e9d5ff; font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; font-weight: 800; cursor: pointer;';
+      upPill.innerHTML = `⚡ ${totalMods} Augments`;
+      upPill.onclick = () => {
+        const names = [...(r.roundUpgradesThisMatch || []), ...(r.permanentUpgrades || [])].map(id => {
+          const u = ROGUELIKE_UPGRADES.find(x => x.id === id);
+          return u ? u.name : id;
+        });
+        showToast(`⚡ Active Augments: ${names.join(', ')}`, 4000);
+      };
+      tray.appendChild(upPill);
+    }
+  }
+}
+
+function applySelectedRoundUpgrade(up, matchState) {
+  const r = loadRoguelikeRun();
+  r.roundUpgradesThisMatch = r.roundUpgradesThisMatch || [];
+  r.roundUpgradesThisMatch.push(up.id);
+  saveRoguelikeRun(r);
+
+  if (matchState) {
+    matchState.trialTowerModifiers = matchState.trialTowerModifiers || [];
+    matchState.trialTowerModifiers.push(up.id);
+  }
+
+  if (typeof Sound !== 'undefined' && Sound.chipAttach) Sound.chipAttach();
+  if (typeof vibrate === 'function') vibrate(40);
+  showToast(`⚡ Augmented: ${up.name}! (${up.desc})`, 3200);
+
+  const playerP = matchState ? (matchState.players['you'] || (matchState.order && matchState.players[matchState.order[0]])) : null;
+  const botP = matchState ? (matchState.players['bot'] || (matchState.order && matchState.players[matchState.order[1]])) : null;
+
+  if (playerP) {
+    if (up.id === 'overclock') {
+      playerP.board.forEach(c => {
+        if (c) c.dmg += 2;
+      });
+      spawnBattleFloatingText('⚡ ALL UNITS +2 ATK!');
+    } else if (up.id === 'bastion') {
+      const lowest = playerP.board.filter(Boolean).sort((a, b) => a.hp - b.hp)[0];
+      if (lowest) {
+        lowest.hp += 4;
+        lowest.maxHp += 4;
+        lowest.bonusDefendCharge = (lowest.bonusDefendCharge || 0) + 1;
+        spawnBattleFloatingText(`🛡️ ${lowest.name} +4 SHIELD!`);
+      }
+    } else if (up.id === 'regrowth') {
+      playerP.board.forEach(c => {
+        if (c) c.hp = Math.min(c.maxHp, c.hp + 3);
+      });
+      spawnBattleFloatingText('🌿 BOARD RESTORED +3 HP!');
+    } else if (up.id === 'siphon') {
+      if (botP) {
+        botP.board.forEach(c => {
+          if (c) c.hp = Math.max(1, c.hp - 2);
+        });
+      }
+      playerP.board.forEach(c => {
+        if (c) c.hp = Math.min(c.maxHp, c.hp + 2);
+      });
+      spawnBattleFloatingText('🩸 LIFE SIPHON TRIGGERED!');
+    } else if (up.id === 'shard_siphon') {
+      r.shards += 30;
+      saveRoguelikeRun(r);
+      spawnBattleFloatingText('💎 +30 SPIRE SHARDS EXTRACTED!');
+    } else if (up.id === 'wild_gambit') {
+      const living = playerP.board.filter(Boolean);
+      if (living.length > 0) {
+        const rand = living[Math.floor(Math.random() * living.length)];
+        rand.dmg += 5;
+        rand.hp += 3;
+        rand.maxHp += 3;
+        spawnBattleFloatingText(`🎲 CHAOS: ${rand.name} +5 ATK / +3 HP!`);
+      }
+    } else if (up.id === 'arcane_flux') {
+      if (playerP.sp !== undefined) playerP.sp += 3;
+      spawnBattleFloatingText('🔮 ARCANE SURGE +3 SP!');
+    } else if (up.id === 'molten_burn') {
+      if (botP) {
+        botP.board.forEach(c => {
+          if (c) {
+            c.burnRounds = (c.burnRounds || 0) + 2;
+            c.burnDmg = 2;
+          }
+        });
+      }
+      spawnBattleFloatingText('🔥 ENEMIES AFLAME WITH 2 BURN!');
+    }
+  }
+
+  updateCombatRoguelikeHUD(matchState);
+}
+
+/* ============================================================
+   NON-COMBAT EVENT CHAMBERS: SHRINES, CAMPFIRES, MERCHANTS
+   ============================================================ */
+function openRoguelikeEventModal(node) {
+  const modal = document.getElementById('tower-event-modal');
+  if (!modal) return;
+
+  const r = loadRoguelikeRun();
+  const iconEl = document.getElementById('rl-event-header-icon');
+  const tagEl = document.getElementById('rl-event-tag');
+  const titleEl = document.getElementById('rl-event-title');
+  const descEl = document.getElementById('rl-event-desc');
+  const optionsContainer = document.getElementById('rl-event-options-container');
+  const leaveBtn = document.getElementById('btn-rl-event-leave');
+
+  if (iconEl) iconEl.textContent = node.icon;
+  if (tagEl) tagEl.textContent = node.tag;
+  if (titleEl) titleEl.textContent = node.name;
+  if (descEl) descEl.textContent = node.flavor;
+
+  if (!optionsContainer) return;
+  optionsContainer.innerHTML = '';
+
+  function advanceChamber() {
+    modal.classList.add('hidden');
+    r.floor += 1;
+    r.best = Math.max(r.best, r.floor);
+    r.chamberChoices = generateChamberChoices(r.floor);
+    r.currentChamber = r.chamberChoices[0];
+    r.chamberChoicesFloor = r.floor;
+    r.selectedNodeIndex = 0;
+    saveRoguelikeRun(r);
+    openTrialTowerScreen();
+  }
+
+  if (leaveBtn) {
+    leaveBtn.onclick = advanceChamber;
+  }
+
+  if (node.type === 'shrine') {
+    const opt1 = document.createElement('button');
+    opt1.className = 'rl-event-opt-btn';
+    opt1.innerHTML = `
+      <div>
+        <span class="rl-event-opt-title">💎 Spire Infusion</span>
+        <span class="rl-event-opt-sub">Commune with the humming spire crystal. Channel raw shards into your pouch.</span>
+      </div>
+      <span class="rl-event-opt-badge" style="background:rgba(56,189,248,0.25);color:#7dd3fc;">+40 💎 Shards</span>
+    `;
+    opt1.onclick = () => {
+      r.shards += 40;
+      saveRoguelikeRun(r);
+      if (typeof Sound !== 'undefined' && Sound.coin) Sound.coin();
+      showToast('💎 Spire crystal resonant! +40 Spire Shards acquired.', 3000);
+      advanceChamber();
+    };
+
+    const opt2 = document.createElement('button');
+    opt2.className = 'rl-event-opt-btn';
+    opt2.innerHTML = `
+      <div>
+        <span class="rl-event-opt-title">🔮 Arcane Prayer</span>
+        <span class="rl-event-opt-sub">Offer 20 Spire Shards to summon an ancient Relic into your possession.</span>
+      </div>
+      <span class="rl-event-opt-badge" style="background:rgba(168,85,247,0.25);color:#e9d5ff;">-20 💎 ➜ 1 Relic</span>
+    `;
+    opt2.onclick = () => {
+      if (r.shards < 20) {
+        showToast('💎 You need 20 Spire Shards for the prayer!', 2500);
+        return;
+      }
+      r.shards -= 20;
+      const unownedRelics = ROGUELIKE_RELICS.filter(x => !r.relics.includes(x.id));
+      const chosen = unownedRelics[Math.floor(Math.random() * unownedRelics.length)] || ROGUELIKE_RELICS[0];
+      if (chosen && !r.relics.includes(chosen.id)) r.relics.push(chosen.id);
+      saveRoguelikeRun(r);
+      if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
+      showToast(`🔮 Relic Bestowed: ${chosen.name}! (${chosen.desc})`, 3500);
+      advanceChamber();
+    };
+
+    const opt3 = document.createElement('button');
+    opt3.className = 'rl-event-opt-btn';
+    opt3.innerHTML = `
+      <div>
+        <span class="rl-event-opt-title">🌊 Cleansing Waters</span>
+        <span class="rl-event-opt-sub">Wash your soul in the spring to cleanse all active curses and afflictions.</span>
+      </div>
+      <span class="rl-event-opt-badge" style="background:rgba(16,185,129,0.25);color:#6ee7b7;">Cleanse All Curses</span>
+    `;
+    opt3.onclick = () => {
+      r.activeDebuffs = [];
+      saveRoguelikeRun(r);
+      if (typeof Sound !== 'undefined' && Sound.playLevelUp) Sound.playLevelUp();
+      showToast('🌊 Your soul is purified! All active curses removed.', 3000);
+      advanceChamber();
+    };
+
+    optionsContainer.appendChild(opt1);
+    optionsContainer.appendChild(opt2);
+    optionsContainer.appendChild(opt3);
+
+  } else if (node.type === 'rest') {
+    const opt1 = document.createElement('button');
+    opt1.className = 'rl-event-opt-btn';
+    opt1.innerHTML = `
+      <div>
+        <span class="rl-event-opt-title">🛡️ Fortify Aegis</span>
+        <span class="rl-event-opt-sub">Temper your defenses by the fire. Grant all friendly units Bastion plating!</span>
+      </div>
+      <span class="rl-event-opt-badge" style="background:rgba(59,130,246,0.25);color:#93c5fd;">+3 Shield HP Augment</span>
+    `;
+    opt1.onclick = () => {
+      r.permanentUpgrades = r.permanentUpgrades || [];
+      r.permanentUpgrades.push('bastion');
+      saveRoguelikeRun(r);
+      if (typeof Sound !== 'undefined' && Sound.playLevelUp) Sound.playLevelUp();
+      showToast('🛡️ Defenses fortified! Bastion Plating augment added to run.', 3000);
+      advanceChamber();
+    };
+
+    const opt2 = document.createElement('button');
+    opt2.className = 'rl-event-opt-btn';
+    opt2.innerHTML = `
+      <div>
+        <span class="rl-event-opt-title">🧘 Deep Meditation</span>
+        <span class="rl-event-opt-sub">Focus your spirit to cleanse 1 affliction and gain +15 Spire Shards.</span>
+      </div>
+      <span class="rl-event-opt-badge" style="background:rgba(168,85,247,0.25);color:#e9d5ff;">Cleanse &amp; +15 💎</span>
+    `;
+    opt2.onclick = () => {
+      r.activeDebuffs = [];
+      r.shards += 15;
+      saveRoguelikeRun(r);
+      if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
+      showToast('🧘 Mind steeled! Afflictions cleansed & +15 Shards.', 3000);
+      advanceChamber();
+    };
+
+    const opt3 = document.createElement('button');
+    opt3.className = 'rl-event-opt-btn';
+    opt3.innerHTML = `
+      <div>
+        <span class="rl-event-opt-title">⚒️ Sharpen Armaments</span>
+        <span class="rl-event-opt-sub">Hone your blades. All units on your board gain +1 permanent ATK for this run!</span>
+      </div>
+      <span class="rl-event-opt-badge" style="background:rgba(245,158,11,0.25);color:#fcd34d;">+1 Permanent ATK</span>
+    `;
+    opt3.onclick = () => {
+      r.permanentUpgrades = r.permanentUpgrades || [];
+      r.permanentUpgrades.push('overclock');
+      saveRoguelikeRun(r);
+      if (typeof Sound !== 'undefined' && Sound.chipAttach) Sound.chipAttach();
+      showToast('⚒️ Blades sharpened! +1 ATK permanent buff added.', 3000);
+      advanceChamber();
+    };
+
+    optionsContainer.appendChild(opt1);
+    optionsContainer.appendChild(opt2);
+    optionsContainer.appendChild(opt3);
+
+  } else if (node.type === 'merchant') {
+    const opt1 = document.createElement('button');
+    opt1.className = 'rl-event-opt-btn';
+    opt1.innerHTML = `
+      <div>
+        <span class="rl-event-opt-title">⚡ Tactical Augment Crate</span>
+        <span class="rl-event-opt-sub">Purchase a combat augment crate with permanent battle upgrades.</span>
+      </div>
+      <span class="rl-event-opt-badge" style="background:rgba(16,185,129,0.25);color:#6ee7b7;">20 💎</span>
+    `;
+    opt1.onclick = () => {
+      if (r.shards < 20) {
+        showToast('💎 Not enough Shards for the augment crate!', 2500);
+        return;
+      }
+      r.shards -= 20;
+      r.permanentUpgrades = r.permanentUpgrades || [];
+      const pool = ['overclock', 'bastion', 'speed_gale', 'defense_refresh', 'armor_pierce'];
+      const picked = pool[Math.floor(Math.random() * pool.length)];
+      r.permanentUpgrades.push(picked);
+      saveRoguelikeRun(r);
+      if (typeof Sound !== 'undefined' && Sound.playLevelUp) Sound.playLevelUp();
+      showToast(`⚡ Crate opened! Added permanent augment: ${picked}!`, 3000);
+      advanceChamber();
+    };
+
+    const opt2 = document.createElement('button');
+    opt2.className = 'rl-event-opt-btn';
+    opt2.innerHTML = `
+      <div>
+        <span class="rl-event-opt-title">💎 Smuggled Relic</span>
+        <span class="rl-event-opt-sub">Purchase an exotic artifact smuggled from the upper spire.</span>
+      </div>
+      <span class="rl-event-opt-badge" style="background:rgba(168,85,247,0.25);color:#e9d5ff;">35 💎</span>
+    `;
+    opt2.onclick = () => {
+      if (r.shards < 35) {
+        showToast('💎 Not enough Shards for the relic!', 2500);
+        return;
+      }
+      r.shards -= 35;
+      const unownedRelics = ROGUELIKE_RELICS.filter(x => !r.relics.includes(x.id));
+      const chosen = unownedRelics[Math.floor(Math.random() * unownedRelics.length)] || ROGUELIKE_RELICS[0];
+      if (chosen && !r.relics.includes(chosen.id)) r.relics.push(chosen.id);
+      saveRoguelikeRun(r);
+      if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
+      showToast(`💎 Purchased Relic: ${chosen.name}! (${chosen.desc})`, 3500);
+      advanceChamber();
+    };
+
+    const opt3 = document.createElement('button');
+    opt3.className = 'rl-event-opt-btn';
+    opt3.innerHTML = `
+      <div>
+        <span class="rl-event-opt-title">📿 Curse-Breaker Incense</span>
+        <span class="rl-event-opt-sub">Burn sacred incense to shatter all active curses & afflictions.</span>
+      </div>
+      <span class="rl-event-opt-badge" style="background:rgba(245,158,11,0.25);color:#fcd34d;">25 💎</span>
+    `;
+    opt3.onclick = () => {
+      if (r.shards < 25) {
+        showToast('💎 Not enough Shards for the incense!', 2500);
+        return;
+      }
+      r.shards -= 25;
+      r.activeDebuffs = [];
+      saveRoguelikeRun(r);
+      if (typeof Sound !== 'undefined' && Sound.counterTick) Sound.counterTick(1);
+      showToast('📿 Curses shattered! Your soul is pure.', 3000);
+      advanceChamber();
+    };
+
+    optionsContainer.appendChild(opt1);
+    optionsContainer.appendChild(opt2);
+    optionsContainer.appendChild(opt3);
+  }
+
+  modal.classList.remove('hidden');
+  if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
+}
+
+/* ============================================================
+   ROGUELIKE SUMMARY / DEFEAT MODAL
+   ============================================================ */
+function showRoguelikeRunSummaryModal(run) {
+  const modal = document.getElementById('tower-run-summary-modal');
+  if (!modal) {
+    openTrialTowerScreen();
+    return;
+  }
+
+  const titleEl = document.getElementById('rl-summary-title');
+  const subEl = document.getElementById('rl-summary-sub');
+  const floorsEl = document.getElementById('rl-sum-floors');
+  const relicsEl = document.getElementById('rl-sum-relics');
+  const upEl = document.getElementById('rl-sum-upgrades');
+  const buxEl = document.getElementById('rl-sum-bux');
+  const newRunBtn = document.getElementById('btn-rl-summary-new-run');
+  const closeBtn = document.getElementById('btn-rl-summary-close');
+
+  const floorsCleared = Math.max(0, (run.floor || 1) - 1);
+  const payoutBux = 30 + floorsCleared * 10;
+  if (typeof addBux === 'function') addBux(payoutBux);
+
+  if (titleEl) titleEl.textContent = `Ascension Ended at Floor ${run.floor}`;
+  if (subEl) subEl.textContent = `The guardians of the spire prevailed. Personal Best: Floor ${run.best}`;
+  if (floorsEl) floorsEl.textContent = String(floorsCleared);
+  if (relicsEl) relicsEl.textContent = String((run.relics || []).length);
+  if (upEl) upEl.textContent = String(((run.permanentUpgrades || []).length + (run.roundUpgradesThisMatch || []).length));
+  if (buxEl) buxEl.textContent = `+${payoutBux} Bux`;
+
+  if (newRunBtn) {
+    newRunBtn.onclick = () => {
+      modal.classList.add('hidden');
+      const fresh = createFreshRoguelikeRun(run.best);
+      saveRoguelikeRun(fresh);
+      openTrialTowerScreen();
+      showToast('⚔️ New Roguelike Run initiated! May fortune favor your blade.', 3000);
+    };
+  }
+
+  if (closeBtn) {
+    closeBtn.onclick = () => {
+      modal.classList.add('hidden');
+      const fresh = createFreshRoguelikeRun(run.best);
+      saveRoguelikeRun(fresh);
+      if (typeof showScreen === 'function') showScreen('screen-single-player');
+    };
+  }
+
+  modal.classList.remove('hidden');
+  if (typeof Sound !== 'undefined' && Sound.defeat) Sound.defeat();
+}
 
 function towerFloorDifficulty(floor) {
   const idx = Math.min(DIFFICULTIES.length - 1, Math.floor((floor - 1) / 3));
@@ -2764,68 +3567,78 @@ function triggerTowerClashAnimation(clearedFloor, onDone) {
 }
 
 function resolveTrialTowerMatch(won) {
-  const s = loadTrialTowerState();
+  const r = loadRoguelikeRun();
+  const clearedFloor = r.floor;
+  const currentChamber = r.currentChamber || {};
+  const isElite = currentChamber.type === 'elite';
+  const isBoss = currentChamber.type === 'boss' || (typeof isBossFloor === 'function' && isBossFloor(clearedFloor));
+
   if (won) {
-    const reward = towerFloorReward(s.floor);
-    const intel = towerFloorIntel(s.floor);
-    addBux(reward);
-    if (typeof grantPlayerXP === 'function') {
-      grantPlayerXP(intel.xp || 50, `Trial Tower Floor ${s.floor}`);
-    }
-    recordEconomyChange(reward, `Trial Tower floor ${s.floor} cleared`);
-    recordRecentActivity(`Cleared Trial Tower floor ${s.floor} — +${reward} Bux & +${intel.xp || 50} XP`);
-    s.best = Math.max(s.best || 0, s.floor);
-    
-    const newlyUnlockedMilestones = checkAndGrantTowerMilestones(s.floor);
+    const shardBounty = isBoss ? 75 : (isElite ? 45 : 25);
+    const rewardBux = towerFloorReward(clearedFloor);
+    const xpReward = 50 + clearedFloor * 8;
 
-    let newlyUnlockedTheme = null;
-    if (s.floor >= 10 || s.best >= 10) {
-      if (localStorage.getItem('theme_quantum_unlocked') !== 'true') {
-        localStorage.setItem('theme_quantum_unlocked', 'true');
-        newlyUnlockedTheme = { id: 'quantum', name: 'Quantum Flux' };
-      }
+    if (typeof addBux === 'function') addBux(rewardBux);
+    if (typeof grantPlayerXP === 'function') grantPlayerXP(xpReward, `Trial Spire Floor ${clearedFloor}`);
+    if (typeof recordEconomyChange === 'function') recordEconomyChange(rewardBux, `Trial Spire Chamber ${clearedFloor} cleared`);
+    if (typeof recordRecentActivity === 'function') recordRecentActivity(`Conquered Chamber ${clearedFloor} — +${rewardBux} Bux & +${shardBounty} Shards`);
+
+    r.shards += shardBounty;
+    r.floorsClearedInRun = (r.floorsClearedInRun || 0) + 1;
+    r.best = Math.max(r.best, clearedFloor + 1);
+    r.floor = clearedFloor + 1;
+    r.roundUpgradesThisMatch = [];
+    r.activeDebuffs = [];
+    r.chamberChoices = generateChamberChoices(r.floor);
+    r.currentChamber = r.chamberChoices[0];
+    r.chamberChoicesFloor = r.floor;
+    r.selectedNodeIndex = 0;
+
+    const newlyUnlockedMilestones = (typeof checkAndGrantTowerMilestones === 'function') ? checkAndGrantTowerMilestones(clearedFloor) : [];
+
+    // Milestone Themes
+    if (clearedFloor >= 10 && localStorage.getItem('theme_quantum_unlocked') !== 'true') {
+      localStorage.setItem('theme_quantum_unlocked', 'true');
     }
-    if (s.floor >= 15 || s.best >= 15) {
-      if (localStorage.getItem('theme_glacier_unlocked') !== 'true') {
-        localStorage.setItem('theme_glacier_unlocked', 'true');
-        newlyUnlockedTheme = { id: 'glacier', name: 'Glacial Frost' };
-      }
+    if (clearedFloor >= 15 && localStorage.getItem('theme_glacier_unlocked') !== 'true') {
+      localStorage.setItem('theme_glacier_unlocked', 'true');
     }
-    if (s.floor >= 50 || s.best >= 50) {
-      if (localStorage.getItem('theme_astral_unlocked') !== 'true') {
-        localStorage.setItem('theme_astral_unlocked', 'true');
-        newlyUnlockedTheme = { id: 'astral', name: 'Trial Lord (S1)' };
-      }
-    }
-    if (s.floor >= 50 || s.best >= 50) {
-      if (localStorage.getItem('theme_celestial_unlocked') !== 'true') {
-        localStorage.setItem('theme_celestial_unlocked', 'true');
-        newlyUnlockedTheme = { id: 'celestial', name: 'Celestial Divinity' };
-      }
+    if (clearedFloor >= 50 && localStorage.getItem('theme_astral_unlocked') !== 'true') {
+      localStorage.setItem('theme_astral_unlocked', 'true');
     }
 
-    s.lastClearedFloor = s.floor;
-    s.lastRewardBux = reward;
-    s.lastRewardXP = intel.xp;
-    s.lastUnlockedTheme = newlyUnlockedTheme;
-    s.lastUnlockedMilestones = newlyUnlockedMilestones;
-    s.pendingResult = 'win_anim';
-    saveTrialTowerState(s);
+    // Award Relic on Elite or Boss victory!
+    if (isElite || isBoss) {
+      const unowned = ROGUELIKE_RELICS.filter(x => !r.relics.includes(x.id));
+      if (unowned.length > 0) {
+        const awardedRelic = unowned[Math.floor(Math.random() * unowned.length)];
+        r.relics.push(awardedRelic.id);
+        setTimeout(() => {
+          showToast(`🏆 ${isBoss ? 'BOSS' : 'ELITE'} DEFEATED! Acquired Relic: ${awardedRelic.name}! (${awardedRelic.desc})`, 4500);
+          if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
+        }, 800);
+      }
+    }
 
-    // Immediately return player to screen-trial-tower for the clash & ascent sequence
+    saveRoguelikeRun(r);
+    showToast(`🗼 Chamber ${clearedFloor} Conquered! +${shardBounty} Shards · +${rewardBux} Bux!`, 3200);
+
     setTimeout(() => {
       document.getElementById('gameover-overlay')?.classList.add('hidden');
+      trialTowerActive = false;
       openTrialTowerScreen();
     }, 120);
 
   } else {
+    // Loss - Run Shattered (Sudden Death: single match loss ends the run!)
     trialTowerActive = false;
-    s.lastRunFloor = s.floor;
-    if (s.floor > 1) showToast(`🗼 Trial Tower run ended at floor ${s.floor} — back to Floor 1.`, 3000);
-    s.floor = 1;
-    s.modifiers = [];
-    s.pendingResult = 'loss';
-    saveTrialTowerState(s);
+    r.lastRunFloor = clearedFloor;
+    saveRoguelikeRun(r);
+
+    setTimeout(() => {
+      document.getElementById('gameover-overlay')?.classList.add('hidden');
+      showRoguelikeRunSummaryModal(r);
+    }, 200);
   }
 }
 // Any manual exit from a match (quit, or starting a fresh one via Play
@@ -3064,85 +3877,52 @@ function openTrialTowerScreen() {
     document.getElementById('screen-trial-tower')?.classList.remove('hidden');
   }
 
-  const stack = document.getElementById('tower-citadel-stack');
-  const citadelContainer = document.getElementById('tower-citadel-container');
+  // Render the Roguelike Spire HUD, Shelves, Chamber Choices, and Console
+  renderRoguelikeSpireScreen();
+
   const beginBtn = document.getElementById('btn-tower-page-begin');
-  const s = loadTrialTowerState();
+  const abandonBtn = document.getElementById('btn-rl-abandon-run');
+  const backBtn = document.getElementById('btn-trial-tower-back');
+  const loadoutBtn = document.getElementById('btn-tower-edit-loadout');
+  const milestonesBtn = document.getElementById('btn-tower-open-milestones-modal');
 
-  function settleView() {
-    const cur = loadTrialTowerState();
-    renderTrialTowerBricks(stack, cur.floor, cur.floor);
-    updateTowerConsoleForFloor(cur.floor, false, true, false, cur.floor, cur.best);
-
-    // Populate active run modifiers box in Trial Tower citadel
-    const runBox = document.getElementById('tower-active-run-box');
-    const modsRow = document.getElementById('tarb-mods-row');
-    const countBadge = document.getElementById('tarb-count-badge');
-    if (runBox && modsRow) {
-      const curMods = Array.isArray(cur.modifiers) ? cur.modifiers : [];
-      if (curMods.length > 0) {
-        runBox.classList.remove('hidden');
-        if (countBadge) countBadge.textContent = `${curMods.length} Stacked`;
-        modsRow.innerHTML = '';
-        const counts = {};
-        curMods.forEach(m => { counts[m] = (counts[m] || 0) + 1; });
-        Object.entries(counts).forEach(([mid, count]) => {
-          const def = TOWER_MODIFIER_POOL.find(p => p.id === mid) || { name: mid, icon: '⚡' };
-          const pill = document.createElement('div');
-          pill.className = 'tarb-mod-pill';
-          pill.innerHTML = `<span>${def.icon} ${def.name}</span> <span class="tarb-pill-count">x${count}</span>`;
-          modsRow.appendChild(pill);
-        });
-      } else {
-        runBox.classList.add('hidden');
-      }
-    }
-  }
-
-  if (s.pendingResult === 'win_anim') {
-    const clearedFloor = s.lastClearedFloor || 1;
-    const newFloor = clearedFloor + 1;
-    s.pendingResult = null;
-    saveTrialTowerState(s);
-
-    // Render immediately to populate the view before animation triggers, avoiding flashes/lag
-    renderTrialTowerBricks(stack, clearedFloor, clearedFloor);
-    updatePlayerPawnPosition(clearedFloor);
-    updateTowerConsoleForFloor(clearedFloor, true, false, false, newFloor, s.best);
-
-    triggerTowerClashAnimation(clearedFloor, () => {
-      // Smoothly ascend player pawn up the castle SVG
-      updatePlayerPawnPosition(newFloor);
-      if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
-
-      setTimeout(() => {
-        showTowerAscentModal(clearedFloor, s.lastRewardBux || towerFloorReward(clearedFloor), s.lastRewardXP || 50, s.lastUnlockedTheme);
-        settleView();
-      }, 750);
-    });
-  } else if (s.pendingResult === 'loss') {
-    const runFloor = s.lastRunFloor || 1;
-    renderTrialTowerBricks(stack, runFloor, runFloor + 1);
-    s.pendingResult = null;
-    saveTrialTowerState(s);
-    updateTowerConsoleForFloor(1, false, true, false, 1, s.best);
-    updatePlayerPawnPosition(1);
-    setTimeout(() => playTowerExplodeAnimation(citadelContainer, stack, settleView), 320);
-  } else {
-    updatePlayerPawnPosition(s.floor);
-    settleView();
-  }
-
-  if (beginBtn && !beginBtn.dataset.bound) {
-    beginBtn.dataset.bound = 'true';
-    beginBtn.addEventListener('click', () => {
-      enterTrialTower();
-    });
+  // Wire Begin / Ascend Button directly
+  if (beginBtn) {
+    beginBtn.onclick = (e) => {
+      e?.preventDefault();
+      const r = loadRoguelikeRun();
+      const node = (r.chamberChoices && r.chamberChoices[0]) || (typeof getChamberForFloor === 'function' ? getChamberForFloor(r.floor) : null);
+      if (node) enterSelectedChamber(node);
+    };
     if (typeof wirePressFeedback === 'function') wirePressFeedback(beginBtn);
   }
 
-  // Bind Milestones track button
-  const milestonesBtn = document.getElementById('btn-tower-open-milestones-modal');
+  // Wire Abandon Run Button
+  if (abandonBtn && !abandonBtn.dataset.bound) {
+    abandonBtn.dataset.bound = 'true';
+    abandonBtn.addEventListener('click', () => {
+      const r = loadRoguelikeRun();
+      if (confirm(`Abandon this Roguelike Spire run? (Current: Chamber ${r.floor}, ${r.shards} Shards)\nYour all-time deepest floor record (Floor ${r.best}) will be preserved.`)) {
+        const fresh = createFreshRoguelikeRun(r.best);
+        saveRoguelikeRun(fresh);
+        renderRoguelikeSpireScreen();
+        showToast('🏳️ Spire run abandoned. A fresh ascension begins at Floor 1.', 3000);
+        if (typeof Sound !== 'undefined' && Sound.meteorBoom) Sound.meteorBoom();
+      }
+    });
+    if (typeof wirePressFeedback === 'function') wirePressFeedback(abandonBtn);
+  }
+
+  // Wire Back Button
+  if (backBtn && !backBtn.dataset.bound) {
+    backBtn.dataset.bound = 'true';
+    backBtn.addEventListener('click', () => {
+      if (typeof showScreen === 'function') showScreen('screen-single-player');
+    });
+    if (typeof wirePressFeedback === 'function') wirePressFeedback(backBtn);
+  }
+
+  // Wire Milestones track button
   if (milestonesBtn && !milestonesBtn.dataset.bound) {
     milestonesBtn.dataset.bound = 'true';
     milestonesBtn.addEventListener('click', () => {
@@ -3151,43 +3931,23 @@ function openTrialTowerScreen() {
     if (typeof wirePressFeedback === 'function') wirePressFeedback(milestonesBtn);
   }
 
-  // Update summary badge states
-  const bestFloor = s.best || 0;
-  [10, 20, 30, 40, 50].forEach(f => {
-    const badge = document.getElementById(`tmsc-badge-${f}`);
-    if (badge) {
-      const isUnlocked = bestFloor >= f || isTowerMilestoneUnlocked(f);
-      badge.classList.toggle('unlocked', isUnlocked);
-      const statusEl = badge.querySelector('.tmsc-badge-status');
-      if (statusEl && isUnlocked) {
-        statusEl.textContent = '✓ Unlocked';
-      }
-    }
-  });
-
-  const loadoutBtn = document.getElementById('btn-tower-edit-loadout');
+  // Wire Loadout Button
   if (loadoutBtn && !loadoutBtn.dataset.bound) {
     loadoutBtn.dataset.bound = 'true';
     loadoutBtn.addEventListener('click', () => {
       if (typeof openDeckBuilder === 'function') {
         openDeckBuilder((config) => {
           if (typeof saveActiveTrialTowerDeck === 'function') saveActiveTrialTowerDeck(config);
-          if (typeof openTrialTowerScreen === 'function') openTrialTowerScreen();
+          openTrialTowerScreen();
         }, 'screen-trial-tower', true);
       }
     });
     if (typeof wirePressFeedback === 'function') wirePressFeedback(loadoutBtn);
   }
-
-  const backBtn = document.getElementById('btn-trial-tower-back');
-  if (backBtn && !backBtn.dataset.bound) {
-    backBtn.dataset.bound = 'true';
-    backBtn.addEventListener('click', () => {
-      if (typeof showScreen === 'function') showScreen('screen-single-player');
-    });
-    if (typeof wirePressFeedback === 'function') wirePressFeedback(backBtn);
-  }
 }
+
+// Global export so trial tower can be launched from anywhere
+window.openTrialTowerScreen = openTrialTowerScreen;
 
 /* ---------- Trial Tower Milestones Rewards Modal ---------- */
 function showTowerMilestonesModal() {
@@ -3295,15 +4055,22 @@ function showTowerMilestonesModal() {
 }
 
 function ensureTrialTowerMenuCard() {
-  const menuCard = document.getElementById('btn-trial-tower-menu');
-  if (menuCard) {
-    if (!menuCard.dataset) menuCard.dataset = {};
-    if (!menuCard.dataset.bound) {
-      menuCard.dataset.bound = 'true';
-      menuCard.addEventListener('click', () => openTrialTowerScreen());
-      if (typeof wirePressFeedback === 'function') wirePressFeedback(menuCard);
+  const wireBtn = (btn) => {
+    if (!btn) return;
+    if (!btn.dataset) btn.dataset = {};
+    if (!btn.dataset.boundTower) {
+      btn.dataset.boundTower = 'true';
+      btn.addEventListener('click', (e) => {
+        e?.preventDefault();
+        openTrialTowerScreen();
+      });
+      if (typeof wirePressFeedback === 'function') wirePressFeedback(btn);
     }
-  }
+  };
+
+  wireBtn(document.getElementById('btn-trial-tower-menu'));
+  wireBtn(document.getElementById('btn-trial-tower'));
+  document.querySelectorAll('[data-open-tower], .btn-open-trial-tower').forEach(wireBtn);
 
   const grid = document.querySelector('#screen-single-player .menu-grid');
   if (!grid) return;
@@ -3314,12 +4081,15 @@ function ensureTrialTowerMenuCard() {
     btn.innerHTML = `
       <span class="menu-card-title">🗼 Trial Tower</span>
       <span class="menu-card-sub">Climb an endless citadel of escalating bots</span>`;
-    btn.addEventListener('click', () => openTrialTowerScreen());
+    wireBtn(btn);
     grid.appendChild(btn);
-    if (typeof wirePressFeedback === 'function') wirePressFeedback(btn);
   }
 }
 ensureTrialTowerMenuCard();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', ensureTrialTowerMenuCard);
+}
+window.addEventListener('load', ensureTrialTowerMenuCard);
 
 /* ---------- Progression hooks: wrap existing single-purpose functions so
    Player Level / Weekly Vault / Arena Rank / Prestige / Trial Tower all
@@ -4378,7 +5148,38 @@ function renderCosmeticsShop() {
     const isOwned = isIndividualCardOwned(entry);
     const tierName = entry.kind === 'unit' ? (TIERS[entry.tier] ? `Tier ${entry.tier} Unit` : 'Unit') : (entry.kind === 'spell' ? 'Spell Card' : 'Chip Card');
     const rClass = entry.tier === 4 ? 'fn-mythic' : entry.tier === 3 ? 'fn-epic' : entry.kind === 'spell' ? 'fn-legendary' : 'fn-rare';
-    const glyph = entry.kind === 'unit' ? (TIER_GLYPHS && entry.tier ? TIER_GLYPHS[entry.tier] : '⚔️') : (entry.kind === 'spell' ? '🔮' : '💾');
+    const spellShopIcons = {
+      suddendeath: '💀',
+      bolt5: '⚡',
+      mend3: '💚',
+      purge: '🌀',
+      splashbolt: '🌊',
+      massmend: '💖',
+      weaken: '🥀',
+      adrenaline: '💉',
+      frostbolt: '❄️',
+      warcry: '📯',
+      chainlightning: '🌩️',
+      hack: '💻',
+      orange: '🍊',
+      rocketboom: '🚀',
+      sanctioned: '⛓️',
+      zap: '⚡',
+      allaura: '🌟',
+      remainsmask: '🎭',
+      sacrificeman: '🕯️',
+      supremeshirt: '👕',
+      revivespell: '💫'
+    };
+    const chipShopIcons = {
+      chip_focus: '🎯',
+      focus: '🎯'
+    };
+    const glyph = entry.kind === 'unit'
+      ? (TIER_GLYPHS && entry.tier ? TIER_GLYPHS[entry.tier] : '⚔️')
+      : (entry.kind === 'spell'
+        ? (spellShopIcons[entry.id] || '⚡')
+        : (chipShopIcons[entry.id] || (entry.name && entry.name.toLowerCase().includes('focus') ? '🎯' : '💎')));
 
     return `
       <div class="fn-tile ${rClass} ${isOwned ? 'is-owned' : ''}" data-shop-buy="card:${entry.kind}:${entry.id}">

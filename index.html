@@ -317,141 +317,68 @@
   </section>
 
   <!-- ===== TRIAL TOWER DEDICATED SCREEN ===== -->
+  <!-- ===== TRIAL TOWER ROGUELIKE SPIRE ===== -->
   <section id="screen-trial-tower" class="screen hidden">
-    <div class="tower-page-wrapper">
-      <div class="tower-page-header">
-        <button class="link-btn back-btn glass-pill-btn" id="btn-trial-tower-back">
-          <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-          <span>Back to Single Player</span>
-        </button>
-        <div class="tower-page-title-wrap">
-          <h2 class="tower-page-heading">The Trial Tower</h2>
+    <div class="tower-page-wrapper rl-tower-wrapper">
+      <!-- TOP ROGUELIKE SPIRE HEADER -->
+      <div class="tower-page-header rl-spire-header">
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <button class="link-btn back-btn glass-pill-btn" id="btn-trial-tower-back">
+            <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            <span>Back to Single Player</span>
+          </button>
+          <button type="button" class="link-btn glass-pill-btn rl-abandon-btn" id="btn-rl-abandon-run" style="border-color:rgba(239,68,68,0.4); color:#fca5a5;">
+            <span>Abandon Run</span>
+          </button>
         </div>
-        <div class="tower-page-stats-chips">
-          <div class="tower-stat-chip">
-            <span class="tsc-label">Best Record</span>
-            <span class="tsc-val" id="tower-header-best">Floor 1</span>
-          </div>
-          <div class="tower-stat-chip highlight">
-            <span class="tsc-label">Target Floor</span>
-            <span class="tsc-val" id="tower-header-current">Floor 1</span>
-          </div>
+
+        <div class="tower-page-title-wrap">
+          <h2 class="tower-page-heading">The Trial Spire</h2>
         </div>
       </div>
 
-      <div class="tower-page-layout">
-        <!-- Tower Visual Citadel Castle SVG & Ascension Track -->
-        <div class="tower-citadel-wrapper" id="tower-citadel-container">
-          <!-- Player vs Enemy Clash Animation Banner Overlay (triggers on victory return) -->
-          <div id="tower-clash-overlay" class="tower-clash-overlay hidden">
-            <div class="clash-side player">
-              <div class="clash-avatar" id="clash-player-avatar">P</div>
-              <div class="clash-name" id="clash-player-name">Player</div>
-            </div>
-            <div class="clash-vs-badge">VS</div>
-            <div class="clash-side enemy">
-              <div class="clash-avatar" id="clash-enemy-avatar">AI</div>
-              <div class="clash-name" id="clash-enemy-name">Tower Guardian</div>
-            </div>
-            <div class="clash-hit-fx" id="clash-hit-fx">KO!</div>
+      <!-- MAIN ROGUELIKE ASCENT LAYOUT -->
+      <div class="tower-page-layout rl-layout">
+        <!-- Hidden compatibility elements to maintain backwards compatibility -->
+        <div id="tower-citadel-container" class="hidden">
+          <div id="tower-citadel-stack"></div>
+        </div>
+        <div id="tower-active-run-box" class="hidden">
+          <span id="tarb-count-badge">0</span>
+          <div id="tarb-mods-row"></div>
+        </div>
+        <div id="tower-clash-overlay" class="tower-clash-overlay hidden">
+          <div class="clash-side player">
+            <div class="clash-avatar" id="clash-player-avatar">P</div>
+            <div class="clash-name" id="clash-player-name">Player</div>
           </div>
-
-          <div class="tower-spire-cap">
-            <div class="spire-crystal-orb">✦</div>
-            <div class="spire-title">TRIAL LORD (S1) · FLOOR 50</div>
-            <div class="spire-sub">Unlock Trial Lord (S1) at Level 50.</div>
+          <div class="clash-vs-badge">VS</div>
+          <div class="clash-side enemy">
+            <div class="clash-avatar" id="clash-enemy-avatar">AI</div>
+            <div class="clash-name" id="clash-enemy-name">Guardian</div>
           </div>
-
-          <div class="tower-castle-svg-container" id="tower-castle-svg-container">
-            <!-- Castle Citadel SVG Illustration -->
-            <svg class="tower-castle-svg" viewBox="0 0 400 600" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="castleGrad" x1="200" y1="0" x2="200" y2="600" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stop-color="var(--accent, #c084fc)" stop-opacity="0.85"/>
-                  <stop offset="40%" stop-color="#38bdf8" stop-opacity="0.55"/>
-                  <stop offset="100%" stop-color="#0f172a" stop-opacity="0.95"/>
-                </linearGradient>
-                <linearGradient id="spireGlow" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#ffffff"/>
-                  <stop offset="100%" stop-color="var(--accent, #a855f7)"/>
-                </linearGradient>
-                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="8" result="blur"/>
-                  <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-                </filter>
-              </defs>
-
-              <!-- Celestial Spire Apex Beacon -->
-              <circle cx="200" cy="40" r="18" fill="url(#spireGlow)" filter="url(#glow)"/>
-              <path d="M200 10 L205 35 L200 40 L195 35 Z" fill="#ffffff"/>
-              
-              <!-- Castle Citadel Wall Silhouettes -->
-              <!-- Main Apex Tower -->
-              <path d="M160 140 L200 50 L240 140 L230 260 L170 260 Z" fill="url(#castleGrad)" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
-              <!-- Battlements Apex -->
-              <path d="M150 140 H250 V155 H235 V148 H220 V155 H205 V148 H195 V155 H180 V148 H165 V155 H150 Z" fill="#1e1b4b" stroke="var(--accent, #a855f7)" stroke-width="1.5"/>
-
-              <!-- Mid Citadel Keep -->
-              <path d="M130 260 L270 260 L280 400 L120 400 Z" fill="#0f172a" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
-              <!-- Mid Battlements -->
-              <path d="M120 260 H280 V275 H265 V268 H250 V275 H235 V268 H220 V275 H205 V268 H195 V275 H180 V268 H165 V275 H150 V268 H135 V275 H120 Z" fill="#1e293b" stroke="#38bdf8" stroke-width="1.5"/>
-
-              <!-- Base Fortress Foundation -->
-              <path d="M90 400 L310 400 L330 580 L70 580 Z" fill="#090d16" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
-              <!-- Grand Entrance Arch Gate -->
-              <path d="M165 580 V490 Q200 460 235 490 V580 Z" fill="#020617" stroke="var(--accent, #a855f7)" stroke-width="2.5"/>
-
-              <!-- Winding Ascension Path -->
-              <path id="castle-ascent-path" d="M200 530 C130 500, 130 430, 200 410 C270 390, 270 300, 200 270 C130 240, 150 160, 200 70" fill="none" stroke="rgba(168, 85, 247, 0.4)" stroke-width="3" stroke-dasharray="6 6"/>
-
-              <!-- Castle Windows & Embrasures -->
-              <circle cx="200" cy="190" r="10" fill="#38bdf8" opacity="0.8" filter="url(#glow)"/>
-              <rect x="175" y="320" width="12" height="24" rx="6" fill="#fbbf24" opacity="0.8"/>
-              <rect x="213" y="320" width="12" height="24" rx="6" fill="#fbbf24" opacity="0.8"/>
-
-              <!-- Floor Tier Nodes along Castle Path -->
-              <g class="castle-nodes">
-                <circle id="cnode-1" cx="200" cy="530" r="9" class="cnode cleared" data-floor="1"/>
-                <circle id="cnode-5" cx="140" cy="450" r="9" class="cnode" data-floor="5"/>
-                <circle id="cnode-10" cx="200" cy="380" r="10" class="cnode milestone" data-floor="10"/>
-                <circle id="cnode-15" cx="260" cy="320" r="10" class="cnode milestone" data-floor="15"/>
-                <circle id="cnode-20" cx="200" cy="270" r="9" class="cnode" data-floor="20"/>
-                <circle id="cnode-30" cx="160" cy="180" r="11" class="cnode apex" data-floor="30"/>
-                <circle id="cnode-50" cx="200" cy="70" r="12" class="cnode crown" data-floor="50"/>
-              </g>
-            </svg>
-
-            <!-- Animated Player Avatar Token Ascending Castle -->
-            <div id="tower-player-pawn" class="tower-player-pawn">
-              <div class="pawn-aura"></div>
-              <div class="pawn-avatar" id="pawn-avatar-icon">P</div>
-              <div class="pawn-floor-tag" id="pawn-floor-tag">F1</div>
-            </div>
-          </div>
-
-          <div class="tower-citadel-viewport" id="tower-citadel-viewport" style="display:none;">
-            <div class="tower-citadel-scroller" id="tower-citadel-stack"></div>
-          </div>
+          <div class="clash-hit-fx" id="clash-hit-fx">KO!</div>
         </div>
 
-        <!-- Tower Ascent Command Console -->
-        <div class="tower-command-console" id="tower-command-console">
-          <div class="tower-mission-card">
+        <!-- Selected Chamber Action Console -->
+        <div class="tower-command-console rl-command-console" id="tower-command-console">
+          <div class="tower-mission-card rl-mission-card">
             <div class="tmc-badge-row">
               <span class="tmc-diff-badge" id="tower-console-diff-badge">EASY</span>
             </div>
-            <h3 class="tmc-floor-title" id="tower-console-floor-title">Floor 1 Challenge</h3>
-            <p class="tmc-desc" id="tower-console-desc">Ascend against baseline AI bots. Win to climb higher; defeat shatters the run back to Floor 1.</p>
+            <h3 class="tmc-floor-title" id="tower-console-floor-title">Floor 1: Obsidian Keep</h3>
+            <p class="tmc-desc" id="tower-console-desc">Dark volcanic fortress guarded by sentinel constructs. Defeat them to ascend.</p>
 
-            <!-- Active Stacking Run Modifiers Indicator -->
-            <div id="tower-active-run-box" class="tower-active-run-box hidden">
-              <div class="tarb-header">
-                <span class="tarb-title">ACTIVE RUN MODIFIERS</span>
-                <span id="tarb-count-badge" class="tarb-count">0 Stacked</span>
+            <!-- Chamber Hazard Warning -->
+            <div id="rl-chamber-hazard-banner" class="rl-hazard-banner hidden">
+              <span class="rl-hazard-icon">⚡</span>
+              <div class="rl-hazard-info">
+                <strong id="rl-hazard-title">CHAMBER HAZARD</strong>
+                <span id="rl-hazard-desc">All enemy cards enter with +1 Shield.</span>
               </div>
-              <div id="tarb-mods-row" class="tarb-mods-row"></div>
             </div>
 
+            <!-- Rewards Grid -->
             <div class="tmc-rewards-grid">
               <div class="tmc-reward-item">
                 <span class="tri-icon">
@@ -465,28 +392,28 @@
                   <svg class="glass-icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
                 </span>
                 <span class="tri-val" id="tower-console-xp-val">+45 XP</span>
-                <span class="tri-label">Profile & Battle Pass</span>
+                <span class="tri-label">Profile &amp; Pass</span>
               </div>
               <div class="tmc-reward-item">
-                <span class="tri-icon">
-                  <svg class="glass-icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.45 1-1 1H8c-.55 0-1 .45-1 1v1c0 .55.45 1 1 1h8c.55 0 1-.45 1-1v-1c0-.55-.45-1-1-1h-1c-.55 0-1-.45-1-1v-2.34"></path><path d="M18 4H6v7a6 6 0 0 0 12 0V4z"></path></svg>
-                </span>
-                <span class="tri-val" id="tower-console-best-val">Floor 1</span>
-                <span class="tri-label">Personal Best</span>
+                <span class="tri-icon">💎</span>
+                <span class="tri-val" id="tower-console-shards-val">+25 Shards</span>
+                <span class="tri-label">Spire Shards</span>
               </div>
             </div>
 
-            <button type="button" class="primary-btn tower-start-btn" id="btn-tower-page-begin">
+            <!-- Launch Button -->
+            <button type="button" class="primary-btn tower-start-btn rl-start-btn pulse-glow" id="btn-tower-page-begin">
               <svg class="glass-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"></polyline><line x1="13" y1="19" x2="19" y2="13"></line><line x1="16" y1="16" x2="20" y2="20"></line><line x1="19" y1="21" x2="21" y2="19"></line></svg>
-              <span>Ascend to Floor 1</span>
-            </button>
-            <button type="button" class="secondary-btn tower-loadout-btn" id="btn-tower-edit-loadout" style="margin-top: 10px; width: 100%; border: 1px solid rgba(255, 255, 255, 0.25); background: rgba(255, 255, 255, 0.08); color: #e2e8f0; padding: 8px 16px; border-radius: 12px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 8px;">
-              <span>Edit Trial Loadout (8 Cards, 3 Spells, 2 Chips)</span>
+              <span id="btn-tower-page-begin-text">Ascend &amp; Enter Chamber</span>
             </button>
 
-            <!-- Trial Lord Milestone Rewards Track Button -->
-            <div id="tower-milestones-summary-card" style="margin-top: 10px; display: flex; justify-content: center;">
-              <button type="button" class="link-btn small" id="btn-tower-open-milestones-modal" style="color: #c084fc; font-weight: 700; font-size: 0.78rem; background: rgba(192, 132, 252, 0.12); border: 1px solid rgba(192, 132, 252, 0.3); padding: 6px 14px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">View Rewards Track ›</button>
+            <!-- Loadout & Meta Buttons -->
+            <button type="button" class="secondary-btn tower-loadout-btn" id="btn-tower-edit-loadout" style="margin-top: 10px; width: 100%; border: 1px solid rgba(255, 255, 255, 0.25); background: rgba(255, 255, 255, 0.08); color: #e2e8f0; padding: 8px 16px; border-radius: 12px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <span>Edit Run Loadout (8 Cards, 3 Spells, 2 Chips)</span>
+            </button>
+
+            <div id="tower-milestones-summary-card" style="margin-top: 10px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+              <button type="button" class="link-btn small" id="btn-tower-open-milestones-modal" style="color: #c084fc; font-weight: 700; font-size: 0.78rem; background: rgba(192, 132, 252, 0.12); border: 1px solid rgba(192, 132, 252, 0.3); padding: 6px 14px; border-radius: 8px; cursor: pointer;">Rewards Track ›</button>
             </div>
           </div>
         </div>
@@ -1653,6 +1580,65 @@
         <button type="button" class="boss-engage-btn" id="btn-boss-warning-engage">
           <span>⚔️ ENGAGE BOSS ⚔️</span>
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ROGUELIKE IN-BATTLE ROUND UPGRADE MODAL ===== -->
+  <div id="tower-round-upgrade-modal" class="hidden" role="dialog" aria-modal="true" style="position: fixed; inset: 0; z-index: 9999; background: rgba(2, 6, 23, 0.9); backdrop-filter: blur(14px); display: flex; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box;">
+    <div class="rl-round-modal-card">
+      <div class="rl-round-modal-header">
+        <div class="rl-round-modal-badge" id="rl-round-num-badge">⚡ ROUND UPGRADE · CHOOSE 1 AUGMENT</div>
+        <h2 class="rl-round-modal-title">Tactical Roguelike Augment</h2>
+        <p class="rl-round-modal-sub">Draft an upgrade for your board units to turn the tide of this battle!</p>
+      </div>
+      <div class="rl-round-cards-grid" id="rl-round-upgrade-cards">
+        <!-- 3 Roguelike Round Upgrade Cards -->
+      </div>
+      <div class="rl-round-modal-footer">
+        <button type="button" class="link-btn rl-skip-upgrade-btn" id="btn-rl-skip-round-upgrade">Skip Upgrade ›</button>
+        <button type="button" class="ascent-reroll-btn" id="btn-rl-reroll-round-upgrade">🎲 Reroll (15 Shards)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ROGUELIKE EVENT / SHRINE / MERCHANT MODAL ===== -->
+  <div id="tower-event-modal" class="hidden" role="dialog" aria-modal="true" style="position: fixed; inset: 0; z-index: 9999; background: rgba(2, 6, 23, 0.92); backdrop-filter: blur(14px); display: flex; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box;">
+    <div class="rl-event-modal-card">
+      <div class="rl-event-modal-header">
+        <span class="rl-event-icon" id="rl-event-header-icon">🔮</span>
+        <div class="rl-event-tag" id="rl-event-tag">MYSTERY SHRINE</div>
+        <h2 class="rl-event-title" id="rl-event-title">The Whispering Monolith</h2>
+        <p class="rl-event-desc" id="rl-event-desc">An ancient rune stone pulses with dark, radiant energies.</p>
+      </div>
+      <div class="rl-event-options-grid" id="rl-event-options-container">
+        <!-- Dynamic Event Options -->
+      </div>
+      <div class="rl-event-modal-footer">
+        <button type="button" class="primary-btn" id="btn-rl-event-leave">Leave Chamber ›</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ROGUELIKE RUN SUMMARY (VICTORY / DEFEAT RECAP) ===== -->
+  <div id="tower-run-summary-modal" class="hidden" role="dialog" aria-modal="true" style="position: fixed; inset: 0; z-index: 10000; background: rgba(2, 6, 23, 0.95); backdrop-filter: blur(16px); display: flex; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box;">
+    <div class="rl-summary-modal-card">
+      <div class="rl-summary-header">
+        <span class="rl-summary-icon" id="rl-summary-icon">💀</span>
+        <div class="rl-summary-tag" id="rl-summary-tag">RUN TERMINATED</div>
+        <h2 class="rl-summary-title" id="rl-summary-title">Run Ended at Floor 7</h2>
+        <p class="rl-summary-sub" id="rl-summary-sub">The guardians of the spire were victorious. Your deeds remain etched in stone.</p>
+      </div>
+      <div class="rl-summary-stats-grid">
+        <div class="rl-sum-stat"><span class="rl-ss-val" id="rl-sum-floors">7</span><span class="rl-ss-lbl">Floors Cleared</span></div>
+        <div class="rl-sum-stat"><span class="rl-ss-val" id="rl-sum-relics">3</span><span class="rl-ss-lbl">Relics Held</span></div>
+        <div class="rl-sum-stat"><span class="rl-ss-val" id="rl-sum-upgrades">5</span><span class="rl-ss-lbl">Upgrades Picked</span></div>
+        <div class="rl-sum-stat"><span class="rl-ss-val" id="rl-sum-bux">+120</span><span class="rl-ss-lbl">Bux Earned</span></div>
+      </div>
+      <div class="rl-summary-relics-list" id="rl-summary-relics-list"></div>
+      <div class="rl-summary-footer">
+        <button type="button" class="primary-btn rl-start-new-run-btn" id="btn-rl-summary-new-run">⚔️ Start New Run</button>
+        <button type="button" class="link-btn" id="btn-rl-summary-close">Return to Citadel</button>
       </div>
     </div>
   </div>
