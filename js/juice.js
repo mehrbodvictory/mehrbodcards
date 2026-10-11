@@ -3724,6 +3724,8 @@ function triggerTowerClashAnimation(clearedFloor, onDone) {
 }
 
 function resolveTrialTowerMatch(won) {
+  if (typeof trialTowerActive !== 'undefined' && !trialTowerActive) return;
+  if (typeof trialTowerActive !== 'undefined') trialTowerActive = false;
   const r = loadRoguelikeRun();
   const clearedFloor = r.floor;
   const clearedLevel = r.level || 1;
