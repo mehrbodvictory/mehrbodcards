@@ -334,7 +334,7 @@ const ABILITIES = {
   // v3.0: "discards a card from hand" doesn't exist anymore either -
   // instead this permanently removes a random Blue card from the enemy's
   // remaining deck, denying them a future placement.
-  green_onplay_discard1:   { id: 'green_onplay_discard1', label: "On placement: throw barbods dust onto the enemy's screen." },
+  green_onplay_discard1:   { id: 'green_onplay_discard1', label: "On placement: sabotages the enemy deck by removing a card." },
 
   // New Red archetypes.
   red_onplay_dmgall1:      { id: 'red_onplay_dmgall1', label: 'On placement: deal 1 dmg to every enemy card.' },
@@ -367,6 +367,7 @@ const ABILITIES = {
   restore_spell: { id: 'restore_spell', label: 'On placement: restore 1 used spell card to your hand.' },
   restore_chip:  { id: 'restore_chip', label: 'On placement: restore 1 used chip card to your hand.' },
   add_random_blue: { id: 'add_random_blue', label: 'On placement: add a random Blue card to your hand.' },
+  jones_freespell: { id: 'jones_freespell', label: 'On placement: use 1 spell of your choice for free without it going from your deck.' },
 };
 
 // ---- Unit archetypes -------------------------------------------------------
@@ -424,7 +425,7 @@ const UNIT_ARCHETYPES = {
     { id: 'orange_chronos_sentinel', name: 'Chronos Sentinel', sp: 8, pool: ['orange_onplay_refreshall'] },
     { id: 'orange_singularity_devourer', name: 'Void Entity', sp: 9, pool: ['add_random_blue'] },
     { id: 'orange_quantum_behemoth', name: 'Quantum Colossus', sp: 9, pool: ['orange_onplay_scaledmg'] },
-    { id: 'orange_apex_sovereign_unit', name: 'Jonesy', sp: 9, pool: ['orange_onplay_alphastrike'] },
+    { id: 'orange_apex_sovereign_unit', name: 'Jonesy', sp: 9, pool: ['jones_freespell'] },
   ],
 };
 

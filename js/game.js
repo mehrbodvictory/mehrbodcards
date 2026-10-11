@@ -241,6 +241,21 @@ function abilityTrigger(state, playerKey, card, trigger, slot, deathSource) {
       const blue = makeUnitCard(1, state._rng);
       me.deck.push(blue);
       pushLog(state, `${card.name} adds a random Blue card to your deck`);
+    } else if (a === 'jones_freespell') {
+      const chosenId = card.jonesSpellId;
+      const spellDef = (typeof SPELL_DEFS !== 'undefined') ? SPELL_DEFS.find(s => s.id === chosenId) : null;
+      const actualSpell = spellDef || (typeof SPELL_DEFS !== 'undefined' && SPELL_DEFS.length > 0 ? SPELL_DEFS[Math.floor(state._rng.next() * SPELL_DEFS.length)] : { id: 'bolt3', name: 'Bolt', dmg: 3 });
+      const targetCard = weakestEnemyCard(enemy) || weakestAllyCard(me, card.id);
+      if (targetCard) {
+        const source = { kind: 'spell', name: actualSpell.name, owner: playerKey };
+        if (actualSpell.dmg) damageCard(state, enemyKey, targetCard.slot, actualSpell.dmg, source);
+        else if (actualSpell.heal) healCard(targetCard.card, actualSpell.heal);
+        else if (actualSpell.refreshDefense) targetCard.card.defendChargesUsed = 0;
+        else if (actualSpell.healAll) healAllAllies(state, playerKey, actualSpell.healAll, source);
+        else if (actualSpell.buffAllDmg) buffAllAlliesDmg(state, playerKey, actualSpell.buffAllDmg);
+        else damageCard(state, enemyKey, targetCard.slot, 3, source);
+        pushLog(state, `👑 ${card.name} casts free spell [${actualSpell.name}] of your choice without removing it from your deck!`);
+      }
     }
   } else if (trigger === 'ondeath') {
     if (a === 'ondeath_dmg2') {
@@ -667,7 +682,7 @@ function placeCard(state, playerKey, deckIndex, slot, cardId, archetypeId) {
 //
 // The surviving merged card always lands in the FIRST slot passed in
 // (slots[0]); every other consumed slot is cleared.
-function mergeCards(state, playerKey, slots, blueprintIndex) {
+function mergeCards(state, playerKey, slots, blueprintIndex, jonesSpellId) {
   const p = state.players[playerKey];
   if (state.phase !== 'placement') return { ok: false, error: 'not placement phase' };
   // NEW: at most MAX_MERGES_PER_ROUND *voluntary* merges (of any size, 2-4
@@ -729,6 +744,7 @@ function mergeCards(state, playerKey, slots, blueprintIndex) {
 
   const merged = {
     id: nextId(),
+    archetypeId: blueprint.archetypeId,
     kind: 'unit',
     tier: newTier,
     name: mergedName,
@@ -737,6 +753,7 @@ function mergeCards(state, playerKey, slots, blueprintIndex) {
     dmg: TIERS[newTier].dmg,
     sp: blueprint.sp !== undefined ? blueprint.sp : TIERS[newTier].sp,
     ability: mergedAbility,
+    jonesSpellId: jonesSpellId || blueprint.jonesSpellId,
     defendChargesUsed: 0,
     chipsAttached: [],
   };
@@ -1569,11 +1586,7 @@ function startPlacementPhase(state) {
         if (bossUnit) {
           pushFx(state, { type: 'bossSpecialty', owner: 'bot', slot: botP.board.indexOf(bossUnit), kind: 'dustStorm' });
         }
-        if (typeof window !== 'undefined' && typeof window.triggerBarbodDustEffect === 'function') {
-          setTimeout(() => {
-            window.triggerBarbodDustEffect();
-          }, 800);
-        }
+
       }
     }
   }
@@ -1631,6 +1644,33 @@ function emergencySalvage(state, playerKey, blueprintIndex) {
 }
 
 function applyDebuff(state, debuffId, card, slot = -1) {
+  if (!debuffId) return;
+  let curseNum = 0;
+  if (typeof debuffId === 'string' && debuffId.startsWith('curse_')) {
+    const parts = debuffId.split('_');
+    const num = parseInt(parts[1]);
+    if (!isNaN(num)) curseNum = num;
+  }
+
+  if (curseNum > 0) {
+    if (curseNum <= 40) {
+      if (curseNum > 20) {
+        card.maxHp = Math.max(1, card.maxHp - 1);
+        card.hp = Math.min(card.hp, card.maxHp);
+      }
+    } else if (curseNum <= 80) {
+      card.maxHp = Math.max(1, card.maxHp - 1);
+      card.hp = Math.min(card.hp, card.maxHp);
+      card.dmg = Math.max(0, card.dmg - 1);
+    } else {
+      card.maxHp = Math.max(1, card.maxHp - 2);
+      card.hp = Math.min(card.hp, card.maxHp);
+      card.dmg = Math.max(0, card.dmg - 1);
+      card.vulnerable = true;
+      card.withering = true;
+    }
+  }
+
   switch (debuffId) {
     case 'curse_miasma':
     case 'd2':
@@ -1683,7 +1723,7 @@ function applyAction(state, action) {
       // the older { slotA, slotB } pair format, for any caller that hasn't
       // been updated - both always route through the same merge logic.
       const slots = Array.isArray(action.slots) ? action.slots : [action.slotA, action.slotB];
-      result = mergeCards(state, action.player, slots, action.blueprintIndex);
+      result = mergeCards(state, action.player, slots, action.blueprintIndex, action.jonesSpellId);
       break;
     }
     case 'spell': result = castSpell(state, action.player, action.spellId, action.targetOwner, action.targetSlot, action.sacSpellId); break;

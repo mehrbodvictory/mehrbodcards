@@ -107,6 +107,7 @@ const ABILITY_SHORT = {
   restore_spell: 'Play: restore a used spell',
   restore_chip: 'Play: restore a used chip',
   add_random_blue: 'Play: +1 random Blue card',
+  jones_freespell: 'Play: use 1 spell for free without losing it',
 };
 function abilityLabel(id) {
   if (ABILITY_SHORT[id]) return ABILITY_SHORT[id];

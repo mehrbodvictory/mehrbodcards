@@ -2173,17 +2173,36 @@ const ROGUELIKE_RELICS = [
   { id: 'relic_cloak', name: 'Shadow Cloak', icon: '🥋', rarity: 'epic', desc: '20% evasion chance against enemy attacks.' }
 ];
 
-const ROGUELIKE_DEBUFFS = [
-  { id: 'curse_miasma', name: 'Toxic Miasma', icon: '🌫️', desc: 'All friendly units enter play with -1 Max HP.' },
-  { id: 'curse_blood_hex', name: 'Blood Hex', icon: '🩸', desc: 'Whenever you cast a spell card, your cards take 1 recoil damage.' },
-  { id: 'curse_shackles', name: 'Iron Shackles', icon: '⛓️', desc: 'Slot 0 is chained and cannot receive unit placements.' },
-  { id: 'curse_doom_clock', name: 'Doom Bell', icon: '⏳', desc: 'If combat exceeds 3 rounds, enemy units deal +3 damage.' },
-  { id: 'curse_withering', name: 'Withering Frost', icon: '🥀', desc: 'Friendly healing effects are reduced by 50%.' },
-  { id: 'curse_terror_gaze', name: 'Terror Gaze', icon: '👁️', desc: 'Enemy units enter play with +1 ATK and +1 Shield.' },
-  { id: 'curse_shattered_shields', name: 'Corroded Armor', icon: '🛡️', desc: 'Friendly units cannot gain bonus Shield HP.' },
-  { id: 'curse_sandstorm', name: 'Dust Storm', icon: '🌪️', desc: 'Attacks have a 20% chance to miss.' },
-  { id: 'curse_greed', name: "Greed's Tax", icon: '💸', desc: 'Lose 5 Mehrbod Bux each combat round.' }
-];
+const ROGUELIKE_DEBUFFS = [];
+const _debuffIcons = ['🍃','🎈','🧸','🍀','☁️','🌟','🎨','🎵','🍪','🧁','🌫️','🩸','⛓️','⏳','🥀','👁️','🛡️','🌪️','💸','⚡','🧊','🔥','💀','☠️','🌋','☣️','🛑','🗡️','🧨','🌌'];
+const _debuffAdjs = ['Mild','Gentle','Faint','Whispering','Quiet','Sleepy','Dusty','Rusty','Corroded','Shattered','Toxic','Blood','Iron','Doom','Withering','Terror','Sand','Shadow','Dark','Void','Abyssal','Chaos','Infernal','Apex','Fatal','Cursed','Doomed','Eternal','Supreme','Ultimate'];
+const _debuffNouns = ['Breeze','Haze','Glow','Tide','Pulse','Whisper','Miasma','Hex','Shackles','Bell','Frost','Gaze','Armor','Storm','Tax','Curse','Plague','Ruin','Doom','Wrath','Agony','Sorrow','Torment','Vengeance','Eclipse','Cataclysm','Apocalypse','Annihilation','Oblivion','Doom of Dooms'];
+
+for (let i = 1; i <= 120; i++) {
+  const icon = _debuffIcons[(i - 1) % _debuffIcons.length];
+  const adj = _debuffAdjs[(i - 1) % _debuffAdjs.length];
+  const noun = _debuffNouns[Math.floor((i - 1) / _debuffAdjs.length) % _debuffNouns.length];
+  const name = `${adj} ${noun} #${i}`;
+  let desc = '';
+  if (i <= 40) {
+    desc = `[Child's Game Lv.${i}] A light atmospheric handicap: friendly units enter play with minor fatigue (-${Math.min(1, i % 2)} HP).`;
+  } else if (i <= 80) {
+    desc = `[Moderate Affliction Lv.${i}] A tactical trial: cards suffer increased vulnerability and stat reduction (-${1 + (i % 2)} ATK).`;
+  } else {
+    desc = `[Insanely Disabling Doom Lv.${i}] Brutal nightmare handicap: severe stat drain (-2 HP, -2 ATK), miss chances, and withering active!`;
+  }
+  ROGUELIKE_DEBUFFS.push({ id: `curse_${i}`, name, icon, desc });
+}
+
+function getScaledDebuffForFloor(floor, level) {
+  const f = Math.max(1, floor || 1);
+  const l = Math.max(1, Math.min(20, level || 1));
+  const adv = (f - 1) * 20 + (l - 1);
+  const minIdx = Math.min(119, Math.floor(adv * 0.58));
+  const maxIdx = Math.min(119, minIdx + 20);
+  const chosenIdx = Math.floor(minIdx + Math.random() * (maxIdx - minIdx + 1));
+  return ROGUELIKE_DEBUFFS[chosenIdx] || ROGUELIKE_DEBUFFS[0];
+}
 
 const TOWER_DEBUFF_POOL = ROGUELIKE_DEBUFFS;
 const TOWER_MODIFIER_POOL = ROGUELIKE_UPGRADES;
@@ -2300,6 +2319,7 @@ window.getActiveTowerDebuff = function () {
 function getChamberForFloor(floor, level = 1) {
   const f = Math.max(1, floor || 1);
   const l = Math.max(1, Math.min(20, level || 1));
+  const scaledDebuff = (typeof getScaledDebuffForFloor === 'function') ? getScaledDebuffForFloor(f, l) : ROGUELIKE_DEBUFFS[0];
 
   // Final level of each Tier: Levels 4, 8, 12, 16, 20
   if (typeof isTierBossLevel === 'function' && isTierBossLevel(l)) {
@@ -2318,12 +2338,12 @@ function getChamberForFloor(floor, level = 1) {
       tag: isApex ? `APEX BOSS` : `TIER ${tierNum} BOSS`,
       flavor: bossDef ? (bossDef.taunt || 'A colossal Spire Guardian blocks your ascent!') : 'The supreme gatekeeper of this tier.',
       loot: isApex ? 'Apex Relic · Massive Bux & XP' : 'Relic Chance · Major Bux & XP',
-      debuff: bossDef ? { id: bossDef.bossModifier.id, name: bossDef.bossModifier.name, icon: bossDef.bossModifier.icon || '⚡', desc: bossDef.bossModifier.desc } : ROGUELIKE_DEBUFFS[0],
+      debuff: bossDef ? { id: bossDef.bossModifier.id, name: bossDef.bossModifier.name, icon: bossDef.bossModifier.icon || '⚡', desc: bossDef.bossModifier.desc } : scaledDebuff,
       diff: 'BOSS'
     };
   }
 
-  // Non-boss progression levels: Clean descriptive titles without redundant Floor/Level strings
+  // Non-boss progression levels: Clean descriptive titles with guaranteed randomized scaled debuffs
   if (l <= 3) {
     return {
       id: `chamber_f${f}_l${l}_combat`,
@@ -2333,7 +2353,7 @@ function getChamberForFloor(floor, level = 1) {
       tag: 'COMBAT',
       flavor: 'Volcanic defensive outpost guarding the lower Spire citadel.',
       loot: `+${20 + f * 3} Mehrbod Bux`,
-      debuff: null,
+      debuff: scaledDebuff,
       diff: towerFloorDifficulty(f)
     };
   }
@@ -2346,7 +2366,7 @@ function getChamberForFloor(floor, level = 1) {
       tag: 'ELITE BATTLE',
       flavor: 'Gladiatorial tournament arena swarming with veteran arena champions.',
       loot: `+${35 + f * 4} Mehrbod Bux · Relic Chance`,
-      debuff: ROGUELIKE_DEBUFFS[(f + l) % ROGUELIKE_DEBUFFS.length],
+      debuff: scaledDebuff,
       diff: 'Hard'
     };
   }
@@ -2359,7 +2379,7 @@ function getChamberForFloor(floor, level = 1) {
       tag: 'FIERCE COMBAT',
       flavor: 'Treacherous abyss shrouded in smoke where lethal ambushers lurk.',
       loot: `+${40 + f * 4} Mehrbod Bux`,
-      debuff: ROGUELIKE_DEBUFFS[(f + l * 2) % ROGUELIKE_DEBUFFS.length],
+      debuff: scaledDebuff,
       diff: towerFloorDifficulty(f)
     };
   }
@@ -2372,7 +2392,7 @@ function getChamberForFloor(floor, level = 1) {
       tag: 'BRUTAL COMBAT',
       flavor: 'Crimson fortified ramparts of unyielding blood-forged warriors.',
       loot: `+${50 + f * 4} Mehrbod Bux`,
-      debuff: ROGUELIKE_DEBUFFS[(f * 2 + l) % ROGUELIKE_DEBUFFS.length],
+      debuff: scaledDebuff,
       diff: 'Hard'
     };
   }
@@ -2384,7 +2404,7 @@ function getChamberForFloor(floor, level = 1) {
     tag: 'APEX ASSAULT',
     flavor: 'The electrified outer gates guarding the supreme throne of the Spire.',
     loot: `+${60 + f * 5} Mehrbod Bux · Relic Chance`,
-    debuff: ROGUELIKE_DEBUFFS[(f * 3 + l) % ROGUELIKE_DEBUFFS.length],
+    debuff: scaledDebuff,
     diff: 'Hard'
   };
 }

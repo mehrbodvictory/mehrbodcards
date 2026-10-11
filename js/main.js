@@ -5307,10 +5307,7 @@ document.getElementById('btn-confirm-merge').addEventListener('click', () => {
     return;
   }
   const finish = (blueprintIndex) => {
-    dispatch({ type: 'merge', slots, blueprintIndex });
-    selMergeSlots = [];
-    selMode = null;
-    render();
+    dispatchMergeWithJonesCheck(slots, blueprintIndex);
   };
   if (candidateIndices.length > 1) {
     const candidates = candidateIndices.map(i => deck[i]);
@@ -7200,6 +7197,60 @@ function promptBlueprintChoice(candidates, candidateIndices, onChoose) {
   overlay.onclick = e => { if (e.target === overlay) finish(null); };
 }
 
+function promptJonesSpellChoice(onSpellChosen) {
+  const old = document.getElementById('jones-spell-picker-overlay');
+  if (old) old.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'jones-spell-picker-overlay';
+  overlay.className = 'feature-overlay';
+  overlay.innerHTML = `
+    <div class="feature-panel" style="max-height:85vh; overflow-y:auto; max-width:650px;">
+      <button class="feature-close">✕</button>
+      <span class="feature-kicker">JONSEY'S SPECIAL ABILITY</span>
+      <h2>CHOOSE A SPELL TO CAST FOR FREE</h2>
+      <p>Select any spell of your choice to cast immediately for free without consuming it from your deck.</p>
+      <div class="deck-builder-grid" id="jones-spell-grid" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-top: 15px;"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const grid = overlay.querySelector('#jones-spell-grid');
+  let resolved = false;
+  const finish = (spellDef) => {
+    if (resolved) return;
+    resolved = true;
+    overlay.remove();
+    if (onSpellChosen) onSpellChosen(spellDef);
+  };
+  (typeof SPELL_DEFS !== 'undefined' ? SPELL_DEFS : []).forEach(spellDef => {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'dcard spell-dcard';
+    el.style.cssText = 'padding: 10px; text-align: left; cursor: pointer; background: rgba(20,20,30,0.9); border: 1px solid rgba(255,215,0,0.3); border-radius: 8px; color: white;';
+    el.innerHTML = `<div style="font-weight: bold; font-size: 13px; margin-bottom: 4px; color: #f59e0b;">${spellDef.name}</div><div style="font-size: 11px; opacity: 0.85; line-height: 1.2;">${spellDef.text}</div>`;
+    el.addEventListener('click', () => finish(spellDef));
+    grid.appendChild(el);
+  });
+  overlay.querySelector('.feature-close').onclick = () => finish(null);
+  overlay.onclick = e => { if (e.target === overlay) finish(null); };
+}
+
+function dispatchMergeWithJonesCheck(slots, blueprintIndex) {
+  const p = state.players[localKey];
+  const blueprint = p.deck[blueprintIndex];
+  if (blueprint && blueprint.archetypeId === 'orange_apex_sovereign_unit') {
+    promptJonesSpellChoice((spellDef) => {
+      dispatch({ type: 'merge', slots, blueprintIndex, jonesSpellId: spellDef ? spellDef.id : null });
+      selMergeSlots = [];
+      selMode = null;
+      render();
+    });
+  } else {
+    dispatch({ type: 'merge', slots, blueprintIndex });
+    selMergeSlots = [];
+    selMode = null;
+    render();
+  }
+}
+
 // ---- Drag-to-merge & Drag-to-place with Touch Event Support ------------------
 const DRAG_THRESHOLD = 8;
 const TOUCH_DRAG_THRESHOLD = 6;
@@ -7356,9 +7407,11 @@ function handleDragEndCommon(clientX, clientY) {
           if (candidateIndices.length > 1) {
             const candidates = candidateIndices.map(i => deck[i]);
             promptBlueprintChoice(candidates, candidateIndices, (chosenIndex) => {
-              if (chosenIndex != null) dispatch({ type: 'merge', slots: [slotA, slotB], blueprintIndex: chosenIndex });
-              render();
+              if (chosenIndex != null) dispatchMergeWithJonesCheck([slotA, slotB], chosenIndex);
+              else render();
             });
+          } else if (candidateIndices.length === 1) {
+            dispatchMergeWithJonesCheck([slotA, slotB], candidateIndices[0]);
           } else {
             dispatch({ type: 'merge', slots: [slotA, slotB] });
           }
