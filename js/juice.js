@@ -2189,10 +2189,11 @@ const TOWER_DEBUFF_POOL = ROGUELIKE_DEBUFFS;
 const TOWER_MODIFIER_POOL = ROGUELIKE_UPGRADES;
 
 function createFreshRoguelikeRun(best = 1) {
-  const c1 = typeof getChamberForFloor === 'function' ? getChamberForFloor(1) : null;
+  const c1 = typeof getChamberForFloor === 'function' ? getChamberForFloor(1, 1) : null;
   return {
     active: true,
     floor: 1,
+    level: 1,
     relics: [],
     permanentUpgrades: [],
     roundUpgradesThisMatch: [],
@@ -2213,6 +2214,7 @@ function loadRoguelikeRun() {
       const s = JSON.parse(raw);
       if (s && typeof s.floor === 'number') {
         s.floor = Math.max(1, s.floor || 1);
+        s.level = Math.max(1, Math.min(20, s.level || 1));
         s.shards = typeof s.shards === 'number' ? s.shards : 0;
         s.relics = Array.isArray(s.relics) ? s.relics : [];
         s.permanentUpgrades = Array.isArray(s.permanentUpgrades) ? s.permanentUpgrades : [];
@@ -2221,7 +2223,7 @@ function loadRoguelikeRun() {
         s.modifiers = Array.isArray(s.modifiers) ? s.modifiers : [];
         s.best = Math.max(s.best || 0, s.floor || 1);
         if (typeof getChamberForFloor === 'function') {
-          s.currentChamber = getChamberForFloor(s.floor);
+          s.currentChamber = getChamberForFloor(s.floor, s.level);
           s.chamberChoices = [s.currentChamber];
         }
         return s;
@@ -2258,6 +2260,7 @@ function loadTrialTowerState() {
   const r = loadRoguelikeRun();
   return {
     floor: r.floor,
+    level: r.level || 1,
     best: r.best,
     modifiers: [...(r.permanentUpgrades || []), ...(r.roundUpgradesThisMatch || [])],
     activeDebuff: (r.activeDebuffs && r.activeDebuffs[0]) || null,
@@ -2271,6 +2274,7 @@ function loadTrialTowerState() {
 function saveTrialTowerState(s) {
   const r = loadRoguelikeRun();
   if (typeof s.floor === 'number') r.floor = s.floor;
+  if (typeof s.level === 'number') r.level = Math.max(1, Math.min(20, s.level));
   if (typeof s.best === 'number') r.best = Math.max(r.best, s.best);
   if (Array.isArray(s.modifiers)) r.modifiers = s.modifiers;
   if (s.pendingResult !== undefined) r.pendingResult = s.pendingResult;
@@ -2293,88 +2297,100 @@ window.getActiveTowerDebuff = function () {
    ROGUELIKE TRIAL SPIRE: SEQUENTIAL PROGRESSION ENGINE
    Sequence: Obsidian Keep -> Dread Colosseum -> Whispering Shrine -> Campfire -> Boss
    ============================================================ */
-function getChamberForFloor(floor) {
+function getChamberForFloor(floor, level = 1) {
   const f = Math.max(1, floor || 1);
-  const cycleIndex = ((f - 1) % 5) + 1;
-  const loopNum = Math.floor((f - 1) / 5) + 1;
-  const loopSuffix = loopNum > 1 ? ` · Tier ${loopNum}` : '';
+  const l = Math.max(1, Math.min(20, level || 1));
 
-  if (cycleIndex === 1) {
+  // Final level of each Tier: Levels 4, 8, 12, 16, 20
+  if (typeof isTierBossLevel === 'function' && isTierBossLevel(l)) {
+    const bossDef = (typeof getTierBossDefinition === 'function')
+      ? getTierBossDefinition(f, l)
+      : (typeof getBossDefinition === 'function' ? getBossDefinition(f) : null);
+    const bName = bossDef ? bossDef.name : `Tier Gate Guardian`;
+    const tierNum = Math.floor(l / 4);
+    const isApex = (l === 20);
+
     return {
-      id: `chamber_${f}_obsidian`,
+      id: `chamber_f${f}_l${l}_boss`,
+      type: 'boss',
+      name: `👑 ${bName}`,
+      icon: bossDef?.avatar || '👑',
+      tag: isApex ? `APEX BOSS` : `TIER ${tierNum} BOSS`,
+      flavor: bossDef ? (bossDef.taunt || 'A colossal Spire Guardian blocks your ascent!') : 'The supreme gatekeeper of this tier.',
+      loot: isApex ? 'Apex Relic · Massive Bux & XP' : 'Relic Chance · Major Bux & XP',
+      debuff: bossDef ? { id: bossDef.bossModifier.id, name: bossDef.bossModifier.name, icon: bossDef.bossModifier.icon || '⚡', desc: bossDef.bossModifier.desc } : ROGUELIKE_DEBUFFS[0],
+      diff: 'BOSS'
+    };
+  }
+
+  // Non-boss progression levels: Clean descriptive titles without redundant Floor/Level strings
+  if (l <= 3) {
+    return {
+      id: `chamber_f${f}_l${l}_combat`,
       type: 'combat',
-      name: `Obsidian Keep${loopSuffix}`,
+      name: 'Obsidian Keep',
       icon: '⚔️',
-      tag: 'STANDARD COMBAT',
-      flavor: 'Dark volcanic fortress guarded by sentinel constructs. Defeat them to ascend.',
-      loot: `+${20 + f * 5} Mehrbod Bux · Round Augments`,
-      debuff: loopNum > 1 ? ROGUELIKE_DEBUFFS[(f - 1) % ROGUELIKE_DEBUFFS.length] : null,
+      tag: 'COMBAT',
+      flavor: 'Volcanic defensive outpost guarding the lower Spire citadel.',
+      loot: `+${20 + f * 3} Mehrbod Bux`,
+      debuff: null,
       diff: towerFloorDifficulty(f)
     };
   }
-
-  if (cycleIndex === 2) {
-    const debuffPool = [...ROGUELIKE_DEBUFFS];
-    const d = debuffPool[(f - 1) % debuffPool.length] || debuffPool[0];
+  if (l <= 7) {
     return {
-      id: `chamber_${f}_dread`,
+      id: `chamber_f${f}_l${l}_elite`,
       type: 'elite',
-      name: `Dread Colosseum${loopSuffix}`,
+      name: 'Dread Colosseum',
       icon: '💀',
-      tag: 'ELITE CHAMBER',
-      flavor: 'A bloodstained colosseum ruled by fierce champions. High stakes; yields guaranteed Relics!',
-      loot: `+${45 + f * 5} Mehrbod Bux · Guaranteed Relic`,
-      debuff: d,
-      diff: f <= 2 ? 'Medium' : (f <= 7 ? 'Hard' : 'Expert')
+      tag: 'ELITE BATTLE',
+      flavor: 'Gladiatorial tournament arena swarming with veteran arena champions.',
+      loot: `+${35 + f * 4} Mehrbod Bux · Relic Chance`,
+      debuff: ROGUELIKE_DEBUFFS[(f + l) % ROGUELIKE_DEBUFFS.length],
+      diff: 'Hard'
     };
   }
-
-  if (cycleIndex === 3) {
+  if (l <= 11) {
     return {
-      id: `chamber_${f}_whispering`,
-      type: 'shrine',
-      name: `Whispering Shrine${loopSuffix}`,
-      icon: '⛩️',
-      tag: 'MYSTERY SHRINE',
-      flavor: 'An ancient stone altar humming with esoteric power. Channel power or offer prayers for blessings.',
-      loot: 'Relic Prayer · Mehrbod Bux · Purify',
-      debuff: null,
-      diff: 'SAFE'
+      id: `chamber_f${f}_l${l}_combat2`,
+      type: 'combat',
+      name: 'Shadow Trench',
+      icon: '🗡️',
+      tag: 'FIERCE COMBAT',
+      flavor: 'Treacherous abyss shrouded in smoke where lethal ambushers lurk.',
+      loot: `+${40 + f * 4} Mehrbod Bux`,
+      debuff: ROGUELIKE_DEBUFFS[(f + l * 2) % ROGUELIKE_DEBUFFS.length],
+      diff: towerFloorDifficulty(f)
     };
   }
-
-  if (cycleIndex === 4) {
+  if (l <= 15) {
     return {
-      id: `chamber_${f}_campfire`,
-      type: 'rest',
-      name: `Sanctuary Campfire${loopSuffix}`,
-      icon: '⛺',
-      tag: 'REST SITE',
-      flavor: 'Warm crackling embers. Fortify unit shields, meditate to purge curses, or sharpen armaments.',
-      loot: 'Fortify Shields · Cleanse · +1 ATK',
-      debuff: null,
-      diff: 'SAFE'
+      id: `chamber_f${f}_l${l}_combat3`,
+      type: 'combat',
+      name: 'Blood Bastion',
+      icon: '🩸',
+      tag: 'BRUTAL COMBAT',
+      flavor: 'Crimson fortified ramparts of unyielding blood-forged warriors.',
+      loot: `+${50 + f * 4} Mehrbod Bux`,
+      debuff: ROGUELIKE_DEBUFFS[(f * 2 + l) % ROGUELIKE_DEBUFFS.length],
+      diff: 'Hard'
     };
   }
-
-  // cycleIndex === 5: Boss Chamber
-  const bossDef = typeof getBossDefinition === 'function' ? getBossDefinition(f) : null;
-  const bName = bossDef ? bossDef.name : (f === 5 ? 'Barbod Dust-Lord' : `Floor ${f} Spire Titan`);
   return {
-    id: `chamber_${f}_boss`,
-    type: 'boss',
-    name: `👑 ${bName}${loopSuffix}`,
-    icon: '👑',
-    tag: 'BOSS CHAMBER',
-    flavor: bossDef ? (bossDef.taunt || 'A colossal Spire Guardian blocks your path!') : 'The supreme gatekeeper of this stratum.',
-    loot: 'Apex Relic · Massive Bux & XP',
-    debuff: bossDef ? { id: bossDef.bossModifier.id, name: bossDef.bossModifier.name, icon: '⚡', desc: bossDef.bossModifier.desc } : ROGUELIKE_DEBUFFS[0],
-    diff: 'BOSS'
+    id: `chamber_f${f}_l${l}_apex_gate`,
+    type: 'elite',
+    name: 'Titan Gate Citadel',
+    icon: '⚡',
+    tag: 'APEX ASSAULT',
+    flavor: 'The electrified outer gates guarding the supreme throne of the Spire.',
+    loot: `+${60 + f * 5} Mehrbod Bux · Relic Chance`,
+    debuff: ROGUELIKE_DEBUFFS[(f * 3 + l) % ROGUELIKE_DEBUFFS.length],
+    diff: 'Hard'
   };
 }
 
-function generateChamberChoices(floor) {
-  return [getChamberForFloor(floor)];
+function generateChamberChoices(floor, level = 1) {
+  return [getChamberForFloor(floor, level)];
 }
 
 function renderRoguelikeSpireScreen() {
@@ -2384,7 +2400,7 @@ function renderRoguelikeSpireScreen() {
   const headerBest = document.getElementById('tower-header-best');
 
   if (shardsText) shardsText.textContent = `${typeof loadBux === 'function' ? loadBux() : 0} Mehrbod Bux`;
-  if (floorText) floorText.textContent = `Chamber ${r.floor}`;
+  if (floorText) floorText.textContent = `TIER (${r.floor}) LEVEL (${r.level || 1})`;
   if (headerBest) headerBest.textContent = `Floor ${r.best}`;
 
   // Relics Shelf (if present)
@@ -2455,7 +2471,7 @@ function renderRoguelikeSpireScreen() {
   }
 
   // Linear Chamber Progression - Automatically selects current floor's chamber
-  const currentChamber = getChamberForFloor(r.floor);
+  const currentChamber = getChamberForFloor(r.floor, r.level || 1);
   r.currentChamber = currentChamber;
   r.chamberChoices = [currentChamber];
   r.chamberChoicesFloor = r.floor;
@@ -2494,7 +2510,7 @@ function updateConsoleForSelectedChamber(node, r) {
     typeBadge.textContent = node.tag;
     typeBadge.className = `rl-node-type-badge rl-tag-${node.type}`;
   }
-  if (floorTitle) floorTitle.textContent = `Chamber ${r.floor}: ${node.name}`;
+  if (floorTitle) floorTitle.textContent = node.name;
   if (descEl) descEl.textContent = node.flavor;
 
   if (node.debuff) {
@@ -2738,14 +2754,17 @@ window.triggerBossHealthBarShake = function() {
     setTimeout(() => bossBarEl.classList.remove('trial-boss-shake'), 400);
   }
 
-  if (typeof BOSS_TAUNTS !== 'undefined' && BOSS_TAUNTS.length > 0) {
+  let pool = [...BOSS_TAUNTS];
+  if (typeof state !== 'undefined' && state && state.bossDef && state.bossDef.taunt) {
+    pool.push(`"${state.bossDef.taunt}"`);
+  }
+
+  if (pool.length > 0) {
     let nextTaunt = _currentBossTaunt;
-    if (BOSS_TAUNTS.length > 1) {
-      while (nextTaunt === _currentBossTaunt) {
-        nextTaunt = BOSS_TAUNTS[Math.floor(Math.random() * BOSS_TAUNTS.length)];
-      }
-    } else {
-      nextTaunt = BOSS_TAUNTS[0];
+    let attempts = 0;
+    while ((nextTaunt === _currentBossTaunt || attempts < 1) && attempts < 10) {
+      nextTaunt = pool[Math.floor(Math.random() * pool.length)];
+      attempts++;
     }
     _currentBossTaunt = nextTaunt;
     _lastBossTauntTime = Date.now();
@@ -2754,8 +2773,46 @@ window.triggerBossHealthBarShake = function() {
       tauntEl.textContent = _currentBossTaunt;
       tauntEl.style.animation = 'none';
       void tauntEl.offsetWidth;
-      tauntEl.style.animation = 'tauntFadeIn 0.4s ease';
+      tauntEl.style.animation = 'tauntFadeIn 0.35s ease';
     }
+  }
+};
+
+window.triggerBossDeathCinematic = function(slotEl) {
+  if (typeof trialTowerActive === 'undefined' || !trialTowerActive) return;
+
+  // 1. Screen flash of fiery red light
+  const flashEl = document.createElement('div');
+  flashEl.style.cssText = 'position:fixed;inset:0;background:radial-gradient(circle,rgba(239,68,68,0.7) 0%,rgba(185,28,28,0.95) 70%,#000 100%);z-index:99999;pointer-events:none;animation:bossDeathDissolve 1.2s ease-out forwards;';
+  document.body.appendChild(flashEl);
+  setTimeout(() => flashEl.remove(), 1300);
+
+  // 2. Booming audio and rumble
+  if (typeof Sound !== 'undefined') {
+    if (Sound.meteorBoom) Sound.meteorBoom();
+    if (Sound.criticalHit) Sound.criticalHit(8);
+  }
+  if (typeof vibrate === 'function') vibrate([100, 80, 120, 80, 250]);
+
+  // 3. Drop boss health bar to 0 and display defeat taunt
+  const bossBar = document.getElementById('trial-boss-health-bar');
+  if (bossBar) {
+    bossBar.classList.add('trial-boss-shake');
+    const hpTextEl = document.getElementById('tbh-boss-hp-text');
+    const fillEl = document.getElementById('tbh-boss-fill');
+    const tauntEl = document.getElementById('tbh-boss-taunt');
+    if (hpTextEl) hpTextEl.textContent = '0 HP · DEFEATED';
+    if (fillEl) fillEl.style.width = '0%';
+    if (tauntEl) {
+      tauntEl.textContent = '"Impossible... defeated by a mortal?!"';
+      tauntEl.style.color = '#fca5a5';
+      tauntEl.style.fontWeight = 'bold';
+    }
+    setTimeout(() => bossBar.classList.remove('trial-boss-shake'), 600);
+  }
+
+  if (typeof showToast === 'function') {
+    showToast('👑 TOWER BOSS DEFEATED! The Spire Trembles!', 4000);
   }
 };
 
@@ -2774,30 +2831,40 @@ function updateCombatRoguelikeHUD(matchState) {
 
   const r = loadRoguelikeRun();
   const currentFloor = r.floor || 1;
-  const isBossLvl = (typeof isBossFloor === 'function' && isBossFloor(currentFloor)) || 
-    (matchState && matchState.players && Object.values(matchState.players).some(p => p.board && p.board.some(c => c && (c.isBossCard || c.tier === 5))));
+  const currentLevel = r.level || 1;
+  const isBossLvl = (currentLevel === 20) || (matchState && matchState.isBossMatch) ||
+    (matchState && matchState.players && Object.values(matchState.players).some(p => (p.board && p.board.some(c => c && (c.isBossCard || c.tier === 5))) || (p.deck && p.deck.some(c => c && (c.isBossCard || c.tier === 5)))));
 
-  if (isBossLvl && matchState && matchState.players) {
+  if (isBossLvl && matchState) {
     let bossCard = null;
-    let bossName = '💀 TOWER BOSS';
-    for (const pKey of Object.keys(matchState.players)) {
-      if (pKey === 'you') continue;
-      const p = matchState.players[pKey];
-      if (!p || !p.board) continue;
-      const found = p.board.find(c => c && (c.isBossCard || c.tier === 5));
-      if (found) {
-        bossCard = found;
-        bossName = `💀 ${found.name || 'TOWER BOSS'}`;
-        break;
-      }
-      if (p.deck) {
-        const foundDeck = p.deck.find(c => c && (c.isBossCard || c.tier === 5));
-        if (foundDeck) {
-          bossCard = foundDeck;
-          bossName = `💀 ${foundDeck.name || 'TOWER BOSS'}`;
-          break;
+    let bossName = matchState.bossDef ? `💀 ${matchState.bossDef.name}` : '💀 TOWER BOSS';
+    
+    if (matchState.players) {
+      for (const pKey of Object.keys(matchState.players)) {
+        if (pKey === 'you') continue;
+        const p = matchState.players[pKey];
+        if (!p) continue;
+        if (p.board) {
+          const found = p.board.find(c => c && (c.isBossCard || c.tier === 5));
+          if (found) {
+            bossCard = found;
+            bossName = `💀 ${found.name || 'TOWER BOSS'}`;
+            break;
+          }
+        }
+        if (p.deck) {
+          const foundDeck = p.deck.find(c => c && (c.isBossCard || c.tier === 5));
+          if (foundDeck) {
+            bossCard = foundDeck;
+            bossName = `💀 ${foundDeck.name || 'TOWER BOSS'}`;
+            break;
+          }
         }
       }
+    }
+
+    if (!bossCard && matchState.bossDef) {
+      bossCard = matchState.bossDef.bossCard;
     }
 
     if (bossCard) {
@@ -2809,7 +2876,7 @@ function updateCombatRoguelikeHUD(matchState) {
 
       if (nameEl) nameEl.textContent = bossName;
       const hp = bossCard.hp !== undefined ? bossCard.hp : 50;
-      const maxHp = bossCard.maxHp !== undefined ? bossCard.maxHp : 50;
+      const maxHp = bossCard.maxHp !== undefined ? bossCard.maxHp : (matchState.bossDef?.bossCard?.maxHp || 50);
       if (hpTextEl) hpTextEl.textContent = `${hp} / ${maxHp} HP`;
       if (fillEl) {
         const pct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
@@ -3659,69 +3726,92 @@ function triggerTowerClashAnimation(clearedFloor, onDone) {
 function resolveTrialTowerMatch(won) {
   const r = loadRoguelikeRun();
   const clearedFloor = r.floor;
+  const clearedLevel = r.level || 1;
   const currentChamber = r.currentChamber || {};
   const isElite = currentChamber.type === 'elite';
-  const isBoss = currentChamber.type === 'boss' || (typeof isBossFloor === 'function' && isBossFloor(clearedFloor));
+  const isBoss = clearedLevel >= 20 || currentChamber.type === 'boss';
 
   if (won) {
     const bonusBux = isBoss ? 100 : (isElite ? 60 : 35);
     const rewardBux = towerFloorReward(clearedFloor) + bonusBux;
-    const xpReward = 50 + clearedFloor * 8;
+    const xpReward = 50 + clearedFloor * 8 + clearedLevel * 2;
 
     if (typeof addBux === 'function') addBux(rewardBux);
-    if (typeof grantPlayerXP === 'function') grantPlayerXP(xpReward, `Trial Spire Floor ${clearedFloor}`);
-    if (typeof recordEconomyChange === 'function') recordEconomyChange(rewardBux, `Trial Spire Chamber ${clearedFloor} cleared`);
-    if (typeof recordRecentActivity === 'function') recordRecentActivity(`Conquered Chamber ${clearedFloor} — +${rewardBux} Mehrbod Bux`);
+    if (typeof grantPlayerXP === 'function') grantPlayerXP(xpReward, `Trial Spire Floor ${clearedFloor} Lv ${clearedLevel}`);
+    if (typeof recordEconomyChange === 'function') recordEconomyChange(rewardBux, `Trial Spire Floor ${clearedFloor} Lv ${clearedLevel} cleared`);
+    if (typeof recordRecentActivity === 'function') recordRecentActivity(`Conquered Floor ${clearedFloor} Lv ${clearedLevel} — +${rewardBux} Mehrbod Bux`);
 
     r.floorsClearedInRun = (r.floorsClearedInRun || 0) + 1;
-    r.best = Math.max(r.best, clearedFloor + 1);
-    r.floor = clearedFloor + 1;
-    r.roundUpgradesThisMatch = [];
-    r.activeDebuffs = [];
-    r.chamberChoices = generateChamberChoices(r.floor);
-    r.currentChamber = r.chamberChoices[0];
-    r.chamberChoicesFloor = r.floor;
-    r.selectedNodeIndex = 0;
 
-    // Queue cinematic animation for the SVG Spire Visualizer upon returning to the trial main screen!
-    window.pendingTowerAdvanceAnim = {
-      fromFloor: clearedFloor,
-      toFloor: r.floor,
-      won: true
-    };
+    let floorCompleted = false;
+    const isTierBoss = (typeof isTierBossLevel === 'function' && isTierBossLevel(clearedLevel));
+    const currentTier = Math.min(5, Math.floor((clearedLevel - 1) / 4) + 1);
 
-    const newlyUnlockedMilestones = (typeof checkAndGrantTowerMilestones === 'function') ? checkAndGrantTowerMilestones(clearedFloor) : [];
+    if (clearedLevel >= 20 || isBoss) {
+      floorCompleted = true;
+      const prevFloor = r.floor;
+      r.floor = clearedFloor + 1;
+      r.level = 1;
+      r.best = Math.max(r.best, r.floor);
 
-    // Milestone Themes
-    if (clearedFloor >= 10 && localStorage.getItem('theme_quantum_unlocked') !== 'true') {
-      localStorage.setItem('theme_quantum_unlocked', 'true');
-    }
-    if (clearedFloor >= 15 && localStorage.getItem('theme_glacier_unlocked') !== 'true') {
-      localStorage.setItem('theme_glacier_unlocked', 'true');
-    }
-    if (clearedFloor >= 50 && localStorage.getItem('theme_astral_unlocked') !== 'true') {
-      localStorage.setItem('theme_astral_unlocked', 'true');
-    }
+      window.pendingTowerAdvanceAnim = {
+        fromTier: 5,
+        toTier: 1,
+        fromFloor: prevFloor,
+        toFloor: r.floor,
+        won: true,
+        floorCleared: true
+      };
 
-    // Award Relic on Elite or Boss victory!
-    if (isElite || isBoss) {
+      const newlyUnlockedMilestones = (typeof checkAndGrantTowerMilestones === 'function') ? checkAndGrantTowerMilestones(prevFloor) : [];
+
+      if (prevFloor >= 5 && localStorage.getItem('theme_glacier_unlocked') !== 'true') {
+        localStorage.setItem('theme_glacier_unlocked', 'true');
+      }
+      if (prevFloor >= 10 && localStorage.getItem('theme_quantum_unlocked') !== 'true') {
+        localStorage.setItem('theme_quantum_unlocked', 'true');
+      }
+      if (prevFloor >= 50 && localStorage.getItem('theme_astral_unlocked') !== 'true') {
+        localStorage.setItem('theme_astral_unlocked', 'true');
+      }
+
       const unowned = ROGUELIKE_RELICS.filter(x => !r.relics.includes(x.id));
       if (unowned.length > 0) {
         const awardedRelic = unowned[Math.floor(Math.random() * unowned.length)];
         r.relics.push(awardedRelic.id);
         setTimeout(() => {
-          showToast(`🏆 ${isBoss ? 'BOSS' : 'ELITE'} DEFEATED! Acquired Relic: ${awardedRelic.name}! (${awardedRelic.desc})`, 4500);
+          showToast(`🏆 FLOOR ${prevFloor} BOSS DEFEATED! Acquired Relic: ${awardedRelic.name}! (${awardedRelic.desc})`, 4500);
           if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
         }, 800);
       }
+    } else {
+      r.level = clearedLevel + 1;
+      if (isTierBoss) {
+        const nextTier = Math.min(5, currentTier + 1);
+        window.pendingTowerAdvanceAnim = {
+          fromTier: currentTier,
+          toTier: nextTier,
+          fromFloor: clearedFloor,
+          toFloor: clearedFloor,
+          won: true
+        };
+        showToast(`💥 TIER ${currentTier} BOSS DEFEATED! Ascending to Tier ${nextTier}!`, 3500);
+      }
     }
 
+    r.roundUpgradesThisMatch = [];
+    r.activeDebuffs = [];
+    r.chamberChoices = generateChamberChoices(r.floor, r.level);
+    r.currentChamber = r.chamberChoices[0];
+    r.chamberChoicesFloor = r.floor;
+    r.selectedNodeIndex = 0;
+
     saveRoguelikeRun(r);
-    showToast(`🗼 Chamber ${clearedFloor} Conquered! +${rewardBux} Mehrbod Bux · +${xpReward} XP!`, 3200);
+    showToast(`🗼 Floor ${clearedFloor} (Level ${clearedLevel}/20) Conquered! +${rewardBux} Bux · +${xpReward} XP`, 3200);
 
     setTimeout(() => {
       document.getElementById('gameover-overlay')?.classList.add('hidden');
-      if (typeof openRoundUpgradeModal === 'function') {
+      if (floorCompleted && typeof openRoundUpgradeModal === 'function') {
         openRoundUpgradeModal(clearedFloor, null, () => {
           trialTowerActive = false;
           openTrialTowerScreen();
@@ -3730,7 +3820,7 @@ function resolveTrialTowerMatch(won) {
         trialTowerActive = false;
         openTrialTowerScreen();
       }
-    }, 120);
+    }, 1200);
 
   } else {
     // Loss - Run Shattered (Sudden Death: single match loss ends the run!)
@@ -3984,8 +4074,8 @@ function getSpireTierCoords(tier) {
   switch (t) {
     case 1: return { x: 240, y: 560, name: 'Obsidian Keep' };
     case 2: return { x: 240, y: 435, name: 'Dread Colosseum' };
-    case 3: return { x: 240, y: 315, name: 'Whispering Shrine' };
-    case 4: return { x: 240, y: 195, name: 'Sanctuary Camp' };
+    case 3: return { x: 240, y: 315, name: 'Shadow Trench' };
+    case 4: return { x: 240, y: 195, name: 'Blood Bastion' };
     case 5: return { x: 240, y: 75, name: 'Apex Titan Boss' };
     default: return { x: 240, y: 560, name: 'Obsidian Keep' };
   }
@@ -4004,15 +4094,18 @@ function updateSvgPlayerAvatar() {
 }
 
 function renderTowerVisualState(floor) {
-  const f = Math.max(1, Number(floor) || 1);
-  const activeTier = ((f - 1) % 5) + 1;
-  const chamber = typeof getChamberForFloor === 'function' ? getChamberForFloor(f) : { name: `Floor ${f}` };
+  const r = loadRoguelikeRun();
+  const f = Math.max(1, Number(floor || r.floor) || 1);
+  const l = Math.max(1, Math.min(20, r.level || 1));
+  const activeTier = l === 20 ? 5 : (((l - 1) % 4) + 1);
+  const chamber = typeof getChamberForFloor === 'function' ? getChamberForFloor(f, l) : { name: `Floor ${f} Lv ${l}` };
 
   updateSvgPlayerAvatar();
 
   const indicator = document.getElementById('tower-svg-floor-indicator');
   if (indicator) {
-    indicator.textContent = `STAGE ${f}: ${chamber.name.toUpperCase()}`;
+    const tierName = getSpireTierCoords(activeTier).name;
+    indicator.textContent = `STAGE: ${tierName.toUpperCase()}`;
   }
 
   // Position player marker on active tier platform
@@ -4047,16 +4140,21 @@ function renderTowerVisualState(floor) {
   if (fxLayer) fxLayer.innerHTML = '';
 }
 
-function playTowerAdvanceCinematic(fromFloor, toFloor, onComplete) {
-  const fFrom = Math.max(1, Number(fromFloor) || 1);
-  const fTo = Math.max(fFrom, Number(toFloor) || (fFrom + 1));
-  const prevTier = ((fFrom - 1) % 5) + 1;
-  const nextTier = ((fTo - 1) % 5) + 1;
+function playTowerAdvanceCinematic(fromOrAnim, toFloorArg, onComplete) {
+  const anim = typeof fromOrAnim === 'object' && fromOrAnim !== null
+    ? fromOrAnim
+    : { fromFloor: fromOrAnim, toFloor: toFloorArg };
+
+  const isFloorClear = !!anim.floorCleared || (anim.fromTier === 5 && anim.toTier === 1);
+  const prevTier = anim.fromTier ? Math.max(1, Math.min(5, Number(anim.fromTier))) : (((Math.max(1, Number(anim.fromFloor) || 1) - 1) % 5) + 1);
+  const nextTier = anim.toTier ? Math.max(1, Math.min(5, Number(anim.toTier))) : (isFloorClear ? 1 : (((Math.max(1, Number(anim.toFloor) || 2) - 1) % 5) + 1));
+  const fFrom = Math.max(1, Number(anim.fromFloor) || 1);
+  const fTo = Math.max(fFrom, Number(anim.toFloor) || (fFrom + 1));
 
   const prevCoords = getSpireTierCoords(prevTier);
-  const nextCoords = getSpireTierCoords(nextTier);
-  const prevChamber = typeof getChamberForFloor === 'function' ? getChamberForFloor(fFrom) : { name: `Floor ${fFrom}` };
-  const nextChamber = typeof getChamberForFloor === 'function' ? getChamberForFloor(fTo) : { name: `Floor ${fTo}` };
+  const nextCoords = isFloorClear ? { x: 240, y: 45, name: 'Apex Zenith' } : getSpireTierCoords(nextTier);
+  const prevChamber = typeof getChamberForFloor === 'function' ? getChamberForFloor(fFrom, prevTier * 4) : { name: `Tier ${prevTier}` };
+  const nextChamber = typeof getChamberForFloor === 'function' ? getChamberForFloor(fTo, 1) : { name: `Floor ${fTo}` };
 
   updateSvgPlayerAvatar();
 
@@ -4066,7 +4164,11 @@ function playTowerAdvanceCinematic(fromFloor, toFloor, onComplete) {
   const marker = document.getElementById('svg-player-profile-marker');
 
   if (fxLayer) fxLayer.innerHTML = '';
-  if (indicator) indicator.textContent = `💥 DEMOLISHING STAGE ${fFrom}...`;
+  if (indicator) {
+    indicator.textContent = isFloorClear
+      ? `💥 APEX CONQUERED! ASCENDING TO FLOOR ${fTo}...`
+      : `💥 DETONATING TIER ${prevTier}...`;
+  }
 
   // Start with previous tier intact and marker positioned there
   const prevIntact = document.getElementById(`svg-tier-intact-${prevTier}`);
@@ -4226,12 +4328,16 @@ function playTowerAdvanceCinematic(fromFloor, toFloor, onComplete) {
             cheerText.setAttribute('fill', '#fef08a');
             cheerText.setAttribute('filter', 'url(#svg-glow-soft)');
             cheerText.setAttribute('class', 'svg-conquer-text');
-            cheerText.textContent = `🏆 STAGE ${fTo}: ${nextChamber.name.toUpperCase()} REACHED!`;
+            cheerText.textContent = isFloorClear
+              ? `👑 FLOOR ${fFrom} CONQUERED! ASCENDING TO FLOOR ${fTo}!`
+              : `🏆 TIER ${nextTier}: ${nextCoords.name.toUpperCase()} REACHED!`;
             fxLayer.appendChild(cheerText);
           }
 
           if (indicator) {
-            indicator.textContent = `STAGE ${fTo}: ${nextChamber.name.toUpperCase()}`;
+            indicator.textContent = isFloorClear
+              ? `STAGE: OBSIDIAN KEEP`
+              : `STAGE: ${nextCoords.name.toUpperCase()}`;
           }
 
           // Highlight and update Action Console
@@ -4239,6 +4345,13 @@ function playTowerAdvanceCinematic(fromFloor, toFloor, onComplete) {
           if (consoleEl) {
             consoleEl.style.boxShadow = '0 0 28px rgba(251, 191, 36, 0.45)';
             setTimeout(() => { consoleEl.style.boxShadow = ''; }, 1200);
+          }
+
+          if (isFloorClear) {
+            if (typeof fireConfetti === 'function') fireConfetti();
+            setTimeout(() => {
+              renderTowerVisualState(fTo);
+            }, 1800);
           }
 
           if (onComplete) onComplete();
@@ -4268,21 +4381,9 @@ function openTrialTowerScreen() {
   if (window.pendingTowerAdvanceAnim) {
     const anim = window.pendingTowerAdvanceAnim;
     window.pendingTowerAdvanceAnim = null;
-    playTowerAdvanceCinematic(anim.fromFloor, anim.toFloor);
+    playTowerAdvanceCinematic(anim);
   } else {
     renderTowerVisualState(r.floor);
-  }
-
-  // Wire Replay Ascent Animation Button
-  const replayBtn = document.getElementById('btn-replay-climb-anim');
-  if (replayBtn && !replayBtn.dataset.bound) {
-    replayBtn.dataset.bound = 'true';
-    replayBtn.addEventListener('click', () => {
-      const curRun = loadRoguelikeRun();
-      const fromF = Math.max(1, curRun.floor - 1);
-      playTowerAdvanceCinematic(fromF, curRun.floor);
-    });
-    if (typeof wirePressFeedback === 'function') wirePressFeedback(replayBtn);
   }
 
   const beginBtn = document.getElementById('btn-tower-page-begin');
@@ -4296,7 +4397,7 @@ function openTrialTowerScreen() {
     beginBtn.onclick = (e) => {
       e?.preventDefault();
       const currentRun = loadRoguelikeRun();
-      const node = (currentRun.chamberChoices && currentRun.chamberChoices[0]) || (typeof getChamberForFloor === 'function' ? getChamberForFloor(currentRun.floor) : null);
+      const node = (currentRun.chamberChoices && currentRun.chamberChoices[0]) || (typeof getChamberForFloor === 'function' ? getChamberForFloor(currentRun.floor, currentRun.level || 1) : null);
       if (node) enterSelectedChamber(node);
     };
     if (typeof wirePressFeedback === 'function') wirePressFeedback(beginBtn);
@@ -4360,8 +4461,13 @@ function showTowerMilestonesModal() {
   const existing = document.getElementById('tower-milestones-modal');
   if (existing) existing.remove();
 
-  const s = loadTrialTowerState();
-  const bestFloor = s.best || 0;
+  const r = typeof loadRoguelikeRun === 'function' ? loadRoguelikeRun() : { floor: 1, level: 1, best: 1 };
+  const currentFloor = r.floor || 1;
+  const currentLevel = r.level || 1;
+  const bestFloor = r.best || 1;
+  const highestFloorAchieved = Math.max(currentFloor, bestFloor);
+  const floorsCompleted = Math.max(0, highestFloorAchieved - 1);
+  const totalLevelsCompleted = (floorsCompleted * 20) + (currentLevel - 1);
 
   const modal = document.createElement('div');
   modal.id = 'tower-milestones-modal';
@@ -4373,41 +4479,59 @@ function showTowerMilestonesModal() {
   `;
 
   modal.innerHTML = `
-    <div style="background: linear-gradient(145deg, #1e1b4b 0%, #0f172a 100%); border: 1px solid rgba(192, 132, 252, 0.4); border-radius: 20px; padding: 28px; max-width: 580px; width: 100%; box-shadow: 0 25px 50px rgba(0,0,0,0.7); color: #fff; max-height: 90vh; overflow-y: auto;">
+    <div style="background: linear-gradient(145deg, #1e1b4b 0%, #0f172a 100%); border: 1px solid rgba(192, 132, 252, 0.4); border-radius: 20px; padding: 28px; max-width: 600px; width: 100%; box-shadow: 0 25px 50px rgba(0,0,0,0.7); color: #fff; max-height: 90vh; overflow-y: auto;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
         <div>
           <h3 style="font-size: 1.35rem; font-weight: 800; color: #fde047; margin: 0; display: flex; align-items: center; gap: 8px;">
             <span>Trial Lord Milestone Rewards</span>
           </h3>
-          <p style="font-size: 0.8rem; color: #a855f7; margin: 4px 0 0 0;">Highest Tower Floor Record: <b>Floor ${bestFloor}</b></p>
+          <p style="font-size: 0.82rem; color: #c084fc; margin: 4px 0 0 0;">
+            Current Record: <b>Floor ${highestFloorAchieved}</b> · Total Conquered: <b>${totalLevelsCompleted} Levels</b> (20 Levels/Floor)
+          </p>
         </div>
         <button type="button" class="feature-close" id="btn-close-milestones-modal" style="background:none; border:none; color:#fff; font-size:1.4rem; cursor:pointer;">✕</button>
       </div>
 
       <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
         ${TOWER_MILESTONE_REWARDS.map(m => {
-          const unlocked = bestFloor >= m.floor || isTowerMilestoneUnlocked(m.floor);
+          const reqLevels = m.floor * 20;
+          const unlocked = highestFloorAchieved > m.floor || isTowerMilestoneUnlocked(m.floor);
+          const progressLevels = unlocked ? reqLevels : Math.min(reqLevels, totalLevelsCompleted);
+          const progressPct = unlocked ? 100 : Math.min(100, Math.round((progressLevels / reqLevels) * 100));
           const isApex = m.floor === 50;
+
           return `
             <div style="background: ${unlocked ? 'rgba(192, 132, 252, 0.12)' : 'rgba(255,255,255,0.03)'}; border: 1px solid ${unlocked ? (isApex ? '#eab308' : '#a855f7') : 'rgba(255,255,255,0.08)'}; border-radius: 14px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; transition: all 0.2s ease;">
               <div style="font-size: 2.2rem; min-width: 48px; text-align: center;">${m.icon}</div>
               <div style="flex: 1; min-width: 0;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
                   <span style="font-size: 0.95rem; font-weight: 800; color: ${unlocked ? '#fff' : '#94a3b8'};">Floor ${m.floor} · ${m.title}</span>
-                  <span style="font-size: 0.7rem; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: ${unlocked ? 'rgba(74, 222, 128, 0.2)' : 'rgba(255,255,255,0.08)'}; color: ${unlocked ? '#4ade80' : '#64748b'}; border: 1px solid ${unlocked ? 'rgba(74, 222, 128, 0.4)' : 'transparent'};">
-                    ${unlocked ? 'UNLOCKED' : `LOCKED (Reach Floor ${m.floor})`}
+                  <span style="font-size: 0.7rem; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: ${unlocked ? 'rgba(74, 222, 128, 0.2)' : 'rgba(255,255,255,0.08)'}; color: ${unlocked ? '#4ade80' : '#94a3b8'}; border: 1px solid ${unlocked ? 'rgba(74, 222, 128, 0.4)' : 'transparent'};">
+                    ${unlocked ? '✓ UNLOCKED' : `${reqLevels - progressLevels} Lvls to Defeat`}
                   </span>
                 </div>
-                <div style="font-size: 0.78rem; color: #cbd5e1; margin-bottom: 8px;">${m.desc}</div>
+                <div style="font-size: 0.78rem; color: #cbd5e1; margin-bottom: 6px;">${m.desc}</div>
+
+                <!-- Progress Bar -->
+                <div style="margin-bottom: 8px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: #94a3b8; margin-bottom: 3px;">
+                    <span>${progressLevels} / ${reqLevels} Levels Conquered</span>
+                    <span>${progressPct}%</span>
+                  </div>
+                  <div style="height: 6px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden;">
+                    <div style="height: 100%; width: ${progressPct}%; background: ${unlocked ? 'linear-gradient(90deg, #4ade80, #22c55e)' : 'linear-gradient(90deg, #a855f7, #6366f1)'}; border-radius: 999px; transition: width 0.3s ease;"></div>
+                  </div>
+                </div>
+
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                  <button type="button" class="primary-btn small btn-equip-milestone-avatar" data-avatar-id="${m.avatarId}" ${!unlocked ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : 'style="background: linear-gradient(135deg, #a855f7, #6366f1); border:none;"'}>
+                  <button type="button" class="primary-btn small btn-equip-milestone-avatar" data-avatar-id="${m.avatarId}" ${!unlocked ? 'disabled style="opacity:0.4; cursor:not-allowed;"' : 'style="background: linear-gradient(135deg, #a855f7, #6366f1); border:none;"'}>
                     Equip Avatar
                   </button>
-                  <button type="button" class="secondary-btn small btn-equip-milestone-border" data-frame-class="${m.frameClass}" ${!unlocked ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>
+                  <button type="button" class="secondary-btn small btn-equip-milestone-border" data-frame-class="${m.frameClass}" ${!unlocked ? 'disabled style="opacity:0.4; cursor:not-allowed;"' : ''}>
                     Equip Border
                   </button>
                   ${m.themeId ? `
-                    <button type="button" class="primary-btn small btn-equip-milestone-theme" data-theme-id="${m.themeId}" ${!unlocked ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : 'style="background: linear-gradient(135deg, #eab308, #f59e0b); border:none; color:#000;"'}>
+                    <button type="button" class="primary-btn small btn-equip-milestone-theme" data-theme-id="${m.themeId}" ${!unlocked ? 'disabled style="opacity:0.4; cursor:not-allowed;"' : 'style="background: linear-gradient(135deg, #eab308, #f59e0b); border:none; color:#000;"'}>
                       Equip Theme
                     </button>
                   ` : ''}
@@ -4451,10 +4575,10 @@ function showTowerMilestonesModal() {
   modal.querySelectorAll('.btn-equip-milestone-theme').forEach(btn => {
     btn.onclick = () => {
       const tId = btn.dataset.themeId;
-      if (typeof setTheme === 'function' && tId) {
+      if (tId && typeof setTheme === 'function') {
         setTheme(tId);
-        showToast(`🌌 Equipped Trial Lord (S1) Theme!`, 2500);
-        if (typeof Sound !== 'undefined' && Sound.themeSwitch) Sound.themeSwitch();
+        showToast(`🎨 Equipped ${tId.toUpperCase()} Theme!`, 2500);
+        if (typeof Sound !== 'undefined' && Sound.sparkle) Sound.sparkle();
       }
     };
   });
@@ -6476,74 +6600,117 @@ function formatDuration(ms) {
 // ============================================================================
 const TOWER_MILESTONE_REWARDS = [
   {
-    floor: 10,
-    title: 'Trial Lord Initiate',
+    floor: 1,
+    title: 'Tier 1: Barbod',
     icon: '🥉',
+    buxReward: 100,
     borderId: 'border_trial_lord_novice',
     borderName: 'Trial Lord Novice Border',
     frameClass: 'frame-trial-lord-novice',
-    sleeveId: 'sleeve_trial_lord_novice',
     avatarId: 'trial-lord-initiate',
     avatarName: 'Trial Lord Initiate',
-    desc: 'Exclusive Bronze Runic Spire Cosmetic Border & Initiate Player Icon!'
+    desc: 'Conquer Tier 1: Barbod (Levels 1–20). Rewards: Initiate Bronze Spire Border, Particle Avatar & +100 Bux!'
+  },
+  {
+    floor: 2,
+    title: 'Tier 2: Conquest',
+    icon: '🥈',
+    buxReward: 250,
+    borderId: 'border_trial_lord_sentinel',
+    borderName: 'Chamber Vanguard Border',
+    frameClass: 'frame-trial-lord-sentinel',
+    avatarId: 'trial-lord-sentinel',
+    avatarName: 'Chamber Vanguard',
+    desc: 'Conquer Tier 2: Conquest (Levels 21–40). Rewards: Cybernetic Electro Border, Vanguard Avatar & +250 Bux!'
+  },
+  {
+    floor: 3,
+    title: 'Tier 3: Charlie',
+    icon: '🛡️',
+    buxReward: 500,
+    borderId: 'border_trial_lord_conqueror',
+    borderName: 'Spire Sentinel Border',
+    frameClass: 'frame-trial-lord-conqueror',
+    avatarId: 'trial-lord-conqueror',
+    avatarName: 'Spire Sentinel',
+    desc: 'Conquer Tier 3: Charlie (Levels 41–60). Rewards: Emerald Sentinel Border, Sentinel Avatar & +500 Bux!'
+  },
+  {
+    floor: 4,
+    title: 'Tier 4: Renegade Raider',
+    icon: '🩸',
+    buxReward: 750,
+    borderId: 'border_trial_lord_conqueror',
+    borderName: 'Crimson Vanguard Border',
+    frameClass: 'frame-trial-lord-conqueror',
+    avatarId: 'trial-lord-conqueror',
+    avatarName: 'Crimson Conqueror',
+    desc: 'Conquer Tier 4: Renegade Raider (Levels 61–80). Rewards: Crimson Vanguard Border, Crimson Conqueror Avatar & +750 Bux!'
+  },
+  {
+    floor: 5,
+    title: 'Tier 5: OMEGA DOOM',
+    icon: '🥇',
+    buxReward: 1000,
+    themeId: 'glacier',
+    themeName: 'Glacier Theme',
+    borderId: 'border_trial_lord_conqueror',
+    borderName: 'Solar Flare Gilded Border',
+    frameClass: 'frame-trial-lord-conqueror',
+    avatarId: 'trial-lord-conqueror',
+    avatarName: 'Apex Citadel Champion',
+    desc: 'Conquer Tier 5: OMEGA SUPER DUPER ULTRA EPIC LEGENDARY BOSS OF ALL DOOM (Levels 81–100). Rewards: Solar Flare Border, Glacier Theme & +1,000 Bux!'
+  },
+  {
+    floor: 10,
+    title: 'Trial Lord Sovereign',
+    icon: '💎',
+    buxReward: 2500,
+    themeId: 'quantum',
+    themeName: 'Quantum Theme',
+    borderId: 'border_trial_lord_sovereign',
+    borderName: 'Deep Void Singularity Border',
+    frameClass: 'frame-trial-lord-sovereign',
+    avatarId: 'trial-lord-sovereign',
+    avatarName: 'Trial Lord Sovereign',
+    desc: 'Conquer Floor 10 (Levels 101–200). Rewards: Void Singularity Border, Quantum Theme & +2,500 Bux!'
   },
   {
     floor: 20,
-    title: 'Trial Lord Sentinel',
-    icon: '🥈',
-    borderId: 'border_trial_lord_sentinel',
-    borderName: 'Trial Lord Sentinel Border',
-    frameClass: 'frame-trial-lord-sentinel',
-    sleeveId: 'sleeve_trial_lord_sentinel',
-    avatarId: 'trial-lord-sentinel',
-    avatarName: 'Trial Lord Sentinel',
-    desc: 'Exclusive Cybernetic Electro-Cyan Cosmetic Border & Sentinel Player Icon!'
-  },
-  {
-    floor: 30,
-    title: 'Trial Lord Conqueror',
-    icon: '🥇',
-    borderId: 'border_trial_lord_conqueror',
-    borderName: 'Trial Lord Conqueror Border',
-    frameClass: 'frame-trial-lord-conqueror',
-    sleeveId: 'sleeve_trial_lord_conqueror',
-    avatarId: 'trial-lord-conqueror',
-    avatarName: 'Trial Lord Conqueror',
-    desc: 'Exclusive Solar Flare Gilded Cosmetic Border & Conqueror Player Icon!'
-  },
-  {
-    floor: 40,
-    title: 'Trial Lord Sovereign',
-    icon: '💎',
-    borderId: 'border_trial_lord_sovereign',
-    borderName: 'Trial Lord Sovereign Border',
-    frameClass: 'frame-trial-lord-sovereign',
-    sleeveId: 'sleeve_trial_lord_sovereign',
-    avatarId: 'trial-lord-sovereign',
-    avatarName: 'Trial Lord Sovereign',
-    desc: 'Exclusive Deep Void Singularity Cosmetic Border & Sovereign Player Icon!'
+    title: 'Titan Dominator',
+    icon: '⚡',
+    buxReward: 5000,
+    borderId: 'border_trial_lord_apex',
+    borderName: 'Golden Titan Crown Border',
+    frameClass: 'frame-trial-lord-apex',
+    avatarId: 'trial-lord-apex',
+    avatarName: 'Titan Dominator',
+    desc: 'Conquer Floor 20 (Levels 201–400). Rewards: Golden Titan Crown Border, Titan Avatar & +5,000 Bux!'
   },
   {
     floor: 50,
-    title: 'Trial Lord Supreme Apex',
+    title: 'Supreme Monarch',
     icon: '👑',
+    buxReward: 10000,
     themeId: 'astral',
-    themeName: 'Trial Lord (S1)',
+    themeName: 'Astral Apex Theme',
     borderId: 'border_trial_lord_apex',
-    borderName: 'Trial Lord Apex Sovereign Border',
+    borderName: 'Supreme Monarch Astral Crown Border',
     frameClass: 'frame-trial-lord-apex',
-    sleeveId: 'sleeve_trial_lord_apex',
     avatarId: 'trial-lord-apex',
-    avatarName: 'Trial Lord Supreme Monarch',
-    desc: 'The Ultimate Trial Lord Apex Sovereign Crown Border, Particle Avatar, and Season 1 Trial Lord Theme!'
+    avatarName: 'Supreme Monarch',
+    desc: 'Conquer the Spire Apex (Floor 50 / Level 1000). Rewards: Supreme Astral Crown Border, Monarch Particle Avatar, Astral Theme & +10,000 Bux!'
   }
 ];
 
 function isTowerMilestoneUnlocked(floor) {
   const key = `tower_milestone_${floor}_unlocked`;
   if (localStorage.getItem(key) === 'true') return true;
-  const s = typeof loadTrialTowerState === 'function' ? loadTrialTowerState() : { best: 0, floor: 1 };
-  return (s.best || 0) >= floor || (s.floor || 1) >= floor;
+  const r = typeof loadRoguelikeRun === 'function' ? loadRoguelikeRun() : null;
+  const s = typeof loadTrialTowerState === 'function' ? loadTrialTowerState() : { best: 1, floor: 1 };
+  const currentFloor = r ? (r.floor || 1) : (s.floor || 1);
+  const bestFloor = r ? (r.best || 1) : (s.best || 1);
+  return bestFloor > floor || currentFloor > floor;
 }
 
 function checkAndGrantTowerMilestones(floorVal) {
@@ -6557,6 +6724,9 @@ function checkAndGrantTowerMilestones(floorVal) {
         localStorage.setItem(`avatar_${m.avatarId}_unlocked`, 'true');
         if (m.themeId) {
           localStorage.setItem(`theme_${m.themeId}_unlocked`, 'true');
+        }
+        if (typeof addBux === 'function' && m.buxReward) {
+          addBux(m.buxReward, `Trial Lord Floor ${m.floor} Milestone`);
         }
         newlyUnlocked.push(m);
       }

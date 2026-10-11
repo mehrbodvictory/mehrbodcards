@@ -3178,18 +3178,19 @@ function startVsBot(wagerAmount = 0, deckConfig = null) {
   const eff = getEffectiveBotDifficulty(botDifficulty);
   if (typeof trialTowerActive !== 'undefined' && trialTowerActive && typeof loadTrialTowerState === 'function') {
     const ts = loadTrialTowerState();
-    const isBoss = typeof isBossFloor === 'function' && isBossFloor(ts.floor);
-    const bossDef = isBoss && typeof getBossDefinition === 'function' ? getBossDefinition(ts.floor) : null;
+    const curLevel = ts.level || 1;
+    const isBoss = (typeof isTierBossLevel === 'function' && isTierBossLevel(curLevel));
+    const bossDef = isBoss ? ((typeof getTierBossDefinition === 'function') ? getTierBossDefinition(ts.floor, curLevel) : getBossDefinition(ts.floor)) : null;
     const modTag = (ts && Array.isArray(ts.modifiers) && ts.modifiers.length > 0) ? ` · ⚡${ts.modifiers.length} Mods` : '';
     if (isBoss && bossDef) {
       setMatchInfo(
-        `💀 BOSS FLOOR ${ts.floor} · ${bossDef.name} (${bossDef.bossCard.hp} HP)${modTag}`,
-        `💀 Boss Floor ${ts.floor} vs ${bossDef.name}`
+        `💀 ${bossDef.name.toUpperCase()} (Level ${curLevel}/20) · ${bossDef.bossCard.hp} HP${modTag}`,
+        `💀 Tier Boss: ${bossDef.name}`
       );
     } else {
       setMatchInfo(
-        `🗼 Trial Tower · Floor ${ts.floor}${modTag} (${botDifficulty})`,
-        `Floor ${ts.floor}${modTag} vs ${botDifficulty} Bot`
+        `🗼 Trial Tower · Floor ${ts.floor} (Level ${curLevel}/20)${modTag} (${botDifficulty})`,
+        `Floor ${ts.floor} (Lv ${curLevel}/20) vs ${botDifficulty} Bot`
       );
     }
   } else {
@@ -6492,7 +6493,15 @@ function playCombatAnimation(snapshot, fx, doneCallback, playbackSpeedModifier =
           } else if (dmgEvt) {
             if (dmgEvt.killed) {
               anyDeaths = true;
-              spawnFloatingNumberOn(slotEl, '💀', 'damage');
+              const isBossTarget = (card.isBossCard || card.tier === 5);
+              if (isBossTarget) {
+                spawnFloatingNumberOn(slotEl, '👑 BOSS DEFEATED!', 'damage');
+                if (typeof window.triggerBossDeathCinematic === 'function') {
+                  window.triggerBossDeathCinematic(slotEl);
+                }
+              } else {
+                spawnFloatingNumberOn(slotEl, '💀', 'damage');
+              }
               spawnDeathCauseLabel(slotEl, dmgEvt.source);
             } else if (dmgEvt.amount > 0) {
               spawnFloatingNumberOn(slotEl, '-' + dmgEvt.amount, 'damage');
@@ -7028,7 +7037,16 @@ function render() {
         }
       }
       if (state.winner === localKey) { launchConfetti(); Sound.win(); vibrate([40, 50, 40, 50, 60]); }
-      if (state.winner === localKey || state.winner === remoteKey) recordResult(state.winner === localKey);
+      if (state.winner === localKey || state.winner === remoteKey) {
+        if (typeof window.recordResult === 'function' && window.recordResult !== recordResult) {
+          window.recordResult(state.winner === localKey);
+        } else {
+          recordResult(state.winner === localKey);
+        }
+        if (typeof trialTowerActive !== 'undefined' && trialTowerActive && typeof resolveTrialTowerMatch === 'function') {
+          resolveTrialTowerMatch(state.winner === localKey);
+        }
+      }
       if (state.winner === localKey && mode === 'bot' && !tutorialActive) {
         const effectiveDiff = botDifficulty === 'Adaptive' ? getEffectiveBotDifficulty(botDifficulty) : botDifficulty;
         recordDifficultyBeaten(effectiveDiff);

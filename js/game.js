@@ -78,22 +78,36 @@ function createMatch(seed, p1id = 'p1', p2id = 'p2', deckConfigs = {}) {
   state.trialTowerModifiers = state.trialTowerModifiers || [];
 
   // Check for Boss Floor setup
-  let towerFloor = 0;
-  if (typeof loadTrialTowerState === 'function') {
+  let towerFloor = 1;
+  let towerLevel = 1;
+  let isBossChamber = false;
+  if (typeof loadRoguelikeRun === 'function') {
+    const r = loadRoguelikeRun();
+    if (r) {
+      towerFloor = r.floor || 1;
+      towerLevel = r.level || 1;
+      isBossChamber = (typeof isTierBossLevel === 'function' && isTierBossLevel(towerLevel)) || (r.currentChamber && r.currentChamber.type === 'boss');
+    }
+  } else if (typeof loadTrialTowerState === 'function') {
     const ts = loadTrialTowerState();
     if (ts && ts.floor) towerFloor = ts.floor;
+    if (ts && ts.level) towerLevel = ts.level;
+    isBossChamber = (typeof isTierBossLevel === 'function' && isTierBossLevel(towerLevel));
   }
-  const bossFloorNum = deckConfigs?.bossFloor || (typeof trialTowerActive !== 'undefined' && trialTowerActive && typeof isBossFloor === 'function' && isBossFloor(towerFloor) ? towerFloor : null);
-  if (bossFloorNum && typeof getBossDefinition === 'function') {
-    const bossDef = getBossDefinition(bossFloorNum);
+  const isTowerActive = (typeof trialTowerActive !== 'undefined' && trialTowerActive);
+  const isBossEncounter = isTowerActive && (isBossChamber || (typeof isTierBossLevel === 'function' && isTierBossLevel(towerLevel)) || Boolean(deckConfigs?.isBossMatch));
+  if (isBossEncounter) {
+    const bossDef = (typeof getTierBossDefinition === 'function')
+      ? getTierBossDefinition(towerFloor, towerLevel)
+      : (typeof getBossDefinition === 'function' ? getBossDefinition(towerFloor) : null);
     if (bossDef) {
       state.isBossMatch = true;
-      state.bossFloor = bossFloorNum;
+      state.bossFloor = towerFloor;
       state.bossDef = bossDef;
       if (!state.trialTowerModifiers.includes(bossDef.bossModifier.id)) {
         state.trialTowerModifiers.push(bossDef.bossModifier.id);
       }
-      pushLog(state, `💀 WARNING: BOSS FLOOR ${bossFloorNum}! Facing ${bossDef.name} (${bossDef.bossCard.hp} HP)!`);
+      pushLog(state, `💀 WARNING: TIER BOSS BATTLE (Level ${towerLevel})! Facing ${bossDef.name} (${bossDef.bossCard.hp} HP)!`);
       pushLog(state, `⚡ Active Boss Aura: ${bossDef.bossModifier.name} - ${bossDef.bossModifier.desc}`);
     }
   }

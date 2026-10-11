@@ -10,13 +10,14 @@ const TIERS = {
   5: { name: 'Boss',   hex: '#9333ea', hp: 50, dmg: 8, sp: 5, defends: 2 },
 };
 
-// ---- BOSS DEFINITIONS & BOSS CARDS (Floors 10, 20, 30, 40, 50) --------------
+// ---- BOSS DEFINITIONS & BOSS CARDS (Tiers 1-5, 20 Levels per Tier) --------------
 const BOSS_DEFINITIONS = {
-  10: {
-    floor: 10,
+  1: {
+    floor: 1,
+    tier: 1,
     name: 'Barbod',
     avatar: '🌪️',
-    taunt: "Feel the fury of the blinding dust storm! You won't survive this floor.",
+    taunt: "Feel the fury of the blinding sandstorm! You won't survive Tier 1!",
     bossCard: {
       archetypeId: 'boss_barbod',
       kind: 'unit',
@@ -33,75 +34,78 @@ const BOSS_DEFINITIONS = {
     bossModifier: {
       id: 'boss_iron_wall',
       name: 'Boss Aura: Dust Storm',
-      icon: '💨',
+      icon: '🌪️',
       tag: 'BOSS',
-      desc: 'Scaling Damage + throws blinding dust at player screen! Gains +2 bonus Defense charges.'
+      desc: 'The Barbod conjures a blinding vortex! Gains +2 bonus defense charges and scales +1 DMG each turn.'
     }
   },
-  20: {
-    floor: 20,
-    name: 'Big Chungus',
-    avatar: '🥕',
-    taunt: "You dare challenge Big Chungus? Prepare to be crushed into carrots!",
+  2: {
+    floor: 2,
+    tier: 2,
+    name: 'Conquest',
+    avatar: '⚔️',
+    taunt: "I am Conquest! All before me fall and submit to the Colosseum!",
     bossCard: {
-      archetypeId: 'boss_big_chungus',
+      archetypeId: 'boss_conquest',
       kind: 'unit',
       tier: 5,
-      name: 'Big Chungus',
-      hp: 52,
-      maxHp: 52,
+      name: 'Conquest',
+      hp: 60,
+      maxHp: 60,
       dmg: 7,
-      sp: 5,
-      ability: 'orange_onplay_soulharvest',
-      isBossCard: true,
-      isBoss: true
-    },
-    bossModifier: {
-      id: 'boss_soul_drain',
-      name: 'Boss Aura: Soul Harvest',
-      icon: '💀',
-      tag: 'BOSS',
-      desc: 'Gains +1 DMG per death & siphons player card HP every round to heal Big Chungus.'
-    }
-  },
-  30: {
-    floor: 30,
-    name: 'Diddy',
-    avatar: '🎩',
-    taunt: "Double strike, double trouble! Your cards won't even see it coming.",
-    bossCard: {
-      archetypeId: 'boss_diddy',
-      kind: 'unit',
-      tier: 5,
-      name: 'Diddy',
-      hp: 55,
-      maxHp: 55,
-      dmg: 8,
       sp: 5,
       ability: 'red_onattack_doublestrike',
       isBossCard: true,
       isBoss: true
     },
     bossModifier: {
-      id: 'boss_tempus_frenzy',
-      name: 'Boss Aura: Double Strike',
-      icon: '⚡',
+      id: 'boss_conquest_aura',
+      name: 'Boss Aura: Blood Arena of Conquest',
+      icon: '⚔️',
       tag: 'BOSS',
-      desc: 'Attacks strike twice per turn and deal bonus splash damage.'
+      desc: 'Conquest strikes twice per combat phase and gains +1 ATK whenever any card falls in battle.'
     }
   },
-  40: {
-    floor: 40,
-    name: 'Zeus',
-    avatar: '⚡',
-    taunt: "Feel the wrath of the heavens! Let the lightning consume your cards!",
+  3: {
+    floor: 3,
+    tier: 3,
+    name: 'Charlie',
+    avatar: '🎩',
+    taunt: "You made it to the Shadow Trench, but you won't leave. Charlie never loses.",
     bossCard: {
-      archetypeId: 'boss_zeus',
+      archetypeId: 'boss_charlie',
       kind: 'unit',
       tier: 5,
-      name: 'Zeus',
-      hp: 58,
-      maxHp: 58,
+      name: 'Charlie',
+      hp: 72,
+      maxHp: 72,
+      dmg: 8,
+      sp: 5,
+      ability: 'orange_onplay_soulharvest',
+      isBossCard: true,
+      isBoss: true
+    },
+    bossModifier: {
+      id: 'boss_charlie_aura',
+      name: 'Boss Aura: Phantom Shadow Harvest',
+      icon: '🌑',
+      tag: 'BOSS',
+      desc: 'Charlie feeds on fallen cards (+1 DMG per death) and shrouds his board in an elusive shadow mist.'
+    }
+  },
+  4: {
+    floor: 4,
+    tier: 4,
+    name: 'Renegade Raider',
+    avatar: '🪓',
+    taunt: "I've raided galaxies, kid! Renegade Raider takes no prisoners!",
+    bossCard: {
+      archetypeId: 'boss_renegade_raider',
+      kind: 'unit',
+      tier: 5,
+      name: 'Renegade Raider',
+      hp: 85,
+      maxHp: 85,
       dmg: 9,
       sp: 5,
       ability: 'red_onplay_dmgall1',
@@ -109,47 +113,184 @@ const BOSS_DEFINITIONS = {
       isBoss: true
     },
     bossModifier: {
-      id: 'boss_hellfire_blast',
-      name: 'Boss Aura: Hellfire Blast',
-      icon: '🌩️',
+      id: 'boss_renegade_aura',
+      name: 'Boss Aura: Crimson Raider Fury',
+      icon: '🩸',
       tag: 'BOSS',
-      desc: 'Strikes all player cards with 2 lightning burn damage every round.'
+      desc: 'Renegade Raider unleashes explosive crossfire! Deals 2 splash damage and gains +2 ATK on being attacked.'
     }
   },
-  50: {
-    floor: 50,
-    name: 'Midas',
-    avatar: '👑',
-    taunt: "Everything I touch turns to gold—including your defeat! Kneel before Midas!",
+  5: {
+    floor: 5,
+    tier: 5,
+    name: 'OMEGA SUPER DUPER ULTRA EPIC LEGENDARY BOSS OF ALL DOOM',
+    avatar: '👑⚡',
+    taunt: "BEHOLD! I AM THE OMEGA SUPER DUPER ULTRA EPIC LEGENDARY BOSS OF ALL DOOM! TREMBLE BEFORE MY SUPREME MIGHT!",
     bossCard: {
-      archetypeId: 'boss_midas',
+      archetypeId: 'boss_omega_doom',
       kind: 'unit',
       tier: 5,
-      name: 'Midas',
-      hp: 65,
-      maxHp: 65,
-      dmg: 10,
+      name: 'OMEGA SUPER DUPER ULTRA EPIC LEGENDARY BOSS OF ALL DOOM',
+      hp: 120,
+      maxHp: 120,
+      dmg: 12,
       sp: 5,
       ability: 'orange_onplay_alphastrike',
       isBossCard: true,
-      isBoss: true
+      isBoss: true,
+      isOmegaBoss: true
     },
     bossModifier: {
-      id: 'boss_apex_supremacy',
-      name: 'Boss Aura: Alpha Strike Execution',
-      icon: '🪙',
-      tag: 'BOSS',
-      desc: 'Golden touch! Instantly executes weakest foe on play, reduces player max HP, and takes 30% reduced damage.'
+      id: 'boss_omega_doom_aura',
+      name: 'Boss Aura: APOCALYPTIC OMEGA DOOM',
+      icon: '💥⚡',
+      tag: 'OMEGA BOSS',
+      desc: 'The Supreme Overlord! Instantly executes weakest foe, burns opposing cards for 2 DMG each round, and takes 30% reduced damage!'
     }
   }
 };
 
+// ---- TIER BOSS REGISTRY (Final level of each Tier: Levels 4, 8, 12, 16, 20) ----
+const TIER_BOSS_TEMPLATES = {
+  4: {
+    tierNumber: 1,
+    name: 'Ignis the Cinder Warden',
+    avatar: '🌋',
+    taunt: "None shall breach the Obsidian Gates! Turn to ash, intruder!",
+    bossCard: {
+      archetypeId: 'boss_ignis_warden',
+      kind: 'unit',
+      tier: 5,
+      name: 'Ignis',
+      baseHp: 28,
+      baseDmg: 4,
+      sp: 3,
+      ability: 'orange_onplay_scaledmg',
+      isBossCard: true,
+      isBoss: true
+    },
+    bossModifier: {
+      id: 'boss_cinder_warden',
+      name: 'Boss Aura: Molten Shell',
+      icon: '🌋',
+      tag: 'BOSS',
+      desc: 'Ignis radiates searing magma! Grants +1 Shield and deals 1 burn damage to attackers.'
+    }
+  },
+  8: {
+    tierNumber: 2,
+    name: 'Valakor the Dread Champion',
+    avatar: '💀',
+    taunt: "Step into the Colosseum, challenger! Your blood will paint these stones!",
+    bossCard: {
+      archetypeId: 'boss_valakor_champion',
+      kind: 'unit',
+      tier: 5,
+      name: 'Valakor',
+      baseHp: 34,
+      baseDmg: 5,
+      sp: 4,
+      ability: 'red_onattack_doublestrike',
+      isBossCard: true,
+      isBoss: true
+    },
+    bossModifier: {
+      id: 'boss_colosseum_champion',
+      name: 'Boss Aura: Blood Arena',
+      icon: '⚔️',
+      tag: 'BOSS',
+      desc: 'Valakor strikes twice per combat phase and gains +1 ATK when an enemy falls.'
+    }
+  },
+  12: {
+    tierNumber: 3,
+    name: 'Vesper the Shadow Sovereign',
+    avatar: '🗡️',
+    taunt: "The trench swallows all light. You cannot strike what you cannot see!",
+    bossCard: {
+      archetypeId: 'boss_vesper_shadow',
+      kind: 'unit',
+      tier: 5,
+      name: 'Vesper',
+      baseHp: 40,
+      baseDmg: 6,
+      sp: 4,
+      ability: 'orange_onplay_soulharvest',
+      isBossCard: true,
+      isBoss: true
+    },
+    bossModifier: {
+      id: 'boss_shadow_sovereign',
+      name: 'Boss Aura: Void Shroud',
+      icon: '🌑',
+      tag: 'BOSS',
+      desc: 'Vesper shrouds the battlefield in shadow. All player attacks have a 25% chance to miss.'
+    }
+  },
+  16: {
+    tierNumber: 4,
+    name: 'Gorgon the Blood Titan',
+    avatar: '🩸',
+    taunt: "The Blood Bastion never yields! Your bones will pave my fortress!",
+    bossCard: {
+      archetypeId: 'boss_gorgon_blood',
+      kind: 'unit',
+      tier: 5,
+      name: 'Gorgon',
+      baseHp: 46,
+      baseDmg: 7,
+      sp: 5,
+      ability: 'red_onplay_dmgall1',
+      isBossCard: true,
+      isBoss: true
+    },
+    bossModifier: {
+      id: 'boss_blood_bastion',
+      name: 'Boss Aura: Crimson Fortress',
+      icon: '🩸',
+      tag: 'BOSS',
+      desc: 'Gorgon retaliates when struck, inflicting 1 bleeding splash damage to all adjacent player units.'
+    }
+  }
+};
+
+function isTierBossLevel(level) {
+  const l = Number(level) || 1;
+  return l === 20;
+}
+
+function getTierBossDefinition(floor, level) {
+  const f = Math.max(1, Number(floor) || 1);
+  return getBossDefinition(f);
+}
+
 function isBossFloor(floor) {
-  return typeof floor === 'number' && (floor % 10 === 0) && floor >= 10 && floor <= 50;
+  return typeof floor === 'number' && floor > 0;
 }
 
 function getBossDefinition(floor) {
-  return BOSS_DEFINITIONS[floor] || null;
+  const f = Math.max(1, Number(floor) || 1);
+  const keys = [1, 2, 3, 4, 5];
+  const templateKey = BOSS_DEFINITIONS[f] ? f : (keys[(f - 1) % keys.length] || 1);
+  const template = BOSS_DEFINITIONS[templateKey] || BOSS_DEFINITIONS[1] || BOSS_DEFINITIONS[10];
+  const scale = 1 + (f - 1) * 0.12;
+  const scaledHp = Math.round(template.bossCard.hp * scale);
+  const scaledDmg = Math.round(template.bossCard.dmg * (1 + (f - 1) * 0.06));
+  return {
+    floor: f,
+    name: template.name,
+    avatar: template.avatar,
+    taunt: template.taunt,
+    bossCard: {
+      ...template.bossCard,
+      hp: scaledHp,
+      maxHp: scaledHp,
+      dmg: scaledDmg,
+      isBossCard: true,
+      isBoss: true
+    },
+    bossModifier: { ...template.bossModifier }
+  };
 }
 
 function tierOf(n) { return TIERS[n]; }
@@ -400,13 +541,24 @@ function buildDeck(rng, config, playerKey = 'p') {
   const targetSpells = isTower ? 3 : 4;
   const targetChips = 2;
 
-  let currentTowerFloor = 0;
-  if (typeof loadTrialTowerState === 'function') {
+  let currentTowerFloor = 1;
+  let currentTowerLevel = 1;
+  let isBossChamber = false;
+  if (typeof loadRoguelikeRun === 'function') {
+    const r = loadRoguelikeRun();
+    if (r) {
+      currentTowerFloor = r.floor || 1;
+      currentTowerLevel = r.level || 1;
+      isBossChamber = (typeof isTierBossLevel === 'function' && isTierBossLevel(currentTowerLevel)) || (r.currentChamber && r.currentChamber.type === 'boss');
+    }
+  } else if (typeof loadTrialTowerState === 'function') {
     const ts = loadTrialTowerState();
     if (ts && ts.floor) currentTowerFloor = ts.floor;
+    if (ts && ts.level) currentTowerLevel = ts.level;
+    isBossChamber = (typeof isTierBossLevel === 'function' && isTierBossLevel(currentTowerLevel));
   }
-  const bossFloorNum = config?.bossFloor || (isTower && isBossFloor(currentTowerFloor) ? currentTowerFloor : null);
-  const bossDef = bossFloorNum ? getBossDefinition(bossFloorNum) : null;
+  const isBossMatch = isTower && (isBossChamber || (typeof isTierBossLevel === 'function' && isTierBossLevel(currentTowerLevel)) || Boolean(config?.isBossMatch));
+  const bossDef = isBossMatch ? (typeof getTierBossDefinition === 'function' ? getTierBossDefinition(currentTowerFloor, currentTowerLevel) : getBossDefinition(currentTowerFloor)) : null;
 
   if (config && Array.isArray(config.unitIds) && config.unitIds.length > 0) {
     units = config.unitIds.slice(0, targetUnits).map(id => makeUnitCardById(id, rng)).filter(Boolean);
