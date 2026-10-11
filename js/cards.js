@@ -563,6 +563,22 @@ function buildDeck(rng, config, playerKey = 'p') {
   if (config && Array.isArray(config.unitIds) && config.unitIds.length > 0) {
     units = config.unitIds.slice(0, targetUnits).map(id => makeUnitCardById(id, rng)).filter(Boolean);
     while (units.length < targetUnits) units.push(makeUnitCard(1, rng));
+  } else if (playerKey === 'bot') {
+    const allNonBossArchetypes = [];
+    for (let t = 1; t <= 4; t++) {
+      if (UNIT_ARCHETYPES[t]) {
+        UNIT_ARCHETYPES[t].forEach(arch => allNonBossArchetypes.push({ tier: t, arch }));
+      }
+    }
+    const shuffledArchetypes = rng.shuffle(allNonBossArchetypes);
+    units = [];
+    for (let i = 0; i < targetUnits && i < shuffledArchetypes.length; i++) {
+      units.push(makeUnitCardFromArchetype(shuffledArchetypes[i].tier, shuffledArchetypes[i].arch, rng));
+    }
+    while (units.length < targetUnits) {
+      const fallback = rng.pick(allNonBossArchetypes);
+      units.push(makeUnitCardFromArchetype(fallback.tier, fallback.arch, rng));
+    }
   } else {
     const weights = isTower ? RANDOM_TOWER_DECK_TIER_WEIGHTS : RANDOM_DECK_TIER_WEIGHTS;
     units = weights.map(tier => makeUnitCard(tier, rng));
@@ -576,6 +592,20 @@ function buildDeck(rng, config, playerKey = 'p') {
     units = [bossCard, ...units.slice(0, targetUnits - 1)];
   }
 
+  if (isTower && playerKey === 'bot') {
+    const statBonus = Math.floor(currentTowerFloor / 10);
+    const bossStatBonus = Math.floor(currentTowerFloor / 5);
+    units.forEach(card => {
+      if (card) {
+        const isBoss = card.isBossCard || card.tier === 5;
+        const b = isBoss ? bossStatBonus : statBonus;
+        card.hp = (card.hp || 3) + b;
+        card.maxHp = (card.maxHp || card.hp) + b;
+        card.dmg = (card.dmg || 1) + Math.max(0, Math.floor(b / 2));
+      }
+    });
+  }
+
   units.forEach((card, i) => {
     card.id = `${playerKey}_u_${i}`;
     card.netId = `${playerKey}_u_${i}`;
@@ -584,6 +614,8 @@ function buildDeck(rng, config, playerKey = 'p') {
   let spellPool;
   if (config && Array.isArray(config.spellIds) && config.spellIds.length > 0) {
     spellPool = config.spellIds.slice(0, targetSpells).map(id => SPELL_DEFS.find(s => s.id === id)).filter(Boolean);
+  } else if (playerKey === 'bot') {
+    spellPool = rng.shuffle([...SPELL_DEFS]).slice(0, targetSpells);
   } else {
     spellPool = rng.shuffle(SPELL_DEFS.concat(SPELL_DEFS)).slice(0, targetSpells);
   }
@@ -595,6 +627,8 @@ function buildDeck(rng, config, playerKey = 'p') {
   let chipPool;
   if (config && Array.isArray(config.chipIds) && config.chipIds.length > 0) {
     chipPool = config.chipIds.slice(0, targetChips).map(id => CHIP_DEFS.find(c => c.id === id)).filter(Boolean);
+  } else if (playerKey === 'bot') {
+    chipPool = rng.shuffle([...CHIP_DEFS]).slice(0, targetChips);
   } else {
     chipPool = rng.shuffle(CHIP_DEFS.concat(CHIP_DEFS)).slice(0, targetChips);
   }

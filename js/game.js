@@ -95,6 +95,9 @@ function createMatch(seed, p1id = 'p1', p2id = 'p2', deckConfigs = {}) {
     isBossChamber = (typeof isTierBossLevel === 'function' && isTierBossLevel(towerLevel));
   }
   const isTowerActive = (typeof trialTowerActive !== 'undefined' && trialTowerActive);
+  state.trialTowerFloor = towerFloor;
+  state.trialTowerLevel = towerLevel;
+  state.isTrialTower = isTowerActive;
   const isBossEncounter = isTowerActive && (isBossChamber || (typeof isTierBossLevel === 'function' && isTierBossLevel(towerLevel)) || Boolean(deckConfigs?.isBossMatch));
   if (isBossEncounter) {
     const bossDef = (typeof getTierBossDefinition === 'function')
@@ -163,8 +166,12 @@ function abilityTrigger(state, playerKey, card, trigger, slot, deathSource) {
       pushFx(state, { type: 'selfBuff', owner: playerKey, slot, stat: 'hp', amount: 1 });
       pushLog(state, `${card.name} gains +1 max HP`);
     } else if (a === 'green_onplay_discard1') {
-      pushFx(state, { type: 'barbodsDust', owner: enemyKey });
-      pushLog(state, `${card.name} throws barbods dust onto the enemy's screen`);
+      if (enemy.deck && enemy.deck.length > 0) {
+        enemy.deck.splice(Math.floor(Math.random() * enemy.deck.length), 1);
+        pushLog(state, `${card.name} sabotaged the enemy deck, removing a card!`);
+      } else {
+        pushLog(state, `${card.name} executed sabotage!`);
+      }
     } else if (a === 'red_onplay_dmgall1') {
       damageAllEnemies(state, enemyKey, 1, source);
       pushLog(state, `${card.name} deals 1 dmg to every enemy card`);

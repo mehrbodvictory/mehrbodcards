@@ -11216,12 +11216,10 @@ function triggerBarbodDustEffect() {
   render();
 }
 
-// Auto-reinitialize persistent scam dust on startup if active
+// Auto-reinitialize persistent scam dust on startup if active (removed per user request)
 (function initPersistentScamDust() {
   try {
-    if (localStorage.getItem('mehrbod_scam_dust_particles_v2')) {
-      setTimeout(() => triggerBarbodDustEffect(), 1500);
-    }
+    localStorage.removeItem('mehrbod_scam_dust_particles_v2');
   } catch (e) {}
 })();
 
