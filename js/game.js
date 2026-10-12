@@ -1192,9 +1192,10 @@ function readyPlacement(state, playerKey) {
   const blocked = forcedBlock(state, playerKey);
   if (blocked) return blocked;
   const p = state.players[playerKey];
+  const isBot = (playerKey === 'bot' || (state.order && state.order[1] === playerKey));
   const hasPlayable = (p.deck || []).some(c => c && c.tier === 1) || (p.spells || []).length > 0 || (p.chips || []).length > 0;
   const hasDefending = p.defendingSlots && Object.values(p.defendingSlots).some(Boolean);
-  if (hasDefending && !p.didActionThisRound && hasPlayable) {
+  if (!isBot && hasDefending && !p.didActionThisRound && hasPlayable) {
     return { ok: false, error: 'You must place, merge, cast a spell, or attach a chip while defending before readying up!' };
   }
   p.readyPlacement = true;
