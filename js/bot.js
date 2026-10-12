@@ -36,10 +36,10 @@ function runBotPlacement(state, botKey, difficulty, rng) {
     if (isForced(state, botKey)) {
       autoResolveForcedMerges(state, botKey);
     }
-    const blueDeckIdx = p.deck.findIndex(c => c.tier === 1);
-    if (blueDeckIdx === -1) break; // nothing placeable left in deck
+    const unitDeckIdx = p.deck.findIndex(c => c && c.kind === 'unit');
+    if (unitDeckIdx === -1) break; // nothing placeable left in deck
     const slot = level >= 2 ? bestEmptySlot(p.board) : rng.pick(emptySlots(p.board));
-    const res = placeCard(state, botKey, blueDeckIdx, slot);
+    const res = placeCard(state, botKey, unitDeckIdx, slot);
     if (!res || !res.ok) {
       break; // prevent infinite loop if placeCard fails
     }

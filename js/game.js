@@ -529,23 +529,24 @@ function placeCard(state, playerKey, deckIndex, slot, cardId, archetypeId) {
       targetIdx = deckIndex;
     }
   }
-  // 1. Try exact cardId or netId matching if provided and tier is 1
+  const isBotPlayer = (playerKey === 'bot' || (state.order && state.order[1] === playerKey));
+  // 1. Try exact cardId or netId matching if provided
   if (targetIdx === -1 && cardId) {
-    targetIdx = p.deck.findIndex(c => c && c.tier === 1 && (c.id === cardId || c.netId === cardId));
+    targetIdx = p.deck.findIndex(c => c && (isBotPlayer || c.tier === 1) && (c.id === cardId || c.netId === cardId));
   }
-  // 2. Try matching by archetypeId if provided (tier must be 1)
+  // 2. Try matching by archetypeId if provided
   if (targetIdx === -1 && archetypeId) {
-    targetIdx = p.deck.findIndex(c => c && c.tier === 1 && (c.archetypeId === archetypeId || c.id === archetypeId));
+    targetIdx = p.deck.findIndex(c => c && (isBotPlayer || c.tier === 1) && (c.archetypeId === archetypeId || c.id === archetypeId));
   }
-  // 3. Try deckIndex if valid and points to a Tier 1 card
+  // 3. Try deckIndex if valid
   if (targetIdx === -1 && typeof deckIndex === 'number' && deckIndex >= 0 && deckIndex < p.deck.length) {
-    if (p.deck[deckIndex] && p.deck[deckIndex].tier === 1) {
+    if (p.deck[deckIndex] && (isBotPlayer || p.deck[deckIndex].tier === 1)) {
       targetIdx = deckIndex;
     }
   }
-  // 4. Fallback: Find the first available Tier 1 (Blue) unit in player's deck
+  // 4. Fallback: Find the first available unit in player's deck
   if (targetIdx === -1) {
-    targetIdx = p.deck.findIndex(c => c && c.tier === 1);
+    targetIdx = p.deck.findIndex(c => c && (isBotPlayer ? c.kind === 'unit' : c.tier === 1));
   }
 
   if (targetIdx === -1 || !p.deck[targetIdx]) {
