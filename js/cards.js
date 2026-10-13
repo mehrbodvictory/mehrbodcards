@@ -256,16 +256,47 @@ const TIER_BOSS_TEMPLATES = {
 
 function isTierBossLevel(level) {
   const l = Number(level) || 1;
-  return l === 20;
+  return l === 4 || l === 8 || l === 12 || l === 16 || l === 20;
 }
 
 function getTierBossDefinition(floor, level) {
   const f = Math.max(1, Number(floor) || 1);
+  const l = Number(level) || 1;
+  if (l === 20) return getBossDefinition(f);
+  const tmpl = TIER_BOSS_TEMPLATES[l];
+  if (tmpl) {
+    const scale = 1 + (f - 1) * 0.12;
+    const scaledHp = Math.round(tmpl.bossCard.baseHp * scale);
+    const scaledDmg = Math.round(tmpl.bossCard.baseDmg * (1 + (f - 1) * 0.06));
+    return {
+      floor: f,
+      level: l,
+      tierNumber: tmpl.tierNumber,
+      name: tmpl.name,
+      avatar: tmpl.avatar,
+      taunt: tmpl.taunt,
+      bossCard: {
+        ...tmpl.bossCard,
+        hp: scaledHp,
+        maxHp: scaledHp,
+        dmg: scaledDmg,
+        isBossCard: true,
+        isBoss: true
+      },
+      bossModifier: { ...tmpl.bossModifier }
+    };
+  }
   return getBossDefinition(f);
 }
 
 function isBossFloor(floor) {
-  return typeof floor === 'number' && floor > 0;
+  if (typeof trialTowerActive !== 'undefined' && trialTowerActive) {
+    if (typeof loadRoguelikeRun === 'function') {
+      const r = loadRoguelikeRun();
+      return Boolean(r && r.level === 20);
+    }
+  }
+  return false;
 }
 
 function getBossDefinition(floor) {

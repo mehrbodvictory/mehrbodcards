@@ -167,8 +167,12 @@ function abilityTrigger(state, playerKey, card, trigger, slot, deathSource) {
       pushLog(state, `${card.name} gains +1 max HP`);
     } else if (a === 'green_onplay_discard1') {
       if (enemy.deck && enemy.deck.length > 0) {
-        enemy.deck.splice(Math.floor(Math.random() * enemy.deck.length), 1);
-        pushLog(state, `${card.name} sabotaged the enemy deck, removing a card!`);
+        const discarded = enemy.deck.splice(Math.floor(Math.random() * enemy.deck.length), 1)[0];
+        pushFx(state, { type: 'discard', owner: enemyKey, cardName: discarded?.name || 'Card', source });
+        pushLog(state, `🦹 ${card.name} sabotaged the enemy deck, discarding ${discarded?.name || 'a card'}!`);
+        if (enemyKey === 'you' && typeof showToast === 'function') {
+          showToast(`🦹 Saboteur discarded ${discarded?.name || 'a card'} from your deck!`, 3000);
+        }
       } else {
         pushLog(state, `${card.name} executed sabotage!`);
       }
@@ -180,7 +184,13 @@ function abilityTrigger(state, playerKey, card, trigger, slot, deathSource) {
       pushLog(state, `${card.name} grants +1 DMG to all of ${playerKey}'s cards`);
     } else if (a === 'orange_onplay_execute') {
       const target = weakestEnemyCard(enemy);
-      if (target) { damageCard(state, enemyKey, target.slot, target.card.hp, source); pushLog(state, `${card.name} executes ${target.card.name}`); }
+      if (target) {
+        damageCard(state, enemyKey, target.slot, target.card.hp, source);
+        pushLog(state, `🗡️ ${card.name} executes ${target.card.name}!`);
+        if (enemyKey === 'you' && typeof showToast === 'function') {
+          showToast(`🗡️ Devastator executed your ${target.card.name}!`, 3000);
+        }
+      }
     } else if (a === 'orange_onplay_scaledmg') {
       const bonus = boardCount(enemy);
       card.dmg += bonus;
@@ -210,7 +220,12 @@ function abilityTrigger(state, playerKey, card, trigger, slot, deathSource) {
     } else if (a === 'red_onplay_purge_weak') {
       const targets = enemy.board.map((c, i) => (c && c.maxHp <= 2 ? i : -1)).filter(i => i >= 0);
       targets.forEach(i => damageCard(state, enemyKey, i, enemy.board[i] ? enemy.board[i].hp : 0, source));
-      if (targets.length) pushLog(state, `${card.name} purges ${targets.length} fragile enemy card${targets.length > 1 ? 's' : ''}`);
+      if (targets.length) {
+        pushLog(state, `🔥 ${card.name} purges ${targets.length} fragile enemy card${targets.length > 1 ? 's' : ''}`);
+        if (enemyKey === 'you' && typeof showToast === 'function') {
+          showToast(`🔥 Purger destroyed ${targets.length} fragile card(s) with ≤2 HP!`, 3000);
+        }
+      }
     } else if (a === 'orange_onplay_soulharvest') {
       const bonus = state.totalDeaths || 0;
       card.dmg += bonus;
@@ -364,7 +379,10 @@ function stealWeakestEnemyBlue(state, playerKey, enemyKey, sourceSlot, source) {
   delete enemy.defendingSlots[bestSlot];
   me.board[myEmptySlot] = stolen;
   pushFx(state, { type: 'place', owner: playerKey, slot: myEmptySlot });
-  pushLog(state, `${state.players[playerKey].board[myEmptySlot].name} steals ${stolen.name} from ${enemyKey}`);
+  pushLog(state, `🦶 ${state.players[playerKey].board[myEmptySlot].name} steals ${stolen.name} from ${enemyKey}`);
+  if (enemyKey === 'you' && typeof showToast === 'function') {
+    showToast(`🦶 Footpad stole your ${stolen.name}!`, 3000);
+  }
 }
 
 function weakestEnemyCard(enemyPlayerState) {
@@ -394,7 +412,11 @@ function damageCard(state, ownerKey, slot, amount, source) {
     pushLog(state, `🛡️ Ward blocked incoming damage on ${card.name}`);
     return;
   }
-  const cleanDmg = Math.max(0, amount);
+  let cleanDmg = Math.max(0, amount);
+  if (card.vulnerable && cleanDmg > 0) {
+    cleanDmg += 1;
+    pushLog(state, `🩸 Vulnerable! ${card.name} takes +1 extra damage!`);
+  }
   if (cleanDmg > 0 && (card.isBossCard || card.tier === 5)) {
     if (typeof window !== 'undefined' && typeof window.triggerBossHealthBarShake === 'function') {
       window.triggerBossHealthBarShake();
@@ -415,6 +437,18 @@ function killCard(state, ownerKey, slot, deathSource) {
   const p = state.players[ownerKey];
   const card = p.board[slot];
   if (!card) return;
+
+  // Relic: Soul Lantern revives 1 fallen player card per combat with 3 HP!
+  if ((ownerKey === 'you' || ownerKey === state.order[0]) && state.trialTowerModifiers && state.trialTowerModifiers.includes('relic_lantern') && !state._relicLanternUsed) {
+    state._relicLanternUsed = true;
+    card.hp = 3;
+    card.maxHp = Math.max(card.maxHp, 3);
+    card.defendChargesUsed = 0;
+    pushFx(state, { type: 'reviveCard', owner: ownerKey, slot, cardName: card.name, tier: card.tier, source: { kind: 'relic', name: 'Soul Lantern' } });
+    pushLog(state, `🕯️ Soul Lantern illuminates! ${card.name} is revived with 3 HP!`);
+    if (typeof showToast === 'function') showToast(`🕯️ Soul Lantern revived ${card.name} with 3 HP!`, 3000);
+    return;
+  }
   // BUGFIX: this used to also require p.everMergedUp (i.e. the player must
   // have already completed at least one merge before Blue would ever come
   // back from a death) - that meant a fresh player who owns blueprints but
@@ -1544,51 +1578,43 @@ function startPlacementPhase(state) {
 
   // Boss Aura Round-Start Triggers
   if (state.trialTowerModifiers && Array.isArray(state.trialTowerModifiers)) {
-    if (state.trialTowerModifiers.includes('boss_soul_drain')) {
-      const playerP = state.players['you'] || state.players[state.order[0]];
-      const botP = state.players['bot'] || state.players[state.order[1]];
-      if (playerP && botP) {
-        let drainedHp = 0;
-        playerP.board.forEach((c, slot) => {
-          if (c && c.hp > 0) {
-            damageCard(state, 'you', slot, 1, { kind: 'ability-onplay', name: '💀 Soul Drain', owner: 'bot' });
-            drainedHp++;
-          }
-        });
-        if (drainedHp > 0) {
-          const bossUnit = botP.board.find(c => c && (c.isBossCard || c.tier === 5));
-          if (bossUnit) {
-            bossUnit.hp = Math.min(bossUnit.maxHp, bossUnit.hp + drainedHp);
-            pushLog(state, `💀 Soul Drain siphons ${drainedHp} HP from player cards to ${bossUnit.name}!`);
-            pushFx(state, { type: 'bossSpecialty', owner: 'bot', slot: botP.board.indexOf(bossUnit), kind: 'soulHarvest' });
-          }
+    const playerP = state.players['you'] || state.players[state.order[0]];
+    const botP = state.players['bot'] || state.players[state.order[1]];
+    const bossUnit = botP ? botP.board.find(c => c && (c.isBossCard || c.tier === 5)) : null;
+    const isBossAlive = Boolean(bossUnit && bossUnit.hp > 0);
+
+    if (isBossAlive && state.trialTowerModifiers.includes('boss_soul_drain') && playerP) {
+      let drainedHp = 0;
+      playerP.board.forEach((c, slot) => {
+        if (c && c.hp > 1) {
+          damageCard(state, 'you', slot, 1, { kind: 'ability-onplay', name: '💀 Soul Drain', owner: 'bot' });
+          drainedHp++;
         }
+      });
+      if (drainedHp > 0) {
+        bossUnit.hp = Math.min(bossUnit.maxHp, bossUnit.hp + drainedHp);
+        pushLog(state, `💀 Soul Drain siphons ${drainedHp} HP from player cards to ${bossUnit.name}!`);
+        pushFx(state, { type: 'bossSpecialty', owner: 'bot', slot: botP.board.indexOf(bossUnit), kind: 'soulHarvest' });
+        if (typeof showToast === 'function') showToast(`💀 ${bossUnit.name}'s Soul Drain siphoned 1 HP from your units!`, 2500);
       }
     }
-    if (state.trialTowerModifiers.includes('boss_hellfire_blast')) {
-      const playerP = state.players['you'] || state.players[state.order[0]];
-      if (playerP) {
-        playerP.board.forEach((c, slot) => {
-          if (c && c.hp > 0) {
-            damageCard(state, 'you', slot, 2, { kind: 'ability-onplay', name: '🌋 Hellfire Blast', owner: 'bot' });
-            pushLog(state, `🌋 Hellfire Blast sears ${c.name} for 2 burn damage!`);
-          }
-        });
-        const bossUnit = botP.board.find(c => c && (c.isBossCard || c.tier === 5));
-        if (bossUnit) {
-          pushFx(state, { type: 'bossSpecialty', owner: 'bot', slot: botP.board.indexOf(bossUnit), kind: 'hellfireBlast' });
+
+    if (isBossAlive && state.trialTowerModifiers.includes('boss_hellfire_blast') && playerP) {
+      playerP.board.forEach((c, slot) => {
+        if (c && c.hp > 1) {
+          damageCard(state, 'you', slot, 1, { kind: 'ability-onplay', name: '🌋 Hellfire Blast', owner: 'bot' });
+          pushLog(state, `🌋 Hellfire Blast sears ${c.name} for 1 burn damage!`);
         }
-      }
+      });
+      pushFx(state, { type: 'bossSpecialty', owner: 'bot', slot: botP.board.indexOf(bossUnit), kind: 'hellfireBlast' });
+      if (typeof showToast === 'function') showToast(`🌋 Hellfire Blast seared your units!`, 2500);
     }
-    if (state.trialTowerModifiers.includes('boss_iron_wall')) {
+
+    if (isBossAlive && state.trialTowerModifiers.includes('boss_iron_wall')) {
       // Trigger dust storm on round 4, 8, 12, etc. (every 4 rounds)
       if (state.round > 1 && (state.round % 4 === 0)) {
         pushLog(state, `💨 Barbod throws blinding scam dust at the screen!`);
-        const bossUnit = botP.board.find(c => c && (c.isBossCard || c.tier === 5));
-        if (bossUnit) {
-          pushFx(state, { type: 'bossSpecialty', owner: 'bot', slot: botP.board.indexOf(bossUnit), kind: 'dustStorm' });
-        }
-
+        pushFx(state, { type: 'bossSpecialty', owner: 'bot', slot: botP.board.indexOf(bossUnit), kind: 'dustStorm' });
       }
     }
   }
