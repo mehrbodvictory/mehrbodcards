@@ -900,6 +900,23 @@ function castSpell(state, playerKey, spellInstanceId, targetOwnerKey, targetSlot
     healAllAllies(state, playerKey, 2, source);
   }
   if (spell.suddenDeath || spell.defId === 'suddendeath') {
+    let otherSpellIdx = -1;
+    if (sacSpellId) {
+      otherSpellIdx = p.spells.findIndex((s, i) => i !== idx && (s.id === sacSpellId || s.defId === sacSpellId));
+    }
+    if (otherSpellIdx === -1) {
+      otherSpellIdx = p.spells.findIndex((s, i) => i !== idx && (s.sacrificeMan || s.defId === 'sacrificeman' || s.name === 'Sacrifice Man'));
+    }
+    if (otherSpellIdx === -1) {
+      otherSpellIdx = p.spells.findIndex((s, i) => i !== idx);
+    }
+    if (otherSpellIdx === -1) {
+      return { ok: false, error: 'Sudden Death requires 1 other spell in hand to sacrifice' };
+    }
+    const sac = p.spells[otherSpellIdx];
+    p.spells.splice(otherSpellIdx, 1);
+    pushFx(state, { type: 'sacrificeSpell', owner: playerKey, cardName: sac.name });
+
     pushFx(state, { type: 'suddenDeath', targetOwner: targetOwnerKey, targetSlot, source });
     state.order.forEach(pk => {
       const pBoard = state.players[pk].board;
