@@ -2220,6 +2220,16 @@ function renderCosmeticsShop() {
 
 document.getElementById('btn-how-to-play')?.addEventListener('click', () => startFullTutorial());
 document.getElementById('btn-single-player')?.addEventListener('click', () => showScreen('screen-single-player'));
+document.getElementById('btn-trial-tower-back')?.addEventListener('click', () => showScreen('screen-single-player'));
+document.getElementById('btn-trial-tower-menu')?.addEventListener('click', () => {
+  if (typeof openTrialTowerScreen === 'function') {
+    openTrialTowerScreen();
+  } else if (typeof window.openTrialTowerScreen === 'function') {
+    window.openTrialTowerScreen();
+  } else {
+    showScreen('screen-trial-tower');
+  }
+});
 document.getElementById('btn-multiplayer')?.addEventListener('click', () => showScreen('screen-multiplayer'));
 function openModernShop() {
   if (typeof Sound !== 'undefined' && Sound.coin) Sound.coin();
@@ -3161,22 +3171,26 @@ function startVsBot(wagerAmount = 0, deckConfig = null) {
   botRng = new RngStream(seed + 999);
   botActedKey = null;
   resetSelections();
+  if (typeof trialTowerActive !== 'undefined' && trialTowerActive && typeof window.resetMatchRoundDrafts === 'function') {
+    window.resetMatchRoundDrafts();
+  }
   showScreen('screen-game');
   const eff = getEffectiveBotDifficulty(botDifficulty);
   if (typeof trialTowerActive !== 'undefined' && trialTowerActive && typeof loadTrialTowerState === 'function') {
     const ts = loadTrialTowerState();
-    const isBoss = typeof isBossFloor === 'function' && isBossFloor(ts.floor);
-    const bossDef = isBoss && typeof getBossDefinition === 'function' ? getBossDefinition(ts.floor) : null;
+    const curLevel = ts.level || 1;
+    const isBoss = (typeof isTierBossLevel === 'function' && isTierBossLevel(curLevel));
+    const bossDef = isBoss ? ((typeof getTierBossDefinition === 'function') ? getTierBossDefinition(ts.floor, curLevel) : getBossDefinition(ts.floor)) : null;
     const modTag = (ts && Array.isArray(ts.modifiers) && ts.modifiers.length > 0) ? ` · ⚡${ts.modifiers.length} Mods` : '';
     if (isBoss && bossDef) {
       setMatchInfo(
-        `💀 BOSS FLOOR ${ts.floor} · ${bossDef.name} (${bossDef.bossCard.hp} HP)${modTag}`,
-        `💀 Boss Floor ${ts.floor} vs ${bossDef.name}`
+        `💀 ${bossDef.name.toUpperCase()} (Level ${curLevel}/20) · ${bossDef.bossCard.hp} HP${modTag}`,
+        `💀 Tier Boss: ${bossDef.name}`
       );
     } else {
       setMatchInfo(
-        `🗼 Trial Tower · Floor ${ts.floor}${modTag} (${botDifficulty})`,
-        `Floor ${ts.floor}${modTag} vs ${botDifficulty} Bot`
+        `🗼 Trial Tower · Floor ${ts.floor} (Level ${curLevel}/20)${modTag} (${botDifficulty})`,
+        `Floor ${ts.floor} (Lv ${curLevel}/20) vs ${botDifficulty} Bot`
       );
     }
   } else {
@@ -3916,6 +3930,9 @@ function playFx(fxList) {
         break;
       }
       case 'damage': {
+        if (typeof trialTowerActive !== 'undefined' && trialTowerActive && evt.targetOwner !== localKey && typeof window.triggerBossHealthBarShake === 'function') {
+          window.triggerBossHealthBarShake();
+        }
         if (evt.source && evt.source.chainLightning) break;
         if (evt.source && (evt.source.kind === 'attack' || evt.source.kind === 'queued-attack')) break;
         const slotEl = getSlotEl(evt.targetOwner, evt.targetSlot);
@@ -5290,10 +5307,7 @@ document.getElementById('btn-confirm-merge').addEventListener('click', () => {
     return;
   }
   const finish = (blueprintIndex) => {
-    dispatch({ type: 'merge', slots, blueprintIndex });
-    selMergeSlots = [];
-    selMode = null;
-    render();
+    dispatchMergeWithJonesCheck(slots, blueprintIndex);
   };
   if (candidateIndices.length > 1) {
     const candidates = candidateIndices.map(i => deck[i]);
@@ -6385,6 +6399,13 @@ function playCombatAnimation(snapshot, fx, doneCallback, playbackSpeedModifier =
   fx = fx || [];
   trackDamageStats(fx);
 
+  if (typeof trialTowerActive !== 'undefined' && trialTowerActive) {
+    const bossHit = fx.some(e => e.type === 'damage' && e.targetOwner !== localKey && (e.targetTier === 5 || (state.players[e.targetOwner]?.board[e.targetSlot]?.isBossCard)));
+    if (bossHit && typeof window.triggerBossHealthBarShake === 'function') {
+      window.triggerBossHealthBarShake();
+    }
+  }
+
   // ---- NEW FEATURE: Kill Combo callout ----
   // If 2+ of the LOCAL player's own attacks land a kill in this same
   // simultaneous resolution, call it out - a nice little dopamine hit that
@@ -6469,7 +6490,15 @@ function playCombatAnimation(snapshot, fx, doneCallback, playbackSpeedModifier =
           } else if (dmgEvt) {
             if (dmgEvt.killed) {
               anyDeaths = true;
-              spawnFloatingNumberOn(slotEl, '💀', 'damage');
+              const isBossTarget = (card.isBossCard || card.tier === 5);
+              if (isBossTarget) {
+                spawnFloatingNumberOn(slotEl, '👑 BOSS DEFEATED!', 'damage');
+                if (typeof window.triggerBossDeathCinematic === 'function') {
+                  window.triggerBossDeathCinematic(slotEl);
+                }
+              } else {
+                spawnFloatingNumberOn(slotEl, '💀', 'damage');
+              }
               spawnDeathCauseLabel(slotEl, dmgEvt.source);
             } else if (dmgEvt.amount > 0) {
               spawnFloatingNumberOn(slotEl, '-' + dmgEvt.amount, 'damage');
@@ -6555,6 +6584,11 @@ function render() {
     if (!wasInitial && state.phase === 'placement' && typeof Sound !== 'undefined' && Sound.turnStart) {
       Sound.turnStart();
     }
+
+  }
+
+  if (typeof trialTowerActive !== 'undefined' && trialTowerActive && typeof updateCombatRoguelikeHUD === 'function') {
+    updateCombatRoguelikeHUD(state);
   }
 
   const gameScreen = document.getElementById('screen-game');
@@ -7000,7 +7034,16 @@ function render() {
         }
       }
       if (state.winner === localKey) { launchConfetti(); Sound.win(); vibrate([40, 50, 40, 50, 60]); }
-      if (state.winner === localKey || state.winner === remoteKey) recordResult(state.winner === localKey);
+      if (state.winner === localKey || state.winner === remoteKey) {
+        if (typeof window.recordResult === 'function' && window.recordResult !== recordResult) {
+          window.recordResult(state.winner === localKey);
+        } else {
+          recordResult(state.winner === localKey);
+        }
+        if (typeof trialTowerActive !== 'undefined' && trialTowerActive && typeof resolveTrialTowerMatch === 'function') {
+          resolveTrialTowerMatch(state.winner === localKey);
+        }
+      }
       if (state.winner === localKey && mode === 'bot' && !tutorialActive) {
         const effectiveDiff = botDifficulty === 'Adaptive' ? getEffectiveBotDifficulty(botDifficulty) : botDifficulty;
         recordDifficultyBeaten(effectiveDiff);
@@ -7152,6 +7195,68 @@ function promptBlueprintChoice(candidates, candidateIndices, onChoose) {
   });
   overlay.querySelector('.feature-close').onclick = () => finish(null);
   overlay.onclick = e => { if (e.target === overlay) finish(null); };
+}
+
+function promptJonesSpellChoice(onSpellChosen) {
+  const old = document.getElementById('jones-spell-picker-overlay');
+  if (old) old.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'jones-spell-picker-overlay';
+  overlay.className = 'feature-overlay';
+  overlay.innerHTML = `
+    <div class="feature-panel" style="max-height:85vh; overflow-y:auto; max-width:650px;">
+      <button class="feature-close">✕</button>
+      <span class="feature-kicker">JONSEY'S SPECIAL ABILITY</span>
+      <h2>CHOOSE A SPELL FROM YOUR DECK</h2>
+      <p>Select any spell in your active deck to cast immediately for free without consuming it.</p>
+      <div class="deck-builder-grid" id="jones-spell-grid" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-top: 15px;"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const grid = overlay.querySelector('#jones-spell-grid');
+  let resolved = false;
+  const finish = (spellDef) => {
+    if (resolved) return;
+    resolved = true;
+    overlay.remove();
+    if (onSpellChosen) onSpellChosen(spellDef);
+  };
+  const pSpells = (state && state.players && state.players[localKey] && Array.isArray(state.players[localKey].spells))
+    ? state.players[localKey].spells
+    : [];
+
+  if (pSpells.length === 0) {
+    grid.innerHTML = '<div style="color: #94a3b8; grid-column: 1 / -1; text-align: center; padding: 20px;">No spells in your deck!</div>';
+  } else {
+    pSpells.forEach(spellDef => {
+      const el = document.createElement('button');
+      el.type = 'button';
+      el.className = 'dcard spell-dcard';
+      el.style.cssText = 'padding: 10px; text-align: left; cursor: pointer; background: rgba(20,20,30,0.9); border: 1px solid rgba(255,215,0,0.3); border-radius: 8px; color: white;';
+      el.innerHTML = `<div style="font-weight: bold; font-size: 13px; margin-bottom: 4px; color: #f59e0b;">${spellDef.name}</div><div style="font-size: 11px; opacity: 0.85; line-height: 1.2;">${spellDef.text}</div>`;
+      el.addEventListener('click', () => finish(spellDef));
+      grid.appendChild(el);
+    });
+  }
+  overlay.querySelector('.feature-close').onclick = () => finish(null);
+  overlay.onclick = e => { if (e.target === overlay) finish(null); };
+}
+
+function dispatchMergeWithJonesCheck(slots, blueprintIndex) {
+  const p = state.players[localKey];
+  const blueprint = p.deck[blueprintIndex];
+  if (blueprint && blueprint.archetypeId === 'orange_apex_sovereign_unit') {
+    promptJonesSpellChoice((spellDef) => {
+      dispatch({ type: 'merge', slots, blueprintIndex, jonesSpellId: spellDef ? spellDef.id : null });
+      selMergeSlots = [];
+      selMode = null;
+      render();
+    });
+  } else {
+    dispatch({ type: 'merge', slots, blueprintIndex });
+    selMergeSlots = [];
+    selMode = null;
+    render();
+  }
 }
 
 // ---- Drag-to-merge & Drag-to-place with Touch Event Support ------------------
@@ -7310,9 +7415,11 @@ function handleDragEndCommon(clientX, clientY) {
           if (candidateIndices.length > 1) {
             const candidates = candidateIndices.map(i => deck[i]);
             promptBlueprintChoice(candidates, candidateIndices, (chosenIndex) => {
-              if (chosenIndex != null) dispatch({ type: 'merge', slots: [slotA, slotB], blueprintIndex: chosenIndex });
-              render();
+              if (chosenIndex != null) dispatchMergeWithJonesCheck([slotA, slotB], chosenIndex);
+              else render();
             });
+          } else if (candidateIndices.length === 1) {
+            dispatchMergeWithJonesCheck([slotA, slotB], candidateIndices[0]);
           } else {
             dispatch({ type: 'merge', slots: [slotA, slotB] });
           }

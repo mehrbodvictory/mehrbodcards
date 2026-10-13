@@ -761,12 +761,21 @@ function autoResolveForcedMerges(state, playerKey) {
 }
 
 function castSpell(state, playerKey, spellInstanceId, targetOwnerKey, targetSlot, sacSpellId) {
-  if (state.phase !== 'placement' && state.phase !== 'attack') {
-    return { ok: false, error: 'Spells can only be cast during placement or attack phase' };
+  if (state.phase === 'placement') {
+    return { ok: false, error: 'Spells cannot be cast during the placement phase' };
   }
+  if (state.phase !== 'attack') {
+    return { ok: false, error: 'Spells can only be cast during attack phase' };
+  }
+  const p = state.players[playerKey];
+  const boardCount = p.board.filter(c => !!c).length;
+  if (boardCount === 0) {
+    return { ok: false, error: 'You must have at least 1 card on the board to cast spells' };
+  }
+
   const blocked = forcedBlock(state, playerKey);
   if (blocked) return blocked;
-  const p = state.players[playerKey];
+  
   const idx = p.spells.findIndex(s => s.id === spellInstanceId);
   if (idx === -1) return { ok: false, error: 'spell not in hand' };
   const spell = p.spells[idx];
