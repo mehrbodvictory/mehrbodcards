@@ -78,39 +78,22 @@ function createMatch(seed, p1id = 'p1', p2id = 'p2', deckConfigs = {}) {
   state.trialTowerModifiers = state.trialTowerModifiers || [];
 
   // Check for Boss Floor setup
-  let towerFloor = 1;
-  let towerLevel = 1;
-  let isBossChamber = false;
-  if (typeof loadRoguelikeRun === 'function') {
-    const r = loadRoguelikeRun();
-    if (r) {
-      towerFloor = r.floor || 1;
-      towerLevel = r.level || 1;
-      isBossChamber = (typeof isTierBossLevel === 'function' && isTierBossLevel(towerLevel)) || (r.currentChamber && r.currentChamber.type === 'boss');
-    }
-  } else if (typeof loadTrialTowerState === 'function') {
+  let towerFloor = 0;
+  if (typeof loadTrialTowerState === 'function') {
     const ts = loadTrialTowerState();
     if (ts && ts.floor) towerFloor = ts.floor;
-    if (ts && ts.level) towerLevel = ts.level;
-    isBossChamber = (typeof isTierBossLevel === 'function' && isTierBossLevel(towerLevel));
   }
-  const isTowerActive = (typeof trialTowerActive !== 'undefined' && trialTowerActive);
-  state.trialTowerFloor = towerFloor;
-  state.trialTowerLevel = towerLevel;
-  state.isTrialTower = isTowerActive;
-  const isBossEncounter = isTowerActive && (isBossChamber || (typeof isTierBossLevel === 'function' && isTierBossLevel(towerLevel)) || Boolean(deckConfigs?.isBossMatch));
-  if (isBossEncounter) {
-    const bossDef = (typeof getTierBossDefinition === 'function')
-      ? getTierBossDefinition(towerFloor, towerLevel)
-      : (typeof getBossDefinition === 'function' ? getBossDefinition(towerFloor) : null);
+  const bossFloorNum = deckConfigs?.bossFloor || (typeof trialTowerActive !== 'undefined' && trialTowerActive && typeof isBossFloor === 'function' && isBossFloor(towerFloor) ? towerFloor : null);
+  if (bossFloorNum && typeof getBossDefinition === 'function') {
+    const bossDef = getBossDefinition(bossFloorNum);
     if (bossDef) {
       state.isBossMatch = true;
-      state.bossFloor = towerFloor;
+      state.bossFloor = bossFloorNum;
       state.bossDef = bossDef;
       if (!state.trialTowerModifiers.includes(bossDef.bossModifier.id)) {
         state.trialTowerModifiers.push(bossDef.bossModifier.id);
       }
-      pushLog(state, `💀 WARNING: TIER BOSS BATTLE (Level ${towerLevel})! Facing ${bossDef.name} (${bossDef.bossCard.hp} HP)!`);
+      pushLog(state, `💀 WARNING: BOSS FLOOR ${bossFloorNum}! Facing ${bossDef.name} (${bossDef.bossCard.hp} HP)!`);
       pushLog(state, `⚡ Active Boss Aura: ${bossDef.bossModifier.name} - ${bossDef.bossModifier.desc}`);
     }
   }
@@ -166,16 +149,8 @@ function abilityTrigger(state, playerKey, card, trigger, slot, deathSource) {
       pushFx(state, { type: 'selfBuff', owner: playerKey, slot, stat: 'hp', amount: 1 });
       pushLog(state, `${card.name} gains +1 max HP`);
     } else if (a === 'green_onplay_discard1') {
-      if (enemy.deck && enemy.deck.length > 0) {
-        const discarded = enemy.deck.splice(Math.floor(Math.random() * enemy.deck.length), 1)[0];
-        pushFx(state, { type: 'discard', owner: enemyKey, cardName: discarded?.name || 'Card', source });
-        pushLog(state, `🦹 ${card.name} sabotaged the enemy deck, discarding ${discarded?.name || 'a card'}!`);
-        if (enemyKey === 'you' && typeof showToast === 'function') {
-          showToast(`🦹 Saboteur discarded ${discarded?.name || 'a card'} from your deck!`, 3000);
-        }
-      } else {
-        pushLog(state, `${card.name} executed sabotage!`);
-      }
+      pushFx(state, { type: 'barbodsDust', owner: enemyKey });
+      pushLog(state, `${card.name} throws barbods dust onto the enemy's screen`);
     } else if (a === 'red_onplay_dmgall1') {
       damageAllEnemies(state, enemyKey, 1, source);
       pushLog(state, `${card.name} deals 1 dmg to every enemy card`);
@@ -184,13 +159,7 @@ function abilityTrigger(state, playerKey, card, trigger, slot, deathSource) {
       pushLog(state, `${card.name} grants +1 DMG to all of ${playerKey}'s cards`);
     } else if (a === 'orange_onplay_execute') {
       const target = weakestEnemyCard(enemy);
-      if (target) {
-        damageCard(state, enemyKey, target.slot, target.card.hp, source);
-        pushLog(state, `🗡️ ${card.name} executes ${target.card.name}!`);
-        if (enemyKey === 'you' && typeof showToast === 'function') {
-          showToast(`🗡️ Devastator executed your ${target.card.name}!`, 3000);
-        }
-      }
+      if (target) { damageCard(state, enemyKey, target.slot, target.card.hp, source); pushLog(state, `${card.name} executes ${target.card.name}`); }
     } else if (a === 'orange_onplay_scaledmg') {
       const bonus = boardCount(enemy);
       card.dmg += bonus;
@@ -220,12 +189,7 @@ function abilityTrigger(state, playerKey, card, trigger, slot, deathSource) {
     } else if (a === 'red_onplay_purge_weak') {
       const targets = enemy.board.map((c, i) => (c && c.maxHp <= 2 ? i : -1)).filter(i => i >= 0);
       targets.forEach(i => damageCard(state, enemyKey, i, enemy.board[i] ? enemy.board[i].hp : 0, source));
-      if (targets.length) {
-        pushLog(state, `🔥 ${card.name} purges ${targets.length} fragile enemy card${targets.length > 1 ? 's' : ''}`);
-        if (enemyKey === 'you' && typeof showToast === 'function') {
-          showToast(`🔥 Purger destroyed ${targets.length} fragile card(s) with ≤2 HP!`, 3000);
-        }
-      }
+      if (targets.length) pushLog(state, `${card.name} purges ${targets.length} fragile enemy card${targets.length > 1 ? 's' : ''}`);
     } else if (a === 'orange_onplay_soulharvest') {
       const bonus = state.totalDeaths || 0;
       card.dmg += bonus;
@@ -256,21 +220,6 @@ function abilityTrigger(state, playerKey, card, trigger, slot, deathSource) {
       const blue = makeUnitCard(1, state._rng);
       me.deck.push(blue);
       pushLog(state, `${card.name} adds a random Blue card to your deck`);
-    } else if (a === 'jones_freespell') {
-      const chosenId = card.jonesSpellId;
-      const spellDef = (typeof SPELL_DEFS !== 'undefined') ? SPELL_DEFS.find(s => s.id === chosenId) : null;
-      const actualSpell = spellDef || (typeof SPELL_DEFS !== 'undefined' && SPELL_DEFS.length > 0 ? SPELL_DEFS[Math.floor(state._rng.next() * SPELL_DEFS.length)] : { id: 'bolt3', name: 'Bolt', dmg: 3 });
-      const targetCard = weakestEnemyCard(enemy) || weakestAllyCard(me, card.id);
-      if (targetCard) {
-        const source = { kind: 'spell', name: actualSpell.name, owner: playerKey };
-        if (actualSpell.dmg) damageCard(state, enemyKey, targetCard.slot, actualSpell.dmg, source);
-        else if (actualSpell.heal) healCard(targetCard.card, actualSpell.heal);
-        else if (actualSpell.refreshDefense) targetCard.card.defendChargesUsed = 0;
-        else if (actualSpell.healAll) healAllAllies(state, playerKey, actualSpell.healAll, source);
-        else if (actualSpell.buffAllDmg) buffAllAlliesDmg(state, playerKey, actualSpell.buffAllDmg);
-        else damageCard(state, enemyKey, targetCard.slot, 3, source);
-        pushLog(state, `👑 ${card.name} casts free spell [${actualSpell.name}] of your choice without removing it from your deck!`);
-      }
     }
   } else if (trigger === 'ondeath') {
     if (a === 'ondeath_dmg2') {
@@ -379,10 +328,7 @@ function stealWeakestEnemyBlue(state, playerKey, enemyKey, sourceSlot, source) {
   delete enemy.defendingSlots[bestSlot];
   me.board[myEmptySlot] = stolen;
   pushFx(state, { type: 'place', owner: playerKey, slot: myEmptySlot });
-  pushLog(state, `🦶 ${state.players[playerKey].board[myEmptySlot].name} steals ${stolen.name} from ${enemyKey}`);
-  if (enemyKey === 'you' && typeof showToast === 'function') {
-    showToast(`🦶 Footpad stole your ${stolen.name}!`, 3000);
-  }
+  pushLog(state, `${state.players[playerKey].board[myEmptySlot].name} steals ${stolen.name} from ${enemyKey}`);
 }
 
 function weakestEnemyCard(enemyPlayerState) {
@@ -412,16 +358,7 @@ function damageCard(state, ownerKey, slot, amount, source) {
     pushLog(state, `🛡️ Ward blocked incoming damage on ${card.name}`);
     return;
   }
-  let cleanDmg = Math.max(0, amount);
-  if (card.vulnerable && cleanDmg > 0) {
-    cleanDmg += 1;
-    pushLog(state, `🩸 Vulnerable! ${card.name} takes +1 extra damage!`);
-  }
-  if (cleanDmg > 0 && (card.isBossCard || card.tier === 5)) {
-    if (typeof window !== 'undefined' && typeof window.triggerBossHealthBarShake === 'function') {
-      window.triggerBossHealthBarShake();
-    }
-  }
+  const cleanDmg = Math.max(0, amount);
   const prevHp = card.hp;
   card.hp = Math.max(0, card.hp - cleanDmg);
   const killed = card.hp <= 0;
@@ -437,18 +374,6 @@ function killCard(state, ownerKey, slot, deathSource) {
   const p = state.players[ownerKey];
   const card = p.board[slot];
   if (!card) return;
-
-  // Relic: Soul Lantern revives 1 fallen player card per combat with 3 HP!
-  if ((ownerKey === 'you' || ownerKey === state.order[0]) && state.trialTowerModifiers && state.trialTowerModifiers.includes('relic_lantern') && !state._relicLanternUsed) {
-    state._relicLanternUsed = true;
-    card.hp = 3;
-    card.maxHp = Math.max(card.maxHp, 3);
-    card.defendChargesUsed = 0;
-    pushFx(state, { type: 'reviveCard', owner: ownerKey, slot, cardName: card.name, tier: card.tier, source: { kind: 'relic', name: 'Soul Lantern' } });
-    pushLog(state, `🕯️ Soul Lantern illuminates! ${card.name} is revived with 3 HP!`);
-    if (typeof showToast === 'function') showToast(`🕯️ Soul Lantern revived ${card.name} with 3 HP!`, 3000);
-    return;
-  }
   // BUGFIX: this used to also require p.everMergedUp (i.e. the player must
   // have already completed at least one merge before Blue would ever come
   // back from a death) - that meant a fresh player who owns blueprints but
@@ -527,8 +452,6 @@ function canPerformAnyMerge(state, playerKey) {
 }
 
 function forcedBlock(state, playerKey) {
-  if (!state || state.phase !== 'placement') return null;
-  if (playerKey === 'bot' || (state.order && state.order[1] === playerKey)) return null;
   if (isForced(state, playerKey)) {
     return { ok: false, error: 'You have too many Blue cards — merge two of them before doing anything else.' };
   }
@@ -563,24 +486,23 @@ function placeCard(state, playerKey, deckIndex, slot, cardId, archetypeId) {
       targetIdx = deckIndex;
     }
   }
-  const isBotPlayer = (playerKey === 'bot' || (state.order && state.order[1] === playerKey));
-  // 1. Try exact cardId or netId matching if provided
+  // 1. Try exact cardId or netId matching if provided and tier is 1
   if (targetIdx === -1 && cardId) {
-    targetIdx = p.deck.findIndex(c => c && (isBotPlayer || c.tier === 1) && (c.id === cardId || c.netId === cardId));
+    targetIdx = p.deck.findIndex(c => c && c.tier === 1 && (c.id === cardId || c.netId === cardId));
   }
-  // 2. Try matching by archetypeId if provided
+  // 2. Try matching by archetypeId if provided (tier must be 1)
   if (targetIdx === -1 && archetypeId) {
-    targetIdx = p.deck.findIndex(c => c && (isBotPlayer || c.tier === 1) && (c.archetypeId === archetypeId || c.id === archetypeId));
+    targetIdx = p.deck.findIndex(c => c && c.tier === 1 && (c.archetypeId === archetypeId || c.id === archetypeId));
   }
-  // 3. Try deckIndex if valid
+  // 3. Try deckIndex if valid and points to a Tier 1 card
   if (targetIdx === -1 && typeof deckIndex === 'number' && deckIndex >= 0 && deckIndex < p.deck.length) {
-    if (p.deck[deckIndex] && (isBotPlayer || p.deck[deckIndex].tier === 1)) {
+    if (p.deck[deckIndex] && p.deck[deckIndex].tier === 1) {
       targetIdx = deckIndex;
     }
   }
-  // 4. Fallback: Find the first available unit in player's deck
+  // 4. Fallback: Find the first available Tier 1 (Blue) unit in player's deck
   if (targetIdx === -1) {
-    targetIdx = p.deck.findIndex(c => c && (isBotPlayer ? c.kind === 'unit' : c.tier === 1));
+    targetIdx = p.deck.findIndex(c => c && c.tier === 1);
   }
 
   if (targetIdx === -1 || !p.deck[targetIdx]) {
@@ -591,45 +513,19 @@ function placeCard(state, playerKey, deckIndex, slot, cardId, archetypeId) {
   p.board[slot] = card;
   p.didActionThisRound = true;
 
-  // Trial Tower Roguelike Modifiers & Relics on card placement
+  // Trial Tower Modifiers on card placement
   if (state.trialTowerModifiers && Array.isArray(state.trialTowerModifiers)) {
     if (playerKey === 'you' || playerKey === state.order[0]) {
-      const ocCount = state.trialTowerModifiers.filter(m => m === 'overcharge' || m === 'overclock').length;
+      const ocCount = state.trialTowerModifiers.filter(m => m === 'overcharge').length;
       if (ocCount > 0) {
         card.dmg += 2 * ocCount;
-        pushLog(state, `⚔️ Vanguard Overclock: ${card.name} +${2 * ocCount} ATK!`);
+        pushLog(state, `⚔️ Overcharge Surge: ${card.name} +${2 * ocCount} ATK!`);
       }
       const bastCount = state.trialTowerModifiers.filter(m => m === 'bastion').length;
       if (bastCount > 0) {
         card.hp += 3 * bastCount;
         card.maxHp += 3 * bastCount;
         pushLog(state, `🛡️ Bastion Plating: ${card.name} +${3 * bastCount} Shield HP!`);
-      }
-      const galeCount = state.trialTowerModifiers.filter(m => m === 'speed_gale').length;
-      if (galeCount > 0) {
-        card.dmg += 1 * galeCount;
-        pushLog(state, `🌪️ Gale Momentum: ${card.name} +${1 * galeCount} ATK!`);
-      }
-      const vorpalCount = state.trialTowerModifiers.filter(m => m === 'relic_vorpal').length;
-      if (vorpalCount > 0) {
-        card.dmg += 1 * vorpalCount;
-        pushLog(state, `🗡️ Vorpal Blade: ${card.name} +${1 * vorpalCount} ATK!`);
-      }
-      if (state.trialTowerModifiers.includes('relic_chalice') && slot === 0) {
-        card.hp += 5;
-        card.maxHp += 5;
-        pushLog(state, `🍷 Chalice of Vitality: Vanguard ${card.name} +5 Shield HP!`);
-      }
-      if (state.trialTowerModifiers.includes('relic_crown') && (slot === 1 || slot === 2)) {
-        card.dmg += 2;
-        card.hp += 2;
-        card.maxHp += 2;
-        pushLog(state, `👑 Crown of Ascension: Center slot ${card.name} +2 ATK / +2 HP!`);
-      }
-      if (state.trialTowerModifiers.includes('relic_heart')) {
-        card.hp += 2;
-        card.maxHp += 2;
-        pushLog(state, `💖 Heart of the Titan: ${card.name} +2 Max HP!`);
       }
       if (state.trialTowerModifiers.includes('boss_apex_supremacy')) {
         card.maxHp = Math.max(1, card.maxHp - 1);
@@ -654,17 +550,11 @@ function placeCard(state, playerKey, deckIndex, slot, cardId, archetypeId) {
       }
       
       if (state.activeDebuff) {
-        applyDebuff(state, state.activeDebuff, card, slot);
+        applyDebuff(state, state.activeDebuff, card);
         pushLog(state, `⚠️ Active Debuff: applied to ${card.name}!`);
       }
     }
     if (playerKey === 'bot' || playerKey === state.order[1]) {
-      if (state.activeDebuff === 'curse_terror_gaze') {
-        card.hp += 1;
-        card.maxHp += 1;
-        card.dmg += 1;
-        pushLog(state, `👁️ Terror Gaze: Enemy ${card.name} enters with +1 ATK & +1 Shield!`);
-      }
       if (card.name === 'Barbod' || card.archetypeId === 'boss_barbod') {
         pushLog(state, `💨 Barbod throws blinding dust at the screen!`);
         if (typeof window !== 'undefined' && typeof window.triggerDustStormEffect === 'function') {
@@ -717,7 +607,7 @@ function placeCard(state, playerKey, deckIndex, slot, cardId, archetypeId) {
 //
 // The surviving merged card always lands in the FIRST slot passed in
 // (slots[0]); every other consumed slot is cleared.
-function mergeCards(state, playerKey, slots, blueprintIndex, jonesSpellId) {
+function mergeCards(state, playerKey, slots, blueprintIndex) {
   const p = state.players[playerKey];
   if (state.phase !== 'placement') return { ok: false, error: 'not placement phase' };
   // NEW: at most MAX_MERGES_PER_ROUND *voluntary* merges (of any size, 2-4
@@ -779,7 +669,6 @@ function mergeCards(state, playerKey, slots, blueprintIndex, jonesSpellId) {
 
   const merged = {
     id: nextId(),
-    archetypeId: blueprint.archetypeId,
     kind: 'unit',
     tier: newTier,
     name: mergedName,
@@ -788,7 +677,6 @@ function mergeCards(state, playerKey, slots, blueprintIndex, jonesSpellId) {
     dmg: TIERS[newTier].dmg,
     sp: blueprint.sp !== undefined ? blueprint.sp : TIERS[newTier].sp,
     ability: mergedAbility,
-    jonesSpellId: jonesSpellId || blueprint.jonesSpellId,
     defendChargesUsed: 0,
     chipsAttached: [],
   };
@@ -1202,6 +1090,8 @@ function cancelDefend(state, playerKey, slot) {
 // ---- Attack phase -----------------------------------------------------------
 
 function setAttack(state, playerKey, slot, targetOwnerKey, targetSlot) {
+  const blocked = forcedBlock(state, playerKey);
+  if (blocked) return blocked;
   const p = state.players[playerKey];
   const card = p.board[slot];
   if (!card) return { ok: false, error: 'no card in slot' };
@@ -1227,10 +1117,9 @@ function readyPlacement(state, playerKey) {
   const blocked = forcedBlock(state, playerKey);
   if (blocked) return blocked;
   const p = state.players[playerKey];
-  const isBot = (playerKey === 'bot' || (state.order && state.order[1] === playerKey));
   const hasPlayable = (p.deck || []).some(c => c && c.tier === 1) || (p.spells || []).length > 0 || (p.chips || []).length > 0;
   const hasDefending = p.defendingSlots && Object.values(p.defendingSlots).some(Boolean);
-  if (!isBot && hasDefending && !p.didActionThisRound && hasPlayable) {
+  if (hasDefending && !p.didActionThisRound && hasPlayable) {
     return { ok: false, error: 'You must place, merge, cast a spell, or attach a chip while defending before readying up!' };
   }
   p.readyPlacement = true;
@@ -1243,6 +1132,8 @@ function readyPlacement(state, playerKey) {
 }
 
 function readyAttack(state, playerKey) {
+  const blocked = forcedBlock(state, playerKey);
+  if (blocked) return blocked;
   state.players[playerKey].readyAttack = true;
   const allReady = state.order.every(k => state.players[k].readyAttack);
   if (allReady) {
@@ -1296,55 +1187,22 @@ function resolveAttacks(state) {
         return;
       }
 
-      // Trial Tower Modifiers & Relics: calculate active effects for the player
+      // Trial Tower Modifiers: calculate active effects for the player
       let modDmg = assign.dmg;
       const isPlayerAttacking = (attackerKey === 'you' || attackerKey === (state.order && state.order[0]));
       const modifiers = (state.trialTowerModifiers && Array.isArray(state.trialTowerModifiers)) ? state.trialTowerModifiers : [];
 
-      // Curse Sandstorm: 20% miss chance on player attacks
-      if (isPlayerAttacking && (state.activeDebuff === 'curse_sandstorm' || modifiers.includes('curse_sandstorm'))) {
-        if (state._rng && state._rng.next() < 0.20) {
-          pushFx(state, { type: 'miss', owner: attackerKey, slot, source });
-          pushLog(state, `🌪️ Dust Storm! ${assign.sourceName}'s attack missed in the blinding sand!`);
-          return;
-        }
-      }
-
-      // Relic Shadow Cloak: 20% evasion chance against enemy attacks aimed at player
-      if (!isPlayerAttacking && modifiers.includes('relic_cloak')) {
-        if (state._rng && state._rng.next() < 0.20) {
-          pushFx(state, { type: 'evade', owner: assign.targetOwner, slot: targetSlot, source });
-          pushLog(state, `🥋 Shadow Cloak! ${defenderCard.name} agilely evaded the incoming blow!`);
-          return;
-        }
-      }
-
-      // Relic Aegis Carapace: first attack against player board blocked
-      if (!isPlayerAttacking && modifiers.includes('relic_shell') && !state._relicShellTriggeredThisRound) {
-        state._relicShellTriggeredThisRound = true;
-        blockedSlots[assign.targetOwner].add(targetSlot);
-        pushFx(state, { type: 'block', owner: assign.targetOwner, slot: targetSlot, source });
-        pushLog(state, `🛡️ Aegis Carapace! First attack against your board this round is negated!`);
-        return;
-      }
-
       if (isPlayerAttacking && modifiers.length > 0) {
-        // Deadly Precision / Critical Strike Modifier
-        const critCount = modifiers.filter(m => m === 'crit' || m === 'deadly_crit').length;
-        if (critCount > 0 && state._rng && state._rng.next() < Math.min(0.9, 0.45 * critCount)) {
-          modDmg = Math.round(modDmg * 2.2);
+        // Critical Strike Modifier (40% chance per stack to deal 2x damage)
+        const critCount = modifiers.filter(m => m === 'crit').length;
+        if (critCount > 0 && state._rng && state._rng.next() < Math.min(0.9, 0.40 * critCount)) {
+          modDmg = modDmg * 2;
           pushFx(state, { type: 'selfBuff', owner: attackerKey, slot, stat: 'dmg', amount: modDmg });
-          pushLog(state, `⚡ CRITICAL STRIKE! ${assign.sourceName} hits for CRITICAL damage (${modDmg})!`);
+          pushLog(state, `⚡ CRITICAL STRIKE! ${assign.sourceName} hits for DOUBLE damage (${modDmg})!`);
         }
 
-        // Titan Slayer: +4 bonus damage against Tier 2+ units and bosses
-        if (modifiers.includes('titan_slayer') && defenderCard && (defenderCard.tier >= 2 || defenderCard.isBossCard)) {
-          modDmg += 4;
-          pushLog(state, `👑 Titan Slayer! +4 bonus damage against elite ${defenderCard.name}!`);
-        }
-
-        // Vampiric Drain / Life Siphon Modifier (heals for 50% of damage dealt per stack)
-        const vampCount = modifiers.filter(m => m === 'vampiric' || m === 'siphon').length;
+        // Vampiric Drain Modifier (heals for 50% of damage dealt per stack)
+        const vampCount = modifiers.filter(m => m === 'vampiric').length;
         if (vampCount > 0) {
           lifestealHits.push({ ownerKey: attackerKey, slot, amount: Math.max(1, Math.floor(modDmg * 0.5 * vampCount)) });
         }
@@ -1354,17 +1212,11 @@ function resolveAttacks(state) {
           assign.doubleStrike = true;
         }
 
-        // Reaper Execution Modifier
-        const execCount = modifiers.filter(m => m === 'execute' || m === 'executioner').length;
-        if (execCount > 0 && defenderCard && defenderCard.hp <= (3 * execCount)) {
+        // Reaper Execution Modifier (enemies at or below 2 HP per stack are executed)
+        const execCount = modifiers.filter(m => m === 'execute').length;
+        if (execCount > 0 && defenderCard && defenderCard.hp <= (2 * execCount)) {
           modDmg = 999;
           pushLog(state, `☠️ Reaper Execution instantly obliterates ${defenderCard.name}!`);
-        }
-
-        // Relic: Executioner's Greataxe (executes below 25% max HP)
-        if (modifiers.includes('relic_axe') && defenderCard && defenderCard.hp <= Math.ceil(defenderCard.maxHp * 0.25)) {
-          modDmg = 999;
-          pushLog(state, `🪓 Executioner's Greataxe severs ${defenderCard.name}!`);
         }
       }
 
@@ -1516,26 +1368,12 @@ function checkWinAndAdvance(state) {
 function startPlacementPhase(state) {
   state.round++;
   state.phase = 'placement';
-  state._relicShellTriggeredThisRound = false;
   // NEW: the once-per-round merge limit resets at the start of every
   // placement phase, for both players.
   state.order.forEach(k => {
     state.players[k].mergesThisRound = 0;
     state.players[k].didActionThisRound = false;
   });
-
-  // Roguelike Doom Bell curse: enemy units gain +2 ATK on round 3+
-  if (state.activeDebuff === 'curse_doom_clock' && state.round >= 3) {
-    const botP = state.players['bot'] || (state.order && state.players[state.order[1]]);
-    if (botP) {
-      botP.board.forEach(c => {
-        if (c) {
-          c.dmg += 2;
-          pushLog(state, `⏳ Doom Bell tolls! Enemy ${c.name} gains +2 ATK!`);
-        }
-      });
-    }
-  }
   // Resolve queued attacks (from cards that died mid-swing last attack phase)
   // before any new placement actions happen this cycle.
   const queue = state.pendingQueuedAttacks;
@@ -1578,43 +1416,55 @@ function startPlacementPhase(state) {
 
   // Boss Aura Round-Start Triggers
   if (state.trialTowerModifiers && Array.isArray(state.trialTowerModifiers)) {
-    const playerP = state.players['you'] || state.players[state.order[0]];
-    const botP = state.players['bot'] || state.players[state.order[1]];
-    const bossUnit = botP ? botP.board.find(c => c && (c.isBossCard || c.tier === 5)) : null;
-    const isBossAlive = Boolean(bossUnit && bossUnit.hp > 0);
-
-    if (isBossAlive && state.trialTowerModifiers.includes('boss_soul_drain') && playerP) {
-      let drainedHp = 0;
-      playerP.board.forEach((c, slot) => {
-        if (c && c.hp > 1) {
-          damageCard(state, 'you', slot, 1, { kind: 'ability-onplay', name: '💀 Soul Drain', owner: 'bot' });
-          drainedHp++;
+    if (state.trialTowerModifiers.includes('boss_soul_drain')) {
+      const playerP = state.players['you'] || state.players[state.order[0]];
+      const botP = state.players['bot'] || state.players[state.order[1]];
+      if (playerP && botP) {
+        let drainedHp = 0;
+        playerP.board.forEach((c, slot) => {
+          if (c && c.hp > 0) {
+            damageCard(state, 'you', slot, 1, { kind: 'ability-onplay', name: '💀 Soul Drain', owner: 'bot' });
+            drainedHp++;
+          }
+        });
+        if (drainedHp > 0) {
+          const bossUnit = botP.board.find(c => c && (c.isBossCard || c.tier === 5));
+          if (bossUnit) {
+            bossUnit.hp = Math.min(bossUnit.maxHp, bossUnit.hp + drainedHp);
+            pushLog(state, `💀 Soul Drain siphons ${drainedHp} HP from player cards to ${bossUnit.name}!`);
+            pushFx(state, { type: 'bossSpecialty', owner: 'bot', slot: botP.board.indexOf(bossUnit), kind: 'soulHarvest' });
+          }
         }
-      });
-      if (drainedHp > 0) {
-        bossUnit.hp = Math.min(bossUnit.maxHp, bossUnit.hp + drainedHp);
-        pushLog(state, `💀 Soul Drain siphons ${drainedHp} HP from player cards to ${bossUnit.name}!`);
-        pushFx(state, { type: 'bossSpecialty', owner: 'bot', slot: botP.board.indexOf(bossUnit), kind: 'soulHarvest' });
-        if (typeof showToast === 'function') showToast(`💀 ${bossUnit.name}'s Soul Drain siphoned 1 HP from your units!`, 2500);
       }
     }
-
-    if (isBossAlive && state.trialTowerModifiers.includes('boss_hellfire_blast') && playerP) {
-      playerP.board.forEach((c, slot) => {
-        if (c && c.hp > 1) {
-          damageCard(state, 'you', slot, 1, { kind: 'ability-onplay', name: '🌋 Hellfire Blast', owner: 'bot' });
-          pushLog(state, `🌋 Hellfire Blast sears ${c.name} for 1 burn damage!`);
+    if (state.trialTowerModifiers.includes('boss_hellfire_blast')) {
+      const playerP = state.players['you'] || state.players[state.order[0]];
+      if (playerP) {
+        playerP.board.forEach((c, slot) => {
+          if (c && c.hp > 0) {
+            damageCard(state, 'you', slot, 2, { kind: 'ability-onplay', name: '🌋 Hellfire Blast', owner: 'bot' });
+            pushLog(state, `🌋 Hellfire Blast sears ${c.name} for 2 burn damage!`);
+          }
+        });
+        const bossUnit = botP.board.find(c => c && (c.isBossCard || c.tier === 5));
+        if (bossUnit) {
+          pushFx(state, { type: 'bossSpecialty', owner: 'bot', slot: botP.board.indexOf(bossUnit), kind: 'hellfireBlast' });
         }
-      });
-      pushFx(state, { type: 'bossSpecialty', owner: 'bot', slot: botP.board.indexOf(bossUnit), kind: 'hellfireBlast' });
-      if (typeof showToast === 'function') showToast(`🌋 Hellfire Blast seared your units!`, 2500);
+      }
     }
-
-    if (isBossAlive && state.trialTowerModifiers.includes('boss_iron_wall')) {
+    if (state.trialTowerModifiers.includes('boss_iron_wall')) {
       // Trigger dust storm on round 4, 8, 12, etc. (every 4 rounds)
       if (state.round > 1 && (state.round % 4 === 0)) {
         pushLog(state, `💨 Barbod throws blinding scam dust at the screen!`);
-        pushFx(state, { type: 'bossSpecialty', owner: 'bot', slot: botP.board.indexOf(bossUnit), kind: 'dustStorm' });
+        const bossUnit = botP.board.find(c => c && (c.isBossCard || c.tier === 5));
+        if (bossUnit) {
+          pushFx(state, { type: 'bossSpecialty', owner: 'bot', slot: botP.board.indexOf(bossUnit), kind: 'dustStorm' });
+        }
+        if (typeof window !== 'undefined' && typeof window.triggerBarbodDustEffect === 'function') {
+          setTimeout(() => {
+            window.triggerBarbodDustEffect();
+          }, 800);
+        }
       }
     }
   }
@@ -1671,71 +1521,18 @@ function emergencySalvage(state, playerKey, blueprintIndex) {
   return { ok: true, removedName: removed.name };
 }
 
-function applyDebuff(state, debuffId, card, slot = -1) {
-  if (!debuffId) return;
-  let curseNum = 0;
-  if (typeof debuffId === 'string' && debuffId.startsWith('curse_')) {
-    const parts = debuffId.split('_');
-    const num = parseInt(parts[1]);
-    if (!isNaN(num)) curseNum = num;
-  }
-
-  if (curseNum > 0) {
-    if (curseNum <= 40) {
-      if (curseNum > 20) {
-        card.maxHp = Math.max(1, card.maxHp - 1);
-        card.hp = Math.min(card.hp, card.maxHp);
-      }
-    } else if (curseNum <= 80) {
-      card.maxHp = Math.max(1, card.maxHp - 1);
-      card.hp = Math.min(card.hp, card.maxHp);
-      card.dmg = Math.max(0, card.dmg - 1);
-    } else {
-      card.maxHp = Math.max(1, card.maxHp - 2);
-      card.hp = Math.min(card.hp, card.maxHp);
-      card.dmg = Math.max(0, card.dmg - 1);
-      card.vulnerable = true;
-      card.withering = true;
-    }
-  }
-
+function applyDebuff(state, debuffId, card) {
   switch (debuffId) {
-    case 'curse_miasma':
-    case 'd2':
-    case 'd5':
-      card.maxHp = Math.max(1, card.maxHp - 1);
-      card.hp = Math.min(card.hp, card.maxHp);
-      break;
-    case 'curse_shackles':
-      if (slot === 0) {
-        card.dmg = Math.max(0, card.dmg - 2);
-      }
-      break;
-    case 'curse_corroded':
-    case 'curse_shattered_shields':
-      card.bonusDefendCharge = 0;
-      break;
-    case 'curse_withering':
-    case 'd10':
-      card.withering = true;
-      break;
-    case 'curse_sandstorm':
-    case 'd6':
-      card.missChance = 0.20;
-      break;
-    case 'd1':
-    case 'd4':
-      card.dmg = Math.max(0, card.dmg - 1);
-      break;
-    case 'd3':
-      card.dmg = Math.max(0, card.dmg - 1);
-      card.hp = Math.max(1, card.hp - 1);
-      break;
-    case 'd8':
-      card.vulnerable = true;
-      break;
-    default:
-      break;
+    case 'd1': card.atk = Math.max(0, card.atk - 1); break;
+    case 'd2': card.hp = Math.max(1, card.hp - 1); break;
+    case 'd3': card.atk = Math.max(0, card.atk - 1); card.hp = Math.max(1, card.hp - 1); break;
+    case 'd4': card.atk = Math.max(0, card.atk - 2); break;
+    case 'd5': card.hp = Math.max(1, card.hp - 1); break;
+    case 'd6': /* Accuracy reduction */ break;
+    case 'd7': /* Abilities disabled */ break;
+    case 'd8': /* Damage taken +1 */ break;
+    case 'd9': /* Cannot attack */ break;
+    case 'd10': /* Healing reduction */ break;
   }
 }
 
@@ -1751,7 +1548,7 @@ function applyAction(state, action) {
       // the older { slotA, slotB } pair format, for any caller that hasn't
       // been updated - both always route through the same merge logic.
       const slots = Array.isArray(action.slots) ? action.slots : [action.slotA, action.slotB];
-      result = mergeCards(state, action.player, slots, action.blueprintIndex, action.jonesSpellId);
+      result = mergeCards(state, action.player, slots, action.blueprintIndex);
       break;
     }
     case 'spell': result = castSpell(state, action.player, action.spellId, action.targetOwner, action.targetSlot, action.sacSpellId); break;

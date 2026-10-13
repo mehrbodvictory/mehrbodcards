@@ -14,9 +14,7 @@ function filledSlots(board) {
 
 function runBotPlacement(state, botKey, difficulty, rng) {
   const p = state.players[botKey];
-  const isTrialTowerBot = botKey === 'bot' && (state.isTrialTower || (typeof trialTowerActive !== 'undefined' && trialTowerActive));
-  const baseLevel = DIFFICULTIES.indexOf(difficulty);
-  const level = isTrialTowerBot ? Math.max(4, baseLevel) : baseLevel;
+  const level = DIFFICULTIES.indexOf(difficulty);
 
   // 0. BOSS DEPLOYMENT: Always deploy Boss Card immediately into slot 0 if sitting in deck!
   const bossDeckIdx = p.deck.findIndex(c => c && (c.isBossCard || c.tier === 5));
@@ -29,23 +27,18 @@ function runBotPlacement(state, botKey, difficulty, rng) {
   }
 
   // 1. Place cards from the deck into empty slots, resolving forced
-  // Blue-merges continuously without halting placement.
+  // Blue-merges as soon as they come up.
   let placementAttempts = 0;
-  while (emptySlots(p.board).length > 0 && placementAttempts < 25) {
+  while (emptySlots(p.board).length > 0 && !isForced(state, botKey) && placementAttempts < 15) {
     placementAttempts++;
-    if (isForced(state, botKey)) {
-      autoResolveForcedMerges(state, botKey);
-    }
-    const unitDeckIdx = p.deck.findIndex(c => c && c.kind === 'unit');
-    if (unitDeckIdx === -1) break; // nothing placeable left in deck
+    const blueDeckIdx = p.deck.findIndex(c => c.tier === 1);
+    if (blueDeckIdx === -1) break; // nothing placeable left in deck
     const slot = level >= 2 ? bestEmptySlot(p.board) : rng.pick(emptySlots(p.board));
-    const res = placeCard(state, botKey, unitDeckIdx, slot);
+    const res = placeCard(state, botKey, blueDeckIdx, slot);
     if (!res || !res.ok) {
-      break; // prevent infinite loop if placeCard fails
+      break; // prevent infinite loop if placeCard fails (e.g. invalid slot, etc.)
     }
-    if (isForced(state, botKey)) {
-      autoResolveForcedMerges(state, botKey);
-    }
+    if (isForced(state, botKey)) autoResolveForcedMerges(state, botKey);
   }
   autoResolveForcedMerges(state, botKey); // safety net
 
@@ -111,9 +104,8 @@ function tryStrategicMerge(state, botKey, rng, level) {
   // Audit Fix: Exclude Tier 4 (max) AND Tier 5 (Boss card / isBossCard) from strategic fusions!
   const filled = filledSlots(p.board).filter(i => p.board[i].tier !== 4 && p.board[i].tier !== 5 && !p.board[i].isBossCard);
   if (filled.length < 2) return false;
-  const isTrialTowerBot = botKey === 'bot' && (state.isTrialTower || (typeof trialTowerActive !== 'undefined' && trialTowerActive));
   const boardCrowded = emptySlots(p.board).length <= 1;
-  const shouldMerge = isTrialTowerBot || boardCrowded
+  const shouldMerge = boardCrowded
     || (level === 4 && rng.next() < 0.75)
     || (level === 3 && rng.next() < 0.45);
   if (!shouldMerge) return false;
@@ -185,9 +177,7 @@ function runBotAttack(state, botKey, difficulty, rng) {
   const p = state.players[botKey];
   const enemyKey = state.order.find(k => k !== botKey);
   const enemy = state.players[enemyKey];
-  const isTrialTowerBot = botKey === 'bot' && (state.isTrialTower || (typeof trialTowerActive !== 'undefined' && trialTowerActive));
-  const baseLevel = DIFFICULTIES.indexOf(difficulty);
-  const level = isTrialTowerBot ? Math.max(4, baseLevel) : baseLevel;
+  const level = DIFFICULTIES.indexOf(difficulty);
 
   // 1. Cast attack-phase spells intelligently
   if (level >= 1) {
@@ -291,11 +281,9 @@ function executeSmartSpells(state, botKey, phase, rng, level) {
   const enemyFilled = filledSlots(enemy.board);
 
   let spellsCastThisTurn = 0;
-  const isTrialTowerBot = botKey === 'bot' && (state.isTrialTower || (typeof trialTowerActive !== 'undefined' && trialTowerActive));
-  const maxSpells = isTrialTowerBot ? 3 : 2;
 
   for (const spell of p.spells.slice()) {
-    if (spellsCastThisTurn >= maxSpells) break;
+    if (spellsCastThisTurn >= 2) break;
 
     const defId = spell.defId || spell.id;
 

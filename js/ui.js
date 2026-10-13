@@ -28,13 +28,7 @@ function cardEl(card, { owner, slot, selected, defending, attacking, forceGlow, 
     else el.classList.add('pop-in-board');
   }
   if (attackAnim) el.classList.add('anim-attack');
-  if (deathAnim) {
-    if (card.isBossCard || card.tier === 5) {
-      el.classList.add('boss-death-animation');
-    } else {
-      el.classList.add('anim-death');
-    }
-  }
+  if (deathAnim) el.classList.add('anim-death');
   if (hitAnim) el.classList.add('anim-hit');
   if (mergePickNumber) el.classList.add('merge-picked');
   // A card down to its last hit point pulses red so neither player has to
@@ -107,7 +101,6 @@ const ABILITY_SHORT = {
   restore_spell: 'Play: restore a used spell',
   restore_chip: 'Play: restore a used chip',
   add_random_blue: 'Play: +1 random Blue card',
-  jones_freespell: 'Play: use 1 spell for free without losing it',
 };
 function abilityLabel(id) {
   if (ABILITY_SHORT[id]) return ABILITY_SHORT[id];
